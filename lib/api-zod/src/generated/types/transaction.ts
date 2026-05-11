@@ -20,6 +20,8 @@ export interface Transaction {
   categoryIcon: string | null;
   date: string;
   paymentMethod: string;
+  /** @nullable */
+  receiptImage: string | null;
   userId: number;
   /** @nullable */
   householdId: number | null;

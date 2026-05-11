@@ -13,4 +13,6 @@ export interface TransactionUpdate {
   categoryId?: number | null;
   date?: string;
   paymentMethod?: string;
+  /** @nullable */
+  receiptImage?: string | null;
 }

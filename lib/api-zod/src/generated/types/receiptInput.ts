@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CategoryUpdate {
-  name?: string;
-  color?: string;
-  icon?: string;
-  /** @nullable */
-  budget?: number | null;
+export interface ReceiptInput {
+  /** Base64-encoded image data URL */
+  imageData: string;
 }

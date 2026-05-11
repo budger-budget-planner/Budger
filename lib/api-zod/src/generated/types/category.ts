@@ -12,6 +12,8 @@ export interface Category {
   color: string;
   icon: string;
   /** @nullable */
+  budget: number | null;
+  /** @nullable */
   userId: number | null;
   /** @nullable */
   householdId: number | null;

@@ -9,6 +9,7 @@ export const transactionsTable = pgTable("transactions", {
   categoryId: integer("category_id"),
   date: text("date").notNull(),
   paymentMethod: text("payment_method").notNull().default("card"),
+  receiptImage: text("receipt_image"),
   userId: integer("user_id").notNull(),
   householdId: integer("household_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

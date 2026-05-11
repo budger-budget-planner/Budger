@@ -297,6 +297,48 @@ paths:
         "204":
           description: Deleted
 
+  /transactions/{id}/receipt:
+    post:
+      operationId: uploadReceipt
+      tags: [transactions]
+      summary: Attach a receipt image to a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiptInput"
+      responses:
+        "200":
+          description: Updated transaction with receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+    delete:
+      operationId: deleteReceipt
+      tags: [transactions]
+      summary: Remove a receipt image from a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated transaction without receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
   /households:
     get:
       operationId: getHousehold
@@ -514,6 +556,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: month
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: Spending summary
@@ -538,6 +584,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/MonthlyTotal"
+
+  /summary/history:
+    get:
+      operationId: getSpendingHistory
+      tags: [summary]
+      summary: Get all completed months spending history with category breakdown
+      responses:
+        "200":
+          description: Spending history by month
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthHistory"
 
   /summary/recent:
     get:
@@ -621,6 +682,8 @@ components:
           type: string
         icon:
           type: string
+        budget:
+          type: ["number", "null"]
         userId:
           type: ["integer", "null"]
         householdId:
@@ -632,6 +695,7 @@ components:
         - name
         - color
         - icon
+        - budget
         - userId
         - householdId
         - createdAt
@@ -650,6 +714,8 @@ components:
           type: string
         icon:
           type: string
+        budget:
+          type: ["number", "null"]
 
     CategoryUpdate:
       type: object
@@ -660,6 +726,8 @@ components:
           type: string
         icon:
           type: string
+        budget:
+          type: ["number", "null"]
 
     Transaction:
       type: object
@@ -682,6 +750,8 @@ components:
           type: string
         paymentMethod:
           type: string
+        receiptImage:
+          type: ["string", "null"]
         userId:
           type: integer
         householdId:
@@ -700,6 +770,7 @@ components:
         - categoryIcon
         - date
         - paymentMethod
+        - receiptImage
         - userId
         - householdId
         - userName
@@ -723,6 +794,8 @@ components:
           type: string
         paymentMethod:
           type: string
+        receiptImage:
+          type: ["string", "null"]
 
     TransactionUpdate:
       type: object
@@ -737,6 +810,17 @@ components:
           type: string
         paymentMethod:
           type: string
+        receiptImage:
+          type: ["string", "null"]
+
+    ReceiptInput:
+      type: object
+      required:
+        - imageData
+      properties:
+        imageData:
+          type: string
+          description: Base64-encoded image data URL
 
     Household:
       type: object
@@ -883,6 +967,8 @@ components:
           type: ["string", "null"]
         categoryIcon:
           type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
         total:
           type: number
         count:
@@ -894,6 +980,7 @@ components:
         - categoryName
         - categoryColor
         - categoryIcon
+        - budget
         - total
         - count
         - percentage
@@ -914,3 +1001,28 @@ components:
         - year
         - total
         - count
+
+    MonthHistory:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        month:
+          type: string
+        year:
+          type: integer
+        total:
+          type: number
+        count:
+          type: integer
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpending"
+      required:
+        - monthKey
+        - month
+        - year
+        - total
+        - count
+        - categories

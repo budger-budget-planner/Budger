@@ -9,4 +9,5 @@
 export type GetSpendingSummaryParams = {
   startDate?: string;
   endDate?: string;
+  month?: string;
 };

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, categoriesTable, usersTable } from "@workspace/db";
-import { eq, or, and, isNull } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import {
   CreateCategoryBody,
   UpdateCategoryBody,
@@ -11,6 +11,14 @@ import {
 
 const router: IRouter = Router();
 
+function formatCategory(c: any) {
+  return {
+    ...c,
+    budget: c.budget ? parseFloat(c.budget) : null,
+    createdAt: c.createdAt.toISOString(),
+  };
+}
+
 router.get("/categories", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -18,24 +26,15 @@ router.get("/categories", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) { res.status(401).json({ error: "User not found" }); return; }
 
-  let categories;
-  if (user.householdId) {
-    categories = await db.select().from(categoriesTable)
-      .where(or(
-        eq(categoriesTable.userId, userId),
-        eq(categoriesTable.householdId, user.householdId)
-      ))
-      .orderBy(categoriesTable.createdAt);
-  } else {
-    categories = await db.select().from(categoriesTable)
-      .where(eq(categoriesTable.userId, userId))
-      .orderBy(categoriesTable.createdAt);
-  }
+  const categories = user.householdId
+    ? await db.select().from(categoriesTable)
+        .where(or(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)))
+        .orderBy(categoriesTable.createdAt)
+    : await db.select().from(categoriesTable)
+        .where(eq(categoriesTable.userId, userId))
+        .orderBy(categoriesTable.createdAt);
 
-  res.json(categories.map(c => ({
-    ...c,
-    createdAt: c.createdAt.toISOString(),
-  })));
+  res.json(categories.map(formatCategory));
 });
 
 router.post("/categories", async (req, res): Promise<void> => {
@@ -43,20 +42,17 @@ router.post("/categories", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const parsed = CreateCategoryBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
-  const [category] = await db.insert(categoriesTable).values({
-    ...parsed.data,
-    userId,
-    householdId: user?.householdId ?? null,
-  }).returning();
+  const insertData: any = { ...parsed.data, userId, householdId: user?.householdId ?? null };
+  if (parsed.data.budget !== undefined && parsed.data.budget !== null) {
+    insertData.budget = String(parsed.data.budget);
+  }
 
-  res.status(201).json({ ...category, createdAt: category.createdAt.toISOString() });
+  const [category] = await db.insert(categoriesTable).values(insertData).returning();
+  res.status(201).json(formatCategory(category));
 });
 
 router.get("/categories/:id", async (req, res): Promise<void> => {
@@ -69,7 +65,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
   const [category] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
 
-  res.json({ ...category, createdAt: category.createdAt.toISOString() });
+  res.json(formatCategory(category));
 });
 
 router.patch("/categories/:id", async (req, res): Promise<void> => {
@@ -82,14 +78,19 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
   const parsed = UpdateCategoryBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  const updateData: any = { ...parsed.data };
+  if (parsed.data.budget !== undefined) {
+    updateData.budget = parsed.data.budget !== null ? String(parsed.data.budget) : null;
+  }
+
   const [category] = await db.update(categoriesTable)
-    .set(parsed.data)
+    .set(updateData)
     .where(eq(categoriesTable.id, params.data.id))
     .returning();
 
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
 
-  res.json({ ...category, createdAt: category.createdAt.toISOString() });
+  res.json(formatCategory(category));
 });
 
 router.delete("/categories/:id", async (req, res): Promise<void> => {

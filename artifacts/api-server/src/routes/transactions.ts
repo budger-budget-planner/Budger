@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
-import { eq, and, or, gte, lte, desc } from "drizzle-orm";
+import { eq, or, desc } from "drizzle-orm";
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -9,7 +9,6 @@ import {
   GetTransactionParams,
   ListTransactionsQueryParams,
 } from "@workspace/api-zod";
-
 const router: IRouter = Router();
 
 function enrichTransaction(tx: any, category: any, user: any) {
@@ -23,6 +22,7 @@ function enrichTransaction(tx: any, category: any, user: any) {
     categoryIcon: category?.icon ?? null,
     date: tx.date,
     paymentMethod: tx.paymentMethod,
+    receiptImage: tx.receiptImage ?? null,
     userId: tx.userId,
     householdId: tx.householdId,
     userName: user?.name ?? null,
@@ -45,7 +45,7 @@ router.get("/transactions", async (req, res): Promise<void> => {
         ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
         : eq(transactionsTable.userId, userId)
     )
-    .orderBy(desc(transactionsTable.createdAt));
+    .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt));
 
   const categories = await db.select().from(categoriesTable);
   const users = await db.select().from(usersTable);
@@ -54,21 +54,11 @@ router.get("/transactions", async (req, res): Promise<void> => {
 
   let result = txs.map(tx => enrichTransaction(tx, tx.categoryId ? catMap.get(tx.categoryId) : null, userMap.get(tx.userId)));
 
-  if (query.data.categoryId) {
-    result = result.filter(t => t.categoryId === query.data.categoryId);
-  }
-  if (query.data.startDate) {
-    result = result.filter(t => t.date >= query.data.startDate!);
-  }
-  if (query.data.endDate) {
-    result = result.filter(t => t.date <= query.data.endDate!);
-  }
-  if (query.data.offset) {
-    result = result.slice(query.data.offset);
-  }
-  if (query.data.limit) {
-    result = result.slice(0, query.data.limit);
-  }
+  if (query.data.categoryId) result = result.filter(t => t.categoryId === query.data.categoryId);
+  if (query.data.startDate) result = result.filter(t => t.date >= query.data.startDate!);
+  if (query.data.endDate) result = result.filter(t => t.date <= query.data.endDate!);
+  if (query.data.offset) result = result.slice(query.data.offset);
+  if (query.data.limit) result = result.slice(0, query.data.limit);
 
   res.json(result);
 });
@@ -78,10 +68,7 @@ router.post("/transactions", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const parsed = CreateTransactionBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
@@ -124,9 +111,7 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const updateData: any = { ...parsed.data };
-  if (parsed.data.amount !== undefined) {
-    updateData.amount = String(parsed.data.amount);
-  }
+  if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
 
   const [tx] = await db.update(transactionsTable)
     .set(updateData)
@@ -150,6 +135,51 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
 
   await db.delete(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   res.sendStatus(204);
+});
+
+router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { imageData } = req.body as { imageData?: string };
+  if (!imageData || typeof imageData !== "string") {
+    res.status(400).json({ error: "imageData is required" }); return;
+  }
+
+  const [tx] = await db.update(transactionsTable)
+    .set({ receiptImage: imageData })
+    .where(eq(transactionsTable.id, id))
+    .returning();
+
+  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+
+  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+
+  res.json(enrichTransaction(tx, category, user));
+});
+
+router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [tx] = await db.update(transactionsTable)
+    .set({ receiptImage: null })
+    .where(eq(transactionsTable.id, id))
+    .returning();
+
+  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+
+  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+
+  res.json(enrichTransaction(tx, category, user));
 });
 
 export default router;

@@ -15,6 +15,8 @@ export interface CategorySpending {
   categoryColor: string | null;
   /** @nullable */
   categoryIcon: string | null;
+  /** @nullable */
+  budget: number | null;
   total: number;
   count: number;
   percentage: number;

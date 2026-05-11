@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -7,6 +7,7 @@ export const categoriesTable = pgTable("categories", {
   name: text("name").notNull(),
   color: text("color").notNull().default("#6366f1"),
   icon: text("icon").notNull().default("tag"),
+  budget: numeric("budget", { precision: 12, scale: 2 }),
   userId: integer("user_id"),
   householdId: integer("household_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

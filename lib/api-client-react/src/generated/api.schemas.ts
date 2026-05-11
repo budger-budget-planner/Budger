@@ -36,6 +36,8 @@ export interface Category {
   color: string;
   icon: string;
   /** @nullable */
+  budget: number | null;
+  /** @nullable */
   userId: number | null;
   /** @nullable */
   householdId: number | null;
@@ -47,12 +49,16 @@ export interface CategoryInput {
   name: string;
   color: string;
   icon: string;
+  /** @nullable */
+  budget?: number | null;
 }
 
 export interface CategoryUpdate {
   name?: string;
   color?: string;
   icon?: string;
+  /** @nullable */
+  budget?: number | null;
 }
 
 export interface Transaction {
@@ -69,6 +75,8 @@ export interface Transaction {
   categoryIcon: string | null;
   date: string;
   paymentMethod: string;
+  /** @nullable */
+  receiptImage: string | null;
   userId: number;
   /** @nullable */
   householdId: number | null;
@@ -84,6 +92,8 @@ export interface TransactionInput {
   categoryId?: number | null;
   date: string;
   paymentMethod: string;
+  /** @nullable */
+  receiptImage?: string | null;
 }
 
 export interface TransactionUpdate {
@@ -93,6 +103,13 @@ export interface TransactionUpdate {
   categoryId?: number | null;
   date?: string;
   paymentMethod?: string;
+  /** @nullable */
+  receiptImage?: string | null;
+}
+
+export interface ReceiptInput {
+  /** Base64-encoded image data URL */
+  imageData: string;
 }
 
 export interface Household {
@@ -161,6 +178,8 @@ export interface CategorySpending {
   categoryColor: string | null;
   /** @nullable */
   categoryIcon: string | null;
+  /** @nullable */
+  budget: number | null;
   total: number;
   count: number;
   percentage: number;
@@ -171,6 +190,15 @@ export interface MonthlyTotal {
   year: number;
   total: number;
   count: number;
+}
+
+export interface MonthHistory {
+  monthKey: string;
+  month: string;
+  year: number;
+  total: number;
+  count: number;
+  categories: CategorySpending[];
 }
 
 export type ListTransactionsParams = {
@@ -184,6 +212,7 @@ export type ListTransactionsParams = {
 export type GetSpendingSummaryParams = {
   startDate?: string;
   endDate?: string;
+  month?: string;
 };
 
 export type GetRecentActivityParams = {

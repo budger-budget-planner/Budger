@@ -32,9 +32,11 @@ import type {
   InviteInput,
   ListTransactionsParams,
   LoginInput,
+  MonthHistory,
   MonthlyTotal,
   NotificationSettings,
   NotificationSettingsInput,
+  ReceiptInput,
   Transaction,
   TransactionInput,
   TransactionUpdate,
@@ -1301,6 +1303,177 @@ export const useDeleteTransaction = <
 };
 
 /**
+ * @summary Attach a receipt image to a transaction
+ */
+export const getUploadReceiptUrl = (id: number) => {
+  return `/api/transactions/${id}/receipt`;
+};
+
+export const uploadReceipt = async (
+  id: number,
+  receiptInput: ReceiptInput,
+  options?: RequestInit,
+): Promise<Transaction> => {
+  return customFetch<Transaction>(getUploadReceiptUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(receiptInput),
+  });
+};
+
+export const getUploadReceiptMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadReceipt>>,
+    TError,
+    { id: number; data: BodyType<ReceiptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadReceipt>>,
+  TError,
+  { id: number; data: BodyType<ReceiptInput> },
+  TContext
+> => {
+  const mutationKey = ["uploadReceipt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadReceipt>>,
+    { id: number; data: BodyType<ReceiptInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return uploadReceipt(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadReceiptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadReceipt>>
+>;
+export type UploadReceiptMutationBody = BodyType<ReceiptInput>;
+export type UploadReceiptMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Attach a receipt image to a transaction
+ */
+export const useUploadReceipt = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadReceipt>>,
+    TError,
+    { id: number; data: BodyType<ReceiptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadReceipt>>,
+  TError,
+  { id: number; data: BodyType<ReceiptInput> },
+  TContext
+> => {
+  return useMutation(getUploadReceiptMutationOptions(options));
+};
+
+/**
+ * @summary Remove a receipt image from a transaction
+ */
+export const getDeleteReceiptUrl = (id: number) => {
+  return `/api/transactions/${id}/receipt`;
+};
+
+export const deleteReceipt = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Transaction> => {
+  return customFetch<Transaction>(getDeleteReceiptUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteReceiptMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteReceipt>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteReceipt>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteReceipt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteReceipt>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteReceipt(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteReceiptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteReceipt>>
+>;
+
+export type DeleteReceiptMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a receipt image from a transaction
+ */
+export const useDeleteReceipt = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteReceipt>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteReceipt>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteReceiptMutationOptions(options));
+};
+
+/**
  * @summary Get current user's household
  */
 export const getGetHouseholdUrl = () => {
@@ -2524,6 +2697,81 @@ export function useGetMonthlySummary<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMonthlySummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get all completed months spending history with category breakdown
+ */
+export const getGetSpendingHistoryUrl = () => {
+  return `/api/summary/history`;
+};
+
+export const getSpendingHistory = async (
+  options?: RequestInit,
+): Promise<MonthHistory[]> => {
+  return customFetch<MonthHistory[]>(getGetSpendingHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSpendingHistoryQueryKey = () => {
+  return [`/api/summary/history`] as const;
+};
+
+export const getGetSpendingHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSpendingHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSpendingHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSpendingHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSpendingHistory>>
+  > = ({ signal }) => getSpendingHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSpendingHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSpendingHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSpendingHistory>>
+>;
+export type GetSpendingHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all completed months spending history with category breakdown
+ */
+
+export function useGetSpendingHistory<
+  TData = Awaited<ReturnType<typeof getSpendingHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSpendingHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSpendingHistoryQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

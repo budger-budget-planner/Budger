@@ -8,13 +8,7 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/summary/spending", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-
-  const query = GetSpendingSummaryQueryParams.safeParse(req.query);
-  if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
-
+async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean) {
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const txs = await db.select().from(transactionsTable)
     .where(
@@ -26,17 +20,13 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
   const categories = await db.select().from(categoriesTable);
   const catMap = new Map(categories.map(c => [c.id, c]));
 
-  let filtered = txs;
-  if (query.data.startDate) filtered = filtered.filter(t => t.date >= query.data.startDate!);
-  if (query.data.endDate) filtered = filtered.filter(t => t.date <= query.data.endDate!);
+  const filtered = filterFn ? txs.filter(filterFn) : txs;
 
   const grouped = new Map<string, { total: number; count: number; category: any }>();
   for (const tx of filtered) {
     const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
     const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
-    if (!grouped.has(key)) {
-      grouped.set(key, { total: 0, count: 0, category });
-    }
+    if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
     const entry = grouped.get(key)!;
     entry.total += parseFloat(tx.amount);
     entry.count += 1;
@@ -44,16 +34,30 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
 
-  const result = Array.from(grouped.entries()).map(([key, entry]) => ({
+  return Array.from(grouped.entries()).map(([key, entry]) => ({
     categoryId: key === "uncategorized" ? null : parseInt(key),
     categoryName: entry.category?.name ?? "Uncategorized",
     categoryColor: entry.category?.color ?? "#94a3b8",
     categoryIcon: entry.category?.icon ?? "tag",
+    budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
     total: Math.round(entry.total * 100) / 100,
     count: entry.count,
     percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
   })).sort((a, b) => b.total - a.total);
+}
 
+router.get("/summary/spending", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const query = GetSpendingSummaryQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthPrefix = (query.data as any).month ?? currentMonth;
+
+  const result = await getSpendingGrouped(userId, t => t.date.startsWith(monthPrefix));
   res.json(result);
 });
 
@@ -77,21 +81,80 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const year = d.getFullYear();
     const month = d.getMonth();
-    const monthStr = String(month + 1).padStart(2, "0");
-    const prefix = `${year}-${monthStr}`;
-
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
     const monthTxs = txs.filter(t => t.date.startsWith(prefix));
     const total = monthTxs.reduce((s, t) => s + parseFloat(t.amount), 0);
-
-    results.push({
-      month: monthNames[month],
-      year,
-      total: Math.round(total * 100) / 100,
-      count: monthTxs.length,
-    });
+    results.push({ month: monthNames[month], year, total: Math.round(total * 100) / 100, count: monthTxs.length });
   }
 
   res.json(results);
+});
+
+router.get("/summary/history", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const txs = await db.select().from(transactionsTable)
+    .where(
+      currentUser?.householdId
+        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
+        : eq(transactionsTable.userId, userId)
+    )
+    .orderBy(desc(transactionsTable.date));
+
+  const categories = await db.select().from(categoriesTable);
+  const catMap = new Map(categories.map(c => [c.id, c]));
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const monthMap = new Map<string, { txs: any[] }>();
+  for (const tx of txs) {
+    const prefix = tx.date.substring(0, 7);
+    if (!monthMap.has(prefix)) monthMap.set(prefix, { txs: [] });
+    monthMap.get(prefix)!.txs.push(tx);
+  }
+
+  const history = Array.from(monthMap.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([monthKey, { txs: monthTxs }]) => {
+      const [yearStr, monthStr] = monthKey.split("-");
+      const year = parseInt(yearStr);
+      const monthIdx = parseInt(monthStr) - 1;
+
+      const grouped = new Map<string, { total: number; count: number; category: any }>();
+      for (const tx of monthTxs) {
+        const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
+        const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
+        if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
+        const entry = grouped.get(key)!;
+        entry.total += parseFloat(tx.amount);
+        entry.count += 1;
+      }
+
+      const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
+      const cats = Array.from(grouped.entries()).map(([key, entry]) => ({
+        categoryId: key === "uncategorized" ? null : parseInt(key),
+        categoryName: entry.category?.name ?? "Uncategorized",
+        categoryColor: entry.category?.color ?? "#94a3b8",
+        categoryIcon: entry.category?.icon ?? "tag",
+        budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
+        total: Math.round(entry.total * 100) / 100,
+        count: entry.count,
+        percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
+      })).sort((a, b) => b.total - a.total);
+
+      return {
+        monthKey,
+        month: monthNames[monthIdx],
+        year,
+        total: Math.round(grandTotal * 100) / 100,
+        count: monthTxs.length,
+        categories: cats,
+      };
+    });
+
+  res.json(history);
 });
 
 router.get("/summary/recent", async (req, res): Promise<void> => {
@@ -110,7 +173,7 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
         ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
         : eq(transactionsTable.userId, userId)
     )
-    .orderBy(desc(transactionsTable.createdAt))
+    .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt))
     .limit(limit);
 
   const categories = await db.select().from(categoriesTable);
@@ -128,6 +191,7 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
     categoryIcon: tx.categoryId ? catMap.get(tx.categoryId)?.icon ?? null : null,
     date: tx.date,
     paymentMethod: tx.paymentMethod,
+    receiptImage: tx.receiptImage ?? null,
     userId: tx.userId,
     householdId: tx.householdId,
     userName: userMap.get(tx.userId)?.name ?? null,

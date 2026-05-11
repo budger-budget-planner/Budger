@@ -66,6 +66,7 @@ export const ListCategoriesResponseItem = zod.object({
   name: zod.string(),
   color: zod.string(),
   icon: zod.string(),
+  budget: zod.number().nullable(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
   createdAt: zod.string(),
@@ -80,6 +81,7 @@ export const CreateCategoryBody = zod.object({
   name: zod.string().min(1),
   color: zod.string(),
   icon: zod.string(),
+  budget: zod.number().nullish(),
 });
 
 /**
@@ -94,6 +96,7 @@ export const GetCategoryResponse = zod.object({
   name: zod.string(),
   color: zod.string(),
   icon: zod.string(),
+  budget: zod.number().nullable(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
   createdAt: zod.string(),
@@ -110,6 +113,7 @@ export const UpdateCategoryBody = zod.object({
   name: zod.string().optional(),
   color: zod.string().optional(),
   icon: zod.string().optional(),
+  budget: zod.number().nullish(),
 });
 
 export const UpdateCategoryResponse = zod.object({
@@ -117,6 +121,7 @@ export const UpdateCategoryResponse = zod.object({
   name: zod.string(),
   color: zod.string(),
   icon: zod.string(),
+  budget: zod.number().nullable(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
   createdAt: zod.string(),
@@ -150,6 +155,7 @@ export const ListTransactionsResponseItem = zod.object({
   categoryIcon: zod.string().nullable(),
   date: zod.string(),
   paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
   userId: zod.number(),
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
@@ -166,6 +172,7 @@ export const CreateTransactionBody = zod.object({
   categoryId: zod.number().nullish(),
   date: zod.string(),
   paymentMethod: zod.string(),
+  receiptImage: zod.string().nullish(),
 });
 
 /**
@@ -185,6 +192,7 @@ export const GetTransactionResponse = zod.object({
   categoryIcon: zod.string().nullable(),
   date: zod.string(),
   paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
   userId: zod.number(),
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
@@ -204,6 +212,7 @@ export const UpdateTransactionBody = zod.object({
   categoryId: zod.number().nullish(),
   date: zod.string().optional(),
   paymentMethod: zod.string().optional(),
+  receiptImage: zod.string().nullish(),
 });
 
 export const UpdateTransactionResponse = zod.object({
@@ -216,6 +225,7 @@ export const UpdateTransactionResponse = zod.object({
   categoryIcon: zod.string().nullable(),
   date: zod.string(),
   paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
   userId: zod.number(),
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
@@ -227,6 +237,58 @@ export const UpdateTransactionResponse = zod.object({
  */
 export const DeleteTransactionParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Attach a receipt image to a transaction
+ */
+export const UploadReceiptParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UploadReceiptBody = zod.object({
+  imageData: zod.string().describe("Base64-encoded image data URL"),
+});
+
+export const UploadReceiptResponse = zod.object({
+  id: zod.number(),
+  amount: zod.number(),
+  description: zod.string(),
+  categoryId: zod.number().nullable(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  categoryIcon: zod.string().nullable(),
+  date: zod.string(),
+  paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  userName: zod.string().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Remove a receipt image from a transaction
+ */
+export const DeleteReceiptParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteReceiptResponse = zod.object({
+  id: zod.number(),
+  amount: zod.number(),
+  description: zod.string(),
+  categoryId: zod.number().nullable(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  categoryIcon: zod.string().nullable(),
+  date: zod.string(),
+  paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  userName: zod.string().nullable(),
+  createdAt: zod.string(),
 });
 
 /**
@@ -381,6 +443,7 @@ export const UpdateNotificationSettingsResponse = zod.object({
 export const GetSpendingSummaryQueryParams = zod.object({
   startDate: zod.coerce.string().optional(),
   endDate: zod.coerce.string().optional(),
+  month: zod.coerce.string().optional(),
 });
 
 export const GetSpendingSummaryResponseItem = zod.object({
@@ -388,6 +451,7 @@ export const GetSpendingSummaryResponseItem = zod.object({
   categoryName: zod.string().nullable(),
   categoryColor: zod.string().nullable(),
   categoryIcon: zod.string().nullable(),
+  budget: zod.number().nullable(),
   total: zod.number(),
   count: zod.number(),
   percentage: zod.number(),
@@ -410,6 +474,32 @@ export const GetMonthlySummaryResponse = zod.array(
 );
 
 /**
+ * @summary Get all completed months spending history with category breakdown
+ */
+export const GetSpendingHistoryResponseItem = zod.object({
+  monthKey: zod.string(),
+  month: zod.string(),
+  year: zod.number(),
+  total: zod.number(),
+  count: zod.number(),
+  categories: zod.array(
+    zod.object({
+      categoryId: zod.number().nullable(),
+      categoryName: zod.string().nullable(),
+      categoryColor: zod.string().nullable(),
+      categoryIcon: zod.string().nullable(),
+      budget: zod.number().nullable(),
+      total: zod.number(),
+      count: zod.number(),
+      percentage: zod.number(),
+    }),
+  ),
+});
+export const GetSpendingHistoryResponse = zod.array(
+  GetSpendingHistoryResponseItem,
+);
+
+/**
  * @summary Get recent transactions with enriched data
  */
 export const GetRecentActivityQueryParams = zod.object({
@@ -426,6 +516,7 @@ export const GetRecentActivityResponseItem = zod.object({
   categoryIcon: zod.string().nullable(),
   date: zod.string(),
   paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
   userId: zod.number(),
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),

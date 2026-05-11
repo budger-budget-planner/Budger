@@ -11,4 +11,6 @@ export interface CategoryInput {
   name: string;
   color: string;
   icon: string;
+  /** @nullable */
+  budget?: number | null;
 }
