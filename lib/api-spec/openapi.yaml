@@ -1,22 +1,35 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Finance Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: categories
+    description: Spending categories
+  - name: transactions
+    description: Financial transactions
+  - name: households
+    description: Household management
+  - name: invites
+    description: Household invites
+  - name: notifications
+    description: Notification settings
+  - name: summary
+    description: Dashboard summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,528 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthenticated
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories for the current user/household
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a new category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    get:
+      operationId: getCategory
+      tags: [categories]
+      summary: Get a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List transactions with optional filters
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create a new transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTransaction
+      tags: [transactions]
+      summary: Update a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionUpdate"
+      responses:
+        "200":
+          description: Updated transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      summary: Delete a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /households:
+    get:
+      operationId: getHousehold
+      tags: [households]
+      summary: Get current user's household
+      responses:
+        "200":
+          description: Household
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+        "404":
+          description: No household
+    post:
+      operationId: createHousehold
+      tags: [households]
+      summary: Create a household
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HouseholdInput"
+      responses:
+        "201":
+          description: Created household
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+    patch:
+      operationId: updateHousehold
+      tags: [households]
+      summary: Update household
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HouseholdUpdate"
+      responses:
+        "200":
+          description: Updated household
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+
+  /households/members:
+    get:
+      operationId: listHouseholdMembers
+      tags: [households]
+      summary: List household members
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HouseholdMember"
+
+  /households/members/{userId}:
+    delete:
+      operationId: removeHouseholdMember
+      tags: [households]
+      summary: Remove a household member
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /households/leave:
+    post:
+      operationId: leaveHousehold
+      tags: [households]
+      summary: Leave the current household
+      responses:
+        "200":
+          description: Left household
+
+  /invites:
+    post:
+      operationId: createInvite
+      tags: [invites]
+      summary: Invite someone to the household
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "201":
+          description: Created invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+    get:
+      operationId: listInvites
+      tags: [invites]
+      summary: List pending invites for the household
+      responses:
+        "200":
+          description: Invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invite"
+
+  /invites/{token}/accept:
+    post:
+      operationId: acceptInvite
+      tags: [invites]
+      summary: Accept a household invite
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Accepted invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+
+  /invites/{token}:
+    get:
+      operationId: getInvite
+      tags: [invites]
+      summary: Get invite info by token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+        "404":
+          description: Invite not found or expired
+    delete:
+      operationId: cancelInvite
+      tags: [invites]
+      summary: Cancel an invite
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Cancelled
+
+  /notifications:
+    get:
+      operationId: getNotificationSettings
+      tags: [notifications]
+      summary: Get notification settings for current user
+      responses:
+        "200":
+          description: Notification settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+    put:
+      operationId: updateNotificationSettings
+      tags: [notifications]
+      summary: Update notification settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSettingsInput"
+      responses:
+        "200":
+          description: Updated notification settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+
+  /summary/spending:
+    get:
+      operationId: getSpendingSummary
+      tags: [summary]
+      summary: Get spending summary by category for a period
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Spending summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpending"
+
+  /summary/monthly:
+    get:
+      operationId: getMonthlySummary
+      tags: [summary]
+      summary: Get monthly spending totals for the last 6 months
+      responses:
+        "200":
+          description: Monthly totals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyTotal"
+
+  /summary/recent:
+    get:
+      operationId: getRecentActivity
+      tags: [summary]
+      summary: Get recent transactions with enriched data
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +569,348 @@ components:
       required:
         - status
 
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        householdId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - householdId
+        - createdAt
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+
+    LoginInput:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        userId:
+          type: ["integer", "null"]
+        householdId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - color
+        - icon
+        - userId
+        - householdId
+        - createdAt
+
+    CategoryInput:
+      type: object
+      required:
+        - name
+        - color
+        - icon
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+        icon:
+          type: string
+
+    CategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+        description:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: ["string", "null"]
+        categoryColor:
+          type: ["string", "null"]
+        categoryIcon:
+          type: ["string", "null"]
+        date:
+          type: string
+        paymentMethod:
+          type: string
+        userId:
+          type: integer
+        householdId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - amount
+        - description
+        - categoryId
+        - categoryName
+        - categoryColor
+        - categoryIcon
+        - date
+        - paymentMethod
+        - userId
+        - householdId
+        - userName
+        - createdAt
+
+    TransactionInput:
+      type: object
+      required:
+        - amount
+        - description
+        - date
+        - paymentMethod
+      properties:
+        amount:
+          type: number
+        description:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        date:
+          type: string
+        paymentMethod:
+          type: string
+
+    TransactionUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+        description:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        date:
+          type: string
+        paymentMethod:
+          type: string
+
+    Household:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ownerId:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - ownerId
+        - createdAt
+
+    HouseholdInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    HouseholdUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+
+    HouseholdMember:
+      type: object
+      properties:
+        userId:
+          type: integer
+        householdId:
+          type: integer
+        role:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        joinedAt:
+          type: string
+      required:
+        - userId
+        - householdId
+        - role
+        - name
+        - email
+        - joinedAt
+
+    Invite:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        token:
+          type: string
+        householdId:
+          type: integer
+        householdName:
+          type: ["string", "null"]
+        status:
+          type: string
+        expiresAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+        - token
+        - householdId
+        - householdName
+        - status
+        - expiresAt
+        - createdAt
+
+    InviteInput:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          minLength: 1
+
+    NotificationSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        enabled:
+          type: boolean
+        reminderTime:
+          type: string
+        days:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - enabled
+        - reminderTime
+        - days
+        - createdAt
+
+    NotificationSettingsInput:
+      type: object
+      required:
+        - enabled
+        - reminderTime
+        - days
+      properties:
+        enabled:
+          type: boolean
+        reminderTime:
+          type: string
+        days:
+          type: array
+          items:
+            type: string
+
+    CategorySpending:
+      type: object
+      properties:
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: ["string", "null"]
+        categoryColor:
+          type: ["string", "null"]
+        categoryIcon:
+          type: ["string", "null"]
+        total:
+          type: number
+        count:
+          type: integer
+        percentage:
+          type: number
+      required:
+        - categoryId
+        - categoryName
+        - categoryColor
+        - categoryIcon
+        - total
+        - count
+        - percentage
+
+    MonthlyTotal:
+      type: object
+      properties:
+        month:
+          type: string
+        year:
+          type: integer
+        total:
+          type: number
+        count:
+          type: integer
+      required:
+        - month
+        - year
+        - total
+        - count
