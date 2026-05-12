@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ArrowLeftRight, Tag, Users, Bell, LogOut, X } from "lucide-react";
+import { LayoutDashboard, Tag, Users, Bell, LogOut, X } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 
 const nav = [
-  { href: "/",              label: "Home",      icon: LayoutDashboard },
-  { href: "/transactions",  label: "Spending",  icon: ArrowLeftRight  },
-  { href: "/categories",    label: "Categories",icon: Tag             },
-  { href: "/household",     label: "Household", icon: Users           },
-  { href: "/notifications", label: "Alerts",    icon: Bell            },
+  { href: "/dashboard",     label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/categories",    label: "Categories", icon: Tag             },
+  { href: "/household",     label: "Household",  icon: Users           },
+  { href: "/notifications", label: "Alerts",     icon: Bell            },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -34,10 +33,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Top header ── */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-14
                          bg-background/90 backdrop-blur border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <BadgerLogo size={28} />
-          <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
-        </div>
+        <Link href="/">
+          <a className="flex items-center gap-2.5">
+            <BadgerLogo size={28} />
+            <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
+          </a>
+        </Link>
         <button
           onClick={() => setShowProfile(true)}
           className="w-8 h-8 rounded-full bg-muted border border-border
@@ -52,10 +53,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Profile / logout bottom sheet ── */}
       {showProfile && (
         <>
-          <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowProfile(false)}
-          />
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setShowProfile(false)} />
           <div className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-border
                           rounded-t-3xl px-5 pt-5 pb-10 space-y-4">
             <div className="flex items-center justify-between mb-1">
@@ -63,10 +61,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <p className="font-semibold text-foreground">{user?.name}</p>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
-              <button
-                onClick={() => setShowProfile(false)}
-                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"
-              >
+              <button onClick={() => setShowProfile(false)}
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -74,8 +70,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
-              className="flex items-center gap-3 w-full px-1 py-2 text-destructive
-                         transition active:opacity-70 disabled:opacity-40"
+              className="flex items-center gap-3 w-full px-1 py-2 text-destructive transition active:opacity-70 disabled:opacity-40"
             >
               <LogOut className="w-4 h-4" />
               <span className="font-medium">{logout.isPending ? "Signing out…" : "Sign out"}</span>
@@ -89,12 +84,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* ── Bottom navigation ── */}
+      {/* ── Bottom navigation — 4 tabs ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 h-16
                       bg-card/95 backdrop-blur border-t border-border
                       flex items-stretch">
         {nav.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? location === "/" : location.startsWith(href);
+          const active = location.startsWith(href);
           return (
             <Link key={href} href={href} className="flex-1">
               <a
@@ -102,11 +97,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 className="flex flex-col items-center justify-center h-full gap-0.5 transition-colors"
               >
                 <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-muted" : ""}`}>
-                  <Icon
-                    className="w-5 h-5"
-                    strokeWidth={active ? 2.2 : 1.6}
-                    color={active ? "white" : "rgb(107 114 128)"}
-                  />
+                  <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.6}
+                    color={active ? "white" : "rgb(107 114 128)"} />
                 </div>
                 <span className={`text-[10px] font-medium leading-none transition-colors
                   ${active ? "text-foreground" : "text-muted-foreground"}`}>

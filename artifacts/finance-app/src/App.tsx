@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGetMe } from "@workspace/api-client-react";
 import Layout from "@/components/Layout";
 import LoginPage from "@/pages/Login";
+import HomeSpending from "@/pages/HomeSpending";
 import DashboardPage from "@/pages/Dashboard";
 import TransactionsPage from "@/pages/Transactions";
 import CategoriesPage from "@/pages/Categories";
@@ -52,7 +53,11 @@ function Router() {
         <AuthGuard>
           <Layout>
             <Switch>
-              <Route path="/" component={DashboardPage} />
+              {/* Home = current month spending list */}
+              <Route path="/" component={HomeSpending} />
+              {/* Dashboard moved to /dashboard */}
+              <Route path="/dashboard" component={DashboardPage} />
+              {/* Full transactions list still accessible */}
               <Route path="/transactions" component={TransactionsPage} />
               <Route path="/categories" component={CategoriesPage} />
               <Route path="/household" component={HouseholdPage} />

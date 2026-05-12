@@ -5,11 +5,11 @@
   <ellipse cx="81" cy="24" rx="12" ry="11" fill="#777"/>
   <ellipse cx="19" cy="25" rx="7" ry="6.5" fill="#aaa"/>
   <ellipse cx="81" cy="25" rx="7" ry="6.5" fill="#aaa"/>
-  <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" stroke-width="19" stroke-linecap="round" fill="none"/>
-  <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" stroke-width="19" stroke-linecap="round" fill="none"/>
-  <ellipse cx="50" cy="40" rx="11" ry="18" fill="#F0EDE6"/>
-  <ellipse cx="11" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
-  <ellipse cx="89" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
+  <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
+  <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
+  <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6"/>
+  <ellipse cx="10" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
+  <ellipse cx="90" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
   <ellipse cx="50" cy="70" rx="20" ry="14" fill="#E8E4DC"/>
   <circle cx="29" cy="48" r="10.5" fill="white"/>
   <circle cx="71" cy="48" r="10.5" fill="white"/>
