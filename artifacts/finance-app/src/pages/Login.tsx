@@ -7,11 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import BadgerLogo from "@/components/BadgerLogo";
 
+function AppleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 814 1000" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.5 135.4-317.3 269-317.3 67.2 0 123.1 44.3 165.8 44.3 40.8 0 103.7-47.1 179.3-47.1 45.8 0 127.5 10.8 186.2 76.9zm-87.4-188.4c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+    </svg>
+  );
+}
+
+type LoginMode = "start" | "apple" | "email";
+
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [name, setName] = useState("");
+  const [mode, setMode] = useState<LoginMode>("start");
+  const [name, setName]   = useState("");
   const [email, setEmail] = useState("");
+  const [appleEmail, setAppleEmail] = useState("");
+
   const login = useLogin({
     mutation: {
       onSuccess: () => {
@@ -21,91 +34,165 @@ export default function LoginPage() {
     },
   });
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     login.mutate({ data: { name: name.trim(), email: email.trim() } });
   }
 
+  function handleAppleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!appleEmail.trim()) return;
+    const derivedName = appleEmail.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    login.mutate({ data: { name: derivedName, email: appleEmail.trim() } });
+  }
+
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Left: branding */}
-      <div className="hidden lg:flex w-1/2 bg-sidebar flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <BadgerLogo size={44} />
-          <span className="text-2xl font-bold text-white tracking-tight">Budger</span>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-between px-6 py-12">
+
+      {/* ── Logo + wordmark ── */}
+      <div className="flex flex-col items-center gap-4 mt-8">
+        <div className="p-4 rounded-3xl bg-card border border-border shadow-lg">
+          <BadgerLogo size={72} />
         </div>
-        <div>
-          <blockquote className="text-2xl font-light text-white/80 leading-relaxed mb-8">
-            "Your household finances,<br />in one place. Clear, shared,<br />and always up to date."
-          </blockquote>
-          <div className="flex flex-col gap-3">
-            {[
-              "Track every purchase by category",
-              "Set monthly budgets and stay on track",
-              "Share expenses with your household",
-              "Attach receipts to any spending",
-              "Set reminders to log daily spending",
-            ].map((f) => (
-              <div key={f} className="flex items-center gap-3 text-white/60 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-white/40 flex-shrink-0" />
-                {f}
-              </div>
-            ))}
-          </div>
+        <div className="text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
+          <p className="text-sm text-muted-foreground mt-1">Your household finances, in one place.</p>
         </div>
-        <p className="text-sm text-white/25">Budger &copy; 2026</p>
       </div>
 
-      {/* Right: form */}
-      <div className="flex-1 flex items-center justify-center px-8">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <BadgerLogo size={36} />
-            <span className="text-xl font-bold tracking-tight">Budger</span>
-          </div>
+      {/* ── Auth panel ── */}
+      <div className="w-full max-w-sm">
 
-          <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-          <p className="text-muted-foreground text-sm mb-8">Enter your details to access your finances</p>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="input-name">Your name</Label>
-              <Input
-                id="input-name"
-                data-testid="input-name"
-                placeholder="Alex Johnson"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="input-email">Email address</Label>
-              <Input
-                id="input-email"
-                data-testid="input-email"
-                type="email"
-                placeholder="alex@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full"
-              data-testid="button-submit"
-              disabled={login.isPending}
+        {/* ── START: choose method ── */}
+        {mode === "start" && (
+          <div className="space-y-3">
+            {/* Sign in with Apple */}
+            <button
+              type="button"
+              onClick={() => setMode("apple")}
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl
+                         bg-white text-black font-semibold text-base
+                         transition active:scale-95 shadow-sm"
             >
-              {login.isPending ? "Signing in..." : "Continue"}
-            </Button>
-          </form>
-          <p className="text-xs text-muted-foreground text-center mt-6">
-            No password needed. We'll find or create your account by email.
-          </p>
-        </div>
+              <AppleIcon />
+              Sign in with Apple
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Continue with email */}
+            <button
+              type="button"
+              onClick={() => setMode("email")}
+              className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl
+                         bg-muted text-foreground font-semibold text-base border border-border
+                         transition active:scale-95"
+            >
+              Continue with email
+            </button>
+          </div>
+        )}
+
+        {/* ── APPLE ID flow ── */}
+        {mode === "apple" && (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <p className="text-lg font-semibold text-foreground">Sign in with Apple ID</p>
+              <p className="text-sm text-muted-foreground mt-1">Enter your Apple ID email address</p>
+            </div>
+            <form onSubmit={handleAppleSubmit} className="space-y-3">
+              <Input
+                id="input-apple-email"
+                data-testid="input-apple-email"
+                type="email"
+                placeholder="apple@icloud.com"
+                value={appleEmail}
+                onChange={e => setAppleEmail(e.target.value)}
+                autoFocus
+                required
+                className="h-13 rounded-2xl bg-muted border-border text-base px-4"
+              />
+              <button
+                type="submit"
+                disabled={login.isPending}
+                className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl
+                           bg-white text-black font-semibold text-base
+                           disabled:opacity-50 transition active:scale-95 shadow-sm"
+              >
+                <AppleIcon />
+                {login.isPending ? "Signing in…" : "Continue with Apple"}
+              </button>
+            </form>
+            <button
+              type="button"
+              onClick={() => setMode("start")}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition text-center mt-1"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {/* ── EMAIL flow ── */}
+        {mode === "email" && (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <p className="text-lg font-semibold text-foreground">Welcome back</p>
+              <p className="text-sm text-muted-foreground mt-1">No password needed</p>
+            </div>
+            <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="input-name" className="text-sm text-muted-foreground">Your name</Label>
+                <Input
+                  id="input-name"
+                  data-testid="input-name"
+                  placeholder="Alex Johnson"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                  className="h-12 rounded-2xl bg-muted border-border text-base px-4"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="input-email" className="text-sm text-muted-foreground">Email address</Label>
+                <Input
+                  id="input-email"
+                  data-testid="input-email"
+                  type="email"
+                  placeholder="alex@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  className="h-12 rounded-2xl bg-muted border-border text-base px-4"
+                />
+              </div>
+              <Button
+                type="submit"
+                data-testid="button-submit"
+                disabled={login.isPending}
+                className="w-full h-14 rounded-2xl text-base font-semibold mt-1"
+              >
+                {login.isPending ? "Signing in…" : "Continue"}
+              </Button>
+            </form>
+            <button
+              type="button"
+              onClick={() => setMode("start")}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition text-center mt-1"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* ── Footer ── */}
+      <p className="text-xs text-muted-foreground/50">Budger &copy; 2026</p>
     </div>
   );
 }

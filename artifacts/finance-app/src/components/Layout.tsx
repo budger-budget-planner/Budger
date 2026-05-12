@@ -1,22 +1,24 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ArrowLeftRight, Tag, Users, Bell, LogOut } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Tag, Users, Bell, LogOut, X } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import BadgerLogo from "@/components/BadgerLogo";
 
 const nav = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/categories", label: "Categories", icon: Tag },
-  { href: "/household", label: "Household", icon: Users },
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/",              label: "Home",      icon: LayoutDashboard },
+  { href: "/transactions",  label: "Spending",  icon: ArrowLeftRight  },
+  { href: "/categories",    label: "Categories",icon: Tag             },
+  { href: "/household",     label: "Household", icon: Users           },
+  { href: "/notifications", label: "Alerts",    icon: Bell            },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
+  const [showProfile, setShowProfile] = useState(false);
+
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
@@ -27,66 +29,94 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
-        {/* Logo */}
-        <div className="px-5 py-4 flex items-center gap-3 border-b border-sidebar-border">
-          <BadgerLogo size={36} />
-          <span className="text-xl font-bold tracking-tight text-white">Budger</span>
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+
+      {/* ── Top header ── */}
+      <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-14
+                         bg-background/90 backdrop-blur border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <BadgerLogo size={28} />
+          <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
         </div>
+        <button
+          onClick={() => setShowProfile(true)}
+          className="w-8 h-8 rounded-full bg-muted border border-border
+                     flex items-center justify-center flex-shrink-0 transition active:scale-95"
+        >
+          <span className="text-xs font-bold text-foreground">
+            {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
+          </span>
+        </button>
+      </header>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {nav.map(({ href, label, icon: Icon }) => {
-            const active = href === "/" ? location === "/" : location.startsWith(href);
-            return (
-              <Link key={href} href={href}>
-                <a
-                  data-testid={`nav-${label.toLowerCase()}`}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    active
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </a>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User + logout */}
-        <div className="px-3 py-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 border border-sidebar-border">
-              <span className="text-xs font-bold text-sidebar-accent-foreground">
-                {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
-              </span>
+      {/* ── Profile / logout bottom sheet ── */}
+      {showProfile && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowProfile(false)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-border
+                          rounded-t-3xl px-5 pt-5 pb-10 space-y-4">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <p className="font-semibold text-foreground">{user?.name}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
+              <button
+                onClick={() => setShowProfile(false)}
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="button-logout"
-              className="w-7 h-7 text-sidebar-foreground/60 hover:text-white hover:bg-sidebar-accent"
+            <div className="h-px bg-border" />
+            <button
               onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              className="flex items-center gap-3 w-full px-1 py-2 text-destructive
+                         transition active:opacity-70 disabled:opacity-40"
             >
               <LogOut className="w-4 h-4" />
-            </Button>
+              <span className="font-medium">{logout.isPending ? "Signing out…" : "Sign out"}</span>
+            </button>
           </div>
-        </div>
-      </aside>
+        </>
+      )}
 
-      {/* Main */}
-      <main className="flex-1 overflow-auto">
+      {/* ── Page content ── */}
+      <main className="flex-1 overflow-auto pb-24">
         {children}
       </main>
+
+      {/* ── Bottom navigation ── */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 h-16
+                      bg-card/95 backdrop-blur border-t border-border
+                      flex items-stretch">
+        {nav.map(({ href, label, icon: Icon }) => {
+          const active = href === "/" ? location === "/" : location.startsWith(href);
+          return (
+            <Link key={href} href={href} className="flex-1">
+              <a
+                data-testid={`nav-${label.toLowerCase()}`}
+                className="flex flex-col items-center justify-center h-full gap-0.5 transition-colors"
+              >
+                <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-muted" : ""}`}>
+                  <Icon
+                    className="w-5 h-5"
+                    strokeWidth={active ? 2.2 : 1.6}
+                    color={active ? "white" : "rgb(107 114 128)"}
+                  />
+                </div>
+                <span className={`text-[10px] font-medium leading-none transition-colors
+                  ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                  {label}
+                </span>
+              </a>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

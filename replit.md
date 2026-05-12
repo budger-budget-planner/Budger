@@ -53,13 +53,22 @@ A full-stack financial tracking web app for individuals and households. Named af
 ## Visual identity
 
 - App name: **Budger** (budget + badger wordplay)
-- Color scheme: black, white, and grey — like a badger's fur. Categories bring color; the base UI is monochrome.
-- Logo: cartoon badger face SVG (`BadgerLogo.tsx`) — grey body, black stripes, white face sides, black eyes with white highlights.
-- Favicon: same badger face on a dark background.
+- Color scheme: always dark — near-black background, white text, subtle dark-grey card surfaces. Category colors are the only accent.
+- Logo: cartoon European badger face SVG (`BadgerLogo.tsx`) — white face base, two wide black stripes from nose through eyes to ears (the defining European badger marking), wide white cheek puffs, large dark nose, white sclera eyes on the black stripe zones.
+- Favicon: same badger face on a dark rounded-square background.
+- Dark mode is forced globally via `document.documentElement.classList.add('dark')` in `main.tsx`.
+
+## Layout
+
+- No sidebar. Uses a **bottom navigation bar** (Home / Spending / Categories / Household / Alerts) with a compact top header (logo + user avatar).
+- Tapping the avatar in the top header opens a profile/logout bottom sheet.
+- Login screen is full-screen app-style with: large centered badger logo, "Sign in with Apple" button, "or" divider, "Continue with email" option.
+- Apple Sign In derives display name from email username (e.g. `john.smith@icloud.com` → "John Smith"), compatible with the same session auth backend.
 
 ## User preferences
 
 - App must always stay black/white/grey at the base level; user-defined category colors are the only color accent.
+- UI must feel like a native mobile app: full-screen pages, bottom navigation, large tap targets, dark background.
 
 ## Gotchas
 
