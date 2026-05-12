@@ -56,7 +56,7 @@ function AddTransactionDialog({ open, onClose }: { open: boolean; onClose: () =>
     try {
       const request = new window.PaymentRequest(
         [{ supportedMethods: "https://apple.com/apple-pay", data: { version: 3, merchantIdentifier: "merchant.pocket.finance", merchantCapabilities: ["supports3DS"], supportedNetworks: ["visa", "masterCard", "amex"], countryCode: "US" } }],
-        { total: { label: "Pocket Transaction", amount: { currency: "USD", value: amount || "0.00" } } }
+        { total: { label: "Budger Transaction", amount: { currency: "USD", value: amount || "0.00" } } }
       );
       if (!await request.canMakePayment()) { alert("Apple Pay not available."); return; }
       const pr = await request.show();

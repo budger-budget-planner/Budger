@@ -14,7 +14,7 @@ import {
   getGetSpendingHistoryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image } from "lucide-react";
 import { SiApplepay } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,7 @@ function TxForm({
     try {
       const req = new window.PaymentRequest(
         [{ supportedMethods: "https://apple.com/apple-pay", data: { version: 3, merchantIdentifier: "merchant.pocket.finance", merchantCapabilities: ["supports3DS"], supportedNetworks: ["visa", "masterCard", "amex"], countryCode: "US" } }],
-        { total: { label: "Pocket", amount: { currency: "USD", value: form.amount || "0.00" } } }
+        { total: { label: "Budger", amount: { currency: "USD", value: form.amount || "0.00" } } }
       );
       if (!await req.canMakePayment()) { alert("Apple Pay not available."); return; }
       const pr = await req.show();
@@ -131,7 +131,8 @@ function ReceiptModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
 
   const uploadReceipt = useUploadReceipt({
@@ -157,9 +158,7 @@ function ReceiptModal({
     const reader = new FileReader();
     reader.onload = (ev) => {
       const imageData = ev.target?.result as string;
-      if (imageData) {
-        uploadReceipt.mutate({ id: tx.id, data: { imageData } });
-      }
+      if (imageData) uploadReceipt.mutate({ id: tx.id, data: { imageData } });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -212,27 +211,34 @@ function ReceiptModal({
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageOff className="w-8 h-8 opacity-40" />
-                <p className="text-sm text-center">No receipt attached yet.<br />Take a photo or upload an image.</p>
+                <p className="text-sm text-center">No receipt attached yet.</p>
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => fileRef.current?.click()}
+                className="gap-2"
+                onClick={() => cameraRef.current?.click()}
                 disabled={uploadReceipt.isPending}
                 data-testid="button-capture-receipt"
               >
                 <Camera className="w-4 h-4" />
-                {tx.receiptImage ? "Replace" : "Add Receipt"}
+                Camera
               </Button>
-              <Button variant="outline" className="flex-1" onClick={onClose}>Done</Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => libraryRef.current?.click()}
+                disabled={uploadReceipt.isPending}
+                data-testid="button-library-receipt"
+              >
+                <Image className="w-4 h-4" />
+                Library
+              </Button>
             </div>
 
-            <p className="text-xs text-muted-foreground text-center">
-              On mobile, this will open your camera. On desktop, you can choose a file.
-            </p>
+            <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -259,13 +265,21 @@ function ReceiptModal({
       )}
 
       <input
-        ref={fileRef}
+        ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
         onChange={handleFileChange}
-        data-testid="input-receipt-file"
+        data-testid="input-receipt-camera"
+      />
+      <input
+        ref={libraryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+        data-testid="input-receipt-library"
       />
     </>
   );

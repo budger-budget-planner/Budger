@@ -9,7 +9,8 @@ import {
   getGetHouseholdQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Wallet, Users, Check, AlertTriangle } from "lucide-react";
+import { Users, Check, AlertTriangle } from "lucide-react";
+import BadgerLogo from "@/components/BadgerLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,11 +58,9 @@ export default function InvitePage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-semibold">Pocket</span>
+        <div className="flex items-center gap-3 mb-8 justify-center">
+          <BadgerLogo size={36} />
+          <span className="text-xl font-bold tracking-tight">Budger</span>
         </div>
 
         {inviteLoading ? (
@@ -84,7 +83,7 @@ export default function InvitePage() {
             </div>
             <h1 className="text-xl font-bold text-center mb-1">You're invited!</h1>
             <p className="text-sm text-muted-foreground text-center mb-6">
-              Join <span className="font-semibold text-foreground">{invite.householdName}</span> on Pocket to track household spending together.
+              Join <span className="font-semibold text-foreground">{invite.householdName}</span> on Budger to track household spending together.
             </p>
 
             {!me && (

@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ArrowLeftRight, Tag, Users, Bell, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Tag, Users, Bell, LogOut } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import BadgerLogo from "@/components/BadgerLogo";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -30,11 +31,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
         {/* Logo */}
-        <div className="px-6 py-5 flex items-center gap-3 border-b border-sidebar-border">
-          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-white">Pocket</span>
+        <div className="px-5 py-4 flex items-center gap-3 border-b border-sidebar-border">
+          <BadgerLogo size={36} />
+          <span className="text-xl font-bold tracking-tight text-white">Budger</span>
         </div>
 
         {/* Nav */}
@@ -47,8 +46,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   data-testid={`nav-${label.toLowerCase()}`}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? "bg-sidebar-primary text-white"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -62,8 +61,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* User + logout */}
         <div className="px-3 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-bold text-white">
+            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 border border-sidebar-border">
+              <span className="text-xs font-bold text-sidebar-accent-foreground">
                 {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
               </span>
             </div>

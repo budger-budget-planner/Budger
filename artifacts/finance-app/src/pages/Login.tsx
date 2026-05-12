@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import BadgerLogo from "@/components/BadgerLogo";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -32,36 +32,39 @@ export default function LoginPage() {
       {/* Left: branding */}
       <div className="hidden lg:flex w-1/2 bg-sidebar flex-col justify-between p-12">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-semibold text-white">Pocket</span>
+          <BadgerLogo size={44} />
+          <span className="text-2xl font-bold text-white tracking-tight">Budger</span>
         </div>
         <div>
-          <blockquote className="text-2xl font-light text-white/80 leading-relaxed mb-6">
-            "Your household finances, in one place. Clear, shared, and always up to date."
+          <blockquote className="text-2xl font-light text-white/80 leading-relaxed mb-8">
+            "Your household finances,<br />in one place. Clear, shared,<br />and always up to date."
           </blockquote>
           <div className="flex flex-col gap-3">
-            {["Track every purchase by category", "Share expenses with your household", "Set reminders to log spending"].map((f) => (
+            {[
+              "Track every purchase by category",
+              "Set monthly budgets and stay on track",
+              "Share expenses with your household",
+              "Attach receipts to any spending",
+              "Set reminders to log daily spending",
+            ].map((f) => (
               <div key={f} className="flex items-center gap-3 text-white/60 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-sidebar-primary flex-shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40 flex-shrink-0" />
                 {f}
               </div>
             ))}
           </div>
         </div>
-        <p className="text-sm text-white/30">Pocket &copy; 2026</p>
+        <p className="text-sm text-white/25">Budger &copy; 2026</p>
       </div>
 
       {/* Right: form */}
       <div className="flex-1 flex items-center justify-center px-8">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Wallet className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold">Pocket</span>
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <BadgerLogo size={36} />
+            <span className="text-xl font-bold tracking-tight">Budger</span>
           </div>
+
           <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
           <p className="text-muted-foreground text-sm mb-8">Enter your details to access your finances</p>
 

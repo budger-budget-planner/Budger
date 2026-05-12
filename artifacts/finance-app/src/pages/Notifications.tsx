@@ -86,7 +86,7 @@ export default function NotificationsPage() {
     const ms = next.getTime() - now.getTime();
     setTimeout(() => {
       if (Notification.permission === "granted") {
-        new Notification("Pocket Reminder", {
+        new Notification("Budger Reminder", {
           body: "Don't forget to log today's spending!",
           icon: "/favicon.ico",
         });
