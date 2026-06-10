@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { compressImage } from "@/lib/imageUtils";
 import {
   useListTransactions,
   useListCategories,
@@ -152,16 +153,16 @@ function ReceiptModal({
     },
   });
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const imageData = ev.target?.result as string;
-      if (imageData) uploadReceipt.mutate({ id: tx.id, data: { imageData } });
-    };
-    reader.readAsDataURL(file);
     e.target.value = "";
+    try {
+      const imageData = await compressImage(file);
+      uploadReceipt.mutate({ id: tx.id, data: { imageData } });
+    } catch {
+      alert("Could not process image. Please try again.");
+    }
   }
 
   return (

@@ -1,0 +1,33 @@
+/**
+ * Compress an image File to a JPEG data URL.
+ * Resizes to maxPx on the longest edge, then encodes at `quality` (0-1).
+ * Camera photos can be 5-12 MB; this brings them under ~200 KB.
+ */
+export async function compressImage(
+  file: File,
+  maxPx = 1200,
+  quality = 0.78,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(maxPx / img.naturalWidth, maxPx / img.naturalHeight, 1);
+      const w = Math.round(img.naturalWidth  * scale);
+      const h = Math.round(img.naturalHeight * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas unavailable")); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.src = url;
+  });
+}

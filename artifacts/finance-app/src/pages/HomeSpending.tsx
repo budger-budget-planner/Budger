@@ -22,21 +22,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { compressImage } from "@/lib/imageUtils";
+import { loadPrefs, currencySymbol } from "@/lib/prefs";
 
 type TxFormState = {
-  amount: string;
-  description: string;
-  categoryId: string;
-  date: string;
-  paymentMethod: string;
+  amount: string; description: string; categoryId: string; date: string; paymentMethod: string;
 };
 
 function TxForm({ initial, categories, onSubmit, onCancel, loading }: {
-  initial: TxFormState;
-  categories: any[];
-  onSubmit: (data: TxFormState) => void;
-  onCancel: () => void;
-  loading: boolean;
+  initial: TxFormState; categories: any[]; onSubmit: (d: TxFormState) => void;
+  onCancel: () => void; loading: boolean;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
@@ -133,15 +128,15 @@ function ReceiptModal({ tx, open, onClose }: { tx: any; open: boolean; onClose: 
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   }}});
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const imageData = ev.target?.result as string;
-      if (imageData) uploadReceipt.mutate({ id: tx.id, data: { imageData } });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageData = await compressImage(file);
+      uploadReceipt.mutate({ id: tx.id, data: { imageData } });
+    } catch {
+      alert("Could not process image. Please try again.");
+    }
     e.target.value = "";
   }
 
@@ -186,7 +181,8 @@ function ReceiptModal({ tx, open, onClose }: { tx: any; open: boolean; onClose: 
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="gap-2"
                 onClick={() => cameraRef.current?.click()} disabled={uploadReceipt.isPending}>
-                <Camera className="w-4 h-4" /> Camera
+                <Camera className="w-4 h-4" />
+                {uploadReceipt.isPending ? "Uploading…" : "Camera"}
               </Button>
               <Button variant="outline" className="gap-2"
                 onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
@@ -229,6 +225,9 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
 
 export default function HomeSpending() {
   const queryClient = useQueryClient();
+  const prefs = loadPrefs();
+  const sym   = currencySymbol(prefs.currency);
+
   const [viewDate, setViewDate] = useState(new Date());
   const [addOpen, setAddOpen]     = useState(false);
   const [editTx, setEditTx]       = useState<any | null>(null);
@@ -242,7 +241,8 @@ export default function HomeSpending() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   const { data: categories } = useListCategories();
-  const { data: transactions, isLoading } = useListTransactions({ from: fromStr, to: toStr } as any);
+  // API uses startDate / endDate (not from / to)
+  const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
   const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
@@ -258,26 +258,22 @@ export default function HomeSpending() {
 
   function handleCreate(form: TxFormState) {
     create.mutate({ data: {
-      amount: parseFloat(form.amount),
-      description: form.description,
+      amount: parseFloat(form.amount), description: form.description,
       categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null,
-      date: form.date,
-      paymentMethod: form.paymentMethod,
+      date: form.date, paymentMethod: form.paymentMethod,
     }});
   }
 
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
     update.mutate({ id: editTx.id, data: {
-      amount: parseFloat(form.amount),
-      description: form.description,
+      amount: parseFloat(form.amount), description: form.description,
       categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null,
-      date: form.date,
-      paymentMethod: form.paymentMethod,
+      date: form.date, paymentMethod: form.paymentMethod,
     }});
   }
 
-  /* Group transactions by date */
+  /* Group by date */
   const grouped: Record<string, typeof sorted> = {};
   for (const tx of sorted) {
     if (!grouped[tx.date]) grouped[tx.date] = [];
@@ -307,11 +303,11 @@ export default function HomeSpending() {
           </button>
         </div>
 
-        {/* Total spent */}
+        {/* Total card */}
         <div className="bg-card border border-border rounded-2xl px-5 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Total spent</p>
-            <p className="text-3xl font-bold text-foreground">${total.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-foreground">{sym}{total.toFixed(2)}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Entries</p>
@@ -321,7 +317,7 @@ export default function HomeSpending() {
       </div>
 
       {/* ── Transaction list ── */}
-      <div className="flex-1 px-5 space-y-5">
+      <div className="flex-1 px-5 space-y-5 pb-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -336,63 +332,58 @@ export default function HomeSpending() {
         ) : (
           dates.map(date => (
             <div key={date}>
-              {/* Date group header */}
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
                 {format(new Date(date + "T12:00:00"), "EEE, d MMM")}
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
                 {grouped[date].map(tx => (
-                  <div key={tx.id}
-                    className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40"
-                    onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
-                  >
-                    {/* Category colour dot */}
-                    <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
-                      style={{ backgroundColor: (tx.categoryColor ?? "#444") + "33" }}>
-                      <div className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: tx.categoryColor ?? "#666" }} />
-                    </div>
-                    {/* Description + category */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {tx.categoryName ?? "Uncategorized"}
-                        {tx.receiptImage ? " · 📎" : ""}
+                  <div key={tx.id}>
+                    <div
+                      className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
+                      onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
+                    >
+                      <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
+                        style={{ backgroundColor: (tx.categoryColor ?? "#444") + "33" }}>
+                        <div className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: tx.categoryColor ?? "#666" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {tx.categoryName ?? "Uncategorized"}
+                          {tx.receiptImage ? " · 📎" : ""}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground flex-shrink-0">
+                        −{sym}{Number(tx.amount).toFixed(2)}
                       </p>
                     </div>
-                    {/* Amount */}
-                    <p className="text-sm font-semibold text-foreground flex-shrink-0">
-                      −${Number(tx.amount).toFixed(2)}
-                    </p>
+
+                    {/* Inline action bar */}
+                    {actionTx === tx.id && (
+                      <div className="flex gap-2 px-3 pb-3">
+                        <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                     bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                          <Camera className="w-3.5 h-3.5" /> Receipt
+                        </button>
+                        <button onClick={() => { setEditTx(tx); setActionTx(null); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                     bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                          <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => remove.mutate({ id: tx.id })}
+                          disabled={remove.isPending}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                     bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-
-              {/* Action row for selected tx */}
-              {grouped[date].some(tx => tx.id === actionTx) && (() => {
-                const tx = grouped[date].find(t => t.id === actionTx)!;
-                return (
-                  <div className="mt-1 flex gap-2 px-1">
-                    <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                 bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                      <Camera className="w-3.5 h-3.5" /> Receipt
-                    </button>
-                    <button onClick={() => { setEditTx(tx); setActionTx(null); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                 bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                      <Pencil className="w-3.5 h-3.5" /> Edit
-                    </button>
-                    <button
-                      onClick={() => remove.mutate({ id: tx.id })}
-                      disabled={remove.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                 bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </button>
-                  </div>
-                );
-              })()}
             </div>
           ))
         )}

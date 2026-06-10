@@ -382,7 +382,7 @@ export default function DashboardPage() {
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium">{tx.description}</p>
-                        {tx.receiptImage && <Camera className="w-3 h-3 text-muted-foreground" title="Has receipt" />}
+                        {tx.receiptImage && <Camera className="w-3 h-3 text-muted-foreground" aria-label="Has receipt" />}
                       </div>
                       <p className="text-xs text-muted-foreground">{tx.categoryName ?? "Uncategorized"} · {tx.date}</p>
                     </div>

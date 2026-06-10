@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGetMe } from "@workspace/api-client-react";
 import Layout from "@/components/Layout";
+import Onboarding from "@/components/Onboarding";
 import LoginPage from "@/pages/Login";
 import HomeSpending from "@/pages/HomeSpending";
 import DashboardPage from "@/pages/Dashboard";
@@ -13,24 +14,19 @@ import CategoriesPage from "@/pages/Categories";
 import HouseholdPage from "@/pages/Household";
 import NotificationsPage from "@/pages/Notifications";
 import InvitePage from "@/pages/Invite";
+import { isOnboardingDone, markOnboardingDone, savePrefs, type AppPrefs } from "@/lib/prefs";
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe();
   const [, navigate] = useLocation();
+  const [onboarded, setOnboarded] = useState(isOnboardingDone);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login");
-    }
+    if (!isLoading && !user) navigate("/login");
   }, [isLoading, user, navigate]);
 
   if (isLoading) {
@@ -41,6 +37,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return null;
+
+  if (!onboarded) {
+    return (
+      <Onboarding
+        onComplete={(prefs: AppPrefs) => {
+          savePrefs(prefs);
+          markOnboardingDone();
+          setOnboarded(true);
+        }}
+      />
+    );
+  }
+
   return <>{children}</>;
 }
 
@@ -53,15 +62,12 @@ function Router() {
         <AuthGuard>
           <Layout>
             <Switch>
-              {/* Home = current month spending list */}
-              <Route path="/" component={HomeSpending} />
-              {/* Dashboard moved to /dashboard */}
-              <Route path="/dashboard" component={DashboardPage} />
-              {/* Full transactions list still accessible */}
-              <Route path="/transactions" component={TransactionsPage} />
-              <Route path="/categories" component={CategoriesPage} />
-              <Route path="/household" component={HouseholdPage} />
-              <Route path="/notifications" component={NotificationsPage} />
+              <Route path="/"              component={HomeSpending}    />
+              <Route path="/dashboard"     component={DashboardPage}   />
+              <Route path="/transactions"  component={TransactionsPage}/>
+              <Route path="/categories"    component={CategoriesPage}  />
+              <Route path="/household"     component={HouseholdPage}   />
+              <Route path="/notifications" component={NotificationsPage}/>
             </Switch>
           </Layout>
         </AuthGuard>
