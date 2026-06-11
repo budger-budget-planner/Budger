@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, invitesTable, householdsTable, usersTable, householdMembersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { pickNextColor } from "./households";
 import {
   CreateInviteBody,
   AcceptInviteParams,
@@ -97,10 +98,12 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
     .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, invite.householdId)));
 
   if (existingMember.length === 0) {
+    const color = await pickNextColor(invite.householdId);
     await db.insert(householdMembersTable).values({
       userId,
       householdId: invite.householdId,
       role: "member",
+      memberColor: color,
     });
   }
 

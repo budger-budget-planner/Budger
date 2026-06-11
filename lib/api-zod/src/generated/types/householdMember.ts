@@ -12,5 +12,8 @@ export interface HouseholdMember {
   role: string;
   name: string;
   email: string;
+  memberColor: string;
+  monthlySpent: number;
+  dashboardBlocked: boolean;
   joinedAt: string;
 }

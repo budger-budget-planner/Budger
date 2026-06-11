@@ -15,12 +15,14 @@ export interface User {
   email: string;
   /** @nullable */
   householdId: number | null;
+  dashboardBlocked: boolean;
   createdAt: string;
 }
 
 export interface UserUpdate {
   name?: string;
   email?: string;
+  dashboardBlocked?: boolean;
 }
 
 export interface LoginInput {
@@ -116,16 +118,22 @@ export interface Household {
   id: number;
   name: string;
   ownerId: number;
+  /** @nullable */
+  budget: number | null;
   createdAt: string;
 }
 
 export interface HouseholdInput {
   /** @minLength 1 */
   name: string;
+  /** @nullable */
+  budget?: number | null;
 }
 
 export interface HouseholdUpdate {
   name?: string;
+  /** @nullable */
+  budget?: number | null;
 }
 
 export interface HouseholdMember {
@@ -134,6 +142,9 @@ export interface HouseholdMember {
   role: string;
   name: string;
   email: string;
+  memberColor: string;
+  monthlySpent: number;
+  dashboardBlocked: boolean;
   joinedAt: string;
 }
 

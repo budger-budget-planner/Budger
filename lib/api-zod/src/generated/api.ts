@@ -22,6 +22,7 @@ export const GetMeResponse = zod.object({
   name: zod.string(),
   email: zod.string(),
   householdId: zod.number().nullable(),
+  dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
 });
 
@@ -31,6 +32,7 @@ export const GetMeResponse = zod.object({
 export const UpdateMeBody = zod.object({
   name: zod.string().optional(),
   email: zod.string().optional(),
+  dashboardBlocked: zod.boolean().optional(),
 });
 
 export const UpdateMeResponse = zod.object({
@@ -38,6 +40,7 @@ export const UpdateMeResponse = zod.object({
   name: zod.string(),
   email: zod.string(),
   householdId: zod.number().nullable(),
+  dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
 });
 
@@ -55,6 +58,7 @@ export const LoginResponse = zod.object({
   name: zod.string(),
   email: zod.string(),
   householdId: zod.number().nullable(),
+  dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
 });
 
@@ -298,6 +302,7 @@ export const GetHouseholdResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   ownerId: zod.number(),
+  budget: zod.number().nullable(),
   createdAt: zod.string(),
 });
 
@@ -307,6 +312,7 @@ export const GetHouseholdResponse = zod.object({
 
 export const CreateHouseholdBody = zod.object({
   name: zod.string().min(1),
+  budget: zod.number().nullish(),
 });
 
 /**
@@ -314,12 +320,14 @@ export const CreateHouseholdBody = zod.object({
  */
 export const UpdateHouseholdBody = zod.object({
   name: zod.string().optional(),
+  budget: zod.number().nullish(),
 });
 
 export const UpdateHouseholdResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   ownerId: zod.number(),
+  budget: zod.number().nullable(),
   createdAt: zod.string(),
 });
 
@@ -332,10 +340,34 @@ export const ListHouseholdMembersResponseItem = zod.object({
   role: zod.string(),
   name: zod.string(),
   email: zod.string(),
+  memberColor: zod.string(),
+  monthlySpent: zod.number(),
+  dashboardBlocked: zod.boolean(),
   joinedAt: zod.string(),
 });
 export const ListHouseholdMembersResponse = zod.array(
   ListHouseholdMembersResponseItem,
+);
+
+/**
+ * @summary Get spending breakdown for a specific household member this month
+ */
+export const GetMemberSpendingParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetMemberSpendingResponseItem = zod.object({
+  categoryId: zod.number().nullable(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  categoryIcon: zod.string().nullable(),
+  budget: zod.number().nullable(),
+  total: zod.number(),
+  count: zod.number(),
+  percentage: zod.number(),
+});
+export const GetMemberSpendingResponse = zod.array(
+  GetMemberSpendingResponseItem,
 );
 
 /**
@@ -379,6 +411,7 @@ export const AcceptInviteResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   ownerId: zod.number(),
+  budget: zod.number().nullable(),
   createdAt: zod.string(),
 });
 

@@ -12,5 +12,6 @@ export interface User {
   email: string;
   /** @nullable */
   householdId: number | null;
+  dashboardBlocked: boolean;
   createdAt: string;
 }

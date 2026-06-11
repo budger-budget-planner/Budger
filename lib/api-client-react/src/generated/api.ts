@@ -1796,6 +1796,94 @@ export function useListHouseholdMembers<
 }
 
 /**
+ * @summary Get spending breakdown for a specific household member this month
+ */
+export const getGetMemberSpendingUrl = (userId: number) => {
+  return `/api/households/members/${userId}/spending`;
+};
+
+export const getMemberSpending = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<CategorySpending[]> => {
+  return customFetch<CategorySpending[]>(getGetMemberSpendingUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMemberSpendingQueryKey = (userId: number) => {
+  return [`/api/households/members/${userId}/spending`] as const;
+};
+
+export const getGetMemberSpendingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMemberSpending>>,
+  TError = ErrorType<void>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMemberSpending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMemberSpendingQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMemberSpending>>
+  > = ({ signal }) => getMemberSpending(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMemberSpending>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMemberSpendingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMemberSpending>>
+>;
+export type GetMemberSpendingQueryError = ErrorType<void>;
+
+/**
+ * @summary Get spending breakdown for a specific household member this month
+ */
+
+export function useGetMemberSpending<
+  TData = Awaited<ReturnType<typeof getMemberSpending>>,
+  TError = ErrorType<void>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMemberSpending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMemberSpendingQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Remove a household member
  */
 export const getRemoveHouseholdMemberUrl = (userId: number) => {

@@ -8,4 +8,6 @@
 
 export interface HouseholdUpdate {
   name?: string;
+  /** @nullable */
+  budget?: number | null;
 }

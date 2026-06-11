@@ -9,4 +9,6 @@
 export interface HouseholdInput {
   /** @minLength 1 */
   name: string;
+  /** @nullable */
+  budget?: number | null;
 }

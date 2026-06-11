@@ -9,4 +9,5 @@
 export interface UserUpdate {
   name?: string;
   email?: string;
+  dashboardBlocked?: boolean;
 }

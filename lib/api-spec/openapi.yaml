@@ -403,6 +403,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/HouseholdMember"
 
+  /households/members/{userId}/spending:
+    get:
+      operationId: getMemberSpending
+      tags: [households]
+      summary: Get spending breakdown for a specific household member this month
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member spending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpending"
+        "403":
+          description: Dashboard blocked by user
+
   /households/members/{userId}:
     delete:
       operationId: removeHouseholdMember
@@ -641,6 +664,8 @@ components:
           type: string
         householdId:
           type: ["integer", "null"]
+        dashboardBlocked:
+          type: boolean
         createdAt:
           type: string
       required:
@@ -648,6 +673,7 @@ components:
         - name
         - email
         - householdId
+        - dashboardBlocked
         - createdAt
 
     UserUpdate:
@@ -657,6 +683,8 @@ components:
           type: string
         email:
           type: string
+        dashboardBlocked:
+          type: boolean
 
     LoginInput:
       type: object
@@ -831,12 +859,15 @@ components:
           type: string
         ownerId:
           type: integer
+        budget:
+          type: ["number", "null"]
         createdAt:
           type: string
       required:
         - id
         - name
         - ownerId
+        - budget
         - createdAt
 
     HouseholdInput:
@@ -847,12 +878,16 @@ components:
         name:
           type: string
           minLength: 1
+        budget:
+          type: ["number", "null"]
 
     HouseholdUpdate:
       type: object
       properties:
         name:
           type: string
+        budget:
+          type: ["number", "null"]
 
     HouseholdMember:
       type: object
@@ -867,6 +902,12 @@ components:
           type: string
         email:
           type: string
+        memberColor:
+          type: string
+        monthlySpent:
+          type: number
+        dashboardBlocked:
+          type: boolean
         joinedAt:
           type: string
       required:
@@ -875,6 +916,9 @@ components:
         - role
         - name
         - email
+        - memberColor
+        - monthlySpent
+        - dashboardBlocked
         - joinedAt
 
     Invite:
