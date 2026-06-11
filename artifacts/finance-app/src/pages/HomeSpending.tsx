@@ -15,7 +15,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight } from "lucide-react";
-import { SiApplepay } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,31 +35,12 @@ function TxForm({ initial, categories, onSubmit, onCancel, loading }: {
   const [form, setForm] = useState<TxFormState>(initial);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
 
-  async function handleApplePay() {
-    if (!window.PaymentRequest) { alert("Apple Pay not supported."); return; }
-    try {
-      const req = new window.PaymentRequest(
-        [{ supportedMethods: "https://apple.com/apple-pay", data: { version: 3, merchantIdentifier: "merchant.budger.app", merchantCapabilities: ["supports3DS"], supportedNetworks: ["visa", "masterCard", "amex"], countryCode: "US" } }],
-        { total: { label: "Budger", amount: { currency: "USD", value: form.amount || "0.00" } } }
-      );
-      if (!await req.canMakePayment()) { alert("Apple Pay not available."); return; }
-      const pr = await req.show();
-      set("paymentMethod", "apple_pay");
-      await pr.complete("success");
-    } catch { /* dismissed */ }
-  }
-
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
       <div className="space-y-1.5">
         <Label>Amount</Label>
-        <div className="flex gap-2">
-          <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00"
-            value={form.amount} onChange={e => set("amount", e.target.value)} required className="flex-1" />
-          <Button type="button" variant="outline" onClick={handleApplePay} className="gap-2 px-3">
-            <SiApplepay className="w-5 h-5" /> Pay
-          </Button>
-        </div>
+        <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00"
+          value={form.amount} onChange={e => set("amount", e.target.value)} required />
       </div>
       <div className="space-y-1.5">
         <Label>Description</Label>
