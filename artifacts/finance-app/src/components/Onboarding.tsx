@@ -147,7 +147,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   function next() {
     const idx = STEPS.indexOf(step);
     if (idx < STEPS.length - 1) { setStep(STEPS[idx + 1]); return; }
-    onComplete({ currency, language });
+    onComplete({ currency, language, totalBudget: null });
   }
 
   return (

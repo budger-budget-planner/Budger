@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { loadPrefs, currencySymbol } from "@/lib/prefs";
 
 type TxFormState = {
   amount: string;
@@ -112,6 +113,7 @@ function ReceiptModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const sym = currencySymbol(loadPrefs().currency);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
@@ -155,7 +157,7 @@ function ReceiptModal({
 
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">${Number(tx.amount).toFixed(2)}</span>
+              <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
               {" "}· {tx.categoryName ?? "Uncategorized"} · {tx.date}
             </div>
 
@@ -282,6 +284,8 @@ const paymentLabel: Record<string, string> = {
 };
 
 export default function TransactionsPage() {
+  const prefs = loadPrefs();
+  const sym   = currencySymbol(prefs.currency);
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editTx, setEditTx] = useState<any | null>(null);
@@ -377,7 +381,7 @@ export default function TransactionsPage() {
                   <p className="text-xs text-muted-foreground">{tx.categoryName ?? "Uncategorized"} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
                 </div>
                 <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
-                <span className="font-semibold text-sm w-20 text-right flex-shrink-0">${Number(tx.amount).toFixed(2)}</span>
+                <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{sym}{Number(tx.amount).toFixed(2)}</span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   <Button
                     size="icon"

@@ -14,7 +14,7 @@ import {
   getGetSpendingHistoryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
-import { loadPrefs, currencySymbol } from "@/lib/prefs";
+import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 type TxFormState = {
   amount: string; description: string; categoryId: string; date: string; paymentMethod: string;
@@ -93,10 +93,10 @@ function TxForm({ initial, categories, onSubmit, onCancel, loading }: {
   );
 }
 
-function ReceiptModal({ tx, open, onClose }: { tx: any; open: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const cameraRef  = useRef<HTMLInputElement>(null);
-  const libraryRef = useRef<HTMLInputElement>(null);
+function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onClose: () => void; sym: string }) {
+  const queryClient  = useQueryClient();
+  const cameraRef    = useRef<HTMLInputElement>(null);
+  const libraryRef   = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
 
   const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: () => {
@@ -127,7 +127,7 @@ function ReceiptModal({ tx, open, onClose }: { tx: any; open: boolean; onClose: 
           <DialogHeader><DialogTitle>Receipt — {tx.description}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">${Number(tx.amount).toFixed(2)}</span>
+              <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
               {" "}· {tx.categoryName ?? "Uncategorized"} · {tx.date}
             </div>
             {tx.receiptImage ? (
@@ -205,23 +205,25 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
 
 export default function HomeSpending() {
   const queryClient = useQueryClient();
-  const prefs = loadPrefs();
-  const sym   = currencySymbol(prefs.currency);
 
-  const [viewDate, setViewDate] = useState(new Date());
-  const [addOpen, setAddOpen]     = useState(false);
-  const [editTx, setEditTx]       = useState<any | null>(null);
-  const [receiptTx, setReceiptTx] = useState<any | null>(null);
-  const [actionTx, setActionTx]   = useState<number | null>(null);
+  const [prefs, setPrefsState] = useState(() => loadPrefs());
+  const sym = currencySymbol(prefs.currency);
 
-  const monthStart = startOfMonth(viewDate);
-  const monthEnd   = endOfMonth(viewDate);
-  const fromStr    = format(monthStart, "yyyy-MM-dd");
-  const toStr      = format(monthEnd,   "yyyy-MM-dd");
+  const [viewDate,   setViewDate]   = useState(new Date());
+  const [addOpen,    setAddOpen]    = useState(false);
+  const [editTx,     setEditTx]     = useState<any | null>(null);
+  const [receiptTx,  setReceiptTx]  = useState<any | null>(null);
+  const [actionTx,   setActionTx]   = useState<number | null>(null);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetInput, setBudgetInput] = useState("");
+
+  const monthStart    = startOfMonth(viewDate);
+  const monthEnd      = endOfMonth(viewDate);
+  const fromStr       = format(monthStart, "yyyy-MM-dd");
+  const toStr         = format(monthEnd,   "yyyy-MM-dd");
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   const { data: categories } = useListCategories();
-  // API uses startDate / endDate (not from / to)
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
@@ -230,6 +232,10 @@ export default function HomeSpending() {
 
   const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   const total  = sorted.reduce((s, tx) => s + Number(tx.amount), 0);
+
+  const totalBudget = prefs.totalBudget;
+  const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
+  const remaining   = totalBudget ? totalBudget - total : null;
 
   const blank: TxFormState = {
     amount: "", description: "", categoryId: "none",
@@ -253,7 +259,14 @@ export default function HomeSpending() {
     }});
   }
 
-  /* Group by date */
+  function saveTotalBudget(val: number | null) {
+    const next = { ...prefs, totalBudget: val };
+    savePrefs(next);
+    setPrefsState(next);
+    setBudgetOpen(false);
+    setBudgetInput("");
+  }
+
   const grouped: Record<string, typeof sorted> = {};
   for (const tx of sorted) {
     if (!grouped[tx.date]) grouped[tx.date] = [];
@@ -264,8 +277,64 @@ export default function HomeSpending() {
   return (
     <div className="flex flex-col min-h-full">
 
+      {/* ── Total budget banner ── */}
+      <div className="px-5 pt-4 pb-0">
+        {totalBudget == null ? (
+          <button
+            onClick={() => { setBudgetInput(""); setBudgetOpen(true); }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
+                       bg-white/5 border border-white/10 text-left transition active:opacity-70"
+            data-testid="button-set-budget"
+          >
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+              <Target className="w-4 h-4 text-white/50" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">Set your total monthly budget</p>
+              <p className="text-xs text-white/40">Track how close you are to your limit</p>
+            </div>
+            <Plus className="w-4 h-4 text-white/30 flex-shrink-0" />
+          </button>
+        ) : (
+          <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-white/50" />
+                <span className="text-sm font-medium">Monthly Budget</span>
+              </div>
+              <button
+                className="text-xs text-white/40 hover:text-white/70"
+                onClick={() => { setBudgetInput(String(totalBudget)); setBudgetOpen(true); }}
+              >
+                Edit
+              </button>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</span>
+              <span className="text-sm text-white/40">of {fmtAmt(totalBudget, prefs.currency)}</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${budgetPct}%`,
+                  backgroundColor: total > totalBudget ? "#f87171" : "#818cf8",
+                }}
+              />
+            </div>
+            <p className={`text-xs ${remaining != null && remaining < 0 ? "text-red-400" : "text-white/40"}`}>
+              {remaining != null && remaining >= 0
+                ? `${fmtAmt(remaining, prefs.currency)} remaining`
+                : remaining != null
+                  ? `${fmtAmt(-remaining, prefs.currency)} over budget`
+                  : ""}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* ── Month header ── */}
-      <div className="px-5 pt-5 pb-4">
+      <div className="px-5 pt-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setViewDate(d => subMonths(d, 1))}
             className="w-9 h-9 rounded-full bg-muted flex items-center justify-center transition active:scale-90">
@@ -339,7 +408,6 @@ export default function HomeSpending() {
                       </p>
                     </div>
 
-                    {/* Inline action bar */}
                     {actionTx === tx.id && (
                       <div className="flex gap-2 px-3 pb-3">
                         <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
@@ -408,8 +476,55 @@ export default function HomeSpending() {
 
       {/* ── Receipt modal ── */}
       {receiptTx && (
-        <ReceiptModal tx={receiptTx} open={!!receiptTx} onClose={() => setReceiptTx(null)} />
+        <ReceiptModal tx={receiptTx} open={!!receiptTx} onClose={() => setReceiptTx(null)} sym={sym} />
       )}
+
+      {/* ── Set/edit total budget dialog ── */}
+      <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Monthly Budget</DialogTitle></DialogHeader>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              saveTotalBudget(budgetInput ? parseFloat(budgetInput) : null);
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label>Total monthly budget</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+                <Input
+                  data-testid="input-total-budget"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="e.g. 3000"
+                  value={budgetInput}
+                  onChange={e => setBudgetInput(e.target.value)}
+                  className="pl-7"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">This is your total spending cap for the month. Leave blank to remove.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setBudgetOpen(false)}>Cancel</Button>
+              <Button type="submit" className="flex-1">Save</Button>
+            </div>
+            {totalBudget != null && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-destructive hover:text-destructive text-xs"
+                onClick={() => saveTotalBudget(null)}
+              >
+                Remove budget
+              </Button>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

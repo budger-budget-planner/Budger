@@ -24,10 +24,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
-/* ── Add transaction dialog (no Apple Pay button — user logs what they already paid) ── */
 function AddTransactionDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { data: categories } = useListCategories();
@@ -71,19 +71,13 @@ function AddTransactionDialog({ open, onClose }: { open: boolean; onClose: () =>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Amount</Label>
-            <Input
-              data-testid="input-amount"
-              type="number" step="0.01" min="0" placeholder="0.00"
-              value={amount} onChange={e => setAmount(e.target.value)} required
-            />
+            <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00"
+              value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
             <Label>Description</Label>
-            <Input
-              data-testid="input-description"
-              placeholder="Coffee, groceries…"
-              value={description} onChange={e => setDescription(e.target.value)} required
-            />
+            <Input data-testid="input-description" placeholder="Coffee, groceries…"
+              value={description} onChange={e => setDescription(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
             <Label>Category</Label>
@@ -142,7 +136,7 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
   );
 }
 
-function HistorySection() {
+function HistorySection({ sym }: { sym: string }) {
   const { data: history, isLoading } = useGetSpendingHistory();
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -170,7 +164,7 @@ function HistorySection() {
               <span className="font-medium text-sm">{m.month} {m.year}</span>
               <span className="text-xs text-muted-foreground">{m.count} tx</span>
             </div>
-            <span className="font-semibold text-sm">${m.total.toFixed(2)}</span>
+            <span className="font-semibold text-sm">{sym}{m.total.toFixed(2)}</span>
           </button>
           {expanded === m.monthKey && (
             <div className="border-t border-border px-4 py-3 bg-muted/20 space-y-3">
@@ -187,7 +181,7 @@ function HistorySection() {
                         </span>
                       )}
                     </div>
-                    <span className="font-medium">${cat.total.toFixed(2)}</span>
+                    <span className="font-medium">{sym}{cat.total.toFixed(2)}</span>
                   </div>
                   {cat.budget && <BudgetBar spent={cat.total} budget={cat.budget} color={cat.categoryColor ?? "#818cf8"} />}
                 </div>
@@ -201,7 +195,10 @@ function HistorySection() {
 }
 
 export default function DashboardPage() {
-  const [addOpen, setAddOpen]       = useState(false);
+  const prefs     = loadPrefs();
+  const sym       = currencySymbol(prefs.currency);
+
+  const [addOpen, setAddOpen]         = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
@@ -216,7 +213,6 @@ export default function DashboardPage() {
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
 
-      {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold">Dashboard</h1>
@@ -232,16 +228,14 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── Compact stats strip ── */}
+      {/* Stats strip */}
       <div className="grid grid-cols-2 gap-2 mb-5">
-        {/* Total spent */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">Total spent</p>
-          <p className="text-2xl font-bold" data-testid="text-total-spent">${totalSpending.toFixed(2)}</p>
+          <p className="text-2xl font-bold" data-testid="text-total-spent">{fmtAmt(totalSpending, prefs.currency)}</p>
           <p className="text-xs text-muted-foreground">this month</p>
         </div>
 
-        {/* Budget used */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">Budget</p>
           {totalBudget > 0 ? (
@@ -249,7 +243,9 @@ export default function DashboardPage() {
               <p className="text-2xl font-bold">{Math.round((totalSpending / totalBudget) * 100)}%</p>
               <div className="mt-1 space-y-0.5">
                 <BudgetBar spent={totalSpending} budget={totalBudget} color="#818cf8" />
-                <p className="text-xs text-muted-foreground">${totalSpending.toFixed(0)} of ${totalBudget.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {sym}{totalSpending.toFixed(0)} of {sym}{totalBudget.toFixed(0)}
+                </p>
               </div>
             </>
           ) : (
@@ -260,14 +256,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Transactions */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">Transactions</p>
           <p className="text-2xl font-bold">{txCount}</p>
           <p className="text-xs text-muted-foreground">this month</p>
         </div>
 
-        {/* Over budget */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">Over budget</p>
           <p className={`text-2xl font-bold ${overBudget > 0 ? "text-destructive" : ""}`}>{overBudget}</p>
@@ -275,9 +269,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Charts ── */}
+      {/* Charts */}
       <div className="space-y-4 mb-5">
-        {/* Donut + legend */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">Spending by Category</p>
           {spendingLoading ? (
@@ -311,7 +304,7 @@ export default function DashboardPage() {
                           <span className="text-destructive font-medium flex-shrink-0">!</span>
                         )}
                       </div>
-                      <span className="font-semibold ml-2 flex-shrink-0">${item.total.toFixed(2)}</span>
+                      <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.total.toFixed(2)}</span>
                     </div>
                     {item.budget != null && (
                       <BudgetBar spent={item.total} budget={item.budget}
@@ -329,22 +322,24 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Monthly trend bar */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">Monthly Trend</p>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={monthly ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
               <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
-              <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, "Spent"]}
-                contentStyle={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false}
+                tickFormatter={v => `${sym}${v}`} />
+              <Tooltip
+                formatter={(v: any) => [`${sym}${Number(v).toFixed(2)}`, "Spent"]}
+                contentStyle={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
+              />
               <Bar dataKey="total" fill="#818cf8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ── History toggle ── */}
+      {/* History toggle */}
       <button
         onClick={() => setHistoryOpen(h => !h)}
         className="w-full flex items-center justify-between px-4 py-3 mb-4
@@ -362,11 +357,11 @@ export default function DashboardPage() {
 
       {historyOpen && (
         <div className="mb-4">
-          <HistorySection />
+          <HistorySection sym={sym} />
         </div>
       )}
 
-      {/* ── Recent activity ── */}
+      {/* Recent activity */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <p className="text-sm font-semibold">Recent Activity</p>
@@ -398,7 +393,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <span className="font-semibold text-sm flex-shrink-0 ml-3">
-                  ${Number(tx.amount).toFixed(2)}
+                  {sym}{Number(tx.amount).toFixed(2)}
                 </span>
               </div>
             ))}

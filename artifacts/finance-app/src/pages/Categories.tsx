@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -46,7 +47,105 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
   );
 }
 
-function CategoryCard({ category, onEdit }: { category: any; onEdit: () => void }) {
+function BudgetInput({
+  rawValue,
+  onRawChange,
+  mode,
+  onModeChange,
+  totalBudget,
+  sym,
+}: {
+  rawValue: string;
+  onRawChange: (v: string) => void;
+  mode: "amount" | "percent";
+  onModeChange: (m: "amount" | "percent") => void;
+  totalBudget: number | null;
+  sym: string;
+}) {
+  const numVal       = parseFloat(rawValue) || 0;
+  const dollarVal    = mode === "percent" ? (totalBudget ? (numVal / 100) * totalBudget : null) : numVal;
+  const exceedsTotal = totalBudget != null && dollarVal != null && dollarVal > totalBudget && rawValue !== "";
+  const noTotalForPct = mode === "percent" && totalBudget == null;
+
+  return (
+    <div className="space-y-2">
+      {/* Mode toggle */}
+      <div className="flex rounded-lg overflow-hidden border border-border w-fit">
+        <button
+          type="button"
+          onClick={() => { onModeChange("amount"); onRawChange(""); }}
+          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === "amount" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {sym} Amount
+        </button>
+        <button
+          type="button"
+          onClick={() => { onModeChange("percent"); onRawChange(""); }}
+          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === "percent" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          % of total
+        </button>
+      </div>
+
+      {/* Input */}
+      {mode === "amount" ? (
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+          <Input
+            type="number" min="0" step="0.01" placeholder="No limit"
+            value={rawValue} onChange={e => onRawChange(e.target.value)}
+            className="pl-7"
+          />
+        </div>
+      ) : noTotalForPct ? (
+        <p className="text-xs text-amber-400 py-1">
+          Set your total monthly budget on the Home tab first to use % mode.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          <div className="relative">
+            <Input
+              type="number" min="0" max="100" step="1" placeholder="e.g. 20"
+              value={rawValue} onChange={e => onRawChange(e.target.value)}
+              className="pr-8"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+          </div>
+          {rawValue && dollarVal != null && (
+            <p className="text-xs text-muted-foreground">
+              = {sym}{dollarVal.toFixed(2)}
+              {totalBudget && ` (${numVal}% of ${sym}${Math.round(totalBudget).toLocaleString()})`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Validation */}
+      {exceedsTotal && totalBudget != null && (
+        <p className="text-xs text-red-400 font-medium">
+          ⚠ Exceeds total monthly budget ({sym}{Math.round(totalBudget).toLocaleString()}) — please enter a lower amount.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", totalBudget: number | null): number | null {
+  if (rawValue === "") return null;
+  const num = parseFloat(rawValue);
+  if (isNaN(num)) return null;
+  if (mode === "percent") {
+    if (totalBudget == null) return null;
+    return (num / 100) * totalBudget;
+  }
+  return num;
+}
+
+function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => void; sym: string }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -61,9 +160,7 @@ function CategoryCard({ category, onEdit }: { category: any; onEdit: () => void 
       data-testid={`card-category-${category.id}`}
       className="bg-card border border-border rounded-2xl overflow-hidden"
     >
-      {/* Color bar */}
       <div className="h-1.5" style={{ backgroundColor: category.color }} />
-
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-xl flex-shrink-0"
@@ -76,13 +173,12 @@ function CategoryCard({ category, onEdit }: { category: any; onEdit: () => void 
             <p className="font-semibold text-sm text-foreground truncate">{category.name}</p>
             <p className="text-xs text-muted-foreground">
               {category.budget != null
-                ? `Budget: $${Number(category.budget).toFixed(0)}/mo`
+                ? `Budget: ${sym}${Number(category.budget).toFixed(0)}/mo`
                 : "No budget"}
             </p>
           </div>
         </div>
 
-        {/* Budget progress bar */}
         {category.budget != null && category.budget > 0 && (
           <div className="mb-3 space-y-1">
             <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -95,12 +191,11 @@ function CategoryCard({ category, onEdit }: { category: any; onEdit: () => void 
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              ${Number(category.spent ?? 0).toFixed(2)} of ${Number(category.budget).toFixed(2)}
+              {sym}{Number(category.spent ?? 0).toFixed(2)} of {sym}{Number(category.budget).toFixed(2)}
             </p>
           </div>
         )}
 
-        {/* Action buttons — always visible */}
         {confirmDelete ? (
           <div className="flex gap-2">
             <button
@@ -142,11 +237,15 @@ function CategoryCard({ category, onEdit }: { category: any; onEdit: () => void 
   );
 }
 
-function EditDialog({ category, open, onClose }: { category: any; open: boolean; onClose: () => void }) {
+function EditDialog({ category, open, onClose, totalBudget, sym }: {
+  category: any; open: boolean; onClose: () => void;
+  totalBudget: number | null; sym: string;
+}) {
   const queryClient = useQueryClient();
-  const [name, setName]     = useState(category.name);
-  const [color, setColor]   = useState(category.color);
-  const [budget, setBudget] = useState(category.budget != null ? String(category.budget) : "");
+  const [name,       setName]       = useState(category.name);
+  const [color,      setColor]      = useState(category.color);
+  const [budgetMode, setBudgetMode] = useState<"amount" | "percent">("amount");
+  const [budget,     setBudget]     = useState(category.budget != null ? String(Number(category.budget).toFixed(0)) : "");
 
   const update = useUpdateCategory({
     mutation: {
@@ -158,10 +257,8 @@ function EditDialog({ category, open, onClose }: { category: any; open: boolean;
   });
 
   function handleSave() {
-    update.mutate({
-      id: category.id,
-      data: { name, color, budget: budget !== "" ? parseFloat(budget) : null },
-    });
+    const dollars = resolveBudgetDollars(budget, budgetMode, totalBudget);
+    update.mutate({ id: category.id, data: { name, color, budget: dollars } });
   }
 
   return (
@@ -184,16 +281,15 @@ function EditDialog({ category, open, onClose }: { category: any; open: boolean;
             <ColorPicker value={color} onChange={setColor} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Monthly Budget (optional)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-              <Input
-                type="number" min="0" step="0.01" placeholder="No limit"
-                value={budget} onChange={e => setBudget(e.target.value)}
-                className="pl-7"
-                data-testid={`input-category-budget-${category.id}`}
-              />
-            </div>
+            <Label className="text-xs text-muted-foreground">Monthly Budget <span className="font-normal">(optional)</span></Label>
+            <BudgetInput
+              rawValue={budget}
+              onRawChange={setBudget}
+              mode={budgetMode}
+              onModeChange={setBudgetMode}
+              totalBudget={totalBudget}
+              sym={sym}
+            />
           </div>
           <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={onClose}>
@@ -213,11 +309,16 @@ function EditDialog({ category, open, onClose }: { category: any; open: boolean;
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
-  const [addOpen, setAddOpen]     = useState(false);
-  const [editCat, setEditCat]     = useState<any | null>(null);
-  const [newName, setNewName]     = useState("");
-  const [newColor, setNewColor]   = useState("#818cf8");
-  const [newBudget, setNewBudget] = useState("");
+  const prefs       = loadPrefs();
+  const sym         = currencySymbol(prefs.currency);
+  const totalBudget = prefs.totalBudget;
+
+  const [addOpen,       setAddOpen]       = useState(false);
+  const [editCat,       setEditCat]       = useState<any | null>(null);
+  const [newName,       setNewName]       = useState("");
+  const [newColor,      setNewColor]      = useState("#818cf8");
+  const [newBudgetMode, setNewBudgetMode] = useState<"amount" | "percent">("amount");
+  const [newBudget,     setNewBudget]     = useState("");
 
   const { data: categories, isLoading } = useListCategories();
   const create = useCreateCategory({
@@ -228,6 +329,7 @@ export default function CategoriesPage() {
         setNewName("");
         setNewColor("#818cf8");
         setNewBudget("");
+        setNewBudgetMode("amount");
       },
     },
   });
@@ -235,19 +337,16 @@ export default function CategoriesPage() {
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
-    create.mutate({
-      data: {
-        name: newName.trim(),
-        color: newColor,
-        icon: "tag",
-        budget: newBudget !== "" ? parseFloat(newBudget) : null,
-      },
-    });
+    const dollars = resolveBudgetDollars(newBudget, newBudgetMode, totalBudget);
+    create.mutate({ data: { name: newName.trim(), color: newColor, icon: "tag", budget: dollars } });
   }
+
+  const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
+  const catBudgetExceeds = totalBudget != null && catBudgetSum > totalBudget;
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-xl font-bold">Categories</h1>
           <p className="text-muted-foreground text-xs mt-0.5">Color-coded spending categories</p>
@@ -262,6 +361,27 @@ export default function CategoriesPage() {
         </button>
       </div>
 
+      {/* Budget summary banner */}
+      {totalBudget != null && catBudgetSum > 0 && (
+        <div className={`mb-4 px-4 py-3 rounded-xl border text-sm ${
+          catBudgetExceeds
+            ? "border-red-500/30 bg-red-500/10"
+            : "border-white/10 bg-white/5"
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-white/60">Category budgets total</span>
+            <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
+              {sym}{Math.round(catBudgetSum).toLocaleString()} / {sym}{Math.round(totalBudget).toLocaleString()}
+            </span>
+          </div>
+          {catBudgetExceeds && (
+            <p className="text-xs text-red-400 mt-1">
+              Category budgets exceed your total monthly budget by {sym}{Math.round(catBudgetSum - totalBudget).toLocaleString()}.
+            </p>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -269,7 +389,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} sym={sym} />
           ))}
         </div>
       ) : (
@@ -287,7 +407,13 @@ export default function CategoriesPage() {
 
       {/* Edit dialog */}
       {editCat && (
-        <EditDialog category={editCat} open={!!editCat} onClose={() => setEditCat(null)} />
+        <EditDialog
+          category={editCat}
+          open={!!editCat}
+          onClose={() => setEditCat(null)}
+          totalBudget={totalBudget}
+          sym={sym}
+        />
       )}
 
       {/* Add dialog */}
@@ -313,16 +439,15 @@ export default function CategoriesPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Monthly Budget (optional)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                <Input
-                  data-testid="input-new-budget"
-                  type="number" min="0" step="0.01" placeholder="No limit"
-                  value={newBudget} onChange={e => setNewBudget(e.target.value)}
-                  className="pl-7"
-                />
-              </div>
+              <Label>Monthly Budget <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <BudgetInput
+                rawValue={newBudget}
+                onRawChange={setNewBudget}
+                mode={newBudgetMode}
+                onModeChange={setNewBudgetMode}
+                totalBudget={totalBudget}
+                sym={sym}
+              />
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>Cancel</Button>

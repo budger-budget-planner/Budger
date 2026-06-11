@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { loadPrefs, fmtAmtRound } from "@/lib/prefs";
 
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
@@ -36,7 +37,7 @@ function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
 }
 
 function fmt(n: number) {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return fmtAmtRound(n, loadPrefs().currency);
 }
 
 type MemberRow = {
