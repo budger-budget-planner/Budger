@@ -1,0 +1,2 @@
+---
+- [Wouter v3 routing catch-all](wouter-v3-routing.md) — use path="/:rest*" not path="/" as catch-all in Switch; v3 strict-matches "/" only

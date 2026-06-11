@@ -53,20 +53,25 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Router() {
+function AppRoutes() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/invite/:token" component={InvitePage} />
-      <Route path="/">
+      {/*
+        IMPORTANT – wouter v3 strict-matches path="/", so navigating to /dashboard
+        would render nothing. Use "/:rest*" as the catch-all so any path reaches
+        AuthGuard+Layout and the inner Switch handles the specific page.
+      */}
+      <Route path="/:rest*">
         <AuthGuard>
           <Layout>
             <Switch>
-              <Route path="/"              component={HomeSpending}    />
-              <Route path="/dashboard"     component={DashboardPage}   />
-              <Route path="/transactions"  component={TransactionsPage}/>
-              <Route path="/categories"    component={CategoriesPage}  />
-              <Route path="/household"     component={HouseholdPage}   />
+              <Route path="/"              component={HomeSpending}     />
+              <Route path="/dashboard"     component={DashboardPage}    />
+              <Route path="/transactions"  component={TransactionsPage} />
+              <Route path="/categories"    component={CategoriesPage}   />
+              <Route path="/household"     component={HouseholdPage}    />
               <Route path="/notifications" component={NotificationsPage}/>
             </Switch>
           </Layout>
@@ -81,7 +86,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AppRoutes />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
