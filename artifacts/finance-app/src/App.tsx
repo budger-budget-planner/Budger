@@ -59,11 +59,10 @@ function AppRoutes() {
       <Route path="/login" component={LoginPage} />
       <Route path="/invite/:token" component={InvitePage} />
       {/*
-        IMPORTANT – wouter v3 strict-matches path="/", so navigating to /dashboard
-        would render nothing. Use "/:rest*" as the catch-all so any path reaches
-        AuthGuard+Layout and the inner Switch handles the specific page.
+        wouter v3: <Route> with NO path is an unconditional catch-all (always matches).
+        "/:rest*" does NOT match bare "/" so it can't be used here.
       */}
-      <Route path="/:rest*">
+      <Route>
         <AuthGuard>
           <Layout>
             <Switch>

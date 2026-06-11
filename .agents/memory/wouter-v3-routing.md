@@ -12,15 +12,16 @@ Navigating to any sub-path renders a blank screen if "/" is the only catch-all.
 The old wouter v2 pattern `<Route path="/">` was a prefix match; v3 is not.
 
 **How to apply:**
-- Use `<Route path="/:rest*">` as the last catch-all in a Switch (matches "/" and any sub-path)
-- `/login`, `/invite/:token` etc. listed *before* the catch-all still take precedence
-- Inner `<Switch>` inside the catch-all uses normal exact paths (/dashboard, /categories, etc.)
+- Use `<Route>` (NO path prop) as the last catch-all in a Switch — wouter v3 docs say a Route without path always matches.
+- `/:rest*` looks like a catch-all but does NOT match bare `/`, causing a black screen on the root path.
+- `/login`, `/invite/:token` etc. listed *before* the no-path Route still take precedence in the Switch.
+- Inner `<Switch>` inside the catch-all uses normal exact paths (/dashboard, /categories, etc.).
 
 ```tsx
 <Switch>
   <Route path="/login" component={LoginPage} />
   <Route path="/invite/:token" component={InvitePage} />
-  <Route path="/:rest*">          {/* ← catch-all, not "/" */}
+  <Route>                       {/* ← no path = true catch-all, matches "/" too */}
     <AuthGuard>
       <Layout>
         <Switch>
