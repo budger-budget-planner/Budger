@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Tag, Users, Bell, LogOut, X } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 
 const nav = [
-  { href: "/dashboard",     label: "Dashboard",  icon: LayoutDashboard },
-  { href: "/categories",    label: "Categories", icon: Tag             },
-  { href: "/household",     label: "Household",  icon: Users           },
-  { href: "/notifications", label: "Alerts",     icon: Bell            },
+  { href: "/",             label: "Home",       icon: Home            },
+  { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/categories",   label: "Categories", icon: Tag             },
+  { href: "/household",    label: "Household",  icon: Users           },
+  { href: "/notifications",label: "Alerts",     icon: Bell            },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -27,13 +28,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
   });
 
+  function isActive(href: string) {
+    // exact match for "/" so it doesn't highlight on every page
+    if (href === "/") return location === "/";
+    return location.startsWith(href);
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
       {/* ── Top header ── */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-14
                          bg-background/90 backdrop-blur border-b border-border">
-        {/* Wouter v3: Link renders as <a> directly — no nested <a> needed */}
         <Link href="/" className="flex items-center gap-2.5">
           <BadgerLogo size={28} />
           <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
@@ -49,7 +55,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
-      {/* ── Profile / logout bottom sheet ── */}
+      {/* ── Profile bottom sheet ── */}
       {showProfile && (
         <>
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
@@ -85,12 +91,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* ── Bottom navigation — 4 tabs, wouter v3 pattern ── */}
+      {/* ── Bottom navigation — 5 tabs ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 h-16
                       bg-card/95 backdrop-blur border-t border-border
                       flex items-stretch">
         {nav.map(({ href, label, icon: Icon }) => {
-          const active = location.startsWith(href);
+          const active = isActive(href);
           return (
             <Link
               key={href}

@@ -5,57 +5,192 @@ import {
   getGetNotificationSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, BellOff, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bell, BellOff, Plus, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
+/* ── Types ── */
+type Alert = {
+  id: string;
+  time: string;
+  days: string[];
+  enabled: boolean;
+};
+
 const DAYS = [
-  { key: "mon", label: "Mon" },
-  { key: "tue", label: "Tue" },
-  { key: "wed", label: "Wed" },
-  { key: "thu", label: "Thu" },
-  { key: "fri", label: "Fri" },
-  { key: "sat", label: "Sat" },
-  { key: "sun", label: "Sun" },
+  { key: "mon", label: "M"  },
+  { key: "tue", label: "T"  },
+  { key: "wed", label: "W"  },
+  { key: "thu", label: "T"  },
+  { key: "fri", label: "F"  },
+  { key: "sat", label: "S"  },
+  { key: "sun", label: "S"  },
 ];
 
+const ALERTS_KEY = "budger_alerts_v1";
+
+function loadAlerts(): Alert[] {
+  try {
+    const raw = localStorage.getItem(ALERTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [{ id: "default", time: "20:00", days: ["mon","tue","wed","thu","fri","sat","sun"], enabled: false }];
+}
+
+function saveAlerts(alerts: Alert[]) {
+  localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+}
+
+function makeId() {
+  return Math.random().toString(36).slice(2, 9);
+}
+
+/* ── Single alert card ── */
+function AlertCard({
+  alert,
+  onUpdate,
+  onDelete,
+  canDelete,
+}: {
+  alert: Alert;
+  onUpdate: (a: Alert) => void;
+  onDelete: () => void;
+  canDelete: boolean;
+}) {
+  function toggleDay(day: string) {
+    const days = alert.days.includes(day)
+      ? alert.days.filter(d => d !== day)
+      : [...alert.days, day];
+    onUpdate({ ...alert, days });
+  }
+
+  return (
+    <div className={`bg-card border border-border rounded-2xl overflow-hidden transition-opacity ${alert.enabled ? "" : "opacity-60"}`}>
+      {/* Header row */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          {alert.enabled
+            ? <Bell className="w-4 h-4 text-foreground" />
+            : <BellOff className="w-4 h-4 text-muted-foreground" />}
+          <span className="text-sm font-medium text-foreground">
+            {alert.enabled ? "On" : "Off"}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </button>
+          )}
+          <Switch
+            checked={alert.enabled}
+            onCheckedChange={v => onUpdate({ ...alert, enabled: v })}
+          />
+        </div>
+      </div>
+
+      {/* Time + days */}
+      <div className="px-4 py-3 space-y-3">
+        {/* Time picker */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">Time</span>
+          <Input
+            type="time"
+            value={alert.time}
+            onChange={e => onUpdate({ ...alert, time: e.target.value })}
+            className="w-36 h-9"
+          />
+        </div>
+
+        {/* Day pills */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">Days</span>
+          <div className="flex gap-1.5">
+            {DAYS.map(d => {
+              const active = alert.days.includes(d.key);
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => toggleDay(d.key)}
+                  className={`w-8 h-8 rounded-full text-xs font-semibold transition-colors
+                    ${active
+                      ? "bg-foreground text-background"   /* white bg → black text */
+                      : "bg-muted text-muted-foreground"
+                    }`}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {alert.days.length === 0 && (
+          <p className="text-xs text-destructive pl-12">Select at least one day.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Page ── */
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: settings, isLoading } = useGetNotificationSettings();
+
   const update = useUpdateNotificationSettings({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetNotificationSettingsQueryKey() });
-        toast({ title: "Notification settings saved" });
+        toast({ title: "Alerts saved" });
       },
     },
   });
 
-  const [enabled, setEnabled] = useState(false);
-  const [time, setTime] = useState("20:00");
-  const [days, setDays] = useState<string[]>(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+  const [alerts, setAlerts] = useState<Alert[]>(loadAlerts);
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
 
+  // Hydrate from DB on first load
   useEffect(() => {
-    if (settings) {
-      setEnabled(settings.enabled);
-      setTime(settings.reminderTime);
-      setDays(settings.days);
+    if (settings && !localStorage.getItem(ALERTS_KEY)) {
+      setAlerts([{
+        id: "default",
+        time: settings.reminderTime,
+        days: settings.days,
+        enabled: settings.enabled,
+      }]);
     }
   }, [settings]);
 
   useEffect(() => {
-    if ("Notification" in window) {
-      setPermissionStatus(Notification.permission);
-    }
+    if ("Notification" in window) setPermissionStatus(Notification.permission);
   }, []);
 
-  async function handleToggleEnabled(val: boolean) {
-    if (val && "Notification" in window && Notification.permission !== "granted") {
+  function updateAlert(updated: Alert) {
+    setAlerts(prev => prev.map(a => a.id === updated.id ? updated : a));
+  }
+
+  function deleteAlert(id: string) {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }
+
+  function addAlert() {
+    setAlerts(prev => [
+      ...prev,
+      { id: makeId(), time: "09:00", days: ["mon","tue","wed","thu","fri"], enabled: true },
+    ]);
+  }
+
+  async function handleSave() {
+    const anyEnabled = alerts.some(a => a.enabled);
+
+    // Request permission if needed
+    if (anyEnabled && "Notification" in window && Notification.permission !== "granted") {
       const perm = await Notification.requestPermission();
       setPermissionStatus(perm);
       if (perm !== "granted") {
@@ -63,134 +198,92 @@ export default function NotificationsPage() {
         return;
       }
     }
-    setEnabled(val);
-  }
 
-  function toggleDay(day: string) {
-    setDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
-  }
+    // Persist to localStorage
+    saveAlerts(alerts);
 
-  function handleSave() {
-    update.mutate({ data: { enabled, reminderTime: time, days } });
-    if (enabled && permissionStatus === "granted") {
-      scheduleNextReminder();
-    }
-  }
+    // Sync first alert to DB for backward compat
+    const first = alerts[0];
+    update.mutate({
+      data: {
+        enabled: first?.enabled ?? false,
+        reminderTime: first?.time ?? "20:00",
+        days: first?.days ?? [],
+      },
+    });
 
-  function scheduleNextReminder() {
-    const [h, m] = time.split(":").map(Number);
-    const now = new Date();
-    const next = new Date();
-    next.setHours(h, m, 0, 0);
-    if (next <= now) next.setDate(next.getDate() + 1);
-    const ms = next.getTime() - now.getTime();
-    setTimeout(() => {
-      if (Notification.permission === "granted") {
-        new Notification("Budger Reminder", {
-          body: "Don't forget to log today's spending!",
-          icon: "/favicon.ico",
-        });
+    // Schedule browser notifications for all enabled alerts
+    if (permissionStatus === "granted" || (anyEnabled && Notification.permission === "granted")) {
+      for (const alert of alerts) {
+        if (!alert.enabled || alert.days.length === 0) continue;
+        const [h, m] = alert.time.split(":").map(Number);
+        const now  = new Date();
+        const next = new Date();
+        next.setHours(h, m, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 1);
+        setTimeout(() => {
+          if (Notification.permission === "granted") {
+            new Notification("Budger Reminder", {
+              body: "Don't forget to log today's spending!",
+              icon: "/favicon.ico",
+            });
+          }
+        }, next.getTime() - now.getTime());
       }
-    }, ms);
+    }
   }
 
   if (isLoading) {
     return (
-      <div className="p-8 flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Notifications</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Set daily reminders to log your spending</p>
-      </div>
-
-      <div className="space-y-6">
-        {/* Enable toggle */}
-        <div className="bg-card border border-card-border rounded-xl p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {enabled ? <Bell className="w-5 h-5 text-primary" /> : <BellOff className="w-5 h-5 text-muted-foreground" />}
-              <div>
-                <p className="font-medium text-sm">Daily Reminders</p>
-                <p className="text-xs text-muted-foreground">Remind me to categorize today's spending</p>
-              </div>
-            </div>
-            <Switch
-              checked={enabled}
-              onCheckedChange={handleToggleEnabled}
-              data-testid="switch-notifications"
-            />
-          </div>
-
-          {permissionStatus === "denied" && (
-            <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
-              Browser notifications are blocked. Enable them in your browser settings to use reminders.
-            </div>
-          )}
-          {permissionStatus === "default" && !enabled && (
-            <p className="mt-3 text-xs text-muted-foreground">Enabling reminders will request browser notification permission.</p>
-          )}
-          {enabled && permissionStatus === "granted" && (
-            <p className="mt-3 text-xs text-muted-foreground">Reminders fire in your browser tab — keep it open or pinned for best results.</p>
-          )}
+    <div className="px-4 pt-5 pb-4 max-w-lg mx-auto">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-xl font-bold">Alerts</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Daily reminders to log your spending</p>
         </div>
-
-        {/* Time picker */}
-        <div className={`bg-card border border-card-border rounded-xl p-5 transition-opacity ${enabled ? "" : "opacity-50 pointer-events-none"}`}>
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-4 h-4 text-primary" />
-            <p className="font-medium text-sm">Reminder Time</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Time of day</Label>
-            <Input
-              data-testid="input-reminder-time"
-              type="time"
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              className="w-40"
-            />
-            <p className="text-xs text-muted-foreground">You'll be notified at this time on selected days.</p>
-          </div>
-        </div>
-
-        {/* Days */}
-        <div className={`bg-card border border-card-border rounded-xl p-5 transition-opacity ${enabled ? "" : "opacity-50 pointer-events-none"}`}>
-          <p className="font-medium text-sm mb-4">Reminder Days</p>
-          <div className="flex gap-2 flex-wrap">
-            {DAYS.map(d => (
-              <button
-                key={d.key}
-                type="button"
-                data-testid={`button-day-${d.key}`}
-                onClick={() => toggleDay(d.key)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  days.includes(d.key)
-                    ? "bg-primary text-white"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          {days.length === 0 && <p className="text-xs text-destructive mt-2">Select at least one day.</p>}
-        </div>
-
-        <Button
-          onClick={handleSave}
-          disabled={update.isPending || (enabled && days.length === 0)}
-          className="w-full"
-          data-testid="button-save-notifications"
+        <button
+          onClick={addAlert}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
+                     text-sm font-semibold transition active:scale-95"
         >
-          {update.isPending ? "Saving..." : "Save Settings"}
-        </Button>
+          <Plus className="w-4 h-4" /> Add
+        </button>
       </div>
+
+      {permissionStatus === "denied" && (
+        <div className="mb-4 p-3 rounded-xl bg-destructive/10 text-destructive text-xs">
+          Browser notifications are blocked. Enable them in your browser settings.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {alerts.map(alert => (
+          <AlertCard
+            key={alert.id}
+            alert={alert}
+            onUpdate={updateAlert}
+            onDelete={() => deleteAlert(alert.id)}
+            canDelete={alerts.length > 1}
+          />
+        ))}
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={update.isPending || alerts.some(a => a.enabled && a.days.length === 0)}
+        className="mt-5 w-full h-13 rounded-2xl bg-foreground text-background font-semibold text-base
+                   transition active:scale-95 disabled:opacity-40"
+        data-testid="button-save-notifications"
+      >
+        {update.isPending ? "Saving…" : "Save Alerts"}
+      </button>
     </div>
   );
 }
