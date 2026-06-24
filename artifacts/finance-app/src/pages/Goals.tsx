@@ -100,7 +100,7 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
   const budget = parseFloat(goal.budget);
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
   const ml = monthsLeft(goal.deadline);
-  const monthlyTarget = goal.divideByMonths ? Math.round((budget / ml) * 100) / 100 : null;
+  const monthlyTarget = goal.divideByMonths ? Math.ceil(Math.max(0, budget - contributed) / ml * 100) / 100 : null;
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
