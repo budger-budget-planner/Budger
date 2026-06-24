@@ -504,8 +504,46 @@ export default function TransactionsPage() {
 
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
-    const { categoryId } = resolveCategory(form);
-    update.mutate({ id: editTx.id, data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } });
+    const { categoryId, goalContribution } = resolveCategory(form);
+    const txDate = new Date(form.date);
+    const month = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, "0")}`;
+
+    update.mutate(
+      { id: editTx.id, data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
+      {
+        onSuccess: () => {
+          if (!goalContribution) return;
+          // Remove any existing contributions linked to this transaction first, then add the new one
+          fetch(`/api/goal-contributions?month=${month}`, { credentials: "include" })
+            .then(r => r.json())
+            .then((contribs: any[]) => {
+              const linked = (contribs ?? []).filter((c: any) => c.transactionId === editTx.id);
+              return Promise.all(
+                linked.map((c: any) =>
+                  fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
+                )
+              );
+            })
+            .then(() =>
+              fetch("/api/goal-contributions", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  goalId: goalContribution.goalId,
+                  transactionId: editTx.id,
+                  amount: goalContribution.amount,
+                  month,
+                }),
+              })
+            )
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+            });
+        },
+      }
+    );
   }
 
   return (
