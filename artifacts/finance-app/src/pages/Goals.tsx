@@ -176,7 +176,7 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
 
 function GoalFormFields({
   name, setName, color, setColor, budget, setBudget,
-  deadline, setDeadline, divideByMonths, setDivideByMonths, sym,
+  deadline, setDeadline, divideByMonths, setDivideByMonths, sym, alreadyContributed = 0,
 }: {
   name: string; setName: (v: string) => void;
   color: string; setColor: (v: string) => void;
@@ -184,10 +184,14 @@ function GoalFormFields({
   deadline: string; setDeadline: (v: string) => void;
   divideByMonths: boolean; setDivideByMonths: (v: boolean) => void;
   sym: string;
+  alreadyContributed?: number;
 }) {
   const ml = deadline ? monthsLeft(deadline) : null;
   const budgetNum = parseFloat(budget) || 0;
-  const monthly = ml && budgetNum > 0 && divideByMonths ? (budgetNum / ml).toFixed(2) : null;
+  const remaining = Math.max(0, budgetNum - alreadyContributed);
+  const monthly = ml && budgetNum > 0 && divideByMonths
+    ? (Math.ceil(remaining / ml * 100) / 100).toFixed(2)
+    : null;
 
   return (
     <div className="space-y-4">
@@ -242,7 +246,7 @@ function GoalFormFields({
   );
 }
 
-function EditGoalDialog({ goal, open, onClose, sym }: { goal: any; open: boolean; onClose: () => void; sym: string }) {
+function EditGoalDialog({ goal, open, onClose, sym, alreadyContributed = 0 }: { goal: any; open: boolean; onClose: () => void; sym: string; alreadyContributed?: number }) {
   const queryClient = useQueryClient();
   const [name, setName]                     = useState(goal.name);
   const [color, setColor]                   = useState(goal.color);
@@ -276,6 +280,7 @@ function EditGoalDialog({ goal, open, onClose, sym }: { goal: any; open: boolean
           deadline={deadline} setDeadline={setDeadline}
           divideByMonths={divideByMonths} setDivideByMonths={setDivideByMonths}
           sym={sym}
+          alreadyContributed={alreadyContributed}
         />
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
@@ -458,6 +463,7 @@ export default function GoalsPage() {
           open={!!editGoal}
           onClose={() => setEditGoal(null)}
           sym={sym}
+          alreadyContributed={summaryMap.get(editGoal.id)?.contributed ?? 0}
         />
       )}
 

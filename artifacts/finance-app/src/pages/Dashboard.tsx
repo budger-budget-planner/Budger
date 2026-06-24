@@ -359,30 +359,37 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
-                  {goalsSummary.slice(0, 6).map((item, i) => (
-                    <div key={item.goalId} className="space-y-0.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                          <span className="text-muted-foreground truncate">{item.goalName}</span>
+                  {goalsSummary.slice(0, 6).map((item, i) => {
+                    const displayPct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
+                      ? Math.round((item.contributed / item.monthlyTarget) * 10000) / 100
+                      : item.percentage;
+                    const color = item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length];
+                    return (
+                      <div key={item.goalId} className="space-y-0.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                            <span className="text-muted-foreground truncate">{item.goalName}</span>
+                          </div>
+                          <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.contributed.toFixed(2)}</span>
                         </div>
-                        <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.contributed.toFixed(2)}</span>
+                        <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                          <div className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(displayPct, 100)}%`,
+                              backgroundColor: displayPct >= 100 ? "#34d399" : color,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {displayPct.toFixed(0)}%{" "}
+                          {item.divideByMonths && item.monthlyTarget
+                            ? `of ${sym}${item.monthlyTarget.toFixed(2)}/mo target`
+                            : `of ${sym}${item.budget.toFixed(0)} total goal`}
+                        </p>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                        <div className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${Math.min(item.percentage, 100)}%`,
-                            backgroundColor: item.percentage >= 100 ? "#34d399" : (item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length]),
-                          }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {item.percentage.toFixed(0)}% of {sym}{item.budget.toFixed(0)} goal
-                        {item.monthlyTarget ? ` · target ${sym}${item.monthlyTarget.toFixed(0)}/mo` : ""}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (
