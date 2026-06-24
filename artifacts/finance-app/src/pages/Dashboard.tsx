@@ -12,6 +12,7 @@ import {
 import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Link } from "wouter";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { t } from "@/lib/i18n";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -35,7 +36,7 @@ function HistorySection({ sym }: { sym: string }) {
     </div>
   );
   if (!history || history.length === 0) return (
-    <p className="text-sm text-muted-foreground text-center py-6">No spending history yet.</p>
+    <p className="text-sm text-muted-foreground text-center py-6">{t("dashboard.no_history")}</p>
   );
 
   return (
@@ -51,7 +52,7 @@ function HistorySection({ sym }: { sym: string }) {
                 ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
               <span className="font-medium text-sm">{m.month} {m.year}</span>
-              <span className="text-xs text-muted-foreground">{m.count} tx</span>
+              <span className="text-xs text-muted-foreground">{m.count} {t("dashboard.tx")}</span>
             </div>
             <span className="font-semibold text-sm">{sym}{m.total.toFixed(2)}</span>
           </button>
@@ -66,7 +67,7 @@ function HistorySection({ sym }: { sym: string }) {
                       <span className="text-muted-foreground">{cat.categoryName}</span>
                       {cat.budget && (
                         <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${cat.total > cat.budget ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                          {cat.total > cat.budget ? "Over" : `${Math.round((cat.total / cat.budget) * 100)}%`}
+                          {cat.total > cat.budget ? t("dashboard.over") : `${Math.round((cat.total / cat.budget) * 100)}%`}
                         </span>
                       )}
                     </div>
@@ -96,7 +97,6 @@ export default function DashboardPage() {
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
-  const overBudget    = spending?.filter(c => c.budget != null && c.total > c.budget).length ?? 0;
   const currentMonth  = new Date().toLocaleString("default", { month: "long", year: "numeric" });
 
   const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
@@ -106,51 +106,51 @@ export default function DashboardPage() {
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
 
       <div className="mb-4">
-        <h1 className="text-xl font-bold">Dashboard</h1>
+        <h1 className="text-xl font-bold">{t("dashboard.title")}</h1>
         <p className="text-xs text-muted-foreground">{currentMonth}</p>
       </div>
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 gap-2 mb-5">
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">Total spent</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.total_spent")}</p>
           <p className="text-2xl font-bold" data-testid="text-total-spent">{fmtAmt(totalSpending, prefs.currency)}</p>
-          <p className="text-xs text-muted-foreground">this month</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
         </div>
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">Budget</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.budget")}</p>
           {totalBudget > 0 ? (
             <>
               <p className="text-2xl font-bold">{Math.round((totalSpending / totalBudget) * 100)}%</p>
               <div className="mt-1 space-y-0.5">
                 <BudgetBar spent={totalSpending} budget={totalBudget} color="#818cf8" />
                 <p className="text-xs text-muted-foreground">
-                  {sym}{totalSpending.toFixed(0)} of {sym}{totalBudget.toFixed(0)}
+                  {sym}{totalSpending.toFixed(0)} {t("common.of")} {sym}{totalBudget.toFixed(0)}
                 </p>
               </div>
             </>
           ) : (
             <>
               <p className="text-2xl font-bold">—</p>
-              <p className="text-xs text-muted-foreground">no budgets set</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.no_budgets")}</p>
             </>
           )}
         </div>
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">Transactions</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
           <p className="text-2xl font-bold">{txCount}</p>
-          <p className="text-xs text-muted-foreground">this month</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
         </div>
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">For goals</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_goals")}</p>
           <p className="text-2xl font-bold">{sym}{totalGoalContributions.toFixed(0)}</p>
           <p className="text-xs text-muted-foreground">
             {activeGoalsWithContribs.length > 0
-              ? `${activeGoalsWithContribs.length} goal${activeGoalsWithContribs.length !== 1 ? "s" : ""} active`
-              : "no contributions"}
+              ? `${activeGoalsWithContribs.length} ${activeGoalsWithContribs.length !== 1 ? t("nav.goals").toLowerCase() : t("home.goal").toLowerCase()} active`
+              : t("dashboard.no_contributions")}
           </p>
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function DashboardPage() {
       <div className="space-y-4 mb-5">
         {/* Spending by Category */}
         <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-sm font-semibold mb-3">Spending by Category</p>
+          <p className="text-sm font-semibold mb-3">{t("dashboard.by_category")}</p>
           {spendingLoading ? (
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -204,7 +204,7 @@ export default function DashboardPage() {
           ) : (
             <div className="h-44 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <TrendingDown className="w-8 h-8 opacity-30" />
-              <p className="text-sm">No spending data yet</p>
+              <p className="text-sm">{t("dashboard.no_spending")}</p>
             </div>
           )}
         </div>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
           <div className="bg-card border border-border rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-muted-foreground" />
-              <p className="text-sm font-semibold">Goals Progress</p>
+              <p className="text-sm font-semibold">{t("dashboard.goals_progress")}</p>
             </div>
             {activeGoalsWithContribs.length > 0 ? (
               <div className="flex items-center gap-4">
@@ -260,8 +260,8 @@ export default function DashboardPage() {
                         <p className="text-[10px] text-muted-foreground">
                           {displayPct.toFixed(0)}%{" "}
                           {item.divideByMonths && item.monthlyTarget
-                            ? `of ${sym}${item.monthlyTarget.toFixed(2)}/mo target`
-                            : `of ${sym}${item.budget.toFixed(0)} total goal`}
+                            ? `${t("common.of")} ${sym}${item.monthlyTarget.toFixed(2)}/mo target`
+                            : `${t("common.of")} ${sym}${item.budget.toFixed(0)} total goal`}
                         </p>
                       </div>
                     );
@@ -278,11 +278,11 @@ export default function DashboardPage() {
                           style={{ backgroundColor: item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
                         <span className="text-muted-foreground">{item.goalName}</span>
                       </div>
-                      <span className="text-muted-foreground">No contributions yet</span>
+                      <span className="text-muted-foreground">{t("dashboard.no_contributions")}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1" />
                     <p className="text-[10px] text-muted-foreground">
-                      Target: {sym}{item.budget.toFixed(0)} by {item.deadline}
+                      {t("goals.target")} {sym}{item.budget.toFixed(0)} by {item.deadline}
                       {item.monthlyTarget ? ` · ${sym}${item.monthlyTarget.toFixed(0)}/mo needed` : ""}
                     </p>
                   </div>
@@ -294,7 +294,7 @@ export default function DashboardPage() {
 
         {/* Monthly trend */}
         <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-sm font-semibold mb-3">Monthly Trend</p>
+          <p className="text-sm font-semibold mb-3">{t("dashboard.monthly_trend")}</p>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={monthly ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
               <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -319,7 +319,7 @@ export default function DashboardPage() {
       >
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-muted-foreground" />
-          <span>Spending History</span>
+          <span>{t("dashboard.spending_history")}</span>
         </div>
         {historyOpen
           ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -335,10 +335,10 @@ export default function DashboardPage() {
       {/* Recent activity */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <p className="text-sm font-semibold">Recent Activity</p>
+          <p className="text-sm font-semibold">{t("dashboard.recent_activity")}</p>
           <Link href="/transactions">
             <span className="text-xs text-primary flex items-center gap-1">
-              View all <ArrowRight className="w-3 h-3" />
+              {t("dashboard.view_all")} <ArrowRight className="w-3 h-3" />
             </span>
           </Link>
         </div>
@@ -359,7 +359,7 @@ export default function DashboardPage() {
                       {tx.receiptImage && <Camera className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {tx.categoryName ?? "Uncategorized"} · {tx.date}
+                      {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
                     </p>
                   </div>
                 </div>
@@ -371,7 +371,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-10">
-            No recent transactions.
+            {t("dashboard.no_recent")}
           </p>
         )}
       </div>

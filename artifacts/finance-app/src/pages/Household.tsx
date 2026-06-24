@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import {
   useGetHousehold,
   useListHouseholdMembers,
@@ -107,7 +108,7 @@ function MemberSpendingSheet({
               <p className="text-sm">Dashboard is private.</p>
             </div>
           ) : !data?.length ? (
-            <div className="text-center py-10 text-white/40 text-sm">No spending this month.</div>
+            <div className="text-center py-10 text-white/40 text-sm">{t("hh.no_spending")}</div>
           ) : (
             <>
               <div className="flex items-center justify-between mb-1">
@@ -255,8 +256,8 @@ export default function HouseholdPage() {
     <div className="pb-28">
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
-        <h1 className="text-xl font-bold">Household</h1>
-        <p className="text-sm text-white/40 mt-0.5">Shared spending with your household</p>
+        <h1 className="text-xl font-bold">{t("hh.title")}</h1>
+        <p className="text-sm text-white/40 mt-0.5">{t("hh.subtitle")}</p>
       </div>
 
       {!household ? (
@@ -266,7 +267,7 @@ export default function HouseholdPage() {
               <Users className="w-8 h-8 text-white/40" />
             </div>
             <div>
-              <p className="font-semibold text-lg">No household yet</p>
+              <p className="font-semibold text-lg">{t("hh.no_household")}</p>
               <p className="text-sm text-white/40 mt-1">Create one to share expenses with family or roommates</p>
             </div>
             <Button
@@ -274,7 +275,7 @@ export default function HouseholdPage() {
               onClick={() => setCreateOpen(true)}
               data-testid="button-create-household"
             >
-              <Plus className="w-4 h-4" /> Create Household
+              <Plus className="w-4 h-4" /> {t("hh.create")}
             </Button>
           </div>
         </div>
@@ -303,10 +304,10 @@ export default function HouseholdPage() {
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 h-7 text-xs"
-                  onClick={() => { if (confirm("Leave this household?")) leaveHousehold.mutate(); }}
+                  onClick={() => { if (confirm(t("hh.leave_confirm"))) leaveHousehold.mutate(); }}
                   data-testid="button-leave-household"
                 >
-                  <LogOut className="w-3.5 h-3.5" /> Leave
+                  <LogOut className="w-3.5 h-3.5" /> {t("hh.leave")}
                 </Button>
               )}
             </div>
@@ -355,7 +356,7 @@ export default function HouseholdPage() {
           {/* ── Members ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <p className="text-sm font-semibold">Members <span className="text-white/40 font-normal">({members?.length ?? 0})</span></p>
+              <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.length ?? 0})</span></p>
               <Button
                 size="sm"
                 variant="ghost"
@@ -363,7 +364,7 @@ export default function HouseholdPage() {
                 onClick={() => setInviteOpen(true)}
                 data-testid="button-invite-member"
               >
-                <Mail className="w-3.5 h-3.5" /> Invite
+                <Mail className="w-3.5 h-3.5" /> {t("hh.invite_btn")}
               </Button>
             </div>
 
@@ -435,7 +436,7 @@ export default function HouseholdPage() {
             <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
                 <Target className="w-4 h-4 text-white/40" />
-                <p className="text-sm font-semibold">Shared Goals <span className="text-white/40 font-normal">({sharedGoals.length})</span></p>
+                <p className="text-sm font-semibold">{t("hh.shared_goals")} <span className="text-white/40 font-normal">({sharedGoals.length})</span></p>
               </div>
               <div className="divide-y divide-white/5">
                 {sharedGoals.map((g: any) => {
@@ -471,7 +472,7 @@ export default function HouseholdPage() {
                         />
                       </div>
                       <p className="text-xs text-white/30">
-                        {pct >= 100 ? "Goal reached! 🎉" : `${pct.toFixed(0)}% saved — combined household progress this month`}
+                        {pct >= 100 ? t("hh.goal_reached") : `${pct.toFixed(0)}% ${t("hh.combined")}`}
                       </p>
                     </div>
                   );
@@ -490,8 +491,8 @@ export default function HouseholdPage() {
                 <p className="text-sm font-medium">Private dashboard</p>
                 <p className="text-xs text-white/40 mt-0.5">
                   {me?.dashboardBlocked
-                    ? "Others can't see your spending breakdown"
-                    : "Your breakdown is visible to household members"}
+                    ? t("hh.others_cant")
+                    : t("hh.visible")}
                 </p>
               </div>
               <Switch
@@ -506,7 +507,7 @@ export default function HouseholdPage() {
           {invites && invites.length > 0 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
-                <p className="text-sm font-semibold">Pending Invites <span className="text-white/40 font-normal">({invites.length})</span></p>
+                <p className="text-sm font-semibold">{t("hh.pending_invites")} <span className="text-white/40 font-normal">({invites.length})</span></p>
               </div>
               <div className="divide-y divide-white/5">
                 {invites.map(inv => (
@@ -516,7 +517,7 @@ export default function HouseholdPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{inv.email}</p>
-                      <p className="text-xs text-white/30">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-white/30">{t("hh.expires")} {new Date(inv.expiresAt).toLocaleDateString()}</p>
                     </div>
                     <button
                       className="p-1.5 text-white/40 hover:text-white"
@@ -554,7 +555,7 @@ export default function HouseholdPage() {
       {/* ── Create household dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Create Household</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("hh.create_title")}</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -568,7 +569,7 @@ export default function HouseholdPage() {
               <Label>Household name</Label>
               <Input
                 data-testid="input-household-name"
-                placeholder="The Johnsons, Apt 4B…"
+                placeholder={t("hh.name_placeholder")}
                 value={householdName}
                 onChange={e => setHouseholdName(e.target.value)}
                 required
@@ -592,9 +593,9 @@ export default function HouseholdPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
               <Button type="submit" className="flex-1" disabled={createHousehold.isPending} data-testid="button-save-household">
-                {createHousehold.isPending ? "Creating…" : "Create"}
+                {createHousehold.isPending ? t("common.saving") : t("hh.create")}
               </Button>
             </div>
           </form>
@@ -604,7 +605,7 @@ export default function HouseholdPage() {
       {/* ── Edit budget dialog ── */}
       <Dialog open={editBudgetOpen} onOpenChange={setEditBudgetOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Monthly Budget</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("home.monthly_budget")}</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -630,9 +631,9 @@ export default function HouseholdPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditBudgetOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditBudgetOpen(false)}>{t("common.cancel")}</Button>
               <Button type="submit" className="flex-1" disabled={updateHousehold.isPending}>
-                {updateHousehold.isPending ? "Saving…" : "Save"}
+                {updateHousehold.isPending ? t("common.saving") : t("common.save")}
               </Button>
             </div>
           </form>
@@ -642,7 +643,7 @@ export default function HouseholdPage() {
       {/* ── Invite dialog ── */}
       <Dialog open={inviteOpen} onOpenChange={open => { setInviteOpen(open); if (!open) setInviteEmail(""); }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Invite to Household</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("hh.invite_title")}</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -666,10 +667,10 @@ export default function HouseholdPage() {
 
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); }}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" className="flex-1" disabled={createInvite.isPending} data-testid="button-send-invite">
-                {createInvite.isPending ? "Sending…" : "Send Invite"}
+                {createInvite.isPending ? t("common.saving") : t("hh.send_invite")}
               </Button>
             </div>
           </form>

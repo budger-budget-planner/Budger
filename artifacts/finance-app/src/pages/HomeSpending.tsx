@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { t } from "@/lib/i18n";
 import {
   useListTransactions,
   useListCategories,
@@ -81,10 +82,10 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
       </div>
 
       <div className="space-y-1.5">
-        <Label>Description</Label>
+        <Label>{t("home.description")}</Label>
         <Input
           data-testid="input-description"
-          placeholder="Coffee, groceries…"
+          placeholder={t("home.coffee_placeholder")}
           value={form.description}
           onChange={e => set("description", e.target.value)}
           required
@@ -92,13 +93,13 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
       </div>
 
       <div className="space-y-1.5">
-        <Label>Category</Label>
+        <Label>{t("home.category")}</Label>
         <Select value={form.categoryId} onValueChange={v => set("categoryId", v)}>
           <SelectTrigger data-testid="select-category">
-            <SelectValue placeholder="No category" />
+            <SelectValue placeholder={t("home.no_category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">No category</SelectItem>
+            <SelectItem value="none">{t("home.no_category")}</SelectItem>
             {categories.map(c => (
               <SelectItem key={c.id} value={String(c.id)}>
                 <span className="flex items-center gap-2">
@@ -116,8 +117,8 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
         <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Partially a Goal expense</p>
-              <p className="text-xs text-muted-foreground">Count part of this expense toward a goal</p>
+              <p className="text-sm font-medium">{t("home.partially_goal")}</p>
+              <p className="text-xs text-muted-foreground">{t("home.count_toward_goal")}</p>
             </div>
             <Switch
               checked={form.isGoalExpense}
@@ -131,7 +132,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                 <Label>Goal</Label>
                 <Select value={form.goalId} onValueChange={v => set("goalId", v)} required={form.isGoalExpense}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a goal" />
+                    <SelectValue placeholder={t("home.select_goal")} />
                   </SelectTrigger>
                   <SelectContent>
                     {goals.map(g => (
@@ -147,7 +148,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Amount toward goal</Label>
+                <Label>{t("home.amount_toward_goal")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -159,7 +160,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                   required={form.isGoalExpense}
                 />
                 {goalAmountError && (
-                  <p className="text-xs text-destructive">Cannot exceed transaction amount</p>
+                  <p className="text-xs text-destructive">{t("home.cannot_exceed")}</p>
                 )}
               </div>
             </div>
@@ -179,14 +180,14 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Payment</Label>
+          <Label>{t("home.payment")}</Label>
           <Select value={form.paymentMethod} onValueChange={v => set("paymentMethod", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="card">Card</SelectItem>
+              <SelectItem value="card">{t("home.card")}</SelectItem>
               <SelectItem value="apple_pay">Apple Pay</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+              <SelectItem value="cash">{t("home.cash")}</SelectItem>
+              <SelectItem value="bank_transfer">{t("home.bank_transfer")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -200,7 +201,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           disabled={loading || !!goalAmountError || (form.isGoalExpense && (!form.goalId || form.goalId === "none"))}
           data-testid="button-save-transaction"
         >
-          {loading ? "Saving…" : "Save"}
+          {loading ? t("common.saving") : t("common.save")}
         </Button>
       </div>
     </form>
@@ -238,11 +239,11 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     <>
       <Dialog open={open && !lightbox} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Receipt — {tx.description}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("home.receipt", { desc: tx.description })}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
-              {" "}· {tx.categoryName ?? "Uncategorized"} · {tx.date}
+              {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
             {tx.receiptImage ? (
               <div className="relative group rounded-xl overflow-hidden border border-border">
@@ -269,21 +270,21 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageOff className="w-8 h-8 opacity-40" />
-                <p className="text-sm text-center">No receipt attached yet.</p>
+                <p className="text-sm text-center">{t("home.no_receipt")}</p>
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="gap-2"
                 onClick={() => cameraRef.current?.click()} disabled={uploadReceipt.isPending}>
                 <Camera className="w-4 h-4" />
-                {uploadReceipt.isPending ? "Uploading…" : "Camera"}
+                {uploadReceipt.isPending ? t("home.uploading") : t("home.camera")}
               </Button>
               <Button variant="outline" className="gap-2"
                 onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
-                <Image className="w-4 h-4" /> Library
+                <Image className="w-4 h-4" /> {t("home.library")}
               </Button>
             </div>
-            <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
+            <Button variant="ghost" className="w-full" onClick={onClose}>{t("common.done")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -525,8 +526,8 @@ export default function HomeSpending() {
               <Target className="w-4 h-4 text-white/50" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">Set your total monthly budget</p>
-              <p className="text-xs text-white/40">Track how close you are to your limit</p>
+              <p className="text-sm font-medium">{t("home.set_budget")}</p>
+              <p className="text-xs text-white/40">{t("home.track_how_close")}</p>
             </div>
             <Plus className="w-4 h-4 text-white/30 flex-shrink-0" />
           </button>
@@ -535,7 +536,7 @@ export default function HomeSpending() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-white/50" />
-                <span className="text-sm font-medium">Monthly Budget</span>
+                <span className="text-sm font-medium">{t("home.monthly_budget")}</span>
               </div>
               <button
                 className="text-xs text-white/40 hover:text-white/70"
@@ -608,9 +609,9 @@ export default function HomeSpending() {
           </div>
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-            <p className="text-sm">No spending logged for this month.</p>
+            <p className="text-sm">{t("home.no_spending_month")}</p>
             <Button onClick={() => setAddOpen(true)} variant="outline" className="gap-2">
-              <Plus className="w-4 h-4" /> Add first entry
+              <Plus className="w-4 h-4" /> {t("home.add_first_entry")}
             </Button>
           </div>
         ) : (
@@ -623,7 +624,7 @@ export default function HomeSpending() {
                 {grouped[date].map(tx => {
                   const contrib = contribByTxId.get(tx.id);
                   const dotColor = tx.categoryColor ?? "#666";
-                  const categoryLabel = tx.categoryName ?? "Uncategorized";
+                  const categoryLabel = tx.categoryName ?? t("common.uncategorized");
 
                   return (
                     <div key={tx.id}>
@@ -735,7 +736,7 @@ export default function HomeSpending() {
       {/* ── Set/edit total budget dialog ── */}
       <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Monthly Budget</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("home.monthly_budget")}</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();

@@ -13,6 +13,7 @@ import BadgerLogo from "@/components/BadgerLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { t } from "@/lib/i18n";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -30,9 +31,7 @@ export default function InvitePage() {
         err.revoked = true;
         throw err;
       }
-      if (!r.ok) {
-        throw new Error("not_found");
-      }
+      if (!r.ok) throw new Error("not_found");
       return r.json();
     },
     enabled: !!token,
@@ -40,20 +39,13 @@ export default function InvitePage() {
   });
 
   const isRevoked = isError && (error as any)?.revoked === true;
-
   const { data: me } = useGetMe();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
   const login = useLogin({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      },
-    },
+    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }); } },
   });
-
   const accept = useAcceptInvite({
     mutation: {
       onSuccess: () => {
@@ -89,38 +81,38 @@ export default function InvitePage() {
             <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
               <Ban className="w-7 h-7 text-muted-foreground" />
             </div>
-            <h2 className="font-semibold mb-2">Invite revoked</h2>
-            <p className="text-sm text-muted-foreground">This invite link has been cancelled by the household owner.</p>
-            <Button className="mt-6" onClick={() => setLocation("/")}>Go to App</Button>
+            <h2 className="font-semibold mb-2">{t("invite.revoked")}</h2>
+            <p className="text-sm text-muted-foreground">{t("invite.revoked_msg")}</p>
+            <Button className="mt-6" onClick={() => setLocation("/")}>{t("invite.go_to_app")}</Button>
           </div>
         ) : isError || !invite ? (
           <div className="text-center py-12">
             <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-7 h-7 text-destructive" />
             </div>
-            <h2 className="font-semibold mb-2">Invite not found</h2>
-            <p className="text-sm text-muted-foreground">This invite link may be expired or invalid.</p>
-            <Button className="mt-6" onClick={() => setLocation("/")}>Go to App</Button>
+            <h2 className="font-semibold mb-2">{t("invite.not_found")}</h2>
+            <p className="text-sm text-muted-foreground">{t("invite.expired_msg")}</p>
+            <Button className="mt-6" onClick={() => setLocation("/")}>{t("invite.go_to_app")}</Button>
           </div>
         ) : (
           <div className="bg-card border border-card-border rounded-2xl p-8 shadow-lg">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
               <Users className="w-7 h-7 text-primary" />
             </div>
-            <h1 className="text-xl font-bold text-center mb-1">You're invited!</h1>
+            <h1 className="text-xl font-bold text-center mb-1">{t("invite.youre_invited")}</h1>
             <p className="text-sm text-muted-foreground text-center mb-6">
-              Join <span className="font-semibold text-foreground">{invite.householdName}</span> on Budger to track household spending together.
+              {t("invite.join_msg", { name: invite.householdName })}
             </p>
 
             {!me && (
               <div className="space-y-4 mb-6 border-t border-border pt-5">
-                <p className="text-xs text-muted-foreground text-center">Create an account or sign in to accept</p>
+                <p className="text-xs text-muted-foreground text-center">{t("invite.create_or_signin")}</p>
                 <div className="space-y-1.5">
-                  <Label>Your name</Label>
+                  <Label>{t("login.your_name")}</Label>
                   <Input data-testid="input-name" placeholder="Alex Johnson" value={name} onChange={e => setName(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Email</Label>
+                  <Label>{t("common.email")}</Label>
                   <Input data-testid="input-email" type="email" placeholder={invite.email} value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
               </div>
@@ -145,11 +137,10 @@ export default function InvitePage() {
               data-testid="button-accept-invite"
             >
               <Check className="w-4 h-4" />
-              {accept.isPending ? "Joining..." : `Join ${invite.householdName}`}
+              {accept.isPending ? t("invite.joining") : t("invite.join_btn", { name: invite.householdName })}
             </Button>
-
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Expires {new Date(invite.expiresAt).toLocaleDateString()}
+              {t("invite.expires", { date: new Date(invite.expiresAt).toLocaleDateString() })}
             </p>
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import {
   useListGoals,
   useListPastGoals,
@@ -213,14 +214,14 @@ function GoalFormFields({
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ backgroundColor: color }} />
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Goal name" autoFocus required />
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("goals.goal_name")} autoFocus required />
       </div>
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Color</Label>
         <ColorPicker value={color} onChange={setColor} />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Target amount</Label>
+        <Label className="text-xs text-muted-foreground">{t("goals.target_amt")}</Label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
           <Input type="number" min="0" step="0.01" placeholder="0.00" value={budget}
@@ -228,16 +229,16 @@ function GoalFormFields({
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Deadline</Label>
+        <Label className="text-xs text-muted-foreground">{t("goals.deadline")}</Label>
         <DdMmYyyyInput value={deadline} onChange={setDeadline} required />
       </div>
       <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-muted/50 border border-border">
         <div className="flex-1">
-          <p className="text-sm font-medium">Divide by months left</p>
+          <p className="text-sm font-medium">{t("goals.divide_mo")}</p>
           <p className="text-xs text-muted-foreground">
             {monthly
               ? `Save ${sym}${monthly}/mo for ${ml} month${ml !== 1 ? "s" : ""}`
-              : "Calculate required monthly savings"}
+              : t("goals.calc_monthly")}
           </p>
         </div>
         <button
@@ -361,8 +362,8 @@ function EditGoalDialog({
                 >
                   <Lock className="w-4 h-4 flex-shrink-0" />
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-foreground">Make Private</p>
-                    <p className="text-xs text-muted-foreground">Remove from household goals</p>
+                    <p className="font-medium text-foreground">{t("goals.make_private")}</p>
+                    <p className="text-xs text-muted-foreground">{t("goals.remove_from_household")}</p>
                   </div>
                   {togglingHousehold && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
                 </button>
@@ -375,8 +376,8 @@ function EditGoalDialog({
                 >
                   <Users className="w-4 h-4 flex-shrink-0" />
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-foreground">Make Household Goal</p>
-                    <p className="text-xs text-muted-foreground">Share progress with all members</p>
+                    <p className="font-medium text-foreground">{t("goals.make_household")}</p>
+                    <p className="text-xs text-muted-foreground">{t("goals.share_progress")}</p>
                   </div>
                   {togglingHousehold && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
                 </button>
@@ -386,9 +387,9 @@ function EditGoalDialog({
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border">
                   <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Proposal sent</p>
+                    <p className="text-sm font-medium">{t("goals.proposal_sent")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {proposeState === "already" ? "Already awaiting approval" : "Awaiting household owner approval"}
+                      {proposeState === "already" ? t("goals.awaiting_approval") : t("goals.awaiting_owner")}
                     </p>
                   </div>
                 </div>
@@ -401,7 +402,7 @@ function EditGoalDialog({
                 >
                   <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-foreground">Propose to Household</p>
+                    <p className="font-medium text-foreground">{t("goals.propose_to_hh")}</p>
                     <p className="text-xs text-muted-foreground">Request owner to make this a shared goal</p>
                   </div>
                   {proposeState === "pending" && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
@@ -417,7 +418,7 @@ function EditGoalDialog({
           </Button>
           <Button className="flex-1" onClick={handleSave} disabled={update.isPending}>
             <Check className="w-3.5 h-3.5 mr-1" />
-            {update.isPending ? "Saving…" : "Save"}
+            {update.isPending ? t("common.saving") : t("common.save")}
           </Button>
         </div>
       </DialogContent>

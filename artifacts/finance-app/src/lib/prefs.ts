@@ -32,9 +32,7 @@ export function markOnboardingDone() {
 
 export function currencySymbol(currency: string): string {
   const map: Record<string, string> = {
-    USD: "$", EUR: "€", GBP: "£", CHF: "Fr",
-    PLN: "zł", JPY: "¥", CAD: "C$", AUD: "A$",
-    NOK: "kr", SEK: "kr", DKK: "kr", BRL: "R$",
+    USD: "$", EUR: "€", GBP: "£", PLN: "zł",
   };
   return map[currency] ?? currency;
 }
@@ -50,28 +48,13 @@ export function fmtAmtRound(amount: number, currency: string): string {
 }
 
 export const CURRENCIES = [
-  { code: "USD", label: "US Dollar ($)" },
-  { code: "EUR", label: "Euro (€)" },
-  { code: "GBP", label: "British Pound (£)" },
-  { code: "CHF", label: "Swiss Franc (Fr)" },
-  { code: "PLN", label: "Polish Złoty (zł)" },
-  { code: "JPY", label: "Japanese Yen (¥)" },
-  { code: "CAD", label: "Canadian Dollar (C$)" },
-  { code: "AUD", label: "Australian Dollar (A$)" },
-  { code: "NOK", label: "Norwegian Krone (kr)" },
-  { code: "SEK", label: "Swedish Krona (kr)" },
-  { code: "DKK", label: "Danish Krone (kr)" },
-  { code: "BRL", label: "Brazilian Real (R$)" },
+  { code: "USD", label: "US Dollar ($)",       symbol: "$"  },
+  { code: "EUR", label: "Euro (€)",            symbol: "€"  },
+  { code: "GBP", label: "British Pound (£)",   symbol: "£"  },
+  { code: "PLN", label: "Polish Złoty (zł)",   symbol: "zł" },
 ];
 
 export const LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "pl", label: "Polski" },
-  { code: "de", label: "Deutsch" },
-  { code: "fr", label: "Français" },
-  { code: "es", label: "Español" },
-  { code: "it", label: "Italiano" },
-  { code: "pt", label: "Português" },
-  { code: "ja", label: "日本語" },
-  { code: "zh", label: "中文" },
+  { code: "pl", label: "Polski"  },
 ];

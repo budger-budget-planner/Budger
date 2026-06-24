@@ -8,6 +8,7 @@ import invitesRouter from "./invites";
 import notificationsRouter from "./notifications";
 import summaryRouter from "./summary";
 import goalsRouter from "./goals";
+import currenciesRouter from "./currencies";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(invitesRouter);
 router.use(notificationsRouter);
 router.use(summaryRouter);
 router.use(goalsRouter);
+router.use(currenciesRouter);
 
 export default router;

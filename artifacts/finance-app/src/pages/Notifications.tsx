@@ -14,8 +14,8 @@ import {
   saveSmartAlertPrefs,
   type SmartAlertPrefs,
 } from "@/hooks/useSmartNotifications";
+import { t } from "@/lib/i18n";
 
-/* ── Types ── */
 type Alert = {
   id: string;
   time: string;
@@ -59,7 +59,6 @@ async function ensurePermission(): Promise<boolean> {
   return perm === "granted";
 }
 
-/* ── Single alert card ── */
 function AlertCard({
   alert,
   onUpdate,
@@ -86,7 +85,7 @@ function AlertCard({
             ? <Bell className="w-4 h-4 text-foreground" />
             : <BellOff className="w-4 h-4 text-muted-foreground" />}
           <span className="text-sm font-medium text-foreground">
-            {alert.enabled ? "On" : "Off"}
+            {alert.enabled ? t("notif.on") : t("notif.off")}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -107,7 +106,7 @@ function AlertCard({
 
       <div className="px-4 py-3 space-y-3">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">Time</span>
+          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{t("notif.time")}</span>
           <Input
             type="time"
             value={alert.time}
@@ -117,7 +116,7 @@ function AlertCard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">Days</span>
+          <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{t("notif.days")}</span>
           <div className="flex gap-1.5">
             {DAYS.map(d => {
               const active = alert.days.includes(d.key);
@@ -139,14 +138,13 @@ function AlertCard({
           </div>
         </div>
         {alert.days.length === 0 && (
-          <p className="text-xs text-destructive pl-12">Select at least one day.</p>
+          <p className="text-xs text-destructive pl-12">{t("notif.select_day")}</p>
         )}
       </div>
     </div>
   );
 }
 
-/* ── Smart alert toggle row ── */
 function SmartAlertRow({
   icon,
   title,
@@ -174,7 +172,6 @@ function SmartAlertRow({
   );
 }
 
-/* ── Page ── */
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -184,7 +181,7 @@ export default function NotificationsPage() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetNotificationSettingsQueryKey() });
-        toast({ title: "Alerts saved" });
+        toast({ title: t("notif.alerts_saved") });
       },
     },
   });
@@ -229,8 +226,8 @@ export default function NotificationsPage() {
       setPermissionStatus(Notification.permission as NotificationPermission);
       if (!granted) {
         toast({
-          title: "Permission denied",
-          description: "Enable notifications in your browser settings first.",
+          title: t("notif.perm_denied"),
+          description: t("notif.enable_notif"),
           variant: "destructive",
         });
         return;
@@ -239,7 +236,7 @@ export default function NotificationsPage() {
     const next = { ...smartPrefs, [key]: value };
     setSmartPrefs(next);
     saveSmartAlertPrefs(next);
-    toast({ title: value ? "Alert enabled" : "Alert disabled" });
+    toast({ title: value ? t("notif.alert_enabled") : t("notif.alert_disabled") });
   }
 
   async function handleSave() {
@@ -249,7 +246,7 @@ export default function NotificationsPage() {
       const granted = await ensurePermission();
       setPermissionStatus(Notification.permission as NotificationPermission);
       if (!granted) {
-        toast({ title: "Permission denied", description: "Enable notifications in your browser settings.", variant: "destructive" });
+        toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
         return;
       }
     }
@@ -276,8 +273,8 @@ export default function NotificationsPage() {
         if (next <= now) next.setDate(next.getDate() + 1);
         setTimeout(() => {
           if (Notification.permission === "granted") {
-            new Notification("Budger Reminder", {
-              body: "Don't forget to log today's spending!",
+            new Notification(t("notif.budger_reminder"), {
+              body: t("notif.dont_forget"),
               icon: "/favicon.ico",
             });
           }
@@ -297,25 +294,24 @@ export default function NotificationsPage() {
   return (
     <div className="px-4 pt-5 pb-4 max-w-lg mx-auto space-y-6">
 
-      {/* Permission banner */}
       {permissionStatus === "denied" && (
         <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs">
-          Browser notifications are blocked. Enable them in your device / browser settings to use any alerts.
+          {t("notif.blocked")}
         </div>
       )}
 
-      {/* ── Section 1: Daily reminders ── */}
+      {/* ── Daily reminders ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-base font-bold">Daily Reminders</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Timed nudges to log your spending</p>
+            <h2 className="text-base font-bold">{t("notif.daily_reminders")}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("notif.timed_nudges")}</p>
           </div>
           <button
             onClick={addAlert}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5" /> Add
+            <Plus className="w-3.5 h-3.5" /> {t("common.add")}
           </button>
         </div>
 
@@ -337,61 +333,60 @@ export default function NotificationsPage() {
           className="mt-3 w-full h-12 rounded-2xl bg-foreground text-background font-semibold text-base transition active:scale-95 disabled:opacity-40"
           data-testid="button-save-notifications"
         >
-          {update.isPending ? "Saving…" : "Save Reminders"}
+          {update.isPending ? t("common.saving") : t("notif.save")}
         </button>
       </section>
 
-      {/* ── Section 2: Smart alerts ── */}
+      {/* ── Smart alerts ── */}
       <section>
         <div className="mb-3">
-          <h2 className="text-base font-bold">Smart Alerts</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Automatic notifications based on your spending & goals</p>
+          <h2 className="text-base font-bold">{t("notif.smart")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("notif.smart_desc")}</p>
         </div>
 
         <div className="space-y-3">
           <SmartAlertRow
             icon={<TrendingUp className="w-4 h-4" />}
-            title="Budget Threshold Alerts"
-            description="Get a reminder at 75% and a warning at 90% of any category or monthly budget."
+            title={t("notif.budget_thresh")}
+            description={t("notif.budget_thresh_desc")}
             checked={smartPrefs.budgetAlerts}
             onChange={v => handleSmartToggle("budgetAlerts", v)}
           />
 
           <SmartAlertRow
             icon={<Target className="w-4 h-4" />}
-            title="Goal Progress Alerts"
-            description="A week before month-end, get an update on how your savings goals are progressing."
+            title={t("notif.goal_prog")}
+            description={t("notif.goal_prog_desc")}
             checked={smartPrefs.goalAlerts}
             onChange={v => handleSmartToggle("goalAlerts", v)}
           />
         </div>
 
-        {/* Info cards */}
         <div className="mt-3 space-y-2">
           <div className="rounded-xl bg-card border border-border px-4 py-3 space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">Budget alerts fire when:</p>
+            <p className="text-xs font-semibold text-foreground">{t("notif.budget_fire")}</p>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs">📊</span>
-                <span className="text-xs text-muted-foreground">Spending hits 75% of a budget — friendly reminder</span>
+                <span className="text-xs text-muted-foreground">{t("notif.spending_75")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs">⚠️</span>
-                <span className="text-xs text-muted-foreground">Spending hits 90% of a budget — urgent warning</span>
+                <span className="text-xs text-muted-foreground">{t("notif.spending_90")}</span>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl bg-card border border-border px-4 py-3 space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">Goal alerts fire when:</p>
+            <p className="text-xs font-semibold text-foreground">{t("notif.goal_fire")}</p>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs">🎯</span>
-                <span className="text-xs text-muted-foreground">7 or fewer days left in the month</span>
+                <span className="text-xs text-muted-foreground">{t("notif.7_days")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs">📅</span>
-                <span className="text-xs text-muted-foreground">Once per month, showing your progress toward each goal</span>
+                <span className="text-xs text-muted-foreground">{t("notif.once_month")}</span>
               </div>
             </div>
           </div>

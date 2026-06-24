@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import {
   useListTransactions,
@@ -68,14 +69,14 @@ function TxForm({
       </div>
       <div className="space-y-1.5">
         <Label>Description</Label>
-        <Input data-testid="input-description" placeholder="Coffee, groceries..." value={form.description} onChange={e => set("description", e.target.value)} required />
+        <Input data-testid="input-description" placeholder={t("tx.grocery_placeholder")} value={form.description} onChange={e => set("description", e.target.value)} required />
       </div>
       <div className="space-y-1.5">
         <Label>Category</Label>
         <Select value={form.categoryId} onValueChange={v => set("categoryId", v)}>
-          <SelectTrigger data-testid="select-category"><SelectValue placeholder="No category" /></SelectTrigger>
+          <SelectTrigger data-testid="select-category"><SelectValue placeholder={t("home.no_category")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">No category</SelectItem>
+            <SelectItem value="none">{t("home.no_category")}</SelectItem>
             {categories.map(c => (
               <SelectItem key={c.id} value={String(c.id)}>
                 <span className="flex items-center gap-2">
@@ -121,9 +122,9 @@ function TxForm({
         </div>
       </div>
       <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button type="submit" className="flex-1" disabled={loading} data-testid="button-save-transaction">
-          {loading ? "Saving..." : "Save"}
+          {loading ? t("common.saving") : t("common.save")}
         </Button>
       </div>
     </form>
@@ -214,7 +215,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
       <form onSubmit={handleAdd} className="flex gap-2">
         <Select value={goalId} onValueChange={setGoalId}>
           <SelectTrigger className="flex-1 text-sm h-9">
-            <SelectValue placeholder="Choose goal…" />
+            <SelectValue placeholder={t("tx.choose_goal")} />
           </SelectTrigger>
           <SelectContent>
             {goals.map(g => (
@@ -298,7 +299,7 @@ function ReceiptModal({
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
-              {" "}· {tx.categoryName ?? "Uncategorized"} · {tx.date}
+              {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
 
             {tx.receiptImage ? (
@@ -578,12 +579,12 @@ export default function TransactionsPage() {
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input data-testid="input-search" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input data-testid="input-search" placeholder={t("tx.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterCat} onValueChange={setFilterCat}>
-          <SelectTrigger className="w-44" data-testid="select-filter-category"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <SelectTrigger className="w-44" data-testid="select-filter-category"><SelectValue placeholder={t("tx.all_cats")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value="all">{t("tx.all_cats")}</SelectItem>
             {categories?.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -598,7 +599,7 @@ export default function TransactionsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">No transactions found.</p>
+          <p className="text-sm">{t("tx.no_results")}</p>
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-card">
@@ -607,7 +608,7 @@ export default function TransactionsPage() {
               const goalContrib = !tx.categoryId
                 ? (allContribs ?? []).find((c: any) => c.transactionId === tx.id)
                 : null;
-              const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (Goal)` : "Uncategorized");
+              const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (${t("tx.goal")})` : t("common.uncategorized"));
               const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? "#94a3b8";
               return (
                 <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">

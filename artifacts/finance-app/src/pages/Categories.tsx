@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import {
   useListCategories,
   useCreateCategory,
@@ -96,7 +97,7 @@ function BudgetInput({
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
           <Input
-            type="number" min="0" step="0.01" placeholder="No limit"
+            type="number" min="0" step="0.01" placeholder={t("common.no_limit")}
             value={rawValue} onChange={e => onRawChange(e.target.value)}
             className="pl-7"
           />
@@ -174,7 +175,7 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
             <p className="text-xs text-muted-foreground">
               {category.budget != null
                 ? `Budget: ${sym}${Number(category.budget).toFixed(0)}/mo`
-                : "No budget"}
+                : t("cat.no_budget")}
             </p>
           </div>
         </div>
@@ -210,7 +211,7 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
               className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40"
               data-testid={`button-delete-category-${category.id}`}
             >
-              {remove.isPending ? "Deleting…" : "Delete"}
+              {remove.isPending ? t("common.deleting") : t("common.delete")}
             </button>
           </div>
         ) : (
@@ -264,14 +265,14 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Edit Category</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("cat.edit")}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ backgroundColor: color }} />
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Category name"
+              placeholder={t("cat.cat_name")}
               autoFocus
               data-testid={`input-category-name-${category.id}`}
             />
@@ -298,7 +299,7 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
             <Button className="flex-1" onClick={handleSave} disabled={update.isPending}
               data-testid={`button-save-category-${category.id}`}>
               <Check className="w-3.5 h-3.5 mr-1" />
-              {update.isPending ? "Saving…" : "Save"}
+              {update.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </div>
         </div>
@@ -348,7 +349,7 @@ export default function CategoriesPage() {
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-xl font-bold">Categories</h1>
+          <h1 className="text-xl font-bold">{t("cat.title")}</h1>
           <p className="text-muted-foreground text-xs mt-0.5">Color-coded spending categories</p>
         </div>
         <button
@@ -369,7 +370,7 @@ export default function CategoriesPage() {
             : "border-white/10 bg-white/5"
         }`}>
           <div className="flex items-center justify-between">
-            <span className="text-white/60">Category budgets total</span>
+            <span className="text-white/60">{t("cat.budgets_total")}</span>
             <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
               {sym}{Math.round(catBudgetSum).toLocaleString()} / {sym}{Math.round(totalBudget).toLocaleString()}
             </span>
@@ -397,7 +398,7 @@ export default function CategoriesPage() {
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
             <Plus className="w-6 h-6 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-sm">No categories yet.</p>
+          <p className="text-muted-foreground text-sm">{t("cat.no_categories")}</p>
           <button onClick={() => setAddOpen(true)}
             className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
             Create first category
@@ -419,13 +420,13 @@ export default function CategoriesPage() {
       {/* Add dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>New Category</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("cat.new")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
               <Label>Name</Label>
               <Input
                 data-testid="input-new-category-name"
-                placeholder="Groceries, Coffee, Rent…"
+                placeholder={t("cat.placeholder")}
                 value={newName} onChange={e => setNewName(e.target.value)}
                 required autoFocus
               />
@@ -453,7 +454,7 @@ export default function CategoriesPage() {
               <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>Cancel</Button>
               <Button type="submit" className="flex-1" disabled={create.isPending}
                 data-testid="button-save-new-category">
-                {create.isPending ? "Creating…" : "Create"}
+                {create.isPending ? t("common.saving") : t("common.new")}
               </Button>
             </div>
           </form>

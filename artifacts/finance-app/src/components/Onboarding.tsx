@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { type AppPrefs } from "@/lib/prefs";
+import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
+import { t } from "@/lib/i18n";
 
-/* ── Apple Pay availability check ──────────────────────────────── */
 type ApplePayStatus = "checking" | "available" | "unavailable" | "needs_https";
 
 function useApplePayStatus(): ApplePayStatus {
   const [status, setStatus] = useState<ApplePayStatus>("checking");
-
   useEffect(() => {
     async function check() {
       if (!window.PaymentRequest) { setStatus("unavailable"); return; }
@@ -22,44 +21,13 @@ function useApplePayStatus(): ApplePayStatus {
           { total: { label: "Test", amount: { currency: "USD", value: "0.01" } } }
         );
         setStatus(await req.canMakePayment() ? "available" : "unavailable");
-      } catch {
-        setStatus("unavailable");
-      }
+      } catch { setStatus("unavailable"); }
     }
     check();
   }, []);
-
   return status;
 }
 
-/* ── Currency / Language data ───────────────────────────────────── */
-const CURRENCIES = [
-  { code: "USD", symbol: "$",  label: "US Dollar"         },
-  { code: "EUR", symbol: "€",  label: "Euro"               },
-  { code: "GBP", symbol: "£",  label: "British Pound"      },
-  { code: "CHF", symbol: "Fr", label: "Swiss Franc"        },
-  { code: "PLN", symbol: "zł", label: "Polish Zloty"       },
-  { code: "JPY", symbol: "¥",  label: "Japanese Yen"       },
-  { code: "CAD", symbol: "C$", label: "Canadian Dollar"    },
-  { code: "AUD", symbol: "A$", label: "Australian Dollar"  },
-  { code: "NOK", symbol: "kr", label: "Norwegian Krone"    },
-  { code: "SEK", symbol: "kr", label: "Swedish Krona"      },
-  { code: "DKK", symbol: "kr", label: "Danish Krone"       },
-  { code: "BRL", symbol: "R$", label: "Brazilian Real"     },
-];
-
-const LANGUAGES = [
-  { code: "en", label: "English"   },
-  { code: "pl", label: "Polski"    },
-  { code: "de", label: "Deutsch"   },
-  { code: "fr", label: "Français"  },
-  { code: "es", label: "Español"   },
-  { code: "it", label: "Italiano"  },
-  { code: "pt", label: "Português" },
-  { code: "nl", label: "Nederlands"},
-];
-
-/* ── Step indicator ─────────────────────────────────────────────── */
 type Step = "welcome" | "currency" | "language" | "applepay";
 const STEPS: Step[] = ["welcome", "currency", "language", "applepay"];
 
@@ -77,28 +45,13 @@ function Dots({ current }: { current: Step }) {
   );
 }
 
-/* ── Apple Pay status card ──────────────────────────────────────── */
 function ApplePayCard() {
   const status = useApplePayStatus();
-
-  const items: { icon: string; label: string; ok: boolean | null }[] = [
-    {
-      icon: "🔒",
-      label: "Secure connection (HTTPS)",
-      ok: status === "checking" ? null : location.protocol === "https:",
-    },
-    {
-      icon: "🧭",
-      label: "Safari browser on iPhone / Mac",
-      ok: status === "checking" ? null : !!window.PaymentRequest,
-    },
-    {
-      icon: "💳",
-      label: "Cards added to Apple Wallet",
-      ok: status === "checking" ? null : status === "available",
-    },
+  const items = [
+    { icon: "🔒", label: t("ob.secure"), ok: status === "checking" ? null : location.protocol === "https:" },
+    { icon: "🧭", label: t("ob.safari"), ok: status === "checking" ? null : !!window.PaymentRequest },
+    { icon: "💳", label: t("ob.wallet"), ok: status === "checking" ? null : status === "available" },
   ];
-
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       {items.map(({ icon, label, ok }) => (
@@ -107,38 +60,29 @@ function ApplePayCard() {
           <p className="flex-1 text-sm text-foreground">{label}</p>
           {ok === null
             ? <div className="w-4 h-4 rounded-full border-2 border-muted border-t-transparent animate-spin" />
-            : ok
-              ? <span className="text-green-400 text-base">✓</span>
-              : <span className="text-muted-foreground text-base">✗</span>
-          }
+            : ok ? <span className="text-green-400 text-base">✓</span>
+                 : <span className="text-muted-foreground text-base">✗</span>}
         </div>
       ))}
       {status === "available" && (
         <div className="px-4 py-3 bg-green-900/20">
-          <p className="text-sm text-green-400 font-medium">Apple Pay is ready on this device!</p>
+          <p className="text-sm text-green-400 font-medium">{t("ob.ap_ready")}</p>
         </div>
       )}
       {status === "needs_https" && (
         <div className="px-4 py-3 bg-muted">
-          <p className="text-xs text-muted-foreground">
-            Apple Pay works on the <span className="text-foreground font-medium">published app</span>{" "}
-            (HTTPS). In this dev preview it can't be activated, but it will work after publishing.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("ob.ap_dev")}</p>
         </div>
       )}
       {status === "unavailable" && (
         <div className="px-4 py-3 bg-muted">
-          <p className="text-xs text-muted-foreground">
-            Open Budger in <span className="text-foreground font-medium">Safari on iPhone or Mac</span>{" "}
-            and add cards to Apple Wallet to enable Apple Pay.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("ob.ap_unavail")}</p>
         </div>
       )}
     </div>
   );
 }
 
-/* ── Main component ─────────────────────────────────────────────── */
 export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPrefs) => void }) {
   const [step, setStep]         = useState<Step>("welcome");
   const [currency, setCurrency] = useState("USD");
@@ -154,28 +98,25 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
     <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center px-6 pt-14 pb-10 gap-8">
       <Dots current={step} />
 
-      {/* ── WELCOME ── */}
       {step === "welcome" && (
         <div className="flex flex-col items-center text-center gap-6 flex-1 justify-center">
           <div className="p-5 rounded-3xl bg-card border border-border shadow-xl">
             <BadgerLogo size={84} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to Budger!</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">{t("ob.welcome")}</h1>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Your household finances in one place.<br />
-              Let's set up in 30 seconds.
+              {t("ob.tagline")}<br />{t("ob.setup")}
             </p>
           </div>
         </div>
       )}
 
-      {/* ── CURRENCY ── */}
       {step === "currency" && (
         <div className="flex flex-col gap-3 flex-1 w-full max-w-sm overflow-hidden">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground">Home currency</h2>
-            <p className="text-sm text-muted-foreground mt-1">How amounts are shown throughout the app</p>
+            <h2 className="text-2xl font-bold text-foreground">{t("ob.home_currency")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("ob.how_shown")}</p>
           </div>
           <div className="grid grid-cols-2 gap-2 overflow-y-auto">
             {CURRENCIES.map(c => (
@@ -193,12 +134,11 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── LANGUAGE ── */}
       {step === "language" && (
         <div className="flex flex-col gap-3 flex-1 w-full max-w-sm overflow-hidden">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground">Language</h2>
-            <p className="text-sm text-muted-foreground mt-1">Numbers and dates adapt to your region</p>
+            <h2 className="text-2xl font-bold text-foreground">{t("ob.language")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("ob.lang_desc")}</p>
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto">
             {LANGUAGES.map(l => (
@@ -219,38 +159,27 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── APPLE PAY ── */}
       {step === "applepay" && (
         <div className="flex flex-col gap-4 flex-1 w-full max-w-sm">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground">Apple Pay</h2>
-            <p className="text-sm text-muted-foreground mt-1">Check your device's compatibility</p>
+            <h2 className="text-2xl font-bold text-foreground">{t("ob.apple_pay")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("ob.check_compat")}</p>
           </div>
-
           <ApplePayCard />
-
           <div className="bg-card border border-border rounded-2xl px-4 py-4 space-y-2">
-            <p className="text-sm font-semibold text-foreground">How it works in Budger</p>
+            <p className="text-sm font-semibold text-foreground">{t("ob.how_works")}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t("ob.ap_explainer")}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              When you add a transaction, tap the{" "}
-              <span className="text-foreground font-medium">Apple Pay</span> button to confirm
-              the amount with Face ID or Touch ID — no card entry needed.
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="text-foreground font-medium">Note:</span> Apple restricts
-              cross-app data on all devices, so Budger cannot auto-import payments made in
-              other apps (Maps, App Store, etc.). Each transaction is logged manually — it
-              takes just a few seconds.
+              <span className="text-foreground font-medium">{t("ob.note")}</span>{" "}{t("ob.cross_app")}
             </p>
           </div>
         </div>
       )}
 
-      {/* Continue button */}
       <button onClick={next}
         className="w-full max-w-sm h-14 rounded-2xl bg-foreground text-background
                    font-semibold text-base transition active:scale-95 shadow-sm flex-shrink-0">
-        {step === "applepay" ? "Let's go!" : "Continue →"}
+        {step === "applepay" ? t("ob.lets_go") : t("ob.continue")}
       </button>
     </div>
   );

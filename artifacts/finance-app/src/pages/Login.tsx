@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import BadgerLogo from "@/components/BadgerLogo";
+import { t } from "@/lib/i18n";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -38,19 +39,19 @@ export default function LoginPage() {
         </div>
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your household finances, in one place.</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("login.tagline")}</p>
         </div>
       </div>
 
       {/* ── Sign-in form ── */}
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <p className="text-lg font-semibold text-foreground">Sign in</p>
-          <p className="text-sm text-muted-foreground mt-1">No password needed</p>
+          <p className="text-lg font-semibold text-foreground">{t("login.sign_in")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("login.no_password")}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-sm text-muted-foreground">Your name</Label>
+            <Label className="text-sm text-muted-foreground">{t("login.your_name")}</Label>
             <Input
               placeholder="Alex Johnson"
               value={name}
@@ -61,7 +62,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm text-muted-foreground">Email address</Label>
+            <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
             <Input
               type="email"
               placeholder="alex@example.com"
@@ -77,17 +78,17 @@ export default function LoginPage() {
             disabled={login.isPending}
             className="w-full h-14 rounded-2xl text-base font-semibold mt-2"
           >
-            {login.isPending ? "Signing in…" : "Continue"}
+            {login.isPending ? t("login.signing_in") : t("login.continue")}
           </Button>
           {login.isError && (
             <p className="text-sm text-destructive text-center pt-1">
-              {String((login.error as any)?.message ?? "Sign-in failed. Please try again.")}
+              {String((login.error as any)?.message ?? t("login.failed"))}
             </p>
           )}
         </form>
       </div>
 
-      <p className="text-xs text-muted-foreground/50">Budger &copy; 2026</p>
+      <p className="text-xs text-muted-foreground/50">{t("login.footer")}</p>
     </div>
   );
 }
