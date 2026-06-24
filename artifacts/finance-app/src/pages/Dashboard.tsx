@@ -371,7 +371,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-10">
-            No transactions yet. Add your first one!
+            No recent transactions.
           </p>
         )}
       </div>

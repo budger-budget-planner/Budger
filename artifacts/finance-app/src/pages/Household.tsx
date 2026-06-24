@@ -674,6 +674,49 @@ export default function HouseholdPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete household confirmation dialog ── */}
+      <Dialog open={deleteHouseholdOpen} onOpenChange={open => { if (!deletingHousehold) setDeleteHouseholdOpen(open); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <Trash2 className="w-5 h-5" /> Delete Household
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 space-y-1">
+              <p className="text-sm font-semibold text-red-400">This action cannot be undone.</p>
+              <p className="text-xs text-white/60">
+                Deleting <span className="font-semibold text-white/80">{household?.name}</span> will
+                remove all members from the household. Their transaction history will remain intact.
+              </p>
+            </div>
+            <p className="text-sm text-white/50">
+              Are you sure you want to permanently delete this household?
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setDeleteHouseholdOpen(false)}
+                disabled={deletingHousehold}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white border-0"
+                onClick={handleDeleteHousehold}
+                disabled={deletingHousehold}
+                data-testid="button-confirm-delete-household"
+              >
+                {deletingHousehold ? "Deleting…" : "Delete Household"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
