@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import {
-  useGetInvite,
   useAcceptInvite,
   useGetMe,
   useLogin,
   getGetMeQueryKey,
   getGetHouseholdQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Users, Check, AlertTriangle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Users, Check, AlertTriangle, Ban } from "lucide-react";
 import BadgerLogo from "@/components/BadgerLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +19,28 @@ export default function InvitePage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const { data: invite, isLoading: inviteLoading, isError } = useGetInvite(token, {
-    query: { queryKey: ["invite", token], enabled: !!token },
+  const { data: invite, isLoading: inviteLoading, isError, error } = useQuery({
+    queryKey: ["invite", token],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/invites/${token}`, {
+        credentials: "include",
+      });
+      if (r.status === 410) {
+        const err = new Error("revoked") as any;
+        err.revoked = true;
+        throw err;
+      }
+      if (!r.ok) {
+        throw new Error("not_found");
+      }
+      return r.json();
+    },
+    enabled: !!token,
+    retry: false,
   });
+
+  const isRevoked = isError && (error as any)?.revoked === true;
+
   const { data: me } = useGetMe();
 
   const [name, setName] = useState("");
@@ -57,7 +75,6 @@ export default function InvitePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="flex items-center gap-3 mb-8 justify-center">
           <BadgerLogo size={36} />
           <span className="text-xl font-bold tracking-tight">Budger</span>
@@ -66,6 +83,15 @@ export default function InvitePage() {
         {inviteLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
+        ) : isRevoked ? (
+          <div className="text-center py-12">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Ban className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <h2 className="font-semibold mb-2">Invite revoked</h2>
+            <p className="text-sm text-muted-foreground">This invite link has been cancelled by the household owner.</p>
+            <Button className="mt-6" onClick={() => setLocation("/")}>Go to App</Button>
           </div>
         ) : isError || !invite ? (
           <div className="text-center py-12">

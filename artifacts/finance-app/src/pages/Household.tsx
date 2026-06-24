@@ -24,7 +24,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
-  Lock, Eye, EyeOff, Pencil, Target,
+  Lock, Eye, EyeOff, Pencil, Target, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,7 +155,9 @@ export default function HouseholdPage() {
 
   const [createOpen, setCreateOpen]   = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
-  const [inviteOpen, setInviteOpen]   = useState(false);
+  const [inviteOpen, setInviteOpen]         = useState(false);
+  const [deleteHouseholdOpen, setDeleteHouseholdOpen] = useState(false);
+  const [deletingHousehold, setDeletingHousehold]     = useState(false);
   const [householdName, setHouseholdName]   = useState("");
   const [householdBudget, setHouseholdBudget] = useState("");
   const [editBudgetVal, setEditBudgetVal]   = useState("");
@@ -210,6 +212,22 @@ export default function HouseholdPage() {
     navigator.clipboard.writeText(`${base}invite/${token}`);
     setCopied(token);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function handleDeleteHousehold() {
+    setDeletingHousehold(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/households`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (r.ok) {
+        setDeleteHouseholdOpen(false);
+        invalidateHousehold(queryClient);
+      }
+    } finally {
+      setDeletingHousehold(false);
+    }
   }
 
   // Shared goals = have householdId matching the household
@@ -270,15 +288,27 @@ export default function HouseholdPage() {
                 <p className="font-bold text-lg leading-tight" data-testid="text-household-name">{household.name}</p>
                 <p className="text-xs text-white/40 mt-0.5">Since {new Date(household.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 h-7 text-xs"
-                onClick={() => { if (confirm("Leave this household?")) leaveHousehold.mutate(); }}
-                data-testid="button-leave-household"
-              >
-                <LogOut className="w-3.5 h-3.5" /> Leave
-              </Button>
+              {household.ownerId === me?.id ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 h-7 text-xs"
+                  onClick={() => setDeleteHouseholdOpen(true)}
+                  data-testid="button-delete-household"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 h-7 text-xs"
+                  onClick={() => { if (confirm("Leave this household?")) leaveHousehold.mutate(); }}
+                  data-testid="button-leave-household"
+                >
+                  <LogOut className="w-3.5 h-3.5" /> Leave
+                </Button>
+              )}
             </div>
 
             <div className="mt-4 space-y-2">

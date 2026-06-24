@@ -70,9 +70,10 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
   const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
-  if (!invite || invite.status !== "pending" || invite.expiresAt < new Date()) {
-    res.status(404).json({ error: "Invite not found or expired" });
-    return;
+  if (!invite) { res.status(404).json({ error: "Invite not found" }); return; }
+  if (invite.status === "cancelled") { res.status(410).json({ error: "Invite has been revoked" }); return; }
+  if (invite.status !== "pending" || invite.expiresAt < new Date()) {
+    res.status(404).json({ error: "Invite expired" }); return;
   }
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));

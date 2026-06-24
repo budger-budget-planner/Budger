@@ -4,129 +4,16 @@ import {
   useGetMonthlySummary,
   useGetRecentActivity,
   useGetSpendingHistory,
-  useCreateTransaction,
-  useListCategories,
   useGetGoalsSummary,
-  getGetSpendingSummaryQueryKey,
-  getGetMonthlySummaryQueryKey,
-  getGetRecentActivityQueryKey,
-  getListTransactionsQueryKey,
-  getGetSpendingHistoryQueryKey,
-  getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Plus, TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Link } from "wouter";
-import { format } from "date-fns";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
-
-function AddTransactionDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const { data: categories } = useListCategories();
-  const create = useCreateTransaction({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetMonthlySummaryQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
-        onClose();
-      },
-    },
-  });
-
-  const [amount, setAmount]           = useState("");
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId]   = useState("");
-  const [date, setDate]               = useState(format(new Date(), "yyyy-MM-dd"));
-  const [paymentMethod, setPaymentMethod] = useState("card");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!amount || !description || !date) return;
-    create.mutate({
-      data: {
-        amount: parseFloat(amount),
-        description,
-        categoryId: categoryId && categoryId !== "none" ? parseInt(categoryId) : null,
-        date,
-        paymentMethod,
-      },
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Add Transaction</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Amount</Label>
-            <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00"
-              value={amount} onChange={e => setAmount(e.target.value)} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Input data-testid="input-description" placeholder="Coffee, groceries…"
-              value={description} onChange={e => setDescription(e.target.value)} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Category</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger data-testid="select-category"><SelectValue placeholder="No category" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No category</SelectItem>
-                {categories?.map(c => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input data-testid="input-date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Payment</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="apple_pay">Apple Pay</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={create.isPending} data-testid="button-add-transaction">
-              {create.isPending ? "Adding…" : "Add Transaction"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function BudgetBar({ spent, budget, color }: { spent: number; budget: number; color: string }) {
   const pct = Math.min((spent / budget) * 100, 100);
@@ -200,7 +87,6 @@ export default function DashboardPage() {
   const prefs     = loadPrefs();
   const sym       = currencySymbol(prefs.currency);
 
-  const [addOpen, setAddOpen]         = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
@@ -219,19 +105,9 @@ export default function DashboardPage() {
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
 
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Dashboard</h1>
-          <p className="text-xs text-muted-foreground">{currentMonth}</p>
-        </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          data-testid="button-add-transaction-open"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
-                     text-sm font-semibold transition active:scale-95"
-        >
-          <Plus className="w-4 h-4" /> Add
-        </button>
+      <div className="mb-4">
+        <h1 className="text-xl font-bold">Dashboard</h1>
+        <p className="text-xs text-muted-foreground">{currentMonth}</p>
       </div>
 
       {/* Stats strip */}
@@ -500,7 +376,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <AddTransactionDialog open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   );
 }

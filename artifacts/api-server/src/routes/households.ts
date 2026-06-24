@@ -226,4 +226,29 @@ router.post("/households/leave", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+router.delete("/households", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+  if (!household || household.ownerId !== userId) {
+    res.status(403).json({ error: "Only the household owner can delete it" }); return;
+  }
+
+  const householdId = household.id;
+
+  // Clear householdId for all members
+  const members = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
+  for (const m of members) {
+    await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, m.userId));
+  }
+  await db.delete(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
+  await db.delete(householdsTable).where(eq(householdsTable.id, householdId));
+
+  res.json({ success: true });
+});
+
 export default router;
