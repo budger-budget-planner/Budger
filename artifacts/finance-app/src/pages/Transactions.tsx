@@ -409,12 +409,14 @@ function ReceiptModal({
   );
 }
 
-function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
+function invalidateAll(qc: ReturnType<typeof useQueryClient>, month?: string) {
   qc.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
   qc.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetMonthlySummaryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   qc.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
+  qc.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+  if (month) qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
 }
 
 const paymentLabel: Record<string, string> = {
@@ -436,14 +438,18 @@ export default function TransactionsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   const { data: categories } = useListCategories();
   const { data: goals }      = useListGoals();
   const { data: transactions, isLoading } = useListTransactions(
     filterCat !== "all" ? { categoryId: parseInt(filterCat) } : {}
   );
+  const { data: allContribs } = useListGoalContributions({ month: currentMonth });
 
-  const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
-  const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
+  const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
+  const update = useUpdateTransaction();
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => invalidateAll(queryClient) } });
 
   const filtered = (transactions ?? []).filter(tx => {
@@ -502,48 +508,51 @@ export default function TransactionsPage() {
     );
   }
 
-  function handleUpdate(form: TxFormState) {
+  async function handleUpdate(form: TxFormState) {
     if (!editTx) return;
+    const txId = editTx.id;
     const { categoryId, goalContribution } = resolveCategory(form);
-    const txDate = new Date(form.date);
-    const month = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, "0")}`;
 
-    update.mutate(
-      { id: editTx.id, data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
-      {
-        onSuccess: () => {
-          if (!goalContribution) return;
-          // Remove any existing contributions linked to this transaction first, then add the new one
-          fetch(`/api/goal-contributions?month=${month}`, { credentials: "include" })
-            .then(r => r.json())
-            .then((contribs: any[]) => {
-              const linked = (contribs ?? []).filter((c: any) => c.transactionId === editTx.id);
-              return Promise.all(
-                linked.map((c: any) =>
-                  fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
-                )
-              );
-            })
-            .then(() =>
-              fetch("/api/goal-contributions", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  goalId: goalContribution.goalId,
-                  transactionId: editTx.id,
-                  amount: goalContribution.amount,
-                  month,
-                }),
-              })
-            )
-            .then(() => {
-              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
-            });
+    try {
+      await update.mutateAsync({
+        id: txId,
+        data: {
+          amount: parseFloat(form.amount),
+          description: form.description,
+          categoryId,
+          date: form.date,
+          paymentMethod: form.paymentMethod,
         },
+      });
+
+      if (goalContribution) {
+        // Remove any existing contributions linked to this transaction for this month
+        const contribsRes = await fetch(`/api/goal-contributions?month=${currentMonth}`, { credentials: "include" });
+        const contribs: any[] = await contribsRes.json();
+        const linked = (contribs ?? []).filter((c: any) => c.transactionId === txId);
+        await Promise.all(
+          linked.map((c: any) =>
+            fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
+          )
+        );
+        await fetch("/api/goal-contributions", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            goalId: goalContribution.goalId,
+            transactionId: txId,
+            amount: goalContribution.amount,
+            month: currentMonth,
+          }),
+        });
       }
-    );
+
+      invalidateAll(queryClient, currentMonth);
+      setEditTx(null);
+    } catch {
+      // error is surfaced by the mutation's built-in error state
+    }
   }
 
   return (
@@ -584,54 +593,61 @@ export default function TransactionsPage() {
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-card">
           <div className="divide-y divide-border">
-            {filtered.map(tx => (
-              <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tx.categoryColor ?? "#94a3b8" }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium truncate">{tx.description}</p>
-                    {tx.receiptImage && (
-                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        <Camera className="w-2.5 h-2.5" /> receipt
-                      </span>
-                    )}
+            {filtered.map(tx => {
+              const goalContrib = !tx.categoryId
+                ? (allContribs ?? []).find((c: any) => c.transactionId === tx.id)
+                : null;
+              const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (Goal)` : "Uncategorized");
+              const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? "#94a3b8";
+              return (
+                <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">{tx.description}</p>
+                      {tx.receiptImage && (
+                        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <Camera className="w-2.5 h-2.5" /> receipt
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{displayName} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{tx.categoryName ?? "Uncategorized"} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
+                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{sym}{Number(tx.amount).toFixed(2)}</span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="w-7 h-7"
+                      title="Receipt"
+                      data-testid={`button-receipt-${tx.id}`}
+                      onClick={() => setReceiptTx(tx)}
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="w-7 h-7"
+                      data-testid={`button-edit-transaction-${tx.id}`}
+                      onClick={() => setEditTx(tx)}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="w-7 h-7 text-destructive hover:text-destructive"
+                      data-testid={`button-delete-transaction-${tx.id}`}
+                      onClick={() => remove.mutate({ id: tx.id })}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
-                <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{sym}{Number(tx.amount).toFixed(2)}</span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="w-7 h-7"
-                    title="Receipt"
-                    data-testid={`button-receipt-${tx.id}`}
-                    onClick={() => setReceiptTx(tx)}
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="w-7 h-7"
-                    data-testid={`button-edit-transaction-${tx.id}`}
-                    onClick={() => setEditTx(tx)}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="w-7 h-7 text-destructive hover:text-destructive"
-                    data-testid={`button-delete-transaction-${tx.id}`}
-                    onClick={() => remove.mutate({ id: tx.id })}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
