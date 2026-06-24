@@ -383,6 +383,7 @@ export const RemoveHouseholdMemberParams = zod.object({
 
 export const CreateInviteBody = zod.object({
   email: zod.string().min(1),
+  goalIds: zod.array(zod.number()).optional(),
 });
 
 /**

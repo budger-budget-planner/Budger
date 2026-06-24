@@ -12,22 +12,26 @@ import {
   useGetMe,
   useUpdateMe,
   useGetMemberSpending,
+  useListGoals,
+  useGetGoalsSummary,
   getGetHouseholdQueryKey,
   getListHouseholdMembersQueryKey,
   getListInvitesQueryKey,
   getGetMeQueryKey,
+  getListGoalsQueryKey,
+  getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
-  ChevronDown, Lock, Unlock, Eye, EyeOff, Pencil,
+  Lock, Eye, EyeOff, Pencil, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loadPrefs, fmtAmtRound } from "@/lib/prefs";
+import { loadPrefs, fmtAmtRound, currencySymbol } from "@/lib/prefs";
 
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
@@ -62,25 +66,16 @@ function MemberSpendingSheet({
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
 
-  const blocked =
-    !isMe && member.dashboardBlocked;
+  const blocked = !isMe && member.dashboardBlocked;
 
   return (
     <>
-      {/* backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40"
-        onClick={onClose}
-      />
-      {/* sheet */}
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[80vh] flex flex-col"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>
-        {/* handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
-
-        {/* header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
@@ -96,8 +91,6 @@ function MemberSpendingSheet({
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* body */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
           {blocked ? (
             <div className="flex flex-col items-center py-10 gap-3 text-white/40">
@@ -150,19 +143,25 @@ function MemberSpendingSheet({
 
 export default function HouseholdPage() {
   const queryClient = useQueryClient();
+  const prefs = loadPrefs();
+  const sym = currencySymbol(prefs.currency);
+
   const { data: me } = useGetMe();
   const { data: household, isLoading: householdLoading } = useGetHousehold();
   const { data: members } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
+  const { data: goals } = useListGoals();
+  const { data: goalSummary } = useGetGoalsSummary({});
 
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen]   = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [householdName, setHouseholdName] = useState("");
+  const [inviteOpen, setInviteOpen]   = useState(false);
+  const [householdName, setHouseholdName]   = useState("");
   const [householdBudget, setHouseholdBudget] = useState("");
-  const [editBudgetVal, setEditBudgetVal] = useState("");
+  const [editBudgetVal, setEditBudgetVal]   = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
+  const [inviteGoalIds, setInviteGoalIds]   = useState<number[]>([]);
+  const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
 
   const createHousehold = useCreateHousehold({
@@ -187,8 +186,11 @@ export default function HouseholdPage() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
         setInviteOpen(false);
         setInviteEmail("");
+        setInviteGoalIds([]);
       },
     },
   });
@@ -212,7 +214,18 @@ export default function HouseholdPage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  // Derived spending figures
+  function toggleInviteGoal(goalId: number) {
+    setInviteGoalIds(prev =>
+      prev.includes(goalId) ? prev.filter(id => id !== goalId) : [...prev, goalId]
+    );
+  }
+
+  // Personal goals = not yet shared (no householdId)
+  const personalGoals = (goals ?? []).filter((g: any) => !g.householdId);
+  // Shared goals = have householdId matching the household
+  const sharedGoals = (goals ?? []).filter((g: any) => g.householdId && household && g.householdId === household.id);
+  const summaryMap = new Map((goalSummary ?? []).map((s: any) => [s.goalId, s]));
+
   const totalSpent = members?.reduce((s, m) => s + m.monthlySpent, 0) ?? 0;
   const budget = household?.budget ?? null;
   const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
@@ -239,7 +252,6 @@ export default function HouseholdPage() {
       </div>
 
       {!household ? (
-        /* ── No household ── */
         <div className="px-4 mt-6">
           <div className="rounded-2xl bg-white/5 border border-white/10 p-8 flex flex-col items-center text-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center">
@@ -279,7 +291,6 @@ export default function HouseholdPage() {
               </Button>
             </div>
 
-            {/* Monthly spend vs budget */}
             <div className="mt-4 space-y-2">
               <div className="flex items-baseline justify-between">
                 <span className="text-xs text-white/40">This month</span>
@@ -348,7 +359,6 @@ export default function HouseholdPage() {
                     onClick={() => setSelectedMember(m as MemberRow)}
                   >
                     <div className="flex items-center gap-3">
-                      {/* color avatar */}
                       <div
                         className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
                         style={{ backgroundColor: m.memberColor }}
@@ -371,7 +381,6 @@ export default function HouseholdPage() {
                           </span>
                         </div>
 
-                        {/* spending bar */}
                         <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
@@ -380,7 +389,6 @@ export default function HouseholdPage() {
                         </div>
                       </div>
 
-                      {/* remove (owner only, not self) */}
                       {!isMe && household.ownerId === me?.id && (
                         <button
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400/70 hover:text-red-400 transition-opacity flex-shrink-0"
@@ -401,6 +409,56 @@ export default function HouseholdPage() {
               })}
             </div>
           </div>
+
+          {/* ── Shared Goals ── */}
+          {sharedGoals.length > 0 && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <Target className="w-4 h-4 text-white/40" />
+                <p className="text-sm font-semibold">Shared Goals <span className="text-white/40 font-normal">({sharedGoals.length})</span></p>
+              </div>
+              <div className="divide-y divide-white/5">
+                {sharedGoals.map((g: any) => {
+                  const s = summaryMap.get(g.id);
+                  const contributed = s?.contributed ?? 0;
+                  const goalBudget = parseFloat(g.budget);
+                  const pct = goalBudget > 0 ? Math.min((contributed / goalBudget) * 100, 100) : 0;
+                  return (
+                    <div key={g.id} className="px-4 py-3 space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: g.color + "33" }}
+                        >
+                          <Target className="w-3.5 h-3.5" style={{ color: g.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{g.name}</p>
+                          <p className="text-xs text-white/40">Due {g.deadline}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-semibold tabular-nums">{sym}{contributed.toFixed(0)}</p>
+                          <p className="text-xs text-white/40">of {sym}{goalBudget.toFixed(0)}</p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: pct >= 100 ? "#34d399" : g.color,
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-white/30">
+                        {pct >= 100 ? "Goal reached! 🎉" : `${pct.toFixed(0)}% saved — combined household progress this month`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── Privacy toggle ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
@@ -480,8 +538,8 @@ export default function HouseholdPage() {
             onSubmit={e => {
               e.preventDefault();
               if (!householdName.trim()) return;
-              const budget = householdBudget ? parseFloat(householdBudget) : null;
-              createHousehold.mutate({ data: { name: householdName.trim(), budget } });
+              const b = householdBudget ? parseFloat(householdBudget) : null;
+              createHousehold.mutate({ data: { name: householdName.trim(), budget: b } });
             }}
             className="space-y-4"
           >
@@ -529,8 +587,8 @@ export default function HouseholdPage() {
           <form
             onSubmit={e => {
               e.preventDefault();
-              const budget = editBudgetVal ? parseFloat(editBudgetVal) : null;
-              updateHousehold.mutate({ data: { budget } });
+              const b = editBudgetVal ? parseFloat(editBudgetVal) : null;
+              updateHousehold.mutate({ data: { budget: b } });
             }}
             className="space-y-4"
           >
@@ -549,7 +607,6 @@ export default function HouseholdPage() {
                   autoFocus
                 />
               </div>
-              <p className="text-xs text-white/30">Leave blank to remove the budget.</p>
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setEditBudgetOpen(false)}>Cancel</Button>
@@ -562,14 +619,19 @@ export default function HouseholdPage() {
       </Dialog>
 
       {/* ── Invite dialog ── */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <Dialog open={inviteOpen} onOpenChange={open => { setInviteOpen(open); if (!open) { setInviteEmail(""); setInviteGoalIds([]); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Invite to Household</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();
               if (!inviteEmail.trim()) return;
-              createInvite.mutate({ data: { email: inviteEmail.trim() } });
+              createInvite.mutate({
+                data: {
+                  email: inviteEmail.trim(),
+                  ...(inviteGoalIds.length > 0 ? { goalIds: inviteGoalIds } : {}),
+                } as any,
+              });
             }}
             className="space-y-4"
           >
@@ -584,12 +646,60 @@ export default function HouseholdPage() {
                 required
                 autoFocus
               />
-              <p className="text-xs text-white/30">Share the generated link with them to join.</p>
             </div>
+
+            {/* Goal picker — only show if there are personal goals */}
+            {personalGoals.length > 0 && (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium">Share goals with this invite</p>
+                  <p className="text-xs text-white/40 mt-0.5">Selected goals will become household goals visible to all members</p>
+                </div>
+                <div className="rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5 max-h-48 overflow-y-auto">
+                  {personalGoals.map((g: any) => {
+                    const checked = inviteGoalIds.includes(g.id);
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => toggleInviteGoal(g.id)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
+                      >
+                        <div
+                          className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: g.color + "33" }}
+                        >
+                          <Target className="w-3.5 h-3.5" style={{ color: g.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate">{g.name}</p>
+                          <p className="text-xs text-white/40">{sym}{Number(g.budget).toFixed(0)} target · {g.deadline}</p>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            checked ? "border-white bg-white" : "border-white/30 bg-transparent"
+                          }`}
+                        >
+                          {checked && <Check className="w-3 h-3 text-black" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {inviteGoalIds.length > 0 && (
+                  <p className="text-xs text-white/40">
+                    {inviteGoalIds.length} goal{inviteGoalIds.length !== 1 ? "s" : ""} will be shared with the household
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setInviteOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteGoalIds([]); }}>
+                Cancel
+              </Button>
               <Button type="submit" className="flex-1" disabled={createInvite.isPending} data-testid="button-send-invite">
-                {createInvite.isPending ? "Creating…" : "Create Invite"}
+                {createInvite.isPending ? "Sending…" : "Send Invite"}
               </Button>
             </div>
           </form>

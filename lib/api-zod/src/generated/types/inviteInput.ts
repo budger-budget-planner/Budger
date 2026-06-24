@@ -9,4 +9,5 @@
 export interface InviteInput {
   /** @minLength 1 */
   email: string;
+  goalIds?: number[];
 }

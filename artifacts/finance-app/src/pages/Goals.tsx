@@ -11,7 +11,7 @@ import {
   getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Check, X, History, ChevronDown, ChevronRight, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, History, ChevronDown, ChevronRight, Target, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,6 +101,7 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
   const ml = monthsLeft(goal.deadline);
   const monthlyTarget = goal.divideByMonths ? Math.ceil(Math.max(0, budget - contributed) / ml * 100) / 100 : null;
+  const isHousehold = !!(goal as any).householdId;
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -114,7 +115,14 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
+              {isHousehold && (
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-medium flex-shrink-0">
+                  <Users className="w-2.5 h-2.5" /> Shared
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               Target: {sym}{Number(budget).toFixed(0)} · Due {goal.deadline}
             </p>

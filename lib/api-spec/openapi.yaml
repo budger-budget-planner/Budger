@@ -1121,6 +1121,10 @@ components:
         email:
           type: string
           minLength: 1
+        goalIds:
+          type: array
+          items:
+            type: integer
 
     NotificationSettings:
       type: object

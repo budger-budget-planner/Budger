@@ -94,7 +94,7 @@ router.post("/goals", async (req, res): Promise<void> => {
     deadline: String(deadline),
     divideByMonths: Boolean(divideByMonths),
     userId,
-    householdId: user?.householdId ?? null,
+    householdId: null,
   }).returning();
   res.status(201).json(formatGoal(goal));
 });

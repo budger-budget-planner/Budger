@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable } from "@workspace/db";
-import { eq, or, desc, and } from "drizzle-orm";
+import { eq, or, desc, and, isNull } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -207,14 +207,45 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const month = typeof req.query.month === "string" ? req.query.month : currentMonth;
 
-  const goals = await db.select().from(goalsTable).where(eq(goalsTable.userId, userId));
-  const contribs = await db.select().from(goalContributionsTable)
+  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+
+  // Fetch personal goals (no householdId) + household goals (householdId matches)
+  const goals = currentUser?.householdId
+    ? await db.select().from(goalsTable).where(
+        or(
+          and(eq(goalsTable.userId, userId), isNull(goalsTable.householdId)),
+          eq(goalsTable.householdId, currentUser.householdId)
+        )
+      )
+    : await db.select().from(goalsTable).where(eq(goalsTable.userId, userId));
+
+  // Fetch current user's contributions
+  const myContribs = await db.select().from(goalContributionsTable)
     .where(and(eq(goalContributionsTable.userId, userId), eq(goalContributionsTable.month, month)));
 
-  const totalContributed = contribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+  // Fetch all household members' contributions (for household goals)
+  const householdContribs = currentUser?.householdId
+    ? await db.select().from(goalContributionsTable)
+        .where(and(
+          eq(goalContributionsTable.householdId, currentUser.householdId),
+          eq(goalContributionsTable.month, month)
+        ))
+    : [];
+
+  // Deduplicate by id (user's own appear in both)
+  const contribMap = new Map([...myContribs, ...householdContribs].map(c => [c.id, c]));
+  const allContribs = Array.from(contribMap.values());
 
   const result = goals.map(g => {
-    const goalContribs = contribs.filter(c => c.goalId === g.id);
+    const isHouseholdGoal = !!g.householdId;
+    let goalContribs;
+    if (isHouseholdGoal && currentUser?.householdId) {
+      // Household goal: aggregate ALL members' contributions
+      goalContribs = allContribs.filter(c => c.goalId === g.id && c.householdId === currentUser.householdId);
+    } else {
+      // Personal goal: only current user's contributions
+      goalContribs = allContribs.filter(c => c.goalId === g.id && c.userId === userId);
+    }
     const contributed = goalContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
     const budget = parseFloat(g.budget);
 
@@ -234,6 +265,7 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
       goalId: g.id,
       goalName: g.name,
       goalColor: g.color,
+      householdId: g.householdId ?? null,
       budget,
       deadline: g.deadline,
       divideByMonths: g.divideByMonths,
