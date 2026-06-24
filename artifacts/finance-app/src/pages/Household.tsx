@@ -527,9 +527,10 @@ export default function HouseholdPage() {
                       {copied === inv.token ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                     </button>
                     <button
-                      className="p-1.5 text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100"
+                      className="p-1.5 text-white/30 hover:text-red-400 active:text-red-400"
                       onClick={() => cancelInvite.mutate({ token: inv.token })}
                       data-testid={`button-cancel-invite-${inv.id}`}
+                      title="Revoke invite"
                     >
                       <X className="w-4 h-4" />
                     </button>
