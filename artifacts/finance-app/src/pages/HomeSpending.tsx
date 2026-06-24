@@ -24,37 +24,79 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 type TxFormState = {
-  amount: string; description: string; categoryId: string; date: string; paymentMethod: string;
+  amount: string;
+  description: string;
+  categoryId: string;
+  date: string;
+  paymentMethod: string;
+  isGoalExpense: boolean;
+  goalId: string;
+  goalAmount: string;
 };
 
 function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
-  initial: TxFormState; categories: any[]; goals: any[]; onSubmit: (d: TxFormState) => void;
-  onCancel: () => void; loading: boolean;
+  initial: TxFormState;
+  categories: any[];
+  goals: any[];
+  onSubmit: (d: TxFormState) => void;
+  onCancel: () => void;
+  loading: boolean;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
-  function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
+  function set<K extends keyof TxFormState>(k: K, v: TxFormState[K]) {
+    setForm(p => ({ ...p, [k]: v }));
+  }
+
+  const txAmount = parseFloat(form.amount) || 0;
+  const goalAmountNum = parseFloat(form.goalAmount) || 0;
+  const goalAmountError = form.isGoalExpense && form.goalAmount && goalAmountNum > txAmount;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (form.isGoalExpense && (!form.goalId || form.goalId === "none")) return;
+    if (goalAmountError) return;
+    onSubmit(form);
+  }
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <Label>Amount</Label>
-        <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00"
-          value={form.amount} onChange={e => set("amount", e.target.value)} required />
+        <Input
+          data-testid="input-amount"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          value={form.amount}
+          onChange={e => set("amount", e.target.value)}
+          required
+        />
       </div>
+
       <div className="space-y-1.5">
         <Label>Description</Label>
-        <Input data-testid="input-description" placeholder="Coffee, groceries…"
-          value={form.description} onChange={e => set("description", e.target.value)} required />
+        <Input
+          data-testid="input-description"
+          placeholder="Coffee, groceries…"
+          value={form.description}
+          onChange={e => set("description", e.target.value)}
+          required
+        />
       </div>
+
       <div className="space-y-1.5">
         <Label>Category</Label>
         <Select value={form.categoryId} onValueChange={v => set("categoryId", v)}>
-          <SelectTrigger data-testid="select-category"><SelectValue placeholder="No category" /></SelectTrigger>
+          <SelectTrigger data-testid="select-category">
+            <SelectValue placeholder="No category" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No category</SelectItem>
             {categories.map(c => (
@@ -65,27 +107,76 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                 </span>
               </SelectItem>
             ))}
-            {goals.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Goals</div>
-                {goals.map(g => (
-                  <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
-                      {g.name} (Goal)
-                    </span>
-                  </SelectItem>
-                ))}
-              </>
-            )}
           </SelectContent>
         </Select>
       </div>
+
+      {/* Goal toggle */}
+      {goals.length > 0 && (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Partially a Goal expense</p>
+              <p className="text-xs text-muted-foreground">Count part of this expense toward a goal</p>
+            </div>
+            <Switch
+              checked={form.isGoalExpense}
+              onCheckedChange={v => set("isGoalExpense", v)}
+            />
+          </div>
+
+          {form.isGoalExpense && (
+            <div className="space-y-3 pt-1 border-t border-border/60">
+              <div className="space-y-1.5">
+                <Label>Goal</Label>
+                <Select value={form.goalId} onValueChange={v => set("goalId", v)} required={form.isGoalExpense}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a goal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {goals.map(g => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                          {g.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Amount toward goal</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={form.amount || undefined}
+                  placeholder={`up to ${form.amount || "0.00"}`}
+                  value={form.goalAmount}
+                  onChange={e => set("goalAmount", e.target.value)}
+                  required={form.isGoalExpense}
+                />
+                {goalAmountError && (
+                  <p className="text-xs text-destructive">Cannot exceed transaction amount</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>Date</Label>
-          <Input data-testid="input-date" type="date" value={form.date}
-            onChange={e => set("date", e.target.value)} required />
+          <Input
+            data-testid="input-date"
+            type="date"
+            value={form.date}
+            onChange={e => set("date", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Payment</Label>
@@ -100,9 +191,15 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           </Select>
         </div>
       </div>
+
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" className="flex-1" disabled={loading} data-testid="button-save-transaction">
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={loading || !!goalAmountError || (form.isGoalExpense && (!form.goalId || form.goalId === "none"))}
+          data-testid="button-save-transaction"
+        >
           {loading ? "Saving…" : "Save"}
         </Button>
       </div>
@@ -220,27 +317,71 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
 }
 
+function dateToMonth(dateStr: string): string {
+  // dateStr is "yyyy-MM-dd"; derive month from it
+  return dateStr.slice(0, 7);
+}
+
+async function syncGoalContribution(opts: {
+  txId: number;
+  txDate: string;
+  isGoalExpense: boolean;
+  goalId: string;
+  goalAmount: string;
+  existingContribId: number | null;
+  queryClient: ReturnType<typeof useQueryClient>;
+  viewMonth: string;
+}) {
+  const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth } = opts;
+
+  // Delete existing contribution for this transaction if any
+  if (existingContribId != null) {
+    await fetch(`/api/goal-contributions/${existingContribId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+  }
+
+  // Create new contribution if needed
+  if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
+    const month = dateToMonth(txDate);
+    await fetch("/api/goal-contributions", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        goalId: parseInt(goalId),
+        transactionId: txId,
+        amount: parseFloat(goalAmount),
+        month,
+      }),
+    });
+  }
+
+  queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+  queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) });
+}
+
 export default function HomeSpending() {
   const queryClient = useQueryClient();
 
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym = currencySymbol(prefs.currency);
 
-  const [viewDate,   setViewDate]   = useState(new Date());
-  const [addOpen,    setAddOpen]    = useState(false);
-  const [editTx,     setEditTx]     = useState<any | null>(null);
-  const [receiptTx,  setReceiptTx]  = useState<any | null>(null);
-  const [actionTx,   setActionTx]   = useState<number | null>(null);
-  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [viewDate,    setViewDate]    = useState(new Date());
+  const [addOpen,     setAddOpen]     = useState(false);
+  const [editTx,      setEditTx]      = useState<any | null>(null);
+  const [receiptTx,   setReceiptTx]   = useState<any | null>(null);
+  const [actionTx,    setActionTx]    = useState<number | null>(null);
+  const [budgetOpen,  setBudgetOpen]  = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
 
-  const monthStart    = startOfMonth(viewDate);
-  const monthEnd      = endOfMonth(viewDate);
-  const fromStr       = format(monthStart, "yyyy-MM-dd");
-  const toStr         = format(monthEnd,   "yyyy-MM-dd");
+  const monthStart     = startOfMonth(viewDate);
+  const monthEnd       = endOfMonth(viewDate);
+  const fromStr        = format(monthStart, "yyyy-MM-dd");
+  const toStr          = format(monthEnd,   "yyyy-MM-dd");
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
-
-  const viewMonth = format(viewDate, "yyyy-MM");
+  const viewMonth      = format(viewDate, "yyyy-MM");
 
   const { data: categories }    = useListCategories();
   const { data: goals }         = useListGoals();
@@ -250,10 +391,17 @@ export default function HomeSpending() {
   );
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
-  const goalByTxId = new Map<number, { name: string; color: string }>();
+  // Map transactionId → contribution (for display + edit pre-fill)
+  const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number }>();
   for (const c of contributions ?? []) {
     if (c.transactionId != null && c.goalName) {
-      goalByTxId.set(c.transactionId, { name: c.goalName, color: c.goalColor ?? "#888" });
+      contribByTxId.set(c.transactionId, {
+        id: c.id,
+        goalId: c.goalId,
+        name: c.goalName,
+        color: c.goalColor ?? "#888",
+        amount: c.amount,
+      });
     }
   }
 
@@ -271,38 +419,27 @@ export default function HomeSpending() {
   const blank: TxFormState = {
     amount: "", description: "", categoryId: "none",
     date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
+    isGoalExpense: false, goalId: "none", goalAmount: "",
   };
 
-  function resolveCategory(form: TxFormState): { categoryId: number | null; goalContribution?: { goalId: number; amount: number } } {
-    if (!form.categoryId || form.categoryId === "none") return { categoryId: null };
-    if (form.categoryId.startsWith("goal_")) {
-      const goalId = parseInt(form.categoryId.replace("goal_", ""));
-      return { categoryId: null, goalContribution: { goalId, amount: parseFloat(form.amount) } };
-    }
-    return { categoryId: parseInt(form.categoryId) };
-  }
-
   function handleCreate(form: TxFormState) {
-    const { categoryId, goalContribution } = resolveCategory(form);
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     create.mutate(
       { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
       {
-        onSuccess: (tx) => {
+        onSuccess: async (tx: any) => {
           invalidateAll(queryClient);
           setAddOpen(false);
-          if (goalContribution) {
-            fetch("/api/goal-contributions", {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ goalId: goalContribution.goalId, transactionId: (tx as any).id, amount: goalContribution.amount, month }),
-            }).then(() => {
-              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
-            });
-          }
+          await syncGoalContribution({
+            txId: tx.id,
+            txDate: form.date,
+            isGoalExpense: form.isGoalExpense,
+            goalId: form.goalId,
+            goalAmount: form.goalAmount,
+            existingContribId: null,
+            queryClient,
+            viewMonth,
+          });
         },
       }
     );
@@ -310,12 +447,51 @@ export default function HomeSpending() {
 
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
-    const { categoryId } = resolveCategory(form);
-    update.mutate({ id: editTx.id, data: {
-      amount: parseFloat(form.amount), description: form.description,
-      categoryId,
-      date: form.date, paymentMethod: form.paymentMethod,
-    }});
+    const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
+    const existingContrib = contribByTxId.get(editTx.id) ?? null;
+
+    update.mutate(
+      {
+        id: editTx.id,
+        data: {
+          amount: parseFloat(form.amount),
+          description: form.description,
+          categoryId,
+          date: form.date,
+          paymentMethod: form.paymentMethod,
+        },
+      },
+      {
+        onSuccess: async () => {
+          invalidateAll(queryClient);
+          setEditTx(null);
+          await syncGoalContribution({
+            txId: editTx.id,
+            txDate: form.date,
+            isGoalExpense: form.isGoalExpense,
+            goalId: form.goalId,
+            goalAmount: form.goalAmount,
+            existingContribId: existingContrib?.id ?? null,
+            queryClient,
+            viewMonth,
+          });
+        },
+      }
+    );
+  }
+
+  function buildEditInitial(tx: any): TxFormState {
+    const contrib = contribByTxId.get(tx.id);
+    return {
+      amount: String(tx.amount),
+      description: tx.description,
+      categoryId: tx.categoryId ? String(tx.categoryId) : "none",
+      date: tx.date,
+      paymentMethod: tx.paymentMethod,
+      isGoalExpense: !!contrib,
+      goalId: contrib ? String(contrib.goalId) : "none",
+      goalAmount: contrib ? String(contrib.amount) : "",
+    };
   }
 
   function saveTotalBudget(val: number | null) {
@@ -444,61 +620,65 @@ export default function HomeSpending() {
                 {format(new Date(date + "T12:00:00"), "EEE, d MMM")}
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
-                {grouped[date].map(tx => (
-                  <div key={tx.id}>
-                    <div
-                      className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
-                      onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
-                    >
-                      {(() => {
-                        const goalInfo = goalByTxId.get(tx.id);
-                        const dotColor = goalInfo?.color ?? tx.categoryColor ?? "#666";
-                        const label = goalInfo
-                          ? `${goalInfo.name} (Goal)`
-                          : (tx.categoryName ?? "Uncategorized");
-                        return (
-                          <>
-                            <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
-                              style={{ backgroundColor: dotColor + "33" }}>
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {label}{tx.receiptImage ? " · 📎" : ""}
-                              </p>
-                            </div>
-                          </>
-                        );
-                      })()}
-                      <p className="text-sm font-semibold text-foreground flex-shrink-0">
-                        −{sym}{Number(tx.amount).toFixed(2)}
-                      </p>
-                    </div>
+                {grouped[date].map(tx => {
+                  const contrib = contribByTxId.get(tx.id);
+                  const dotColor = tx.categoryColor ?? "#666";
+                  const categoryLabel = tx.categoryName ?? "Uncategorized";
 
-                    {actionTx === tx.id && (
-                      <div className="flex gap-2 px-3 pb-3">
-                        <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                     bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                          <Camera className="w-3.5 h-3.5" /> Receipt
-                        </button>
-                        <button onClick={() => { setEditTx(tx); setActionTx(null); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                     bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                          <Pencil className="w-3.5 h-3.5" /> Edit
-                        </button>
-                        <button
-                          onClick={() => remove.mutate({ id: tx.id })}
-                          disabled={remove.isPending}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                     bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
+                  return (
+                    <div key={tx.id}>
+                      <div
+                        className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
+                        onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
+                      >
+                        <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: dotColor + "33" }}>
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {categoryLabel}
+                            {tx.receiptImage ? " · 📎" : ""}
+                            {contrib && (
+                              <span
+                                className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+                                style={{ backgroundColor: contrib.color + "33", color: contrib.color }}
+                              >
+                                🎯 {contrib.name} {sym}{contrib.amount.toFixed(2)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground flex-shrink-0">
+                          −{sym}{Number(tx.amount).toFixed(2)}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {actionTx === tx.id && (
+                        <div className="flex gap-2 px-3 pb-3">
+                          <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                            <Camera className="w-3.5 h-3.5" /> Receipt
+                          </button>
+                          <button onClick={() => { setEditTx(tx); setActionTx(null); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => remove.mutate({ id: tx.id })}
+                            disabled={remove.isPending}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                       bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))
@@ -519,8 +699,14 @@ export default function HomeSpending() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
-          <TxForm initial={blank} categories={categories ?? []} goals={goals ?? []} onSubmit={handleCreate}
-            onCancel={() => setAddOpen(false)} loading={create.isPending} />
+          <TxForm
+            initial={blank}
+            categories={categories ?? []}
+            goals={goals ?? []}
+            onSubmit={handleCreate}
+            onCancel={() => setAddOpen(false)}
+            loading={create.isPending}
+          />
         </DialogContent>
       </Dialog>
 
@@ -530,9 +716,7 @@ export default function HomeSpending() {
           <DialogHeader><DialogTitle>Edit Transaction</DialogTitle></DialogHeader>
           {editTx && (
             <TxForm
-              initial={{ amount: String(editTx.amount), description: editTx.description,
-                categoryId: editTx.categoryId ? String(editTx.categoryId) : "none",
-                date: editTx.date, paymentMethod: editTx.paymentMethod }}
+              initial={buildEditInitial(editTx)}
               categories={categories ?? []}
               goals={goals ?? []}
               onSubmit={handleUpdate}
