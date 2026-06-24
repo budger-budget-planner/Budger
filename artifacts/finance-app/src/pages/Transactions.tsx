@@ -448,8 +448,51 @@ export default function TransactionsPage() {
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
 
+  // Ref to pass goal-contribution data into the mutation-level onSuccess (per-call callbacks are unreliable)
+  const pendingGoalContrib = useRef<{ goalId: number; amount: number; txId: number } | null>(null);
+
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
-  const update = useUpdateTransaction();
+  const update = useUpdateTransaction({
+    mutation: {
+      onSuccess: () => {
+        invalidateAll(queryClient, currentMonth);
+        setEditTx(null);
+
+        const pending = pendingGoalContrib.current;
+        pendingGoalContrib.current = null;
+        if (!pending) return;
+
+        const month = currentMonth;
+        fetch(`/api/goal-contributions?month=${month}`, { credentials: "include" })
+          .then(r => r.json())
+          .then((contribs: any[]) => {
+            const linked = (contribs ?? []).filter((c: any) => c.transactionId === pending.txId);
+            return Promise.all(
+              linked.map((c: any) =>
+                fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
+              )
+            );
+          })
+          .then(() =>
+            fetch("/api/goal-contributions", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                goalId: pending.goalId,
+                transactionId: pending.txId,
+                amount: pending.amount,
+                month,
+              }),
+            })
+          )
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+          });
+      },
+    },
+  });
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => invalidateAll(queryClient) } });
 
   const filtered = (transactions ?? []).filter(tx => {
@@ -508,51 +551,26 @@ export default function TransactionsPage() {
     );
   }
 
-  async function handleUpdate(form: TxFormState) {
+  function handleUpdate(form: TxFormState) {
     if (!editTx) return;
     const txId = editTx.id;
     const { categoryId, goalContribution } = resolveCategory(form);
 
-    try {
-      await update.mutateAsync({
-        id: txId,
-        data: {
-          amount: parseFloat(form.amount),
-          description: form.description,
-          categoryId,
-          date: form.date,
-          paymentMethod: form.paymentMethod,
-        },
-      });
+    // Store goal data in ref so the mutation-level onSuccess can access it
+    pendingGoalContrib.current = goalContribution
+      ? { goalId: goalContribution.goalId, amount: goalContribution.amount, txId }
+      : null;
 
-      if (goalContribution) {
-        // Remove any existing contributions linked to this transaction for this month
-        const contribsRes = await fetch(`/api/goal-contributions?month=${currentMonth}`, { credentials: "include" });
-        const contribs: any[] = await contribsRes.json();
-        const linked = (contribs ?? []).filter((c: any) => c.transactionId === txId);
-        await Promise.all(
-          linked.map((c: any) =>
-            fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
-          )
-        );
-        await fetch("/api/goal-contributions", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            goalId: goalContribution.goalId,
-            transactionId: txId,
-            amount: goalContribution.amount,
-            month: currentMonth,
-          }),
-        });
-      }
-
-      invalidateAll(queryClient, currentMonth);
-      setEditTx(null);
-    } catch {
-      // error is surfaced by the mutation's built-in error state
-    }
+    update.mutate({
+      id: txId,
+      data: {
+        amount: parseFloat(form.amount),
+        description: form.description,
+        categoryId,
+        date: form.date,
+        paymentMethod: form.paymentMethod,
+      },
+    });
   }
 
   return (
