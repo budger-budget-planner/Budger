@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGetMe } from "@workspace/api-client-react";
 import Layout from "@/components/Layout";
 import Onboarding from "@/components/Onboarding";
+import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import LoginPage from "@/pages/Login";
 import HomeSpending from "@/pages/HomeSpending";
 import DashboardPage from "@/pages/Dashboard";
@@ -20,6 +21,11 @@ import { isOnboardingDone, markOnboardingDone, savePrefs, type AppPrefs } from "
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
+
+function SmartNotificationsRunner() {
+  useSmartNotifications();
+  return null;
+}
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe();
@@ -51,7 +57,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <SmartNotificationsRunner />
+      {children}
+    </>
+  );
 }
 
 function AppRoutes() {
