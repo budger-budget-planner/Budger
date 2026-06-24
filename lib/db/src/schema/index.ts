@@ -6,3 +6,4 @@ export * from "./invites";
 export * from "./notifications";
 export * from "./goals";
 export * from "./goal_contributions";
+export * from "./goal_proposals";

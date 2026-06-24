@@ -160,7 +160,6 @@ export default function HouseholdPage() {
   const [householdBudget, setHouseholdBudget] = useState("");
   const [editBudgetVal, setEditBudgetVal]   = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteGoalIds, setInviteGoalIds]   = useState<number[]>([]);
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
 
@@ -190,7 +189,6 @@ export default function HouseholdPage() {
         queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
         setInviteOpen(false);
         setInviteEmail("");
-        setInviteGoalIds([]);
       },
     },
   });
@@ -214,14 +212,6 @@ export default function HouseholdPage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  function toggleInviteGoal(goalId: number) {
-    setInviteGoalIds(prev =>
-      prev.includes(goalId) ? prev.filter(id => id !== goalId) : [...prev, goalId]
-    );
-  }
-
-  // Personal goals = not yet shared (no householdId)
-  const personalGoals = (goals ?? []).filter((g: any) => !g.householdId);
   // Shared goals = have householdId matching the household
   const sharedGoals = (goals ?? []).filter((g: any) => g.householdId && household && g.householdId === household.id);
   const summaryMap = new Map((goalSummary ?? []).map((s: any) => [s.goalId, s]));
@@ -619,19 +609,14 @@ export default function HouseholdPage() {
       </Dialog>
 
       {/* ── Invite dialog ── */}
-      <Dialog open={inviteOpen} onOpenChange={open => { setInviteOpen(open); if (!open) { setInviteEmail(""); setInviteGoalIds([]); } }}>
+      <Dialog open={inviteOpen} onOpenChange={open => { setInviteOpen(open); if (!open) setInviteEmail(""); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Invite to Household</DialogTitle></DialogHeader>
           <form
             onSubmit={e => {
               e.preventDefault();
               if (!inviteEmail.trim()) return;
-              createInvite.mutate({
-                data: {
-                  email: inviteEmail.trim(),
-                  ...(inviteGoalIds.length > 0 ? { goalIds: inviteGoalIds } : {}),
-                } as any,
-              });
+              createInvite.mutate({ data: { email: inviteEmail.trim() } });
             }}
             className="space-y-4"
           >
@@ -648,54 +633,8 @@ export default function HouseholdPage() {
               />
             </div>
 
-            {/* Goal picker — only show if there are personal goals */}
-            {personalGoals.length > 0 && (
-              <div className="space-y-2">
-                <div>
-                  <p className="text-sm font-medium">Share goals with this invite</p>
-                  <p className="text-xs text-white/40 mt-0.5">Selected goals will become household goals visible to all members</p>
-                </div>
-                <div className="rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5 max-h-48 overflow-y-auto">
-                  {personalGoals.map((g: any) => {
-                    const checked = inviteGoalIds.includes(g.id);
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => toggleInviteGoal(g.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
-                      >
-                        <div
-                          className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center"
-                          style={{ backgroundColor: g.color + "33" }}
-                        >
-                          <Target className="w-3.5 h-3.5" style={{ color: g.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate">{g.name}</p>
-                          <p className="text-xs text-white/40">{sym}{Number(g.budget).toFixed(0)} target · {g.deadline}</p>
-                        </div>
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                            checked ? "border-white bg-white" : "border-white/30 bg-transparent"
-                          }`}
-                        >
-                          {checked && <Check className="w-3 h-3 text-black" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {inviteGoalIds.length > 0 && (
-                  <p className="text-xs text-white/40">
-                    {inviteGoalIds.length} goal{inviteGoalIds.length !== 1 ? "s" : ""} will be shared with the household
-                  </p>
-                )}
-              </div>
-            )}
-
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteGoalIds([]); }}>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); }}>
                 Cancel
               </Button>
               <Button type="submit" className="flex-1" disabled={createInvite.isPending} data-testid="button-send-invite">

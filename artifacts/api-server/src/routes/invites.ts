@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, invitesTable, householdsTable, usersTable, householdMembersTable, goalsTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { db, invitesTable, householdsTable, usersTable, householdMembersTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { pickNextColor } from "./households";
 import {
@@ -34,17 +34,6 @@ router.post("/invites", async (req, res): Promise<void> => {
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "You must be in a household to invite" }); return; }
-
-  // Promote selected personal goals to household goals
-  const goalIds = parsed.data.goalIds;
-  if (goalIds && goalIds.length > 0) {
-    await db.update(goalsTable)
-      .set({ householdId: user.householdId })
-      .where(and(
-        eq(goalsTable.userId, userId),
-        inArray(goalsTable.id, goalIds)
-      ));
-  }
 
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, usersTable } from "@workspace/db";
-import { eq, or, and, lt, gte } from "drizzle-orm";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, usersTable, householdsTable } from "@workspace/db";
+import { eq, or, and, lt, gte, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -79,6 +79,71 @@ router.get("/goals/past", async (req, res): Promise<void> => {
   res.json(goals.map(formatGoal));
 });
 
+// Proposals list — for household creator to see pending proposals
+router.get("/goals/proposals", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+
+  const proposals = await db.select().from(goalProposalsTable)
+    .where(and(eq(goalProposalsTable.householdId, user.householdId), eq(goalProposalsTable.status, "pending")));
+
+  if (proposals.length === 0) { res.json([]); return; }
+
+  const goalIds = proposals.map(p => p.goalId);
+  const proposerIds = proposals.map(p => p.proposerId);
+  const goals = await db.select().from(goalsTable).where(inArray(goalsTable.id, goalIds));
+  const proposers = await db.select().from(usersTable).where(inArray(usersTable.id, proposerIds));
+  const goalMap = new Map(goals.map(g => [g.id, g]));
+  const proposerMap = new Map(proposers.map(u => [u.id, u]));
+
+  res.json(proposals.map(p => ({
+    id: p.id,
+    goalId: p.goalId,
+    goalName: goalMap.get(p.goalId)?.name ?? null,
+    goalColor: goalMap.get(p.goalId)?.color ?? null,
+    proposerName: proposerMap.get(p.proposerId)?.name ?? null,
+    status: p.status,
+    createdAt: p.createdAt.toISOString(),
+  })));
+});
+
+// Approve a proposal
+router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+  const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
+  if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
+  await db.update(goalProposalsTable).set({ status: "approved" }).where(eq(goalProposalsTable.id, id));
+  await db.update(goalsTable).set({ householdId: user.householdId }).where(eq(goalsTable.id, proposal.goalId));
+  res.json({ ok: true });
+});
+
+// Decline a proposal
+router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+  const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
+  if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
+  await db.update(goalProposalsTable).set({ status: "declined" }).where(eq(goalProposalsTable.id, id));
+  res.json({ ok: true });
+});
+
 router.post("/goals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -86,7 +151,6 @@ router.post("/goals", async (req, res): Promise<void> => {
   if (!name || !color || !budget || !deadline) {
     res.status(400).json({ error: "name, color, budget, deadline required" }); return;
   }
-  const user = await userScope(userId);
   const [goal] = await db.insert(goalsTable).values({
     name: String(name),
     color: String(color),
@@ -99,18 +163,43 @@ router.post("/goals", async (req, res): Promise<void> => {
   res.status(201).json(formatGoal(goal));
 });
 
+// Propose a private goal as a household goal
+router.post("/goals/:id/propose", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const [goal] = await db.select().from(goalsTable)
+    .where(and(eq(goalsTable.id, id), eq(goalsTable.userId, userId)));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (goal.householdId) { res.status(400).json({ error: "Already a household goal" }); return; }
+  const existing = await db.select().from(goalProposalsTable)
+    .where(and(eq(goalProposalsTable.goalId, id), eq(goalProposalsTable.status, "pending")));
+  if (existing.length > 0) { res.status(409).json({ error: "Proposal already pending" }); return; }
+  const [proposal] = await db.insert(goalProposalsTable).values({
+    goalId: id,
+    proposerId: userId,
+    householdId: user.householdId,
+    status: "pending",
+  }).returning();
+  res.status(201).json(proposal);
+});
+
 router.patch("/goals/:id", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const { name, color, budget, deadline, divideByMonths } = req.body;
+  const { name, color, budget, deadline, divideByMonths, householdId } = req.body;
   const update: any = {};
   if (name !== undefined) update.name = String(name);
   if (color !== undefined) update.color = String(color);
   if (budget !== undefined) update.budget = String(parseFloat(budget));
   if (deadline !== undefined) update.deadline = String(deadline);
   if (divideByMonths !== undefined) update.divideByMonths = Boolean(divideByMonths);
+  if ("householdId" in req.body) update.householdId = householdId === null ? null : parseInt(householdId);
   const [goal] = await db.update(goalsTable).set(update).where(eq(goalsTable.id, id)).returning();
   if (!goal) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatGoal(goal));
@@ -122,6 +211,7 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
+  await db.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
   await db.delete(goalsTable).where(eq(goalsTable.id, id));
   res.sendStatus(204);
 });

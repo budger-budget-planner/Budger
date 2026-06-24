@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   useListGoals,
   useListPastGoals,
@@ -6,12 +6,17 @@ import {
   useUpdateGoal,
   useDeleteGoal,
   useGetGoalsSummary,
+  useGetMe,
+  useGetHousehold,
   getListGoalsQueryKey,
   getListPastGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Check, X, History, ChevronDown, ChevronRight, Target, Users } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Plus, Pencil, Trash2, Check, X, History,
+  ChevronDown, ChevronRight, Target, Users, Lock, ArrowUpRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +29,16 @@ const PRESET_COLORS = [
   "#e879f9", "#2dd4bf", "#facc15", "#fb7185", "#a3e635",
 ];
 
+type Proposal = {
+  id: number;
+  goalId: number;
+  goalName: string | null;
+  goalColor: string | null;
+  proposerName: string | null;
+  status: string;
+  createdAt: string;
+};
+
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
   function isoToDisplay(iso: string): string {
     if (!iso) return "";
@@ -32,7 +47,6 @@ function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange:
     return "";
   }
   const [display, setDisplay] = useState(() => isoToDisplay(value));
-  useEffect(() => { setDisplay(isoToDisplay(value)); }, [value]);
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
     let formatted = digits.slice(0, 2);
@@ -85,7 +99,9 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onEdit: () => void; sym: string }) {
+function GoalCard({ goal, summary, onEdit, sym }: {
+  goal: any; summary: any; onEdit: () => void; sym: string;
+}) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -93,15 +109,15 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
   };
-
   const remove = useDeleteGoal({ mutation: { onSuccess: invalidate } });
 
   const contributed = summary?.contributed ?? 0;
   const budget = parseFloat(goal.budget);
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
   const ml = monthsLeft(goal.deadline);
-  const monthlyTarget = goal.divideByMonths ? Math.ceil(Math.max(0, budget - contributed) / ml * 100) / 100 : null;
-  const isHousehold = !!(goal as any).householdId;
+  const monthlyTarget = goal.divideByMonths
+    ? Math.ceil(Math.max(0, budget - contributed) / ml * 100) / 100
+    : null;
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -115,21 +131,13 @@ function GoalCard({ goal, summary, onEdit, sym }: { goal: any; summary: any; onE
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
-              {isHousehold && (
-                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-medium flex-shrink-0">
-                  <Users className="w-2.5 h-2.5" /> Shared
-                </span>
-              )}
-            </div>
+            <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
               Target: {sym}{Number(budget).toFixed(0)} · Due {goal.deadline}
             </p>
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="mb-2 space-y-1">
           <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
             <div
@@ -207,12 +215,10 @@ function GoalFormFields({
         <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ backgroundColor: color }} />
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="Goal name" autoFocus required />
       </div>
-
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Color</Label>
         <ColorPicker value={color} onChange={setColor} />
       </div>
-
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Target amount</Label>
         <div className="relative">
@@ -221,12 +227,10 @@ function GoalFormFields({
             onChange={e => setBudget(e.target.value)} className="pl-7" required />
         </div>
       </div>
-
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Deadline</Label>
         <DdMmYyyyInput value={deadline} onChange={setDeadline} required />
       </div>
-
       <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-muted/50 border border-border">
         <div className="flex-1">
           <p className="text-sm font-medium">Divide by months left</p>
@@ -243,9 +247,8 @@ function GoalFormFields({
             divideByMonths ? "bg-foreground" : "bg-muted border border-border"
           }`}
         >
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background transition-all ${
-            divideByMonths ? "left-5.5 translate-x-0" : "left-0.5"
-          }`}
+          <span
+            className="absolute top-0.5 w-5 h-5 rounded-full bg-background transition-all"
             style={{ left: divideByMonths ? "calc(100% - 1.375rem)" : "0.125rem" }}
           />
         </button>
@@ -254,13 +257,24 @@ function GoalFormFields({
   );
 }
 
-function EditGoalDialog({ goal, open, onClose, sym, alreadyContributed = 0 }: { goal: any; open: boolean; onClose: () => void; sym: string; alreadyContributed?: number }) {
+function EditGoalDialog({
+  goal, open, onClose, sym, alreadyContributed = 0,
+  isCreator, isInHousehold, householdId, onProposalsChange,
+}: {
+  goal: any; open: boolean; onClose: () => void; sym: string; alreadyContributed?: number;
+  isCreator: boolean; isInHousehold: boolean; householdId: number | null;
+  onProposalsChange: () => void;
+}) {
   const queryClient = useQueryClient();
   const [name, setName]                     = useState(goal.name);
   const [color, setColor]                   = useState(goal.color);
   const [budget, setBudget]                 = useState(String(Number(goal.budget).toFixed(0)));
   const [deadline, setDeadline]             = useState(goal.deadline);
   const [divideByMonths, setDivideByMonths] = useState(goal.divideByMonths);
+  const [proposeState, setProposeState]     = useState<"idle" | "pending" | "sent" | "already">("idle");
+  const [togglingHousehold, setTogglingHousehold] = useState(false);
+
+  const isHousehold = !!(goal as any).householdId;
 
   const update = useUpdateGoal({
     mutation: {
@@ -272,9 +286,51 @@ function EditGoalDialog({ goal, open, onClose, sym, alreadyContributed = 0 }: { 
     },
   });
 
+  const updateVisibility = useUpdateGoal({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+        setTogglingHousehold(false);
+        onClose();
+      },
+    },
+  });
+
   function handleSave() {
     if (!name.trim() || !budget || !deadline) return;
     update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: parseFloat(budget), deadline, divideByMonths } });
+  }
+
+  async function handleMakeHousehold() {
+    if (!householdId) return;
+    setTogglingHousehold(true);
+    updateVisibility.mutate({ id: goal.id, data: { householdId } as any });
+  }
+
+  async function handleMakePrivate() {
+    setTogglingHousehold(true);
+    updateVisibility.mutate({ id: goal.id, data: { householdId: null } as any });
+  }
+
+  async function handlePropose() {
+    setProposeState("pending");
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (r.status === 409) {
+        setProposeState("already");
+      } else if (r.ok) {
+        setProposeState("sent");
+        onProposalsChange();
+      } else {
+        setProposeState("idle");
+      }
+    } catch {
+      setProposeState("idle");
+    }
   }
 
   return (
@@ -290,6 +346,71 @@ function EditGoalDialog({ goal, open, onClose, sym, alreadyContributed = 0 }: { 
           sym={sym}
           alreadyContributed={alreadyContributed}
         />
+
+        {/* Visibility section */}
+        {isInHousehold && (
+          <div className="border-t border-border pt-3 mt-1 space-y-2">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Goal Visibility</p>
+            {isCreator ? (
+              isHousehold ? (
+                <button
+                  type="button"
+                  onClick={handleMakePrivate}
+                  disabled={togglingHousehold}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border text-sm text-muted-foreground hover:text-foreground transition active:opacity-70 disabled:opacity-40"
+                >
+                  <Lock className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-foreground">Make Private</p>
+                    <p className="text-xs text-muted-foreground">Remove from household goals</p>
+                  </div>
+                  {togglingHousehold && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMakeHousehold}
+                  disabled={togglingHousehold}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border text-sm text-muted-foreground hover:text-foreground transition active:opacity-70 disabled:opacity-40"
+                >
+                  <Users className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-foreground">Make Household Goal</p>
+                    <p className="text-xs text-muted-foreground">Share progress with all members</p>
+                  </div>
+                  {togglingHousehold && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
+                </button>
+              )
+            ) : !isHousehold ? (
+              proposeState === "sent" || proposeState === "already" ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border">
+                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Proposal sent</p>
+                    <p className="text-xs text-muted-foreground">
+                      {proposeState === "already" ? "Already awaiting approval" : "Awaiting household owner approval"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePropose}
+                  disabled={proposeState === "pending"}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border text-sm hover:text-foreground transition active:opacity-70 disabled:opacity-40"
+                >
+                  <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-foreground">Propose to Household</p>
+                    <p className="text-xs text-muted-foreground">Request owner to make this a shared goal</p>
+                  </div>
+                  {proposeState === "pending" && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
+                </button>
+              )
+            ) : null}
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             <X className="w-3.5 h-3.5 mr-1" /> Cancel
@@ -353,25 +474,57 @@ function PastGoalCard({ goal, sym }: { goal: any; sym: string }) {
   );
 }
 
+function SectionHeader({ icon: Icon, label, count }: { icon: any; label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <Icon className="w-4 h-4 text-muted-foreground" />
+      <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+      <span className="text-xs text-muted-foreground">({count})</span>
+    </div>
+  );
+}
+
 export default function GoalsPage() {
   const queryClient = useQueryClient();
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
 
-  const [addOpen,        setAddOpen]        = useState(false);
-  const [editGoal,       setEditGoal]       = useState<any | null>(null);
-  const [showPast,       setShowPast]       = useState(false);
-  const [newName,        setNewName]        = useState("");
-  const [newColor,       setNewColor]       = useState("#818cf8");
-  const [newBudget,      setNewBudget]      = useState("");
-  const [newDeadline,    setNewDeadline]    = useState("");
-  const [newDivide,      setNewDivide]      = useState(false);
+  const [addOpen,     setAddOpen]     = useState(false);
+  const [editGoal,    setEditGoal]    = useState<any | null>(null);
+  const [showPast,    setShowPast]    = useState(false);
+  const [newName,     setNewName]     = useState("");
+  const [newColor,    setNewColor]    = useState("#818cf8");
+  const [newBudget,   setNewBudget]   = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
+  const [newDivide,   setNewDivide]   = useState(false);
 
-  const { data: goals,     isLoading } = useListGoals();
-  const { data: pastGoals, isLoading: pastLoading } = useListPastGoals();
-  const { data: summary }             = useGetGoalsSummary({});
+  const { data: goals,     isLoading }                = useListGoals();
+  const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
+  const { data: summary }                             = useGetGoalsSummary({});
+  const { data: me }                                  = useGetMe();
+  const { data: household }                           = useGetHousehold({
+    query: { enabled: !!me?.householdId, retry: false },
+  } as any);
+
+  const isInHousehold = !!me?.householdId;
+  const isCreator = isInHousehold && !!household && !!me && (household as any).ownerId === me.id;
+  const householdId = isInHousehold ? (me.householdId ?? null) : null;
+
+  const { data: proposals, refetch: refetchProposals } = useQuery<Proposal[]>({
+    queryKey: ["goal-proposals"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isCreator,
+  });
 
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
+
+  const privateGoals   = (goals ?? []).filter(g => !(g as any).householdId);
+  const householdGoals = (goals ?? []).filter(g => !!(g as any).householdId);
+  const pendingProposals = (proposals ?? []).filter(p => p.status === "pending");
 
   const create = useCreateGoal({
     mutation: {
@@ -390,9 +543,25 @@ export default function GoalsPage() {
     create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), deadline: newDeadline, divideByMonths: newDivide } });
   }
 
+  async function handleApproveProposal(proposalId: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
+      method: "POST", credentials: "include",
+    });
+    queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+    refetchProposals();
+  }
+
+  async function handleDeclineProposal(proposalId: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
+      method: "POST", credentials: "include",
+    });
+    refetchProposals();
+  }
+
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold">Goals</h1>
           <p className="text-muted-foreground text-xs mt-0.5">Track savings toward your targets</p>
@@ -406,27 +575,105 @@ export default function GoalsPage() {
         </button>
       </div>
 
+      {/* Pending proposals banner — visible to creator only */}
+      {isCreator && pendingProposals.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">Goal Proposals</p>
+            <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
+              {pendingProposals.length}
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {pendingProposals.map(p => (
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                <div
+                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: (p.goalColor ?? "#818cf8") + "33" }}
+                >
+                  <Target className="w-3.5 h-3.5" style={{ color: p.goalColor ?? "#818cf8" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{p.goalName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Proposed by {p.proposerName}
+                  </p>
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleDeclineProposal(p.id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => handleApproveProposal(p.id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70"
+                  >
+                    Approve
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
-      ) : goals && goals.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-          {goals.map(g => (
-            <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} sym={sym} />
-          ))}
-        </div>
       ) : (
-        <div className="text-center py-16 flex flex-col items-center gap-3 mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-            <Target className="w-6 h-6 text-muted-foreground" />
+        <>
+          {/* Private Goals */}
+          <div className="mb-5">
+            {isInHousehold && (
+              <SectionHeader icon={Lock} label="Private Goals" count={privateGoals.length} />
+            )}
+            {privateGoals.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {privateGoals.map(g => (
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} sym={sym} />
+                ))}
+              </div>
+            ) : !isInHousehold ? (
+              <div className="text-center py-16 flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+                  <Target className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-sm">No active goals yet.</p>
+                <button onClick={() => setAddOpen(true)}
+                  className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
+                  Create first goal
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-3">No private goals.</p>
+            )}
           </div>
-          <p className="text-muted-foreground text-sm">No active goals yet.</p>
-          <button onClick={() => setAddOpen(true)}
-            className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
-            Create first goal
-          </button>
-        </div>
+
+          {/* Household Goals */}
+          {isInHousehold && (
+            <div className="mb-5">
+              <SectionHeader icon={Users} label="Household Goals" count={householdGoals.length} />
+              {householdGoals.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {householdGoals.map(g => (
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} sym={sym} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-3">
+                  No household goals yet.{" "}
+                  {isCreator
+                    ? "Edit a private goal and make it a Household Goal."
+                    : "Propose a goal to the household owner via Edit."}
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Past Goals */}
@@ -472,6 +719,10 @@ export default function GoalsPage() {
           onClose={() => setEditGoal(null)}
           sym={sym}
           alreadyContributed={summaryMap.get(editGoal.id)?.contributed ?? 0}
+          isCreator={isCreator}
+          isInHousehold={isInHousehold}
+          householdId={householdId}
+          onProposalsChange={() => refetchProposals()}
         />
       )}
 
