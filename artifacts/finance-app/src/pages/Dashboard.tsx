@@ -208,7 +208,7 @@ export default function DashboardPage() {
   const { data: goalsSummary } = useGetGoalsSummary({});
 
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
-  const totalBudget   = spending?.reduce((s, c) => s + (c.budget ?? 0), 0) ?? 0;
+  const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
   const overBudget    = spending?.filter(c => c.budget != null && c.total > c.budget).length ?? 0;
   const currentMonth  = new Date().toLocaleString("default", { month: "long", year: "numeric" });
