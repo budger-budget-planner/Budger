@@ -3,6 +3,7 @@ import {
   useListTransactions,
   useListCategories,
   useListGoals,
+  useListGoalContributions,
   useCreateTransaction,
   useUpdateTransaction,
   useDeleteTransaction,
@@ -239,9 +240,22 @@ export default function HomeSpending() {
   const toStr         = format(monthEnd,   "yyyy-MM-dd");
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
-  const { data: categories } = useListCategories();
-  const { data: goals }      = useListGoals();
+  const viewMonth = format(viewDate, "yyyy-MM");
+
+  const { data: categories }    = useListCategories();
+  const { data: goals }         = useListGoals();
+  const { data: contributions } = useListGoalContributions(
+    { month: viewMonth },
+    { query: { queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) } }
+  );
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
+
+  const goalByTxId = new Map<number, { name: string; color: string }>();
+  for (const c of contributions ?? []) {
+    if (c.transactionId != null && c.goalName) {
+      goalByTxId.set(c.transactionId, { name: c.goalName, color: c.goalColor ?? "#888" });
+    }
+  }
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
   const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
@@ -436,18 +450,27 @@ export default function HomeSpending() {
                       className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
                       onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
                     >
-                      <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: (tx.categoryColor ?? "#444") + "33" }}>
-                        <div className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: tx.categoryColor ?? "#666" }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {tx.categoryName ?? "Uncategorized"}
-                          {tx.receiptImage ? " · 📎" : ""}
-                        </p>
-                      </div>
+                      {(() => {
+                        const goalInfo = goalByTxId.get(tx.id);
+                        const dotColor = goalInfo?.color ?? tx.categoryColor ?? "#666";
+                        const label = goalInfo
+                          ? `${goalInfo.name} (Goal)`
+                          : (tx.categoryName ?? "Uncategorized");
+                        return (
+                          <>
+                            <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
+                              style={{ backgroundColor: dotColor + "33" }}>
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {label}{tx.receiptImage ? " · 📎" : ""}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                       <p className="text-sm font-semibold text-foreground flex-shrink-0">
                         −{sym}{Number(tx.amount).toFixed(2)}
                       </p>
