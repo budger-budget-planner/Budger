@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import {
   useListTransactions,
   useListCategories,
+  useListGoals,
   useCreateTransaction,
   useUpdateTransaction,
   useDeleteTransaction,
@@ -12,6 +13,8 @@ import {
   getGetMonthlySummaryQueryKey,
   getGetRecentActivityQueryKey,
   getGetSpendingHistoryQueryKey,
+  getGetGoalsSummaryQueryKey,
+  getListGoalContributionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target } from "lucide-react";
@@ -28,8 +31,8 @@ type TxFormState = {
   amount: string; description: string; categoryId: string; date: string; paymentMethod: string;
 };
 
-function TxForm({ initial, categories, onSubmit, onCancel, loading }: {
-  initial: TxFormState; categories: any[]; onSubmit: (d: TxFormState) => void;
+function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
+  initial: TxFormState; categories: any[]; goals: any[]; onSubmit: (d: TxFormState) => void;
   onCancel: () => void; loading: boolean;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
@@ -61,6 +64,19 @@ function TxForm({ initial, categories, onSubmit, onCancel, loading }: {
                 </span>
               </SelectItem>
             ))}
+            {goals.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Goals</div>
+                {goals.map(g => (
+                  <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                      {g.name} (Goal)
+                    </span>
+                  </SelectItem>
+                ))}
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -224,6 +240,7 @@ export default function HomeSpending() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   const { data: categories } = useListCategories();
+  const { data: goals }      = useListGoals();
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
@@ -242,19 +259,47 @@ export default function HomeSpending() {
     date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
   };
 
+  function resolveCategory(form: TxFormState): { categoryId: number | null; goalContribution?: { goalId: number; amount: number } } {
+    if (!form.categoryId || form.categoryId === "none") return { categoryId: null };
+    if (form.categoryId.startsWith("goal_")) {
+      const goalId = parseInt(form.categoryId.replace("goal_", ""));
+      return { categoryId: null, goalContribution: { goalId, amount: parseFloat(form.amount) } };
+    }
+    return { categoryId: parseInt(form.categoryId) };
+  }
+
   function handleCreate(form: TxFormState) {
-    create.mutate({ data: {
-      amount: parseFloat(form.amount), description: form.description,
-      categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null,
-      date: form.date, paymentMethod: form.paymentMethod,
-    }});
+    const { categoryId, goalContribution } = resolveCategory(form);
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    create.mutate(
+      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
+      {
+        onSuccess: (tx) => {
+          invalidateAll(queryClient);
+          setAddOpen(false);
+          if (goalContribution) {
+            fetch("/api/goal-contributions", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ goalId: goalContribution.goalId, transactionId: (tx as any).id, amount: goalContribution.amount, month }),
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+            });
+          }
+        },
+      }
+    );
   }
 
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
+    const { categoryId } = resolveCategory(form);
     update.mutate({ id: editTx.id, data: {
       amount: parseFloat(form.amount), description: form.description,
-      categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null,
+      categoryId,
       date: form.date, paymentMethod: form.paymentMethod,
     }});
   }
@@ -451,7 +496,7 @@ export default function HomeSpending() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
-          <TxForm initial={blank} categories={categories ?? []} onSubmit={handleCreate}
+          <TxForm initial={blank} categories={categories ?? []} goals={goals ?? []} onSubmit={handleCreate}
             onCancel={() => setAddOpen(false)} loading={create.isPending} />
         </DialogContent>
       </Dialog>
@@ -466,6 +511,7 @@ export default function HomeSpending() {
                 categoryId: editTx.categoryId ? String(editTx.categoryId) : "none",
                 date: editTx.date, paymentMethod: editTx.paymentMethod }}
               categories={categories ?? []}
+              goals={goals ?? []}
               onSubmit={handleUpdate}
               onCancel={() => setEditTx(null)}
               loading={update.isPending}

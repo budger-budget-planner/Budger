@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListGoals,
   useListPastGoals,
@@ -23,6 +23,31 @@ const PRESET_COLORS = [
   "#a78bfa", "#fbbf24", "#f87171", "#4ade80", "#60a5fa",
   "#e879f9", "#2dd4bf", "#facc15", "#fb7185", "#a3e635",
 ];
+
+function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
+  function isoToDisplay(iso: string): string {
+    if (!iso) return "";
+    const parts = iso.split("-");
+    if (parts.length === 3 && parts[2]) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return "";
+  }
+  const [display, setDisplay] = useState(() => isoToDisplay(value));
+  useEffect(() => { setDisplay(isoToDisplay(value)); }, [value]);
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+    let formatted = digits.slice(0, 2);
+    if (digits.length > 2) formatted += "/" + digits.slice(2, 4);
+    if (digits.length > 4) formatted += "/" + digits.slice(4, 8);
+    setDisplay(formatted);
+    if (digits.length === 8) {
+      onChange(`${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`);
+    }
+  }
+  return (
+    <Input type="text" placeholder="DD/MM/YYYY" value={display}
+      onChange={handleChange} required={required} inputMode="numeric" />
+  );
+}
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
@@ -187,7 +212,7 @@ function GoalFormFields({
 
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Deadline</Label>
-        <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required />
+        <DdMmYyyyInput value={deadline} onChange={setDeadline} required />
       </div>
 
       <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-muted/50 border border-border">
