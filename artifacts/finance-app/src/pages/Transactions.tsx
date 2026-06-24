@@ -5,7 +5,6 @@ import {
   useListCategories,
   useListGoals,
   useCreateTransaction,
-  useUpdateTransaction,
   useDeleteTransaction,
   useUploadReceipt,
   useDeleteReceipt,
@@ -447,52 +446,9 @@ export default function TransactionsPage() {
     filterCat !== "all" ? { categoryId: parseInt(filterCat) } : {}
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
-
-  // Ref to pass goal-contribution data into the mutation-level onSuccess (per-call callbacks are unreliable)
-  const pendingGoalContrib = useRef<{ goalId: number; amount: number; txId: number } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
-  const update = useUpdateTransaction({
-    mutation: {
-      onSuccess: () => {
-        invalidateAll(queryClient, currentMonth);
-        setEditTx(null);
-
-        const pending = pendingGoalContrib.current;
-        pendingGoalContrib.current = null;
-        if (!pending) return;
-
-        const month = currentMonth;
-        fetch(`/api/goal-contributions?month=${month}`, { credentials: "include" })
-          .then(r => r.json())
-          .then((contribs: any[]) => {
-            const linked = (contribs ?? []).filter((c: any) => c.transactionId === pending.txId);
-            return Promise.all(
-              linked.map((c: any) =>
-                fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
-              )
-            );
-          })
-          .then(() =>
-            fetch("/api/goal-contributions", {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                goalId: pending.goalId,
-                transactionId: pending.txId,
-                amount: pending.amount,
-                month,
-              }),
-            })
-          )
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-            queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
-          });
-      },
-    },
-  });
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => invalidateAll(queryClient) } });
 
   const filtered = (transactions ?? []).filter(tx => {
@@ -551,26 +507,62 @@ export default function TransactionsPage() {
     );
   }
 
-  function handleUpdate(form: TxFormState) {
-    if (!editTx) return;
+  async function handleUpdate(form: TxFormState) {
+    if (!editTx || isSaving) return;
     const txId = editTx.id;
     const { categoryId, goalContribution } = resolveCategory(form);
 
-    // Store goal data in ref so the mutation-level onSuccess can access it
-    pendingGoalContrib.current = goalContribution
-      ? { goalId: goalContribution.goalId, amount: goalContribution.amount, txId }
-      : null;
+    // Detect whether this tx previously had a goal assignment (categoryId null = goal tx)
+    const hadGoal = !editTx.categoryId;
+    const nowHasGoal = !!goalContribution;
+    const needsContribUpdate = nowHasGoal || hadGoal;
 
-    update.mutate({
-      id: txId,
-      data: {
-        amount: parseFloat(form.amount),
-        description: form.description,
-        categoryId,
-        date: form.date,
-        paymentMethod: form.paymentMethod,
-      },
-    });
+    setIsSaving(true);
+    try {
+      // Step 1: Update the transaction
+      const patchRes = await fetch(`/api/transactions/${txId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(form.amount),
+          description: form.description,
+          categoryId,
+          date: form.date,
+          paymentMethod: form.paymentMethod,
+        }),
+      });
+      if (!patchRes.ok) return;
+
+      // Step 2: Manage contributions when goal assignment changes in either direction
+      if (needsContribUpdate) {
+        const contribsRes = await fetch(`/api/goal-contributions?month=${currentMonth}`, { credentials: "include" });
+        const contribs: any[] = contribsRes.ok ? await contribsRes.json() : [];
+        const linked = contribs.filter((c: any) => c.transactionId === txId);
+        await Promise.all(linked.map((c: any) =>
+          fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
+        ));
+
+        if (goalContribution) {
+          await fetch("/api/goal-contributions", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              goalId: goalContribution.goalId,
+              transactionId: txId,
+              amount: goalContribution.amount,
+              month: currentMonth,
+            }),
+          });
+        }
+      }
+
+      invalidateAll(queryClient, currentMonth);
+      setEditTx(null);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -682,19 +674,29 @@ export default function TransactionsPage() {
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Transaction</DialogTitle></DialogHeader>
-          {editTx && (
-            <>
-              <TxForm
-                initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: editTx.categoryId ? String(editTx.categoryId) : "none", date: editTx.date, paymentMethod: editTx.paymentMethod }}
-                categories={categories ?? []}
-                goals={goals ?? []}
-                onSubmit={handleUpdate}
-                onCancel={() => setEditTx(null)}
-                loading={update.isPending}
-              />
-              <DedicateToGoalSection tx={editTx} goals={goals ?? []} />
-            </>
-          )}
+          {editTx && (() => {
+            // If this is a goal-assigned tx (categoryId null), find existing contribution
+            // so the dropdown shows the current goal instead of "No category"
+            const existingContrib = !editTx.categoryId
+              ? (allContribs ?? []).find((c: any) => c.transactionId === editTx.id)
+              : null;
+            const initCategoryId = editTx.categoryId
+              ? String(editTx.categoryId)
+              : existingContrib ? `goal_${existingContrib.goalId}` : "none";
+            return (
+              <>
+                <TxForm
+                  initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: initCategoryId, date: editTx.date, paymentMethod: editTx.paymentMethod }}
+                  categories={categories ?? []}
+                  goals={goals ?? []}
+                  onSubmit={handleUpdate}
+                  onCancel={() => setEditTx(null)}
+                  loading={isSaving}
+                />
+                <DedicateToGoalSection tx={editTx} goals={goals ?? []} />
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
