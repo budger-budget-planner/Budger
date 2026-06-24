@@ -7,6 +7,7 @@ import householdsRouter from "./households";
 import invitesRouter from "./invites";
 import notificationsRouter from "./notifications";
 import summaryRouter from "./summary";
+import goalsRouter from "./goals";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(householdsRouter);
 router.use(invitesRouter);
 router.use(notificationsRouter);
 router.use(summaryRouter);
+router.use(goalsRouter);
 
 export default router;

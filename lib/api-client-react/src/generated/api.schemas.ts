@@ -203,6 +203,75 @@ export interface MonthlyTotal {
   count: number;
 }
 
+export interface Goal {
+  id: number;
+  name: string;
+  color: string;
+  budget: number;
+  deadline: string;
+  divideByMonths: boolean;
+  /** @nullable */
+  userId: number | null;
+  /** @nullable */
+  householdId: number | null;
+  createdAt: string;
+}
+
+export interface GoalInput {
+  /** @minLength 1 */
+  name: string;
+  color: string;
+  budget: number;
+  deadline: string;
+  divideByMonths?: boolean;
+}
+
+export interface GoalUpdate {
+  name?: string;
+  color?: string;
+  budget?: number;
+  deadline?: string;
+  divideByMonths?: boolean;
+}
+
+export interface GoalContribution {
+  id: number;
+  goalId: number;
+  /** @nullable */
+  goalName: string | null;
+  /** @nullable */
+  goalColor: string | null;
+  /** @nullable */
+  transactionId: number | null;
+  amount: number;
+  month: string;
+  userId: number;
+  /** @nullable */
+  householdId: number | null;
+  createdAt: string;
+}
+
+export interface GoalContributionInput {
+  goalId: number;
+  /** @nullable */
+  transactionId?: number | null;
+  amount: number;
+  month?: string;
+}
+
+export interface GoalSummary {
+  goalId: number;
+  goalName: string;
+  goalColor: string;
+  budget: number;
+  deadline: string;
+  divideByMonths: boolean;
+  /** @nullable */
+  monthlyTarget: number | null;
+  contributed: number;
+  percentage: number;
+}
+
 export interface MonthHistory {
   monthKey: string;
   month: string;
@@ -218,6 +287,15 @@ export type ListTransactionsParams = {
   endDate?: string;
   limit?: number;
   offset?: number;
+};
+
+export type ListGoalContributionsParams = {
+  month?: string;
+  goalId?: number;
+};
+
+export type GetGoalsSummaryParams = {
+  month?: string;
 };
 
 export type GetSpendingSummaryParams = {

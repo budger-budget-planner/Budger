@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
@@ -10,6 +10,7 @@ const nav = [
   { href: "/",              label: "Home",       icon: Home            },
   { href: "/dashboard",     label: "Dashboard",  icon: LayoutDashboard },
   { href: "/categories",    label: "Categories", icon: Tag             },
+  { href: "/goals",         label: "Goals",      icon: Target          },
   { href: "/household",     label: "Household",  icon: Users           },
   { href: "/notifications", label: "Alerts",     icon: Bell            },
 ];

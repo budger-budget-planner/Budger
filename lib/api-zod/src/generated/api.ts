@@ -471,6 +471,145 @@ export const UpdateNotificationSettingsResponse = zod.object({
 });
 
 /**
+ * @summary List active goals for the current user/household
+ */
+export const ListGoalsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  color: zod.string(),
+  budget: zod.number(),
+  deadline: zod.string(),
+  divideByMonths: zod.boolean(),
+  userId: zod.number().nullable(),
+  householdId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+export const ListGoalsResponse = zod.array(ListGoalsResponseItem);
+
+/**
+ * @summary Create a new goal
+ */
+
+export const CreateGoalBody = zod.object({
+  name: zod.string().min(1),
+  color: zod.string(),
+  budget: zod.number(),
+  deadline: zod.string(),
+  divideByMonths: zod.boolean().optional(),
+});
+
+/**
+ * @summary List past (expired) goals
+ */
+export const ListPastGoalsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  color: zod.string(),
+  budget: zod.number(),
+  deadline: zod.string(),
+  divideByMonths: zod.boolean(),
+  userId: zod.number().nullable(),
+  householdId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+export const ListPastGoalsResponse = zod.array(ListPastGoalsResponseItem);
+
+/**
+ * @summary Update a goal
+ */
+export const UpdateGoalParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateGoalBody = zod.object({
+  name: zod.string().optional(),
+  color: zod.string().optional(),
+  budget: zod.number().optional(),
+  deadline: zod.string().optional(),
+  divideByMonths: zod.boolean().optional(),
+});
+
+export const UpdateGoalResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  color: zod.string(),
+  budget: zod.number(),
+  deadline: zod.string(),
+  divideByMonths: zod.boolean(),
+  userId: zod.number().nullable(),
+  householdId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a goal
+ */
+export const DeleteGoalParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List goal contributions for current month
+ */
+export const ListGoalContributionsQueryParams = zod.object({
+  month: zod.coerce.string().optional(),
+  goalId: zod.coerce.number().optional(),
+});
+
+export const ListGoalContributionsResponseItem = zod.object({
+  id: zod.number(),
+  goalId: zod.number(),
+  goalName: zod.string().nullable(),
+  goalColor: zod.string().nullable(),
+  transactionId: zod.number().nullable(),
+  amount: zod.number(),
+  month: zod.string(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+export const ListGoalContributionsResponse = zod.array(
+  ListGoalContributionsResponseItem,
+);
+
+/**
+ * @summary Add a goal contribution
+ */
+export const CreateGoalContributionBody = zod.object({
+  goalId: zod.number(),
+  transactionId: zod.number().nullish(),
+  amount: zod.number(),
+  month: zod.string().optional(),
+});
+
+/**
+ * @summary Delete a goal contribution
+ */
+export const DeleteGoalContributionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get goal contribution totals per goal for current month
+ */
+export const GetGoalsSummaryQueryParams = zod.object({
+  month: zod.coerce.string().optional(),
+});
+
+export const GetGoalsSummaryResponseItem = zod.object({
+  goalId: zod.number(),
+  goalName: zod.string(),
+  goalColor: zod.string(),
+  budget: zod.number(),
+  deadline: zod.string(),
+  divideByMonths: zod.boolean(),
+  monthlyTarget: zod.number().nullable(),
+  contributed: zod.number(),
+  percentage: zod.number(),
+});
+export const GetGoalsSummaryResponse = zod.array(GetGoalsSummaryResponseItem);
+
+/**
  * @summary Get spending summary by category for a period
  */
 export const GetSpendingSummaryQueryParams = zod.object({

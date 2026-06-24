@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
-import { eq, or, desc } from "drizzle-orm";
+import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable } from "@workspace/db";
+import { eq, or, desc, and } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -197,6 +197,53 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
     userName: userMap.get(tx.userId)?.name ?? null,
     createdAt: tx.createdAt.toISOString(),
   })));
+});
+
+router.get("/summary/goals", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const month = typeof req.query.month === "string" ? req.query.month : currentMonth;
+
+  const goals = await db.select().from(goalsTable).where(eq(goalsTable.userId, userId));
+  const contribs = await db.select().from(goalContributionsTable)
+    .where(and(eq(goalContributionsTable.userId, userId), eq(goalContributionsTable.month, month)));
+
+  const totalContributed = contribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+
+  const result = goals.map(g => {
+    const goalContribs = contribs.filter(c => c.goalId === g.id);
+    const contributed = goalContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+    const budget = parseFloat(g.budget);
+
+    let monthlyTarget: number | null = null;
+    if (g.divideByMonths) {
+      const deadlineDate = new Date(g.deadline);
+      const nowDate = new Date();
+      const monthsLeft = Math.max(
+        1,
+        (deadlineDate.getFullYear() - nowDate.getFullYear()) * 12
+          + (deadlineDate.getMonth() - nowDate.getMonth()) + 1
+      );
+      monthlyTarget = Math.round((budget / monthsLeft) * 100) / 100;
+    }
+
+    return {
+      goalId: g.id,
+      goalName: g.name,
+      goalColor: g.color,
+      budget,
+      deadline: g.deadline,
+      divideByMonths: g.divideByMonths,
+      monthlyTarget,
+      contributed: Math.round(contributed * 100) / 100,
+      percentage: budget > 0 ? Math.round((contributed / budget) * 10000) / 100 : 0,
+    };
+  }).sort((a, b) => b.contributed - a.contributed);
+
+  res.json(result);
 });
 
 export default router;

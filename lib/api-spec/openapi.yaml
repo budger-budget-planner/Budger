@@ -23,6 +23,8 @@ tags:
     description: Notification settings
   - name: summary
     description: Dashboard summaries
+  - name: goals
+    description: Financial goals
 
 paths:
   /healthz:
@@ -565,6 +567,167 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationSettings"
 
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List active goals for the current user/household
+      responses:
+        "200":
+          description: List of active goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a new goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "201":
+          description: Created goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /goals/past:
+    get:
+      operationId: listPastGoals
+      tags: [goals]
+      summary: List past (expired) goals
+      responses:
+        "200":
+          description: List of past goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+
+  /goals/{id}:
+    patch:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalUpdate"
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /goal-contributions:
+    get:
+      operationId: listGoalContributions
+      tags: [goals]
+      summary: List goal contributions for current month
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+        - name: goalId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of contributions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalContribution"
+    post:
+      operationId: createGoalContribution
+      tags: [goals]
+      summary: Add a goal contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalContributionInput"
+      responses:
+        "201":
+          description: Created contribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalContribution"
+
+  /goal-contributions/{id}:
+    delete:
+      operationId: deleteGoalContribution
+      tags: [goals]
+      summary: Delete a goal contribution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /summary/goals:
+    get:
+      operationId: getGoalsSummary
+      tags: [summary]
+      summary: Get goal contribution totals per goal for current month
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Goals summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalSummary"
+
   /summary/spending:
     get:
       operationId: getSpendingSummary
@@ -1045,6 +1208,154 @@ components:
         - year
         - total
         - count
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        budget:
+          type: number
+        deadline:
+          type: string
+        divideByMonths:
+          type: boolean
+        userId:
+          type: ["integer", "null"]
+        householdId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - color
+        - budget
+        - deadline
+        - divideByMonths
+        - userId
+        - householdId
+        - createdAt
+
+    GoalInput:
+      type: object
+      required:
+        - name
+        - color
+        - budget
+        - deadline
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+        budget:
+          type: number
+        deadline:
+          type: string
+        divideByMonths:
+          type: boolean
+
+    GoalUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        budget:
+          type: number
+        deadline:
+          type: string
+        divideByMonths:
+          type: boolean
+
+    GoalContribution:
+      type: object
+      properties:
+        id:
+          type: integer
+        goalId:
+          type: integer
+        goalName:
+          type: ["string", "null"]
+        goalColor:
+          type: ["string", "null"]
+        transactionId:
+          type: ["integer", "null"]
+        amount:
+          type: number
+        month:
+          type: string
+        userId:
+          type: integer
+        householdId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - goalId
+        - goalName
+        - goalColor
+        - transactionId
+        - amount
+        - month
+        - userId
+        - householdId
+        - createdAt
+
+    GoalContributionInput:
+      type: object
+      required:
+        - goalId
+        - amount
+      properties:
+        goalId:
+          type: integer
+        transactionId:
+          type: ["integer", "null"]
+        amount:
+          type: number
+        month:
+          type: string
+
+    GoalSummary:
+      type: object
+      properties:
+        goalId:
+          type: integer
+        goalName:
+          type: string
+        goalColor:
+          type: string
+        budget:
+          type: number
+        deadline:
+          type: string
+        divideByMonths:
+          type: boolean
+        monthlyTarget:
+          type: ["number", "null"]
+        contributed:
+          type: number
+        percentage:
+          type: number
+      required:
+        - goalId
+        - goalName
+        - goalColor
+        - budget
+        - deadline
+        - divideByMonths
+        - monthlyTarget
+        - contributed
+        - percentage
 
     MonthHistory:
       type: object

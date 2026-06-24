@@ -11,6 +11,7 @@ import HomeSpending from "@/pages/HomeSpending";
 import DashboardPage from "@/pages/Dashboard";
 import TransactionsPage from "@/pages/Transactions";
 import CategoriesPage from "@/pages/Categories";
+import GoalsPage from "@/pages/Goals";
 import HouseholdPage from "@/pages/Household";
 import NotificationsPage from "@/pages/Notifications";
 import InvitePage from "@/pages/Invite";
@@ -70,6 +71,7 @@ function AppRoutes() {
               <Route path="/dashboard"     component={DashboardPage}    />
               <Route path="/transactions"  component={TransactionsPage} />
               <Route path="/categories"    component={CategoriesPage}   />
+              <Route path="/goals"         component={GoalsPage}        />
               <Route path="/household"     component={HouseholdPage}    />
               <Route path="/notifications" component={NotificationsPage}/>
             </Switch>

@@ -6,17 +6,19 @@ import {
   useGetSpendingHistory,
   useCreateTransaction,
   useListCategories,
+  useGetGoalsSummary,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
   getGetRecentActivityQueryKey,
   getListTransactionsQueryKey,
   getGetSpendingHistoryQueryKey,
+  getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Plus, TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera } from "lucide-react";
+import { Plus, TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -203,12 +205,16 @@ export default function DashboardPage() {
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
   const { data: recent }   = useGetRecentActivity({ limit: 8 });
+  const { data: goalsSummary } = useGetGoalsSummary({});
 
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = spending?.reduce((s, c) => s + (c.budget ?? 0), 0) ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
   const overBudget    = spending?.filter(c => c.budget != null && c.total > c.budget).length ?? 0;
   const currentMonth  = new Date().toLocaleString("default", { month: "long", year: "numeric" });
+
+  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
+  const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
@@ -263,14 +269,19 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">Over budget</p>
-          <p className={`text-2xl font-bold ${overBudget > 0 ? "text-destructive" : ""}`}>{overBudget}</p>
-          <p className="text-xs text-muted-foreground">{overBudget > 0 ? "categories" : "all on track"}</p>
+          <p className="text-xs text-muted-foreground mb-0.5">For goals</p>
+          <p className="text-2xl font-bold">{sym}{totalGoalContributions.toFixed(0)}</p>
+          <p className="text-xs text-muted-foreground">
+            {activeGoalsWithContribs.length > 0
+              ? `${activeGoalsWithContribs.length} goal${activeGoalsWithContribs.length !== 1 ? "s" : ""} active`
+              : "no contributions"}
+          </p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="space-y-4 mb-5">
+        {/* Spending by Category */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">Spending by Category</p>
           {spendingLoading ? (
@@ -322,6 +333,83 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Goals contributions chart */}
+        {goalsSummary && goalsSummary.length > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">Goals Progress</p>
+            </div>
+            {activeGoalsWithContribs.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <ResponsiveContainer width={140} height={140}>
+                    <PieChart>
+                      <Pie
+                        data={goalsSummary.filter(g => g.contributed > 0)}
+                        dataKey="contributed"
+                        cx="50%" cy="50%"
+                        innerRadius={38} outerRadius={64} paddingAngle={2}
+                      >
+                        {goalsSummary.filter(g => g.contributed > 0).map((entry, i) => (
+                          <Cell key={entry.goalId} fill={entry.goalColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-2 min-w-0">
+                  {goalsSummary.slice(0, 6).map((item, i) => (
+                    <div key={item.goalId} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
+                          <span className="text-muted-foreground truncate">{item.goalName}</span>
+                        </div>
+                        <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.contributed.toFixed(2)}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                        <div className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(item.percentage, 100)}%`,
+                            backgroundColor: item.percentage >= 100 ? "#34d399" : (item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length]),
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.percentage.toFixed(0)}% of {sym}{item.budget.toFixed(0)} goal
+                        {item.monthlyTarget ? ` · target ${sym}${item.monthlyTarget.toFixed(0)}/mo` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {goalsSummary.slice(0, 5).map((item, i) => (
+                  <div key={item.goalId} className="space-y-0.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="text-muted-foreground">{item.goalName}</span>
+                      </div>
+                      <span className="text-muted-foreground">No contributions yet</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1" />
+                    <p className="text-[10px] text-muted-foreground">
+                      Target: {sym}{item.budget.toFixed(0)} by {item.deadline}
+                      {item.monthlyTarget ? ` · ${sym}${item.monthlyTarget.toFixed(0)}/mo needed` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Monthly trend */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">Monthly Trend</p>
           <ResponsiveContainer width="100%" height={160}>

@@ -3,19 +3,25 @@ import { compressImage } from "@/lib/imageUtils";
 import {
   useListTransactions,
   useListCategories,
+  useListGoals,
   useCreateTransaction,
   useUpdateTransaction,
   useDeleteTransaction,
   useUploadReceipt,
   useDeleteReceipt,
+  useCreateGoalContribution,
+  useListGoalContributions,
+  useDeleteGoalContribution,
   getListTransactionsQueryKey,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
   getGetRecentActivityQueryKey,
   getGetSpendingHistoryQueryKey,
+  getListGoalContributionsQueryKey,
+  getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,18 +41,25 @@ type TxFormState = {
 function TxForm({
   initial,
   categories,
+  goals,
   onSubmit,
   onCancel,
   loading,
 }: {
   initial: TxFormState;
   categories: any[];
+  goals: any[];
   onSubmit: (data: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
+
+  const allCatOptions = [
+    ...categories.map(c => ({ id: c.id, name: c.name, color: c.color, isGoal: false })),
+    ...goals.map(g => ({ id: `goal_${g.id}`, name: `${g.name} (Goal)`, color: g.color, isGoal: true })),
+  ];
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
@@ -72,6 +85,21 @@ function TxForm({
                 </span>
               </SelectItem>
             ))}
+            {goals.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t border-border mt-1 pt-2">
+                  Goals
+                </div>
+                {goals.map(g => (
+                  <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                      {g.name} (Goal)
+                    </span>
+                  </SelectItem>
+                ))}
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -100,6 +128,119 @@ function TxForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
+  const queryClient = useQueryClient();
+  const sym = currencySymbol(loadPrefs().currency);
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const { data: existingContribs } = useListGoalContributions(
+    { month: currentMonth },
+    { query: { enabled: goals.length > 0, queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) } }
+  );
+
+  const txContribs = (existingContribs ?? []).filter(c => c.transactionId === tx.id);
+
+  const [goalId, setGoalId]     = useState("");
+  const [amount, setAmount]     = useState("");
+  const [saving, setSaving]     = useState(false);
+
+  const addContrib = useCreateGoalContribution({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
+        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+        setGoalId(""); setAmount(""); setSaving(false);
+      },
+      onError: () => setSaving(false),
+    },
+  });
+
+  const removeContrib = useDeleteGoalContribution({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
+        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+      },
+    },
+  });
+
+  if (goals.length === 0) return null;
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!goalId || !amount) return;
+    setSaving(true);
+    addContrib.mutate({
+      data: {
+        goalId: parseInt(goalId),
+        transactionId: tx.id,
+        amount: parseFloat(amount),
+        month: currentMonth,
+      },
+    });
+  }
+
+  return (
+    <div className="border-t border-border pt-4 mt-2 space-y-3">
+      <div className="flex items-center gap-2">
+        <Target className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium">Dedicate to Goal</p>
+      </div>
+
+      {txContribs.length > 0 && (
+        <div className="space-y-1.5">
+          {txContribs.map(c => (
+            <div key={c.id} className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: c.goalColor ?? "#818cf8" }} />
+                <span className="text-sm text-muted-foreground">{c.goalName}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{sym}{Number(c.amount).toFixed(2)}</span>
+                <button onClick={() => removeContrib.mutate({ id: c.id })}
+                  className="text-muted-foreground hover:text-destructive transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleAdd} className="flex gap-2">
+        <Select value={goalId} onValueChange={setGoalId}>
+          <SelectTrigger className="flex-1 text-sm h-9">
+            <SelectValue placeholder="Choose goal…" />
+          </SelectTrigger>
+          <SelectContent>
+            {goals.map(g => (
+              <SelectItem key={g.id} value={String(g.id)}>
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: g.color }} />
+                  {g.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="relative w-28">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">{sym}</span>
+          <Input
+            type="number" min="0" step="0.01" placeholder="0.00"
+            value={amount} onChange={e => setAmount(e.target.value)}
+            className="pl-6 h-9 text-sm"
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={saving || !goalId || !amount} className="h-9 px-3">
+          {saving ? "…" : "Add"}
+        </Button>
+      </form>
+    </div>
   );
 }
 
@@ -296,6 +437,7 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState("");
 
   const { data: categories } = useListCategories();
+  const { data: goals }      = useListGoals();
   const { data: transactions, isLoading } = useListTransactions(
     filterCat !== "all" ? { categoryId: parseInt(filterCat) } : {}
   );
@@ -319,13 +461,51 @@ export default function TransactionsPage() {
     paymentMethod: "card",
   };
 
+  function resolveCategory(form: TxFormState): { categoryId: number | null; goalContribution?: { goalId: number; amount: number } } {
+    if (!form.categoryId || form.categoryId === "none") return { categoryId: null };
+    if (form.categoryId.startsWith("goal_")) {
+      const goalId = parseInt(form.categoryId.replace("goal_", ""));
+      return { categoryId: null, goalContribution: { goalId, amount: parseFloat(form.amount) } };
+    }
+    return { categoryId: parseInt(form.categoryId) };
+  }
+
   function handleCreate(form: TxFormState) {
-    create.mutate({ data: { amount: parseFloat(form.amount), description: form.description, categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null, date: form.date, paymentMethod: form.paymentMethod } });
+    const { categoryId, goalContribution } = resolveCategory(form);
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    create.mutate(
+      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
+      {
+        onSuccess: (tx) => {
+          if (goalContribution) {
+            queryClient.fetchQuery({
+              queryKey: ["createGoalContrib"],
+            }).catch(() => {});
+            fetch("/api/goal-contributions", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                goalId: goalContribution.goalId,
+                transactionId: (tx as any).id,
+                amount: goalContribution.amount,
+                month,
+              }),
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+            });
+          }
+        },
+      }
+    );
   }
 
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
-    update.mutate({ id: editTx.id, data: { amount: parseFloat(form.amount), description: form.description, categoryId: form.categoryId !== "none" ? parseInt(form.categoryId) : null, date: form.date, paymentMethod: form.paymentMethod } });
+    const { categoryId } = resolveCategory(form);
+    update.mutate({ id: editTx.id, data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } });
   }
 
   return (
@@ -422,22 +602,26 @@ export default function TransactionsPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
-          <TxForm initial={blank} categories={categories ?? []} onSubmit={handleCreate} onCancel={() => setAddOpen(false)} loading={create.isPending} />
+          <TxForm initial={blank} categories={categories ?? []} goals={goals ?? []} onSubmit={handleCreate} onCancel={() => setAddOpen(false)} loading={create.isPending} />
         </DialogContent>
       </Dialog>
 
       {/* Edit dialog */}
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Transaction</DialogTitle></DialogHeader>
           {editTx && (
-            <TxForm
-              initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: editTx.categoryId ? String(editTx.categoryId) : "none", date: editTx.date, paymentMethod: editTx.paymentMethod }}
-              categories={categories ?? []}
-              onSubmit={handleUpdate}
-              onCancel={() => setEditTx(null)}
-              loading={update.isPending}
-            />
+            <>
+              <TxForm
+                initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: editTx.categoryId ? String(editTx.categoryId) : "none", date: editTx.date, paymentMethod: editTx.paymentMethod }}
+                categories={categories ?? []}
+                goals={goals ?? []}
+                onSubmit={handleUpdate}
+                onCancel={() => setEditTx(null)}
+                loading={update.isPending}
+              />
+              <DedicateToGoalSection tx={editTx} goals={goals ?? []} />
+            </>
           )}
         </DialogContent>
       </Dialog>
