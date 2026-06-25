@@ -255,12 +255,12 @@ function MemberSheet({
                   onClick={() => setConfirmRemove(true)}
                 >
                   <Trash2 className="w-4 h-4 flex-shrink-0" />
-                  Remove {member.name} from household
+                  {t("hh.remove_from_hh", { name: member.name })}
                 </button>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-sm text-red-300 font-medium">Remove {member.name}?</p>
-                  <p className="text-xs text-white/40">They will be notified and lose access to the household.</p>
+                  <p className="text-sm text-red-300 font-medium">{t("hh.remove_confirm_hdr", { name: member.name })}</p>
+                  <p className="text-xs text-white/40">{t("hh.remove_notify_desc")}</p>
                   <div className="flex gap-2 pt-1">
                     <Button
                       size="sm"
@@ -268,14 +268,14 @@ function MemberSheet({
                       className="flex-1 h-8 text-xs text-white/50 hover:text-white hover:bg-white/10"
                       onClick={() => setConfirmRemove(false)}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button
                       size="sm"
                       className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white border-0"
                       onClick={() => { onRemove?.(); onClose(); }}
                     >
-                      Remove
+                      {t("hh.remove_btn")}
                     </Button>
                   </div>
                 </div>
@@ -450,15 +450,15 @@ export default function HouseholdPage() {
                 <X className="w-4 h-4 text-pink-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-pink-300">Removed from household</p>
+                <p className="text-sm font-semibold text-pink-300">{t("hh.alert_removed_title")}</p>
                 <p className="text-xs text-white/50 mt-0.5">
-                  You were removed from <span className="text-white/80 font-medium">{(me as any).pendingHouseholdAlert}</span>.
+                  {t("hh.alert_removed_desc")} <span className="text-white/80 font-medium">{(me as any).pendingHouseholdAlert}</span>.
                 </p>
               </div>
               <button
                 className="text-white/30 hover:text-white/70 p-1 flex-shrink-0"
                 onClick={() => updateMe.mutate({ data: { pendingHouseholdAlert: null } as any })}
-                title="Dismiss"
+                title={t("hh.alert_dismiss")}
               >
                 <X className="w-4 h-4" />
               </button>

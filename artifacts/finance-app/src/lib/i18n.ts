@@ -446,6 +446,13 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.total_month_txt":     { en: "Total this month",          pl: "Łącznie ten miesiąc"         },
   "hh.private_dash_lbl":    { en: "Private dashboard",         pl: "Prywatny Pulpit"             },
   "hh.remove_member_confirm":{ en: "Remove {name} from the household?", pl: "Usunąć {name} z gospodarstwa?" },
+  "hh.remove_from_hh":      { en: "Remove {name} from household",       pl: "Usuń {name} z gospodarstwa"   },
+  "hh.remove_confirm_hdr":  { en: "Remove {name}?",                     pl: "Usunąć {name}?"               },
+  "hh.remove_notify_desc":  { en: "They will be notified and lose access to the household.", pl: "Zostają powiadomieni i tracą dostęp do gospodarstwa." },
+  "hh.remove_btn":          { en: "Remove",                             pl: "Usuń"                         },
+  "hh.alert_removed_title": { en: "Removed from household",             pl: "Usunięto z gospodarstwa"      },
+  "hh.alert_removed_desc":  { en: "You were removed from",              pl: "Zostałeś usunięty z"          },
+  "hh.alert_dismiss":       { en: "Dismiss",                            pl: "Zamknij"                      },
   "hh.deleting_tx":         { en: "Deleting",                  pl: "Usuwanie"                    },
 
   // ── Household roles ──
