@@ -86,7 +86,7 @@ function MemberSpendingSheet({
           </div>
           <div className="flex-1">
             <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">{t("hh.you_label")}</span>}</p>
-            <p className="text-xs text-white/50">This month's breakdown</p>
+            <p className="text-xs text-white/50">{t("hh.this_month_breakdown")}</p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1">
             <X className="w-5 h-5" />
@@ -96,7 +96,7 @@ function MemberSpendingSheet({
           {blocked ? (
             <div className="flex flex-col items-center py-10 gap-3 text-white/40">
               <EyeOff className="w-8 h-8" />
-              <p className="text-sm">This member has made their dashboard private.</p>
+              <p className="text-sm">{t("hh.member_private_msg")}</p>
             </div>
           ) : isLoading ? (
             <div className="flex justify-center py-10">
@@ -105,7 +105,7 @@ function MemberSpendingSheet({
           ) : isError ? (
             <div className="flex flex-col items-center py-10 gap-3 text-white/40">
               <EyeOff className="w-8 h-8" />
-              <p className="text-sm">Dashboard is private.</p>
+              <p className="text-sm">{t("hh.dashboard_private_msg")}</p>
             </div>
           ) : !data?.length ? (
             <div className="text-center py-10 text-white/40 text-sm">{t("hh.no_spending")}</div>
@@ -297,7 +297,7 @@ export default function HouseholdPage() {
                   onClick={() => setDeleteHouseholdOpen(true)}
                   data-testid="button-delete-household"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                  <Trash2 className="w-3.5 h-3.5" /> {t("hh.delete")}
                 </Button>
               ) : (
                 <Button
@@ -314,7 +314,7 @@ export default function HouseholdPage() {
 
             <div className="mt-4 space-y-2">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-white/40">This month</span>
+                <span className="text-xs text-white/40">{t("hh.this_month")}</span>
                 <span className="text-xs text-white/40">
                   {budget ? `${fmt(totalSpent)} / ${fmt(budget)}` : fmt(totalSpent)}
                 </span>
@@ -328,17 +328,19 @@ export default function HouseholdPage() {
                 </div>
               )}
               {budget && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-white/30">
                     {totalSpent <= budget
-                      ? `${fmt(budget - totalSpent)} remaining`
-                      : `${fmt(totalSpent - budget)} over budget`}
+                      ? prefs.language === "pl"
+                        ? `${t("common.remaining")} ${fmt(budget - totalSpent)}`
+                        : `${fmt(budget - totalSpent)} ${t("common.remaining")}`
+                      : `${fmt(totalSpent - budget)} ${t("common.over_budget")}`}
                   </span>
                   <button
-                    className="text-xs text-white/30 hover:text-white/60 flex items-center gap-1"
+                    className="text-xs text-white/40 hover:text-white/70 flex items-center gap-1 flex-shrink-0"
                     onClick={() => { setEditBudgetVal(String(budget ?? "")); setEditBudgetOpen(true); }}
                   >
-                    <Pencil className="w-3 h-3" /> Edit budget
+                    <Pencil className="w-3 h-3" /> {t("hh.edit_budget")}
                   </button>
                 </div>
               )}
@@ -347,7 +349,7 @@ export default function HouseholdPage() {
                   className="text-xs text-white/30 hover:text-white/60 flex items-center gap-1"
                   onClick={() => { setEditBudgetVal(""); setEditBudgetOpen(true); }}
                 >
-                  <Plus className="w-3 h-3" /> Set monthly budget
+                  <Plus className="w-3 h-3" /> {t("hh.set_budget")}
                 </button>
               )}
             </div>

@@ -564,15 +564,15 @@ export default function GoalsPage() {
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold">Goals</h1>
-          <p className="text-muted-foreground text-xs mt-0.5">Track savings toward your targets</p>
+          <h1 className="text-xl font-bold">{t("goals.title")}</h1>
+          <p className="text-muted-foreground text-xs mt-0.5">{t("goals.page_subtitle")}</p>
         </div>
         <button
           onClick={() => setAddOpen(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
                      text-sm font-semibold transition active:scale-95"
         >
-          <Plus className="w-4 h-4" /> New
+          <Plus className="w-4 h-4" /> {t("goals.new_btn")}
         </button>
       </div>
 
@@ -598,7 +598,7 @@ export default function GoalsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{p.goalName}</p>
                   <p className="text-xs text-muted-foreground">
-                    Proposed by {p.proposerName}
+                    {t("goals.proposed_by", { name: p.proposerName ?? "" })}
                   </p>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
@@ -606,13 +606,13 @@ export default function GoalsPage() {
                     onClick={() => handleDeclineProposal(p.id)}
                     className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
                   >
-                    Decline
+                    {t("goals.decline")}
                   </button>
                   <button
                     onClick={() => handleApproveProposal(p.id)}
                     className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70"
                   >
-                    Approve
+                    {t("goals.approve")}
                   </button>
                 </div>
               </div>
@@ -707,7 +707,7 @@ export default function GoalsPage() {
               {pastGoals.map(g => <PastGoalCard key={g.id} goal={g} sym={sym} />)}
             </div>
           ) : (
-            <p className="text-center text-sm text-muted-foreground py-6">No past goals yet.</p>
+            <p className="text-center text-sm text-muted-foreground py-6">{t("goals.no_past")}</p>
           )}
         </div>
       )}

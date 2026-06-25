@@ -32,7 +32,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.of":          { en: "of",         pl: "z"          },
   "common.remaining":   { en: "remaining",  pl: "pozostało"  },
   "common.over_budget": { en: "over budget",pl: "przekroczono budżet"},
-  "common.uncategorized":{ en: "Uncategorized", pl: "Bez kategorii"},
+  "common.uncategorized":{ en: "Uncategorized", pl: "brak kategorii"},
   "common.no_limit":    { en: "No limit",   pl: "Bez limitu" },
   "common.amount":      { en: "Amount",     pl: "Kwota"      },
   "common.name":        { en: "Name",       pl: "Nazwa"      },
@@ -153,7 +153,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.propose_to_hh":{ en: "Propose to Household",      pl: "Zaproponuj gospodarstwu"        },
   "goals.request_owner":{ en: "Request owner to make this a shared goal", pl: "Poproś właściciela o udostępnienie celu"},
   "goals.proposals":    { en: "Goal Proposals",             pl: "Propozycje celów"               },
-  "goals.proposed_by":  { en: "Proposed by",                pl: "Zaproponowane przez"            },
+  "goals.proposed_by":  { en: "Proposed by {name}",          pl: "Zaproponowane przez {name}"     },
   "goals.approve":      { en: "Approve",                    pl: "Zatwierdź"                      },
   "goals.decline":      { en: "Decline",                    pl: "Odrzuć"                         },
   "goals.color":        { en: "Color",                      pl: "Kolor"                          },
@@ -206,6 +206,9 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.optional":        { en: "(optional)",                  pl: "(opcjonalnie)"                  },
   "hh.creating":        { en: "Creating…",                   pl: "Tworzenie…"                    },
   "hh.this_month":      { en: "This month",                  pl: "Ten miesiąc"                   },
+  "hh.this_month_breakdown": { en: "This month's breakdown",  pl: "Zestawienie tego miesiąca"     },
+  "hh.member_private_msg": { en: "This member has made their dashboard private.", pl: "Ten członek ustawił swój dashboard jako prywatny." },
+  "hh.dashboard_private_msg": { en: "Dashboard is private.",  pl: "Dashboard jest prywatny."      },
   "hh.breakdown":       { en: "This month's breakdown",      pl: "Zestawienie tego miesiąca"      },
   "hh.total_this_month":{ en: "Total this month",            pl: "Łącznie ten miesiąc"            },
   "hh.budget_amount":   { en: "Budget amount",               pl: "Kwota budżetu"                  },
@@ -310,6 +313,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.budget_cap_desc":     { en: "This is your total spending cap for the month. Leave blank to remove.", pl: "To jest Twój miesięczny limit wydatków. Zostaw puste, aby usunąć." },
   "home.budget_eg":           { en: "e.g. 3000",               pl: "np. 3000"                     },
   "home.edit_btn":            { en: "Edit",                    pl: "Edytuj"                       },
+  "home.edit_tx_title":       { en: "Edit Transaction",        pl: "Edytuj Transakcję"            },
   "home.receipt_btn":         { en: "Receipt",                 pl: "Paragon"                      },
   "home.mo":                  { en: "/mo",                     pl: "/msc"                         },
 
@@ -329,11 +333,13 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.target_due":       { en: "Target: {amt} · Due {date}",pl: "Cel: {amt} · Termin {date}"  },
   "goals.saved_amt":        { en: "saved",                     pl: "zaoszczędzono"               },
   "goals.goal_label":       { en: "goal",                      pl: "cel"                         },
-  "goals.save_mo_for":      { en: "Save {amt}/mo · {ml} month{s} left", pl: "Oszczędź {amt}/msc · {ml} mies. pozostało" },
+  "goals.save_mo_for":      { en: "Save {amt}/mo · {ml} month{s} left", pl: "Oszczędź {amt}/msc · pozostało {ml} mies." },
   "goals.ended":            { en: "Ended",                     pl: "Zakończono"                  },
   "goals.edit_btn":         { en: "Edit",                      pl: "Edytuj"                      },
   "goals.delete_btn":       { en: "Delete",                    pl: "Usuń"                        },
   "goals.title_desc":       { en: "Set targets, track progress", pl: "Ustalaj cele, śledź postępy" },
+  "goals.page_subtitle":    { en: "Track savings toward your targets", pl: "Śledź oszczędności na swoje cele" },
+  "goals.new_btn":          { en: "New",                        pl: "Nowy"                        },
   "goals.request_shared":   { en: "Request owner to make this a shared goal", pl: "Poproś właściciela o udostępnienie celu" },
 
   // ── Categories additional ──
@@ -371,7 +377,7 @@ const translations: Record<string, Record<Lang, string>> = {
   // ── Dashboard additional ──
   "dashboard.by":           { en: "by",                        pl: "do"                          },
   "dashboard.mo_needed":    { en: "/mo needed",                pl: "/msc ustalono"               },
-  "dashboard.mo_target":    { en: "/mo target",                pl: "/msc cel"                    },
+  "dashboard.mo_target":    { en: "/mo target",                pl: "/msc"                        },
   "dashboard.total_goal":   { en: "total goal",                pl: "cel łącznie"                 },
 };
 

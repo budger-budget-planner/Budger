@@ -30,6 +30,37 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
+function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
+  function isoToDisplay(iso: string): string {
+    if (!iso) return "";
+    const parts = iso.split("-");
+    if (parts.length === 3 && parts[2]) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return "";
+  }
+  const [display, setDisplay] = useState(() => isoToDisplay(value));
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+    let formatted = digits.slice(0, 2);
+    if (digits.length > 2) formatted += "/" + digits.slice(2, 4);
+    if (digits.length > 4) formatted += "/" + digits.slice(4, 8);
+    setDisplay(formatted);
+    if (digits.length === 8) {
+      onChange(`${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`);
+    }
+  }
+  return (
+    <input
+      type="text"
+      placeholder="DD/MM/RRRR"
+      value={display}
+      onChange={handleChange}
+      required={required}
+      inputMode="numeric"
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    />
+  );
+}
+
 type TxFormState = {
   amount: string;
   description: string;
@@ -129,7 +160,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           {form.isGoalExpense && (
             <div className="space-y-3 pt-1 border-t border-border/60">
               <div className="space-y-1.5">
-                <Label>Goal</Label>
+                <Label>{t("home.goal")}</Label>
                 <Select value={form.goalId} onValueChange={v => set("goalId", v)} required={form.isGoalExpense}>
                   <SelectTrigger>
                     <SelectValue placeholder={t("home.select_goal")} />
@@ -154,7 +185,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                   step="0.01"
                   min="0"
                   max={form.amount || undefined}
-                  placeholder={`up to ${form.amount || "0.00"}`}
+                  placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
                   value={form.goalAmount}
                   onChange={e => set("goalAmount", e.target.value)}
                   required={form.isGoalExpense}
@@ -171,11 +202,9 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>{t("common.date")}</Label>
-          <Input
-            data-testid="input-date"
-            type="date"
+          <DdMmYyyyInput
             value={form.date}
-            onChange={e => set("date", e.target.value)}
+            onChange={v => set("date", v)}
             required
           />
         </div>
@@ -542,12 +571,12 @@ export default function HomeSpending() {
                 className="text-xs text-white/40 hover:text-white/70"
                 onClick={() => { setBudgetInput(String(totalBudget)); setBudgetOpen(true); }}
               >
-                Edit
+                {t("common.edit")}
               </button>
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</span>
-              <span className="text-sm text-white/40">of {fmtAmt(totalBudget, prefs.currency)}</span>
+              <span className="text-sm text-white/40">{t("common.of")} {fmtAmt(totalBudget, prefs.currency)}</span>
             </div>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
               <div
@@ -560,9 +589,11 @@ export default function HomeSpending() {
             </div>
             <p className={`text-xs ${remaining != null && remaining < 0 ? "text-red-400" : "text-white/40"}`}>
               {remaining != null && remaining >= 0
-                ? `${fmtAmt(remaining, prefs.currency)} remaining`
+                ? prefs.language === "pl"
+                  ? `${t("common.remaining")} ${fmtAmt(remaining, prefs.currency)}`
+                  : `${fmtAmt(remaining, prefs.currency)} ${t("common.remaining")}`
                 : remaining != null
-                  ? `${fmtAmt(-remaining, prefs.currency)} over budget`
+                  ? `${fmtAmt(-remaining, prefs.currency)} ${t("common.over_budget")}`
                   : ""}
             </p>
           </div>
@@ -673,7 +704,7 @@ export default function HomeSpending() {
                             disabled={remove.isPending}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                        bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                            <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
                           </button>
                         </div>
                       )}
@@ -714,7 +745,7 @@ export default function HomeSpending() {
       {/* ── Edit dialog ── */}
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit Transaction</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("home.edit_tx_title")}</DialogTitle></DialogHeader>
           {editTx && (
             <TxForm
               initial={buildEditInitial(editTx)}

@@ -12,7 +12,7 @@ import {
 import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Link } from "wouter";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
-import { t, localiseMonthStr } from "@/lib/i18n";
+import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -97,7 +97,7 @@ export default function DashboardPage() {
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
-  const currentMonth  = new Date().toLocaleString("default", { month: "long", year: "numeric" });
+  const currentMonth  = fmtMonthYear(new Date());
 
   const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
   const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
@@ -149,7 +149,9 @@ export default function DashboardPage() {
           <p className="text-2xl font-bold">{sym}{totalGoalContributions.toFixed(0)}</p>
           <p className="text-xs text-muted-foreground">
             {activeGoalsWithContribs.length > 0
-              ? `${activeGoalsWithContribs.length} ${activeGoalsWithContribs.length !== 1 ? t("nav.goals").toLowerCase() : t("home.goal").toLowerCase()} active`
+              ? prefs.language === "pl"
+                ? `${activeGoalsWithContribs.length} ${activeGoalsWithContribs.length === 1 ? "cel aktywny" : "cele aktywne"}`
+                : `${activeGoalsWithContribs.length} ${activeGoalsWithContribs.length !== 1 ? "goals" : "goal"} active`
               : t("dashboard.no_contributions")}
           </p>
         </div>
