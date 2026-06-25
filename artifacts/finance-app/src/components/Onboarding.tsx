@@ -2,7 +2,7 @@ import { useState } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
-import { useUpdateNotificationSettings } from "@workspace/api-client-react";
+import { useUpdateNotificationSettings, useUpdateMe } from "@workspace/api-client-react";
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +44,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
 
   const updateNotif = useUpdateNotificationSettings();
+  const updateMe    = useUpdateMe();
 
   function next() {
     const idx = STEPS.indexOf(step);
@@ -57,6 +58,10 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   function skip() { next(); }
 
   function finish() {
+    // Persist budget to server so it survives device switches and stays per-user
+    if (totalBudget !== null) {
+      updateMe.mutate({ data: { totalBudget } });
+    }
     onComplete({
       currency,
       language,

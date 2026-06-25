@@ -921,6 +921,8 @@ components:
           type: string
         firstLoginDone:
           type: boolean
+        totalBudget:
+          type: ["number", "null"]
         householdId:
           type: ["integer", "null"]
         dashboardBlocked:
@@ -933,6 +935,7 @@ components:
         - email
         - status
         - firstLoginDone
+        - totalBudget
         - householdId
         - dashboardBlocked
         - createdAt
@@ -946,6 +949,8 @@ components:
           type: string
         dashboardBlocked:
           type: boolean
+        totalBudget:
+          type: ["number", "null"]
 
     LoginInput:
       type: object

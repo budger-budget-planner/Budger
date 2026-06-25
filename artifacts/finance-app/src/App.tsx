@@ -19,6 +19,7 @@ import InvitePage from "@/pages/Invite";
 import {
   isOnboardingDone,
   markOnboardingDone,
+  clearOnboardingDone,
   savePrefs,
   loadPrefs,
   hasActiveSession,
@@ -64,11 +65,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, user, navigate]);
 
-  // Listen for login event to trigger onboarding for first-time users
+  // Listen for login event to trigger onboarding for first-time users.
+  // Always clear the local onboarding flag on any login so a new user on
+  // the same device gets fresh onboarding regardless of who logged in before.
   useEffect(() => {
     function onLogin(e: Event) {
       const { isFirstLogin } = (e as CustomEvent).detail ?? {};
-      if (isFirstLogin && !isOnboardingDone()) {
+      if (isFirstLogin) {
+        clearOnboardingDone(); // wipe previous user's flag
         setShowOnboarding(true);
       }
     }
@@ -85,9 +89,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   if (!user) return null;
 
-  // Server is the source of truth: if firstLoginDone is true, user has been onboarded
-  // (handles the case where a returning user opens the app on a new device without localStorage)
+  // Server is the source of truth: if firstLoginDone is true, user has been onboarded.
+  // We only fall back to the localStorage flag for the rare case where the server
+  // hasn't yet updated firstLoginDone (e.g. mid-onboarding refresh).
   const serverSaysOnboarded = user.firstLoginDone === true;
+
+  // Sync server budget into localStorage so all pages read the correct per-user value.
+  // Run on every user load so switching users always resets the budget display.
+  const serverBudget = (user as any).totalBudget;
+  if (serverBudget !== undefined) {
+    const prefs = loadPrefs();
+    const budgetNum = serverBudget != null ? parseFloat(serverBudget) : null;
+    if (prefs.totalBudget !== budgetNum) {
+      savePrefs({ ...prefs, totalBudget: budgetNum });
+    }
+  }
 
   if (showOnboarding || (!serverSaysOnboarded && !isOnboardingDone())) {
     return (

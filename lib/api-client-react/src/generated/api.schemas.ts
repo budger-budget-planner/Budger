@@ -20,6 +20,8 @@ export interface User {
   status: string;
   firstLoginDone: boolean;
   /** @nullable */
+  totalBudget: number | null;
+  /** @nullable */
   householdId: number | null;
   dashboardBlocked: boolean;
   createdAt: string;
@@ -29,6 +31,8 @@ export interface UserUpdate {
   name?: string;
   email?: string;
   dashboardBlocked?: boolean;
+  /** @nullable */
+  totalBudget?: number | null;
 }
 
 export interface LoginInput {

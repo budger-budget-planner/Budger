@@ -25,6 +25,7 @@ export const GetMeResponse = zod.object({
   email: zod.string(),
   status: zod.string(),
   firstLoginDone: zod.boolean(),
+  totalBudget: zod.number().nullable(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
@@ -37,6 +38,7 @@ export const UpdateMeBody = zod.object({
   name: zod.string().optional(),
   email: zod.string().optional(),
   dashboardBlocked: zod.boolean().optional(),
+  totalBudget: zod.number().nullish(),
 });
 
 export const UpdateMeResponse = zod.object({
@@ -47,6 +49,7 @@ export const UpdateMeResponse = zod.object({
   email: zod.string(),
   status: zod.string(),
   firstLoginDone: zod.boolean(),
+  totalBudget: zod.number().nullable(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
@@ -82,6 +85,7 @@ export const LoginResponse = zod.object({
   email: zod.string(),
   status: zod.string(),
   firstLoginDone: zod.boolean(),
+  totalBudget: zod.number().nullable(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),

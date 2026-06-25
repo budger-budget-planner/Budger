@@ -45,7 +45,7 @@ export default function PinKeyboard({
   const dots = Array.from({ length: Math.max(minLength, value.length + (value.length < maxLength ? 1 : 0)) }, (_, i) => i);
 
   return (
-    <div className="flex flex-col items-center gap-8 select-none">
+    <div className="flex flex-col items-center gap-8 select-none w-full">
       {label && (
         <p className="text-base font-medium text-muted-foreground text-center px-4">{label}</p>
       )}

@@ -18,6 +18,8 @@ function isChild(role: string) { return role === "child" || role === "member"; }
 function serializeUser(user: typeof usersTable.$inferSelect) {
   return {
     ...user,
+    // numeric columns come back as strings from Drizzle — convert for API consumers
+    totalBudget: user.totalBudget != null ? parseFloat(user.totalBudget) : null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -61,8 +63,14 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     }
   }
 
+  // Drizzle's numeric column expects string | null, not number
+  const dbData: Record<string, unknown> = { ...parsed.data };
+  if ("totalBudget" in dbData && typeof dbData.totalBudget === "number") {
+    dbData.totalBudget = String(dbData.totalBudget);
+  }
+
   const [user] = await db.update(usersTable)
-    .set(parsed.data)
+    .set(dbData as any)
     .where(eq(usersTable.id, userId))
     .returning();
   if (!user) {

@@ -10,6 +10,7 @@ import {
   useDeleteTransaction,
   useUploadReceipt,
   useDeleteReceipt,
+  useUpdateMe,
   getListTransactionsQueryKey,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
@@ -17,6 +18,7 @@ import {
   getGetSpendingHistoryQueryKey,
   getGetGoalsSummaryQueryKey,
   getListGoalContributionsQueryKey,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search } from "lucide-react";
@@ -439,6 +441,7 @@ export default function HomeSpending() {
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
   const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setActionTx(null); } } });
+  const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
   const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   const total  = sorted.reduce((s, tx) => s + Number(tx.amount), 0);
@@ -531,6 +534,8 @@ export default function HomeSpending() {
     setPrefsState(next);
     setBudgetOpen(false);
     setBudgetInput("");
+    // Persist to server so budget survives device switches and stays per-user
+    updateMe.mutate({ data: { totalBudget: val } });
   }
 
   const q = searchQuery.trim().toLowerCase();

@@ -37,6 +37,10 @@ export function markOnboardingDone() {
   localStorage.setItem(ONBOARDED_KEY, "1");
 }
 
+export function clearOnboardingDone() {
+  localStorage.removeItem(ONBOARDED_KEY);
+}
+
 /**
  * Mark that the user has an active browser session (call on login).
  * If staySignedIn=false, we use sessionStorage so it clears when the tab closes.

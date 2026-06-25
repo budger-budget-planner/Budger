@@ -261,13 +261,15 @@ export default function LoginPage() {
             )}
           </div>
 
-          <PinKeyboard
-            value={loginPin}
-            onChange={handleLoginPinChange}
-            minLength={4}
-            maxLength={8}
-            label={login.isPending ? t("login.signing_in") : undefined}
-          />
+          <div className="w-full">
+            <PinKeyboard
+              value={loginPin}
+              onChange={handleLoginPinChange}
+              minLength={4}
+              maxLength={8}
+              label={login.isPending ? t("login.signing_in") : undefined}
+            />
+          </div>
 
           <div className="h-12" />
         </div>
@@ -353,17 +355,19 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground mt-1">{t("login.set_pin_sub")}</p>
           </div>
 
-          <PinKeyboard
-            value={signupPin}
-            onChange={handleSignupPin}
-            minLength={4}
-            maxLength={8}
-          />
+          <div className="w-full">
+            <PinKeyboard
+              value={signupPin}
+              onChange={handleSignupPin}
+              minLength={4}
+              maxLength={8}
+            />
+          </div>
 
           <Button
             onClick={handleSignupPinDone}
             disabled={signupPin.length < 4}
-            className="w-full max-w-xs h-14 rounded-2xl text-base font-semibold"
+            className="w-full h-14 rounded-2xl text-base font-semibold"
           >
             {t("login.next")}
           </Button>
@@ -388,13 +392,15 @@ export default function LoginPage() {
             )}
           </div>
 
-          <PinKeyboard
-            value={confirmPin}
-            onChange={handleConfirmPin}
-            minLength={signupPin.length}
-            maxLength={signupPin.length}
-            label={register.isPending ? t("login.creating") : undefined}
-          />
+          <div className="w-full">
+            <PinKeyboard
+              value={confirmPin}
+              onChange={handleConfirmPin}
+              minLength={signupPin.length}
+              maxLength={signupPin.length}
+              label={register.isPending ? t("login.creating") : undefined}
+            />
+          </div>
 
           <div className="h-12" />
         </div>
