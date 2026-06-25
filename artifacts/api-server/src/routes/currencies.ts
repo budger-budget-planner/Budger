@@ -37,6 +37,15 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+
+  // Convert the user's total monthly budget stored in users.totalBudget
+  if (user?.totalBudget != null) {
+    const newTotalBudget = (parseFloat(user.totalBudget) * rate).toFixed(2);
+    await db.update(usersTable)
+      .set({ totalBudget: newTotalBudget })
+      .where(eq(usersTable.id, userId));
+  }
+
   if (user?.householdId) {
     const [household] = await db.select().from(householdsTable)
       .where(eq(householdsTable.id, user.householdId));

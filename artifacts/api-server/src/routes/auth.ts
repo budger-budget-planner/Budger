@@ -144,18 +144,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Capture original firstLoginDone BEFORE updating, so client can detect first login
-  const wasFirstLogin = !user.firstLoginDone;
-
-  // Mark first login done
-  if (wasFirstLogin) {
-    await db.update(usersTable)
-      .set({ firstLoginDone: true })
-      .where(eq(usersTable.id, user.id));
-  }
-
   (req.session as any).userId = user.id;
-  // Return original value (false = first login, true = returning user) so frontend can trigger onboarding
+  // firstLoginDone: false means this is their first login — the client triggers onboarding.
+  // We do NOT set firstLoginDone=true here; the Onboarding component does that once complete.
+  // This prevents the /auth/me refetch (after queryClient.invalidateQueries) from returning
+  // firstLoginDone:true before onboarding even runs, which was causing the language sync to
+  // overwrite the user's locally-chosen language with the server's default "en".
   res.json(LoginResponse.parse(serializeUser(user)));
 });
 
