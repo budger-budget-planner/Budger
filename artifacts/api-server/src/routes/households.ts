@@ -16,6 +16,9 @@ const MEMBER_COLORS = [
   "#4ade80", "#60a5fa", "#e879f9", "#2dd4bf",
 ];
 
+function isHead(role: string) { return role === "head" || role === "owner"; }
+function isParent(role: string) { return role === "parent"; }
+
 export async function pickNextColor(householdId: number): Promise<string> {
   const members = await db.select().from(householdMembersTable)
     .where(eq(householdMembersTable.householdId, householdId));
@@ -28,6 +31,20 @@ function serializeHousehold(h: any) {
     ...h,
     budget: h.budget != null ? parseFloat(h.budget) : null,
     createdAt: h.createdAt instanceof Date ? h.createdAt.toISOString() : h.createdAt,
+  };
+}
+
+function serializeMember(m: any, memberUser: any) {
+  return {
+    userId: m.userId,
+    householdId: m.householdId,
+    role: m.role,
+    memberColor: m.memberColor,
+    name: memberUser?.name ?? "Unknown",
+    email: memberUser?.email ?? "",
+    dashboardBlocked: memberUser?.dashboardBlocked ?? false,
+    monthlySpent: 0,
+    joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
   };
 }
 
@@ -60,7 +77,7 @@ router.post("/households", async (req, res): Promise<void> => {
   await db.insert(householdMembersTable).values({
     userId,
     householdId: household.id,
-    role: "owner",
+    role: "head",
     memberColor: MEMBER_COLORS[0],
   });
 
@@ -150,8 +167,33 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     res.status(404).json({ error: "Member not found" }); return;
   }
 
-  if (targetUserId !== currentUserId && targetUser.dashboardBlocked) {
-    res.status(403).json({ error: "blocked" }); return;
+  // Viewing own data is always allowed
+  if (targetUserId !== currentUserId) {
+    // Get viewer's role
+    const [viewerMembership] = await db.select().from(householdMembersTable)
+      .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    const viewerRole = viewerMembership?.role ?? "child";
+
+    // Get target's role
+    const [targetMembership] = await db.select().from(householdMembersTable)
+      .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    const targetRole = targetMembership?.role ?? "child";
+
+    if (targetUser.dashboardBlocked) {
+      // Head sees everyone
+      if (isHead(viewerRole)) {
+        // allowed
+      } else if (isParent(viewerRole)) {
+        // Parent cannot see head's private dashboard
+        if (isHead(targetRole)) {
+          res.status(403).json({ error: "blocked" }); return;
+        }
+        // Parent can see other parents' and children's dashboards even if blocked
+      } else {
+        // Child cannot see any private dashboard
+        res.status(403).json({ error: "blocked" }); return;
+      }
+    }
   }
 
   const now = new Date();
@@ -190,6 +232,45 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   res.json(result);
 });
 
+// Update a member's role — head only
+router.patch("/households/members/:userId/role", async (req, res): Promise<void> => {
+  const currentUserId = (req.session as any)?.userId;
+  if (!currentUserId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const targetUserId = parseInt(req.params.userId);
+  if (isNaN(targetUserId)) { res.status(400).json({ error: "Invalid userId" }); return; }
+
+  const { role } = req.body;
+  if (!role || !["head", "parent", "child"].includes(role)) {
+    res.status(400).json({ error: "role must be head, parent, or child" }); return;
+  }
+
+  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
+  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only the head of the household can change roles" }); return;
+  }
+
+  if (targetUserId === currentUserId) {
+    res.status(400).json({ error: "Cannot change your own role" }); return;
+  }
+
+  const [targetMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+  if (!targetMembership) { res.status(404).json({ error: "Member not found" }); return; }
+
+  await db.update(householdMembersTable)
+    .set({ role })
+    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+
+  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, targetUserId));
+
+  res.json(serializeMember({ ...targetMembership, role }, targetUser));
+});
+
 router.delete("/households/members/:userId", async (req, res): Promise<void> => {
   const currentUserId = (req.session as any)?.userId;
   if (!currentUserId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -199,6 +280,13 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
   if (!currentUser?.householdId) { res.status(400).json({ error: "No household" }); return; }
+
+  // Only head can remove members
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only the head of the household can remove members" }); return;
+  }
 
   await db.delete(householdMembersTable).where(
     and(
@@ -233,14 +321,14 @@ router.delete("/households", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
-  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
-  if (!household || household.ownerId !== userId) {
-    res.status(403).json({ error: "Only the household owner can delete it" }); return;
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only the head of the household can delete it" }); return;
   }
 
-  const householdId = household.id;
+  const householdId = user.householdId;
 
-  // Clear householdId for all members
   const members = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
   for (const m of members) {
     await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, m.userId));

@@ -5,9 +5,11 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { InviteInputRole } from "./inviteInputRole";
 
 export interface InviteInput {
   /** @minLength 1 */
   email: string;
+  role?: InviteInputRole;
   goalIds?: number[];
 }

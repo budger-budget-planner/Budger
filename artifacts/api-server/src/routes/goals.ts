@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, usersTable, householdsTable } from "@workspace/db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, usersTable, householdsTable, householdMembersTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+function isHead(role: string) { return role === "head" || role === "owner"; }
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -35,6 +37,12 @@ function formatContribution(c: any, goal?: any) {
 async function userScope(userId: number) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   return user;
+}
+
+async function getMemberRole(userId: number, householdId: number): Promise<string> {
+  const [m] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
+  return m?.role ?? "child";
 }
 
 router.get("/goals", async (req, res): Promise<void> => {
@@ -79,14 +87,15 @@ router.get("/goals/past", async (req, res): Promise<void> => {
   res.json(goals.map(formatGoal));
 });
 
-// Proposals list — for household creator to see pending proposals
+// Proposals list — for head members to see pending proposals
 router.get("/goals/proposals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const user = await userScope(userId);
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
-  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
-  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
 
   const proposals = await db.select().from(goalProposalsTable)
     .where(and(eq(goalProposalsTable.householdId, user.householdId), eq(goalProposalsTable.status, "pending")));
@@ -111,7 +120,7 @@ router.get("/goals/proposals", async (req, res): Promise<void> => {
   })));
 });
 
-// Approve a proposal
+// Approve a proposal — head only
 router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -119,8 +128,10 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const user = await userScope(userId);
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
-  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
-  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
+
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
   await db.update(goalProposalsTable).set({ status: "approved" }).where(eq(goalProposalsTable.id, id));
@@ -128,7 +139,7 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-// Decline a proposal
+// Decline a proposal — head only
 router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -136,8 +147,10 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const user = await userScope(userId);
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
-  const [hh] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
-  if (!hh || hh.ownerId !== userId) { res.status(403).json({ error: "Not household owner" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
+
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
   await db.update(goalProposalsTable).set({ status: "declined" }).where(eq(goalProposalsTable.id, id));
@@ -163,7 +176,7 @@ router.post("/goals", async (req, res): Promise<void> => {
   res.status(201).json(formatGoal(goal));
 });
 
-// Propose a private goal as a household goal
+// Propose a private goal as a household goal — parent and child use this
 router.post("/goals/:id/propose", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -192,6 +205,7 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
   const { name, color, budget, deadline, divideByMonths, householdId } = req.body;
   const update: any = {};
   if (name !== undefined) update.name = String(name);
@@ -199,7 +213,22 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   if (budget !== undefined) update.budget = String(parseFloat(budget));
   if (deadline !== undefined) update.deadline = String(deadline);
   if (divideByMonths !== undefined) update.divideByMonths = Boolean(divideByMonths);
-  if ("householdId" in req.body) update.householdId = householdId === null ? null : parseInt(householdId);
+
+  // Setting householdId (making a goal shared) requires head role OR it must be nullified
+  if ("householdId" in req.body) {
+    const newHouseholdId = householdId === null ? null : parseInt(householdId);
+    if (newHouseholdId !== null) {
+      const user = await userScope(userId);
+      if (user?.householdId) {
+        const role = await getMemberRole(userId, user.householdId);
+        if (!isHead(role)) {
+          res.status(403).json({ error: "Only head can directly set household goals. Use propose instead." }); return;
+        }
+      }
+    }
+    update.householdId = newHouseholdId;
+  }
+
   const [goal] = await db.update(goalsTable).set(update).where(eq(goalsTable.id, id)).returning();
   if (!goal) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatGoal(goal));
@@ -210,6 +239,23 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
+  if (!goal) { res.status(404).json({ error: "Not found" }); return; }
+
+  // Household goals can only be deleted by head
+  if (goal.householdId) {
+    const user = await userScope(userId);
+    if (user?.householdId) {
+      const role = await getMemberRole(userId, user.householdId);
+      if (!isHead(role)) {
+        res.status(403).json({ error: "Only the head of the household can delete household goals" }); return;
+      }
+    } else {
+      res.status(403).json({ error: "Not in a household" }); return;
+    }
+  }
+
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
   await db.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
   await db.delete(goalsTable).where(eq(goalsTable.id, id));

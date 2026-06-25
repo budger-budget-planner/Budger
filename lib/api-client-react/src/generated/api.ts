@@ -41,6 +41,7 @@ import type {
   ListGoalContributionsParams,
   ListTransactionsParams,
   LoginInput,
+  MemberRoleUpdate,
   MonthHistory,
   MonthlyTotal,
   NotificationSettings,
@@ -1974,6 +1975,93 @@ export const useRemoveHouseholdMember = <
   TContext
 > => {
   return useMutation(getRemoveHouseholdMemberMutationOptions(options));
+};
+
+/**
+ * @summary Update a household member's role (head only)
+ */
+export const getUpdateMemberRoleUrl = (userId: number) => {
+  return `/api/households/members/${userId}/role`;
+};
+
+export const updateMemberRole = async (
+  userId: number,
+  memberRoleUpdate: MemberRoleUpdate,
+  options?: RequestInit,
+): Promise<HouseholdMember> => {
+  return customFetch<HouseholdMember>(getUpdateMemberRoleUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(memberRoleUpdate),
+  });
+};
+
+export const getUpdateMemberRoleMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMemberRole>>,
+    TError,
+    { userId: number; data: BodyType<MemberRoleUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMemberRole>>,
+  TError,
+  { userId: number; data: BodyType<MemberRoleUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateMemberRole"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMemberRole>>,
+    { userId: number; data: BodyType<MemberRoleUpdate> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return updateMemberRole(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMemberRoleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMemberRole>>
+>;
+export type UpdateMemberRoleMutationBody = BodyType<MemberRoleUpdate>;
+export type UpdateMemberRoleMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a household member's role (head only)
+ */
+export const useUpdateMemberRole = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMemberRole>>,
+    TError,
+    { userId: number; data: BodyType<MemberRoleUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMemberRole>>,
+  TError,
+  { userId: number; data: BodyType<MemberRoleUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateMemberRoleMutationOptions(options));
 };
 
 /**

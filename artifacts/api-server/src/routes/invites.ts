@@ -12,6 +12,8 @@ import {
 
 const router: IRouter = Router();
 
+function isHead(role: string) { return role === "head" || role === "owner"; }
+
 function enrichInvite(invite: any, household: any) {
   return {
     id: invite.id,
@@ -19,6 +21,7 @@ function enrichInvite(invite: any, household: any) {
     token: invite.token,
     householdId: invite.householdId,
     householdName: household?.name ?? null,
+    role: invite.role ?? "child",
     status: invite.status,
     expiresAt: invite.expiresAt.toISOString(),
     createdAt: invite.createdAt.toISOString(),
@@ -35,7 +38,15 @@ router.post("/invites", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "You must be in a household to invite" }); return; }
 
+  // Only head can invite
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only the head of the household can invite members" }); return;
+  }
+
   const email = parsed.data.email.trim().toLowerCase();
+  const role = parsed.data.role ?? "child";
 
   const [invitedUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!invitedUser) {
@@ -54,6 +65,7 @@ router.post("/invites", async (req, res): Promise<void> => {
     email,
     token,
     householdId: user.householdId,
+    role,
     expiresAt,
   }).returning();
 
@@ -136,7 +148,7 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
     await db.insert(householdMembersTable).values({
       userId,
       householdId: invite.householdId,
-      role: "member",
+      role: invite.role ?? "child",
       memberColor: color,
     });
   }

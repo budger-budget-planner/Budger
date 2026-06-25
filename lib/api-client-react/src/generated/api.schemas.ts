@@ -155,15 +155,39 @@ export interface Invite {
   householdId: number;
   /** @nullable */
   householdName: string | null;
+  role: string;
   status: string;
   expiresAt: string;
   createdAt: string;
 }
 
+export type InviteInputRole =
+  (typeof InviteInputRole)[keyof typeof InviteInputRole];
+
+export const InviteInputRole = {
+  head: "head",
+  parent: "parent",
+  child: "child",
+} as const;
+
 export interface InviteInput {
   /** @minLength 1 */
   email: string;
+  role?: InviteInputRole;
   goalIds?: number[];
+}
+
+export type MemberRoleUpdateRole =
+  (typeof MemberRoleUpdateRole)[keyof typeof MemberRoleUpdateRole];
+
+export const MemberRoleUpdateRole = {
+  head: "head",
+  parent: "parent",
+  child: "child",
+} as const;
+
+export interface MemberRoleUpdate {
+  role: MemberRoleUpdateRole;
 }
 
 export type InviteErrorError =

@@ -378,11 +378,35 @@ export const RemoveHouseholdMemberParams = zod.object({
 });
 
 /**
+ * @summary Update a household member's role (head only)
+ */
+export const UpdateMemberRoleParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const UpdateMemberRoleBody = zod.object({
+  role: zod.enum(["head", "parent", "child"]),
+});
+
+export const UpdateMemberRoleResponse = zod.object({
+  userId: zod.number(),
+  householdId: zod.number(),
+  role: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  memberColor: zod.string(),
+  monthlySpent: zod.number(),
+  dashboardBlocked: zod.boolean(),
+  joinedAt: zod.string(),
+});
+
+/**
  * @summary Invite someone to the household
  */
 
 export const CreateInviteBody = zod.object({
   email: zod.string().min(1),
+  role: zod.enum(["head", "parent", "child"]).optional(),
   goalIds: zod.array(zod.number()).optional(),
 });
 
@@ -395,6 +419,7 @@ export const ListInvitesResponseItem = zod.object({
   token: zod.string(),
   householdId: zod.number(),
   householdName: zod.string().nullable(),
+  role: zod.string(),
   status: zod.string(),
   expiresAt: zod.string(),
   createdAt: zod.string(),
@@ -410,6 +435,7 @@ export const ListIncomingInvitesResponseItem = zod.object({
   token: zod.string(),
   householdId: zod.number(),
   householdName: zod.string().nullable(),
+  role: zod.string(),
   status: zod.string(),
   expiresAt: zod.string(),
   createdAt: zod.string(),
@@ -453,6 +479,7 @@ export const GetInviteResponse = zod.object({
   token: zod.string(),
   householdId: zod.number(),
   householdName: zod.string().nullable(),
+  role: zod.string(),
   status: zod.string(),
   expiresAt: zod.string(),
   createdAt: zod.string(),

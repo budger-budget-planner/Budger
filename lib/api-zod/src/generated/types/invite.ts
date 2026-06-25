@@ -13,6 +13,7 @@ export interface Invite {
   householdId: number;
   /** @nullable */
   householdName: string | null;
+  role: string;
   status: string;
   expiresAt: string;
   createdAt: string;

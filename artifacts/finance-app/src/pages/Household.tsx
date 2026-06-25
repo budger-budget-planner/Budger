@@ -18,6 +18,7 @@ import {
   useGetMemberSpending,
   useListGoals,
   useGetGoalsSummary,
+  useUpdateMemberRole,
   getGetHouseholdQueryKey,
   getListHouseholdMembersQueryKey,
   getListInvitesQueryKey,
@@ -29,7 +30,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
-  Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle,
+  Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,43 @@ function fmt(n: number) {
   return fmtAmtRound(n, loadPrefs().currency);
 }
 
+type HouseholdRole = "head" | "parent" | "child" | "owner" | "member";
+
+function isHeadRole(role: string): boolean {
+  return role === "head" || role === "owner";
+}
+function isChildRole(role: string): boolean {
+  return role === "child" || role === "member";
+}
+
+function roleLabelShort(role: string): string {
+  if (isHeadRole(role)) return "Head";
+  if (role === "parent") return "Parent";
+  return "Child";
+}
+
+function RoleBadge({ role }: { role: string }) {
+  if (isHeadRole(role)) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-300 bg-amber-300/10 rounded px-1.5 py-0.5">
+        <Crown className="w-2.5 h-2.5" /> Head
+      </span>
+    );
+  }
+  if (role === "parent") {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-sky-300 bg-sky-300/10 rounded px-1.5 py-0.5">
+        <ShieldCheck className="w-2.5 h-2.5" /> Parent
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-white/40 bg-white/5 rounded px-1.5 py-0.5">
+      <Baby className="w-2.5 h-2.5" /> Child
+    </span>
+  );
+}
+
 type MemberRow = {
   userId: number;
   name: string;
@@ -60,23 +98,43 @@ type MemberRow = {
   joinedAt: string;
 };
 
-function MemberSpendingSheet({
+function MemberSheet({
   member,
   onClose,
   isMe,
+  viewerRole,
+  onRoleChange,
 }: {
   member: MemberRow;
   onClose: () => void;
   isMe: boolean;
+  viewerRole: string;
+  onRoleChange?: (newRole: string) => void;
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
+  const [savingRole, setSavingRole] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>(member.role);
 
-  const blocked = !isMe && member.dashboardBlocked;
+  const isViewerHead = isHeadRole(viewerRole);
+  const canEditRole = isViewerHead && !isMe;
+
+  const blocked = !isMe && member.dashboardBlocked && !data;
+
+  async function handleRoleSave() {
+    if (selectedRole === member.role) { onClose(); return; }
+    setSavingRole(true);
+    try {
+      await onRoleChange?.(selectedRole);
+      onClose();
+    } finally {
+      setSavingRole(false);
+    }
+  }
 
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[80vh] flex flex-col"
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[85vh] flex flex-col"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -89,57 +147,102 @@ function MemberSpendingSheet({
             {member.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
-            <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">{t("hh.you_label")}</span>}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">{t("hh.you_label")}</span>}</p>
+              <RoleBadge role={member.role} />
+            </div>
             <p className="text-xs text-white/50">{t("hh.this_month_breakdown")}</p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
-          {blocked ? (
-            <div className="flex flex-col items-center py-10 gap-3 text-white/40">
-              <EyeOff className="w-8 h-8" />
-              <p className="text-sm">{t("hh.member_private_msg")}</p>
-            </div>
-          ) : isLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            </div>
-          ) : isError ? (
-            <div className="flex flex-col items-center py-10 gap-3 text-white/40">
-              <EyeOff className="w-8 h-8" />
-              <p className="text-sm">{t("hh.dashboard_private_msg")}</p>
-            </div>
-          ) : !data?.length ? (
-            <div className="text-center py-10 text-white/40 text-sm">{t("hh.no_spending")}</div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.category_col")}</p>
-                <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {/* Role editor — only for head viewing non-self members */}
+          {canEditRole && (
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Member role</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(["head", "parent", "child"] as const).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setSelectedRole(r)}
+                    className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 border transition-colors text-xs font-medium ${
+                      selectedRole === r
+                        ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
+                          : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
+                          : "border-white/30 bg-white/10 text-white"
+                        : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
+                    }`}
+                  >
+                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
+                    {r === "head" ? "Head" : r === "parent" ? "Parent" : "Child"}
+                  </button>
+                ))}
               </div>
-              {data.map(row => (
-                <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
-                    <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
-                    <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${row.percentage}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
-                    />
+              <div className="text-[11px] text-white/30 leading-relaxed">
+                {selectedRole === "head" && "Full access. Can manage goals, roles, and see all dashboards."}
+                {selectedRole === "parent" && "Full access except cannot delete household goals. Can propose goals. Cannot see head's private dashboard."}
+                {selectedRole === "child" && "Can propose goals. Cannot see private dashboards or set their own private."}
+              </div>
+              {selectedRole !== member.role && (
+                <Button
+                  size="sm"
+                  className="w-full h-8 text-xs"
+                  onClick={handleRoleSave}
+                  disabled={savingRole}
+                >
+                  {savingRole ? "Saving…" : `Set as ${roleLabelShort(selectedRole)}`}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Spending breakdown */}
+          <div>
+            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">This month's spending</p>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center py-8 gap-3 text-white/40">
+                <EyeOff className="w-8 h-8" />
+                <p className="text-sm text-center">{t("hh.dashboard_private_msg")}</p>
+              </div>
+            ) : !data?.length ? (
+              <div className="text-center py-8 text-white/40 text-sm">{t("hh.no_spending")}</div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.category_col")}</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
+                </div>
+                <div className="space-y-3">
+                  {data.map(row => (
+                    <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
+                        <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
+                        <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${row.percentage}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                    <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
+                    <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + r.total, 0))}</span>
                   </div>
                 </div>
-              ))}
-              <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
-                <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + r.total, 0))}</span>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -169,8 +272,15 @@ export default function HouseholdPage() {
   const [householdBudget, setHouseholdBudget] = useState("");
   const [editBudgetVal, setEditBudgetVal]   = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"head" | "parent" | "child">("child");
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
+
+  // My role in the household
+  const myMembership = members?.find(m => m.userId === me?.id);
+  const myRole = myMembership?.role ?? "child";
+  const iAmHead = isHeadRole(myRole);
+  const iAmChild = isChildRole(myRole);
 
   const createHousehold = useCreateHousehold({
     mutation: {
@@ -216,12 +326,15 @@ export default function HouseholdPage() {
   const updateMe = useUpdateMe({
     mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
   });
+  const updateMemberRole = useUpdateMemberRole({
+    mutation: { onSuccess: () => invalidateHousehold(queryClient) },
+  });
 
   async function handleInviteSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
     try {
-      await createInvite.mutateAsync({ data: { email: inviteEmail.trim() } });
+      await createInvite.mutateAsync({ data: { email: inviteEmail.trim(), role: inviteRole } });
       queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() });
       setInviteResult("sent");
     } catch (err: any) {
@@ -257,7 +370,10 @@ export default function HouseholdPage() {
     }
   }
 
-  // Shared goals = have householdId matching the household
+  async function handleRoleChange(targetUserId: number, newRole: string) {
+    await updateMemberRole.mutateAsync({ userId: targetUserId, data: { role: newRole as any } });
+  }
+
   const sharedGoals = (goals ?? []).filter((g: any) => g.householdId && household && g.householdId === household.id);
   const summaryMap = new Map((goalSummary ?? []).map((s: any) => [s.goalId, s]));
 
@@ -286,7 +402,7 @@ export default function HouseholdPage() {
         <p className="text-sm text-white/40 mt-0.5">{t("hh.subtitle")}</p>
       </div>
 
-      {/* ── Incoming invitations (shown always, above household content) ── */}
+      {/* ── Incoming invitations ── */}
       {incomingInvites && incomingInvites.length > 0 && (
         <div className="px-4 mt-3">
           <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
@@ -303,7 +419,10 @@ export default function HouseholdPage() {
                     <Users className="w-4 h-4 text-pink-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{inv.householdName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-white">{inv.householdName}</p>
+                      <RoleBadge role={(inv as any).role ?? "child"} />
+                    </div>
                     <p className="text-xs text-white/40">{t("hh.invite_from")}</p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
@@ -361,7 +480,7 @@ export default function HouseholdPage() {
                 <p className="font-bold text-lg leading-tight" data-testid="text-household-name">{household.name}</p>
                 <p className="text-xs text-white/40 mt-0.5">{t("hh.since")} {new Date(household.createdAt).toLocaleDateString(loadPrefs().language === "pl" ? "pl-PL" : "en-US", { month: "short", year: "numeric" })}</p>
               </div>
-              {household.ownerId === me?.id ? (
+              {iAmHead ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -408,15 +527,17 @@ export default function HouseholdPage() {
                         : `${fmt(budget - totalSpent)} ${t("common.remaining")}`
                       : `${fmt(totalSpent - budget)} ${t("common.over_budget")}`}
                   </span>
-                  <button
-                    className="text-xs text-white/40 hover:text-white/70 flex items-center gap-1 flex-shrink-0"
-                    onClick={() => { setEditBudgetVal(String(budget ?? "")); setEditBudgetOpen(true); }}
-                  >
-                    <Pencil className="w-3 h-3" /> {t("hh.edit_budget")}
-                  </button>
+                  {iAmHead && (
+                    <button
+                      className="text-xs text-white/40 hover:text-white/70 flex items-center gap-1 flex-shrink-0"
+                      onClick={() => { setEditBudgetVal(String(budget ?? "")); setEditBudgetOpen(true); }}
+                    >
+                      <Pencil className="w-3 h-3" /> {t("hh.edit_budget")}
+                    </button>
+                  )}
                 </div>
               )}
-              {!budget && (
+              {!budget && iAmHead && (
                 <button
                   className="text-xs text-white/30 hover:text-white/60 flex items-center gap-1"
                   onClick={() => { setEditBudgetVal(""); setEditBudgetOpen(true); }}
@@ -427,19 +548,36 @@ export default function HouseholdPage() {
             </div>
           </div>
 
+          {/* ── My role badge ── */}
+          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
+            <div className="flex-1">
+              <p className="text-xs text-white/40">Your role</p>
+              <div className="mt-1">
+                <RoleBadge role={myRole} />
+              </div>
+            </div>
+            <div className="text-xs text-white/30 text-right max-w-[60%]">
+              {isHeadRole(myRole) && "Full access. Manage goals, roles, and members."}
+              {myRole === "parent" && "Can propose household goals. Head can always see your dashboard."}
+              {isChildRole(myRole) && "Can propose household goals. Cannot set a private dashboard."}
+            </div>
+          </div>
+
           {/* ── Members ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.length ?? 0})</span></p>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
-                onClick={() => setInviteOpen(true)}
-                data-testid="button-invite-member"
-              >
-                <Mail className="w-3.5 h-3.5" /> {t("hh.invite_btn")}
-              </Button>
+              {iAmHead && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
+                  onClick={() => setInviteOpen(true)}
+                  data-testid="button-invite-member"
+                >
+                  <Mail className="w-3.5 h-3.5" /> {t("hh.invite_btn")}
+                </Button>
+              )}
             </div>
 
             <div className="divide-y divide-white/5">
@@ -463,14 +601,17 @@ export default function HouseholdPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {m.name} {isMe && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {m.name} {isMe && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
+                            </p>
                             {m.dashboardBlocked && !isMe && (
-                              <span className="ml-1.5 text-white/30" title="Dashboard private">
+                              <span className="text-white/30 flex-shrink-0" title="Dashboard private">
                                 <EyeOff className="w-3 h-3 inline" />
                               </span>
                             )}
-                          </p>
+                            <RoleBadge role={m.role} />
+                          </div>
                           <span className="text-sm font-semibold tabular-nums flex-shrink-0">
                             {fmt(m.monthlySpent)}
                           </span>
@@ -484,7 +625,7 @@ export default function HouseholdPage() {
                         </div>
                       </div>
 
-                      {!isMe && household.ownerId === me?.id && (
+                      {!isMe && iAmHead && (
                         <button
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400/70 hover:text-red-400 transition-opacity flex-shrink-0"
                           onClick={e => {
@@ -555,30 +696,36 @@ export default function HouseholdPage() {
             </div>
           )}
 
-          {/* ── Privacy toggle ── */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
+          {/* ── Privacy toggle — hidden for children ── */}
+          {!iAmChild && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                  {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {me?.dashboardBlocked
+                      ? myRole === "parent"
+                        ? "Hidden from children. Head of household can still see."
+                        : "Hidden from all other members."
+                      : myRole === "parent"
+                        ? "Visible to everyone. Head can always see yours."
+                        : t("hh.visible")}
+                  </p>
+                </div>
+                <Switch
+                  checked={me?.dashboardBlocked ?? false}
+                  onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
+                  data-testid="switch-dashboard-blocked"
+                />
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
-                <p className="text-xs text-white/40 mt-0.5">
-                  {me?.dashboardBlocked
-                    ? t("hh.others_cant")
-                    : t("hh.visible")}
-                </p>
-              </div>
-              <Switch
-                checked={me?.dashboardBlocked ?? false}
-                onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
-                data-testid="switch-dashboard-blocked"
-              />
             </div>
-          </div>
+          )}
 
-          {/* ── Pending invites ── */}
-          {invites && invites.length > 0 && (
+          {/* ── Pending invites — head only ── */}
+          {iAmHead && invites && invites.length > 0 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
                 <p className="text-sm font-semibold">{t("hh.pending_invites")} <span className="text-white/40 font-normal">({invites.length})</span></p>
@@ -590,7 +737,10 @@ export default function HouseholdPage() {
                       <Mail className="w-4 h-4 text-white/40" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{inv.email}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm truncate">{inv.email}</p>
+                        <RoleBadge role={(inv as any).role ?? "child"} />
+                      </div>
                       <p className="text-xs text-white/30">{t("hh.expires")} {new Date(inv.expiresAt).toLocaleDateString()}</p>
                     </div>
                     <button
@@ -617,12 +767,16 @@ export default function HouseholdPage() {
         </div>
       )}
 
-      {/* ── Member spending sheet ── */}
+      {/* ── Member sheet (spending + role edit for head) ── */}
       {selectedMember && (
-        <MemberSpendingSheet
+        <MemberSheet
           member={selectedMember}
           isMe={selectedMember.userId === me?.id}
+          viewerRole={myRole}
           onClose={() => setSelectedMember(null)}
+          onRoleChange={async (newRole) => {
+            await handleRoleChange(selectedMember.userId, newRole);
+          }}
         />
       )}
 
@@ -714,10 +868,10 @@ export default function HouseholdPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Invite dialog ── */}
+      {/* ── Invite dialog (head only) ── */}
       <Dialog open={inviteOpen} onOpenChange={open => {
         setInviteOpen(open);
-        if (!open) { setInviteEmail(""); setInviteResult(null); }
+        if (!open) { setInviteEmail(""); setInviteResult(null); setInviteRole("child"); }
       }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{t("hh.invite_title")}</DialogTitle></DialogHeader>
@@ -730,8 +884,9 @@ export default function HouseholdPage() {
               <div className="text-center">
                 <p className="font-semibold text-green-400">{t("hh.invite_sent")}</p>
                 <p className="text-sm text-white/50 mt-1">{inviteEmail}</p>
+                <p className="text-xs text-white/30 mt-0.5">as {roleLabelShort(inviteRole)}</p>
               </div>
-              <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
+              <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); setInviteRole("child"); }}>
                 {t("common.done")}
               </Button>
             </div>
@@ -780,6 +935,34 @@ export default function HouseholdPage() {
                   required
                   autoFocus
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(["head", "parent", "child"] as const).map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setInviteRole(r)}
+                      className={`flex flex-col items-center gap-1 rounded-lg py-2.5 px-1 border transition-colors text-xs font-medium ${
+                        inviteRole === r
+                          ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
+                            : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
+                            : "border-white/30 bg-white/10 text-white"
+                          : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
+                      }`}
+                    >
+                      {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
+                      {r === "head" ? "Head" : r === "parent" ? "Parent" : "Child"}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-white/30 leading-relaxed">
+                  {inviteRole === "head" && "Full access. Can manage goals, members, and see all dashboards."}
+                  {inviteRole === "parent" && "Full access except cannot delete household goals. Can propose goals."}
+                  {inviteRole === "child" && "View-only for private dashboards. Can propose household goals."}
+                </p>
               </div>
 
               <div className="flex gap-2">

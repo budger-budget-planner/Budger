@@ -443,6 +443,33 @@ paths:
         "204":
           description: Removed
 
+  /households/members/{userId}/role:
+    patch:
+      operationId: updateMemberRole
+      tags: [households]
+      summary: Update a household member's role (head only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberRoleUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseholdMember"
+        "403":
+          description: Not authorized
+
   /households/leave:
     post:
       operationId: leaveHousehold
@@ -1133,6 +1160,8 @@ components:
           type: integer
         householdName:
           type: ["string", "null"]
+        role:
+          type: string
         status:
           type: string
         expiresAt:
@@ -1145,6 +1174,7 @@ components:
         - token
         - householdId
         - householdName
+        - role
         - status
         - expiresAt
         - createdAt
@@ -1157,10 +1187,22 @@ components:
         email:
           type: string
           minLength: 1
+        role:
+          type: string
+          enum: [head, parent, child]
         goalIds:
           type: array
           items:
             type: integer
+
+    MemberRoleUpdate:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum: [head, parent, child]
 
     InviteError:
       type: object

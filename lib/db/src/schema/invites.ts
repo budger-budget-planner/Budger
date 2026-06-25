@@ -7,6 +7,7 @@ export const invitesTable = pgTable("invites", {
   email: text("email").notNull(),
   token: text("token").notNull().unique(),
   householdId: integer("household_id").notNull(),
+  role: text("role").notNull().default("child"),
   status: text("status").notNull().default("pending"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
