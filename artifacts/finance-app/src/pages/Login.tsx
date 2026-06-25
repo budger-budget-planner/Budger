@@ -127,12 +127,11 @@ export default function LoginPage() {
   function handleLoginPinChange(pin: string) {
     setLoginPin(pin);
     setLoginError("");
-    if (pin.length >= 4) {
-      // Auto-submit
-      setTimeout(() => {
-        login.mutate({ data: { email: loginEmail.trim(), password: pin } });
-      }, 200);
-    }
+  }
+
+  function handleLoginSubmit() {
+    if (loginPin.length < 4 || login.isPending) return;
+    login.mutate({ data: { email: loginEmail.trim(), password: loginPin } });
   }
 
   // ── Sign-up flow ────────────────────────────────────────────────────────────
@@ -302,7 +301,13 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="h-12" />
+          <Button
+            onClick={handleLoginSubmit}
+            disabled={loginPin.length < 4 || login.isPending}
+            className="w-full h-14 rounded-2xl text-base font-semibold"
+          >
+            {login.isPending ? t("login.signing_in") : t("login.continue")}
+          </Button>
         </div>
       )}
 
