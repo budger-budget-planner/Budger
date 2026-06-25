@@ -119,7 +119,7 @@ function MemberSpendingSheet({
                 <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
-                    <span className="text-sm flex-1">{row.categoryName ?? t("common.uncategorized")}</span>
+                    <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
                     <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">

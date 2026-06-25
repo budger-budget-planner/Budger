@@ -2,15 +2,13 @@ import { useState } from "react";
 import {
   useGetSpendingSummary,
   useGetMonthlySummary,
-  useGetRecentActivity,
   useGetSpendingHistory,
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
-import { Link } from "wouter";
+import { TrendingDown, History, ChevronDown, ChevronRight, Target } from "lucide-react";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
@@ -89,7 +87,6 @@ export default function DashboardPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
-  const { data: recent }   = useGetRecentActivity({ limit: 8 });
   const { data: goalsSummary } = useGetGoalsSummary({});
 
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
@@ -186,7 +183,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: item.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-muted-foreground truncate">{item.categoryName ?? t("common.uncategorized")}</span>
+                        <span className="text-muted-foreground truncate">{(!item.categoryName || item.categoryName === "Uncategorized") ? t("common.uncategorized") : item.categoryName}</span>
                         {item.budget != null && item.total > item.budget && (
                           <span className="text-destructive font-medium flex-shrink-0">!</span>
                         )}
@@ -331,50 +328,6 @@ export default function DashboardPage() {
           <HistorySection currency={prefs.currency} />
         </div>
       )}
-
-      {/* Recent activity */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <p className="text-sm font-semibold">{t("dashboard.recent_activity")}</p>
-          <Link href="/transactions">
-            <span className="text-xs text-primary flex items-center gap-1">
-              {t("dashboard.view_all")} <ArrowRight className="w-3 h-3" />
-            </span>
-          </Link>
-        </div>
-        {recent && recent.length > 0 ? (
-          <div className="divide-y divide-border">
-            {recent.map(tx => (
-              <div key={tx.id} data-testid={`row-transaction-${tx.id}`}
-                className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: (tx.categoryColor ?? "#444") + "22" }}>
-                    <div className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: tx.categoryColor ?? "#666" }} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">{tx.description}</p>
-                      {tx.receiptImage && <Camera className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
-                    </p>
-                  </div>
-                </div>
-                <span className="font-semibold text-sm flex-shrink-0 ml-3">
-                  {fmtAmt(Number(tx.amount), prefs.currency)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-10">
-            {t("dashboard.no_recent")}
-          </p>
-        )}
-      </div>
 
     </div>
   );
