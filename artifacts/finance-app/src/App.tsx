@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -26,6 +26,7 @@ import {
   takePendingOnboarding,
   type AppPrefs,
 } from "@/lib/prefs";
+import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
 
 const queryClient = new QueryClient({
@@ -44,6 +45,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [onboarded, setOnboarded] = useState(isOnboardingDone);
   // Track whether onboarding should show (set when login/register sets sessionStorage flag)
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Track the last userId we applied server prefs for, to avoid re-applying on every render
+  const syncedUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -80,21 +83,37 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   if (!user) return null;
 
+  // ── Server → localStorage sync (run once per user, not on every render) ──
+  // This applies the server's per-user settings (budget, language) to local state.
+  // Gated by userId so it runs once on login and whenever the user changes.
+  if (syncedUserIdRef.current !== user.id) {
+    syncedUserIdRef.current = user.id;
+    const prefs = loadPrefs();
+    let updated = { ...prefs };
+
+    // Budget: server is source of truth; only apply if server has a definitive value
+    const serverBudget = (user as any).totalBudget;
+    if (serverBudget !== undefined) {
+      const budgetNum = serverBudget != null ? parseFloat(String(serverBudget)) : null;
+      updated = { ...updated, totalBudget: budgetNum };
+    }
+
+    // Language: server is source of truth per-account; apply and activate it
+    const serverLang = (user as any).language as string | undefined;
+    if (serverLang && serverLang !== prefs.language) {
+      updated = { ...updated, language: serverLang };
+      setLang(serverLang as "en" | "pl");
+    }
+
+    if (JSON.stringify(updated) !== JSON.stringify(prefs)) {
+      savePrefs(updated);
+    }
+  }
+
   // Server is the source of truth: if firstLoginDone is true, user has been onboarded.
   // We only fall back to the localStorage flag for the rare case where the server
   // hasn't yet updated firstLoginDone (e.g. mid-onboarding refresh).
   const serverSaysOnboarded = user.firstLoginDone === true;
-
-  // Sync server budget into localStorage so all pages read the correct per-user value.
-  // Run on every user load so switching users always resets the budget display.
-  const serverBudget = (user as any).totalBudget;
-  if (serverBudget !== undefined) {
-    const prefs = loadPrefs();
-    const budgetNum = serverBudget != null ? parseFloat(serverBudget) : null;
-    if (prefs.totalBudget !== budgetNum) {
-      savePrefs({ ...prefs, totalBudget: budgetNum });
-    }
-  }
 
   if (showOnboarding || (!serverSaysOnboarded && !isOnboardingDone())) {
     return (
@@ -104,6 +123,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           markOnboardingDone();
           setOnboarded(true);
           setShowOnboarding(false);
+          // After onboarding, the user query was already refreshed by Onboarding.tsx.
+          // Reset the sync ref so the fresh server data is applied on next render.
+          syncedUserIdRef.current = null;
         }}
       />
     );

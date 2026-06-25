@@ -2,7 +2,12 @@ import { useState } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
-import { useUpdateNotificationSettings, useUpdateMe } from "@workspace/api-client-react";
+import {
+  useUpdateNotificationSettings,
+  useUpdateMe,
+  getGetMeQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
@@ -34,14 +39,19 @@ const WALLET_SLIDES = [
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPrefs) => void }) {
+  const queryClient = useQueryClient();
   const [step, setStep]               = useState<Step>("stay-signed-in");
   const [staySignedIn, setStaySignedIn] = useState(true);
   const [currency, setCurrency]       = useState("USD");
-  const [language, _setLanguage]      = useState("en");  // already set from login
+  // Inherit the language already chosen on the login screen
+  const [language]                    = useState(() => {
+    try { return JSON.parse(localStorage.getItem("budger_prefs_v1") ?? "{}").language ?? "en"; } catch { return "en"; }
+  });
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [walletSlide, setWalletSlide] = useState(0);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
+  const [finishing, setFinishing]     = useState(false);
 
   const updateNotif = useUpdateNotificationSettings();
   const updateMe    = useUpdateMe();
@@ -57,10 +67,28 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
 
   function skip() { next(); }
 
-  function finish() {
-    // Persist budget to server so it survives device switches and stays per-user
-    if (totalBudget !== null) {
-      updateMe.mutate({ data: { totalBudget } });
+  async function finish() {
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      // Persist all user settings to server in one call:
+      // - firstLoginDone:true prevents re-triggering onboarding on next login
+      // - language ensures the chosen language follows the account, not the device
+      // - totalBudget (if set) persists across devices
+      const updateData: Record<string, unknown> = {
+        firstLoginDone: true,
+        language,
+      };
+      if (totalBudget !== null) {
+        updateData.totalBudget = totalBudget;
+      }
+      await updateMe.mutateAsync({ data: updateData as any });
+      // Invalidate user cache so App.tsx sync gets fresh data (not stale null budget)
+      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+    } catch {
+      // Continue even if network fails; server sync can retry next login
+    } finally {
+      setFinishing(false);
     }
     onComplete({
       currency,
@@ -277,9 +305,10 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
 
           <button
             onClick={finish}
-            className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition"
+            disabled={finishing}
+            className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition disabled:opacity-50"
           >
-            {notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
+            {finishing ? "Saving…" : notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
           </button>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
-import { useLogout, useGetMe, useListIncomingInvites } from "@workspace/api-client-react";
+import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
@@ -84,11 +84,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateMe = useUpdateMe();
+
   function changeLanguage(code: string) {
     const next = { ...prefs, language: code };
     savePrefs(next);
     setPrefsState(next);
+    // Persist language to the account server-side so it follows the user across devices
+    updateMe.mutate({ data: { language: code } });
     window.location.reload();
+  }
+
+  function toggleStaySignedIn() {
+    const next = { ...prefs, staySignedIn: !prefs.staySignedIn };
+    savePrefs(next);
+    setPrefsState(next);
   }
 
   useEffect(() => {
@@ -221,6 +231,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   })}
                 </div>
               </div>
+
+              {/* Keep me signed in */}
+              <button
+                onClick={toggleStaySignedIn}
+                className="flex items-center justify-between w-full py-1"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-medium text-foreground">{t("profile.stay_signed_in")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("profile.stay_signed_in_desc")}</p>
+                </div>
+                {/* Toggle pill */}
+                <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${
+                  prefs.staySignedIn ? "bg-foreground" : "bg-border"
+                }`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${
+                    prefs.staySignedIn ? "left-[calc(100%-1.375rem)]" : "left-0.5"
+                  }`} />
+                </div>
+              </button>
             </div>
 
             <div className="h-px bg-border" />

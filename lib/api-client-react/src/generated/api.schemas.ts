@@ -24,6 +24,7 @@ export interface User {
   /** @nullable */
   householdId: number | null;
   dashboardBlocked: boolean;
+  language: string;
   /** @nullable */
   pendingHouseholdAlert: string | null;
   createdAt: string;
@@ -35,6 +36,8 @@ export interface UserUpdate {
   dashboardBlocked?: boolean;
   /** @nullable */
   totalBudget?: number | null;
+  language?: string;
+  firstLoginDone?: boolean;
   /** @nullable */
   pendingHouseholdAlert?: string | null;
 }

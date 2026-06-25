@@ -12,12 +12,14 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.alerts":      { en: "Alerts",     pl: "Alerty"      },
 
   // ── Layout / Profile ──
-  "profile.preferences": { en: "Preferences",  pl: "Preferencje"   },
-  "profile.currency":    { en: "Currency",      pl: "Waluta"        },
-  "profile.language":    { en: "Language",      pl: "Język"         },
-  "profile.sign_out":    { en: "Sign out",      pl: "Wyloguj"       },
-  "profile.signing_out": { en: "Signing out…",  pl: "Wylogowywanie…"},
-  "profile.converting":  { en: "Converting…",   pl: "Przeliczanie…" },
+  "profile.preferences":       { en: "Preferences",                            pl: "Preferencje"                             },
+  "profile.currency":          { en: "Currency",                               pl: "Waluta"                                  },
+  "profile.language":          { en: "Language",                               pl: "Język"                                   },
+  "profile.stay_signed_in":    { en: "Keep me signed in",                      pl: "Pozostań zalogowanym"                    },
+  "profile.stay_signed_in_desc": { en: "Stay logged in between app sessions.", pl: "Pozostań zalogowanym między sesjami."    },
+  "profile.sign_out":          { en: "Sign out",                               pl: "Wyloguj"                                 },
+  "profile.signing_out":       { en: "Signing out…",                          pl: "Wylogowywanie…"                          },
+  "profile.converting":        { en: "Converting…",                           pl: "Przeliczanie…"                           },
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },
