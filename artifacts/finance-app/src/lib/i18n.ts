@@ -112,6 +112,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "cat.no_categories": { en: "No categories yet.",        pl: "Brak kategorii."              },
   "cat.create_first":  { en: "Create first category",     pl: "Utwórz pierwszą kategorię"    },
   "cat.new":           { en: "New Category",              pl: "Nowa kategoria"               },
+  "cat.add_btn":       { en: "New",                       pl: "Nowa"                         },
   "cat.edit":          { en: "Edit Category",             pl: "Edytuj kategorię"             },
   "cat.cat_name":      { en: "Category name",             pl: "Nazwa kategorii"              },
   "cat.placeholder":   { en: "Groceries, Coffee, Rent…",  pl: "Zakupy, Kawa, Czynsz…"       },

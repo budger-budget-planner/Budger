@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loadPrefs, currencySymbol } from "@/lib/prefs";
+import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -100,9 +100,10 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, sym }: {
-  goal: any; summary: any; onEdit: () => void; sym: string;
+function GoalCard({ goal, summary, onEdit, currency }: {
+  goal: any; summary: any; onEdit: () => void; currency: string;
 }) {
+  const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -134,7 +135,7 @@ function GoalCard({ goal, summary, onEdit, sym }: {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
-              {t("goals.target_due", { amt: `${sym}${Number(budget).toFixed(0)}`, date: goal.deadline })}
+              {t("goals.target_due", { amt: fmtAmtRound(Number(budget), currency), date: goal.deadline })}
             </p>
           </div>
         </div>
@@ -150,14 +151,14 @@ function GoalCard({ goal, summary, onEdit, sym }: {
             />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{sym}{contributed.toFixed(2)} {t("goals.saved_amt")}</span>
-            <span>{sym}{budget.toFixed(0)} {t("goals.goal_label")}</span>
+            <span>{fmtAmt(contributed, currency)} {t("goals.saved_amt")}</span>
+            <span>{fmtAmtRound(budget, currency)} {t("goals.goal_label")}</span>
           </div>
         </div>
 
         {monthlyTarget !== null && (
           <p className="text-xs text-muted-foreground mb-3">
-            {t("goals.save_mo_for", { amt: `${sym}${monthlyTarget.toFixed(2)}`, ml, s: "" })}
+            {t("goals.save_mo_for", { amt: fmtAmt(monthlyTarget, currency), ml, s: "" })}
           </p>
         )}
 
@@ -237,7 +238,7 @@ function GoalFormFields({
           <p className="text-sm font-medium">{t("goals.divide_mo")}</p>
           <p className="text-xs text-muted-foreground">
             {monthly
-              ? t("goals.save_mo_for", { amt: `${sym}${monthly}`, ml: ml ?? 0, s: "" })
+              ? t("goals.save_mo_for", { amt: fmtAmt(Number(monthly), loadPrefs().currency), ml: ml ?? 0, s: "" })
               : t("goals.calc_monthly")}
           </p>
         </div>
@@ -426,7 +427,7 @@ function EditGoalDialog({
   );
 }
 
-function PastGoalCard({ goal, sym }: { goal: any; sym: string }) {
+function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const remove = useDeleteGoal({
@@ -449,7 +450,7 @@ function PastGoalCard({ goal, sym }: { goal: any; sym: string }) {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
-              {sym}{Number(goal.budget).toFixed(0)} · {t("goals.ended")} {goal.deadline}
+              {fmtAmtRound(Number(goal.budget), currency)} · {t("goals.ended")} {goal.deadline}
             </p>
           </div>
           {confirmDelete ? (
@@ -635,7 +636,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} sym={sym} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -661,7 +662,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} sym={sym} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} />
                   ))}
                 </div>
               ) : (
@@ -704,7 +705,7 @@ export default function GoalsPage() {
             </div>
           ) : pastGoals && pastGoals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {pastGoals.map(g => <PastGoalCard key={g.id} goal={g} sym={sym} />)}
+              {pastGoals.map(g => <PastGoalCard key={g.id} goal={g} currency={prefs.currency} />)}
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground py-6">{t("goals.no_past")}</p>

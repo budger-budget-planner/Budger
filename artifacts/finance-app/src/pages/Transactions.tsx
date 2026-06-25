@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { loadPrefs, currencySymbol } from "@/lib/prefs";
+import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 
 type TxFormState = {
   amount: string;
@@ -201,7 +201,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
                 <span className="text-sm text-muted-foreground">{c.goalName}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{sym}{Number(c.amount).toFixed(2)}</span>
+                <span className="text-sm font-medium">{fmtAmt(Number(c.amount), loadPrefs().currency)}</span>
                 <button onClick={() => removeContrib.mutate({ id: c.id })}
                   className="text-muted-foreground hover:text-destructive transition-colors">
                   <X className="w-3.5 h-3.5" />
@@ -298,7 +298,7 @@ function ReceiptModal({
 
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
+              <span className="font-medium text-foreground">{fmtAmt(Number(tx.amount), loadPrefs().currency)}</span>
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
 
@@ -625,7 +625,7 @@ export default function TransactionsPage() {
                     <p className="text-xs text-muted-foreground">{displayName} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
-                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{sym}{Number(tx.amount).toFixed(2)}</span>
+                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{fmtAmt(Number(tx.amount), loadPrefs().currency)}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <Button
                       size="icon"

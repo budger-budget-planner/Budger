@@ -39,11 +39,13 @@ export function currencySymbol(currency: string): string {
 
 export function fmtAmt(amount: number, currency: string): string {
   const sym = currencySymbol(currency);
+  if (currency === "PLN") return `${amount.toFixed(2)}${sym}`;
   return `${sym}${amount.toFixed(2)}`;
 }
 
 export function fmtAmtRound(amount: number, currency: string): string {
   const sym = currencySymbol(currency);
+  if (currency === "PLN") return `${Math.round(amount).toLocaleString()}${sym}`;
   return `${sym}${Math.round(amount).toLocaleString()}`;
 }
 

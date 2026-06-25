@@ -271,7 +271,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
           <DialogHeader><DialogTitle>{t("home.receipt", { desc: tx.description })}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{sym}{Number(tx.amount).toFixed(2)}</span>
+              <span className="font-medium text-foreground">{fmtAmt(Number(tx.amount), loadPrefs().currency)}</span>
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
             {tx.receiptImage ? (
@@ -623,7 +623,7 @@ export default function HomeSpending() {
         <div className="bg-card border border-border rounded-2xl px-5 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
-            <p className="text-3xl font-bold text-foreground">{sym}{total.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-foreground">{fmtAmt(total, prefs.currency)}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
@@ -677,13 +677,13 @@ export default function HomeSpending() {
                                 className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
                                 style={{ backgroundColor: contrib.color + "33", color: contrib.color }}
                               >
-                                🎯 {contrib.name} {sym}{contrib.amount.toFixed(2)}
+                                🎯 {contrib.name} {fmtAmt(contrib.amount, prefs.currency)}
                               </span>
                             )}
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-foreground flex-shrink-0">
-                          −{sym}{Number(tx.amount).toFixed(2)}
+                          −{fmtAmt(Number(tx.amount), prefs.currency)}
                         </p>
                       </div>
 

@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loadPrefs, fmtAmtRound, currencySymbol } from "@/lib/prefs";
+import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
@@ -119,7 +119,7 @@ function MemberSpendingSheet({
                 <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
-                    <span className="text-sm flex-1">{row.categoryName}</span>
+                    <span className="text-sm flex-1">{row.categoryName ?? t("common.uncategorized")}</span>
                     <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
@@ -460,8 +460,8 @@ export default function HouseholdPage() {
                           <p className="text-xs text-white/40">{t("hh.due")} {g.deadline}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold tabular-nums">{sym}{contributed.toFixed(0)}</p>
-                          <p className="text-xs text-white/40">{t("hh.of_goal")} {sym}{goalBudget.toFixed(0)}</p>
+                          <p className="text-sm font-semibold tabular-nums">{fmtAmtRound(contributed, loadPrefs().currency)}</p>
+                          <p className="text-xs text-white/40">{t("hh.of_goal")} {fmtAmtRound(goalBudget, loadPrefs().currency)}</p>
                         </div>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">

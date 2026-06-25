@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -118,8 +118,8 @@ function BudgetInput({
           </div>
           {rawValue && dollarVal != null && (
             <p className="text-xs text-muted-foreground">
-              = {sym}{dollarVal.toFixed(2)}
-              {totalBudget && ` (${numVal}% of ${sym}${Math.round(totalBudget).toLocaleString()})`}
+              = {fmtAmt(dollarVal, loadPrefs().currency)}
+              {totalBudget && ` (${numVal}% of ${fmtAmtRound(totalBudget, loadPrefs().currency)})`}
             </p>
           )}
         </div>
@@ -128,7 +128,7 @@ function BudgetInput({
       {/* Validation */}
       {exceedsTotal && totalBudget != null && (
         <p className="text-xs text-red-400 font-medium">
-          ⚠ Exceeds total monthly budget ({sym}{Math.round(totalBudget).toLocaleString()}) — please enter a lower amount.
+          ⚠ Exceeds total monthly budget ({fmtAmtRound(totalBudget, loadPrefs().currency)}) — please enter a lower amount.
         </p>
       )}
     </div>
@@ -146,7 +146,8 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
   return num;
 }
 
-function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => void; sym: string }) {
+function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: () => void; currency: string }) {
+  const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -174,7 +175,7 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
             <p className="font-semibold text-sm text-foreground truncate">{category.name}</p>
             <p className="text-xs text-muted-foreground">
               {category.budget != null
-                ? `${t("cat.budget")} ${sym}${Number(category.budget).toFixed(0)}${t("cat.mo")}`
+                ? `${t("cat.budget")} ${fmtAmtRound(Number(category.budget), currency)}${t("cat.mo")}`
                 : t("cat.no_budget")}
             </p>
           </div>
@@ -192,7 +193,7 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {sym}{Number(category.spent ?? 0).toFixed(2)} of {sym}{Number(category.budget).toFixed(2)}
+              {fmtAmt(Number(category.spent ?? 0), currency)} of {fmtAmt(Number(category.budget), currency)}
             </p>
           </div>
         )}
@@ -358,7 +359,7 @@ export default function CategoriesPage() {
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
                      text-sm font-semibold transition active:scale-95"
         >
-          <Plus className="w-4 h-4" /> {t("cat.new")}
+          <Plus className="w-4 h-4" /> {t("cat.add_btn")}
         </button>
       </div>
 
@@ -372,12 +373,12 @@ export default function CategoriesPage() {
           <div className="flex items-center justify-between">
             <span className="text-white/60">{t("cat.budgets_total")}</span>
             <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
-              {sym}{Math.round(catBudgetSum).toLocaleString()} / {sym}{Math.round(totalBudget).toLocaleString()}
+              {fmtAmtRound(catBudgetSum, prefs.currency)} / {fmtAmtRound(totalBudget, prefs.currency)}
             </span>
           </div>
           {catBudgetExceeds && (
             <p className="text-xs text-red-400 mt-1">
-              Category budgets exceed your total monthly budget by {sym}{Math.round(catBudgetSum - totalBudget).toLocaleString()}.
+              Category budgets exceed your total monthly budget by {fmtAmtRound(catBudgetSum - totalBudget, prefs.currency)}.
             </p>
           )}
         </div>
@@ -390,7 +391,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} sym={sym} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} />
           ))}
         </div>
       ) : (

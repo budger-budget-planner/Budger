@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Link } from "wouter";
-import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
@@ -26,7 +26,7 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
   );
 }
 
-function HistorySection({ sym }: { sym: string }) {
+function HistorySection({ currency }: { currency: string }) {
   const { data: history, isLoading } = useGetSpendingHistory();
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -54,7 +54,7 @@ function HistorySection({ sym }: { sym: string }) {
               <span className="font-medium text-sm">{localiseMonthStr(m.month)} {m.year}</span>
               <span className="text-xs text-muted-foreground">{m.count} {t("dashboard.tx")}</span>
             </div>
-            <span className="font-semibold text-sm">{sym}{m.total.toFixed(2)}</span>
+            <span className="font-semibold text-sm">{fmtAmt(m.total, currency)}</span>
           </button>
           {expanded === m.monthKey && (
             <div className="border-t border-border px-4 py-3 bg-muted/20 space-y-3">
@@ -64,14 +64,14 @@ function HistorySection({ sym }: { sym: string }) {
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: cat.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                      <span className="text-muted-foreground">{cat.categoryName}</span>
+                      <span className="text-muted-foreground">{cat.categoryName ?? t("common.uncategorized")}</span>
                       {cat.budget && (
                         <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${cat.total > cat.budget ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
                           {cat.total > cat.budget ? t("dashboard.over") : `${Math.round((cat.total / cat.budget) * 100)}%`}
                         </span>
                       )}
                     </div>
-                    <span className="font-medium">{sym}{cat.total.toFixed(2)}</span>
+                    <span className="font-medium">{fmtAmt(cat.total, currency)}</span>
                   </div>
                   {cat.budget && <BudgetBar spent={cat.total} budget={cat.budget} color={cat.categoryColor ?? "#818cf8"} />}
                 </div>
@@ -86,8 +86,6 @@ function HistorySection({ sym }: { sym: string }) {
 
 export default function DashboardPage() {
   const prefs     = loadPrefs();
-  const sym       = currencySymbol(prefs.currency);
-
   const [historyOpen, setHistoryOpen] = useState(false);
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
@@ -126,7 +124,7 @@ export default function DashboardPage() {
               <div className="mt-1 space-y-0.5">
                 <BudgetBar spent={totalSpending} budget={totalBudget} color="#818cf8" />
                 <p className="text-xs text-muted-foreground">
-                  {sym}{totalSpending.toFixed(0)} {t("common.of")} {sym}{totalBudget.toFixed(0)}
+                  {fmtAmtRound(totalSpending, prefs.currency)} {t("common.of")} {fmtAmtRound(totalBudget, prefs.currency)}
                 </p>
               </div>
             </>
@@ -146,7 +144,7 @@ export default function DashboardPage() {
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_goals")}</p>
-          <p className="text-2xl font-bold">{sym}{totalGoalContributions.toFixed(0)}</p>
+          <p className="text-2xl font-bold">{fmtAmtRound(totalGoalContributions, prefs.currency)}</p>
           <p className="text-xs text-muted-foreground">
             {activeGoalsWithContribs.length > 0
               ? prefs.language === "pl"
@@ -188,12 +186,12 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: item.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-muted-foreground truncate">{item.categoryName}</span>
+                        <span className="text-muted-foreground truncate">{item.categoryName ?? t("common.uncategorized")}</span>
                         {item.budget != null && item.total > item.budget && (
                           <span className="text-destructive font-medium flex-shrink-0">!</span>
                         )}
                       </div>
-                      <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.total.toFixed(2)}</span>
+                      <span className="font-semibold ml-2 flex-shrink-0">{fmtAmt(item.total, prefs.currency)}</span>
                     </div>
                     {item.budget != null && (
                       <BudgetBar spent={item.total} budget={item.budget}
@@ -249,7 +247,7 @@ export default function DashboardPage() {
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                             <span className="text-muted-foreground truncate">{item.goalName}</span>
                           </div>
-                          <span className="font-semibold ml-2 flex-shrink-0">{sym}{item.contributed.toFixed(2)}</span>
+                          <span className="font-semibold ml-2 flex-shrink-0">{fmtAmt(item.contributed, prefs.currency)}</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
                           <div className="h-full rounded-full transition-all"
@@ -262,8 +260,8 @@ export default function DashboardPage() {
                         <p className="text-[10px] text-muted-foreground">
                           {displayPct.toFixed(0)}%{" "}
                           {item.divideByMonths && item.monthlyTarget
-                            ? `${t("common.of")} ${sym}${item.monthlyTarget.toFixed(2)}${t("dashboard.mo_target")}`
-                            : `${t("common.of")} ${sym}${item.budget.toFixed(0)} ${t("dashboard.total_goal")}`}
+                            ? `${t("common.of")} ${fmtAmt(item.monthlyTarget, prefs.currency)}${t("dashboard.mo_target")}`
+                            : `${t("common.of")} ${fmtAmtRound(item.budget, prefs.currency)} ${t("dashboard.total_goal")}`}
                         </p>
                       </div>
                     );
@@ -284,8 +282,8 @@ export default function DashboardPage() {
                     </div>
                     <div className="w-full bg-muted rounded-full h-1" />
                     <p className="text-[10px] text-muted-foreground">
-                      {t("goals.target")} {sym}{item.budget.toFixed(0)} {t("dashboard.by")} {item.deadline}
-                      {item.monthlyTarget ? ` · ${sym}${item.monthlyTarget.toFixed(0)}${t("dashboard.mo_needed")}` : ""}
+                      {t("goals.target")} {fmtAmtRound(item.budget, prefs.currency)} {t("dashboard.by")} {item.deadline}
+                      {item.monthlyTarget ? ` · ${fmtAmtRound(item.monthlyTarget, prefs.currency)}${t("dashboard.mo_needed")}` : ""}
                     </p>
                   </div>
                 ))}
@@ -301,9 +299,9 @@ export default function DashboardPage() {
             <BarChart data={monthly ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
               <XAxis dataKey="month" tickFormatter={localiseMonthStr} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false}
-                tickFormatter={v => `${sym}${v}`} />
+                tickFormatter={v => fmtAmtRound(v, prefs.currency)} />
               <Tooltip
-                formatter={(v: any) => [`${sym}${Number(v).toFixed(2)}`, "Spent"]}
+                formatter={(v: any) => [fmtAmt(Number(v), prefs.currency), t("dashboard.spent") ?? "Spent"]}
                 contentStyle={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
               />
               <Bar dataKey="total" fill="#818cf8" radius={[4, 4, 0, 0]} />
@@ -330,7 +328,7 @@ export default function DashboardPage() {
 
       {historyOpen && (
         <div className="mb-4">
-          <HistorySection sym={sym} />
+          <HistorySection currency={prefs.currency} />
         </div>
       )}
 
@@ -366,7 +364,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <span className="font-semibold text-sm flex-shrink-0 ml-3">
-                  {sym}{Number(tx.amount).toFixed(2)}
+                  {fmtAmt(Number(tx.amount), prefs.currency)}
                 </span>
               </div>
             ))}
