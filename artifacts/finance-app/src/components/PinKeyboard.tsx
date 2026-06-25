@@ -69,7 +69,7 @@ export default function PinKeyboard({
       )}
 
       {/* Numpad grid */}
-      <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
+      <div className="grid grid-cols-3 gap-4 w-full">
         {KEYS.map((key, idx) => {
           const isSpacer = key === "";
           const isBackspace = key === "⌫";
@@ -79,10 +79,10 @@ export default function PinKeyboard({
               onClick={() => !isSpacer && press(key)}
               disabled={isSpacer}
               className={`
-                h-16 rounded-2xl text-xl font-semibold transition-all duration-100
+                h-20 rounded-2xl text-2xl font-semibold transition-all duration-100
                 ${isSpacer ? "invisible pointer-events-none" : ""}
                 ${isBackspace
-                  ? "bg-transparent text-muted-foreground text-2xl active:scale-90"
+                  ? "bg-transparent text-muted-foreground active:scale-90"
                   : "bg-card border border-border text-foreground active:scale-90 active:bg-foreground/10 shadow-sm"
                 }
               `}
