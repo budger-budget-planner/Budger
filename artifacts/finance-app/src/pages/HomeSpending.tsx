@@ -623,6 +623,21 @@ export default function HomeSpending() {
               </div>
               <p className="text-3xl font-bold leading-tight">{fmtAmt(totalBudget, prefs.currency)}</p>
 
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Spent + entries row */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
+                  <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
+                  <p className="text-2xl font-bold">{sorted.length}</p>
+                </div>
+              </div>
+
               {/* Progress bar */}
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-white/10 overflow-hidden">
@@ -640,21 +655,6 @@ export default function HomeSpending() {
                       ? `${fmtAmt(-remaining, prefs.currency)} ${t("common.over_budget")}`
                       : ""}
                 </p>
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-border" />
-
-              {/* Spent + entries row */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
-                  <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
-                  <p className="text-2xl font-bold">{sorted.length}</p>
-                </div>
               </div>
             </>
           )}
