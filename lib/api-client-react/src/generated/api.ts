@@ -47,6 +47,7 @@ import type {
   NotificationSettings,
   NotificationSettingsInput,
   ReceiptInput,
+  RegisterInput,
   Transaction,
   TransactionInput,
   TransactionUpdate,
@@ -288,7 +289,93 @@ export const useUpdateMe = <
 };
 
 /**
- * @summary Login with email and name
+ * @summary Register a new user account
+ */
+export const getRegisterUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const register = async (
+  registerInput: RegisterInput,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getRegisterUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerInput),
+  });
+};
+
+export const getRegisterMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof register>>,
+    TError,
+    { data: BodyType<RegisterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof register>>,
+  TError,
+  { data: BodyType<RegisterInput> },
+  TContext
+> => {
+  const mutationKey = ["register"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof register>>,
+    { data: BodyType<RegisterInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return register(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof register>>
+>;
+export type RegisterMutationBody = BodyType<RegisterInput>;
+export type RegisterMutationError = ErrorType<void>;
+
+/**
+ * @summary Register a new user account
+ */
+export const useRegister = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof register>>,
+    TError,
+    { data: BodyType<RegisterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof register>>,
+  TError,
+  { data: BodyType<RegisterInput> },
+  TContext
+> => {
+  return useMutation(getRegisterMutationOptions(options));
+};
+
+/**
+ * @summary Login with email and password
  */
 export const getLoginUrl = () => {
   return `/api/auth/login`;
@@ -307,7 +394,7 @@ export const login = async (
 };
 
 export const getLoginMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -348,13 +435,13 @@ export type LoginMutationResult = NonNullable<
   Awaited<ReturnType<typeof login>>
 >;
 export type LoginMutationBody = BodyType<LoginInput>;
-export type LoginMutationError = ErrorType<unknown>;
+export type LoginMutationError = ErrorType<void>;
 
 /**
- * @summary Login with email and name
+ * @summary Login with email and password
  */
 export const useLogin = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

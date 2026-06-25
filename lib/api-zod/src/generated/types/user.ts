@@ -9,7 +9,13 @@
 export interface User {
   id: number;
   name: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
   email: string;
+  status: string;
+  firstLoginDone: boolean;
   /** @nullable */
   householdId: number | null;
   dashboardBlocked: boolean;

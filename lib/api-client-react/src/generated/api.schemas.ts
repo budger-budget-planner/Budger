@@ -12,7 +12,13 @@ export interface HealthStatus {
 export interface User {
   id: number;
   name: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
   email: string;
+  status: string;
+  firstLoginDone: boolean;
   /** @nullable */
   householdId: number | null;
   dashboardBlocked: boolean;
@@ -27,9 +33,20 @@ export interface UserUpdate {
 
 export interface LoginInput {
   /** @minLength 1 */
-  name: string;
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface RegisterInput {
+  /** @minLength 1 */
+  firstName: string;
+  /** @minLength 1 */
+  lastName: string;
   /** @minLength 1 */
   email: string;
+  /** @minLength 4 */
+  password: string;
 }
 
 export interface Category {

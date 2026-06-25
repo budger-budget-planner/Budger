@@ -3,16 +3,13 @@ import { useParams, useLocation } from "wouter";
 import {
   useAcceptInvite,
   useGetMe,
-  useLogin,
   getGetMeQueryKey,
   getGetHouseholdQueryKey,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Users, Check, AlertTriangle, Ban } from "lucide-react";
+import { Users, Check, AlertTriangle, Ban, LogIn } from "lucide-react";
 import BadgerLogo from "@/components/BadgerLogo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { t } from "@/lib/i18n";
 
 export default function InvitePage() {
@@ -40,12 +37,7 @@ export default function InvitePage() {
 
   const isRevoked = isError && (error as any)?.revoked === true;
   const { data: me } = useGetMe();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
 
-  const login = useLogin({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }); } },
-  });
   const accept = useAcceptInvite({
     mutation: {
       onSuccess: () => {
@@ -56,11 +48,13 @@ export default function InvitePage() {
     },
   });
 
-  async function handleAccept() {
-    if (!me) {
-      if (!name.trim() || !email.trim()) return;
-      await login.mutateAsync({ data: { name: name.trim(), email: email.trim() } });
-    }
+  function handleGoToLogin() {
+    // Save invite token so user can return after login
+    sessionStorage.setItem("budger_pending_invite", token ?? "");
+    setLocation("/login");
+  }
+
+  function handleAccept() {
     accept.mutate({ token });
   }
 
@@ -104,41 +98,42 @@ export default function InvitePage() {
               {t("invite.join_msg", { name: invite.householdName })}
             </p>
 
-            {!me && (
-              <div className="space-y-4 mb-6 border-t border-border pt-5">
+            {!me ? (
+              <div className="space-y-3 mb-6 border-t border-border pt-5">
                 <p className="text-xs text-muted-foreground text-center">{t("invite.create_or_signin")}</p>
-                <div className="space-y-1.5">
-                  <Label>{t("login.your_name")}</Label>
-                  <Input data-testid="input-name" placeholder="Alex Johnson" value={name} onChange={e => setName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("common.email")}</Label>
-                  <Input data-testid="input-email" type="email" placeholder={invite.email} value={email} onChange={e => setEmail(e.target.value)} />
-                </div>
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={handleGoToLogin}
+                >
+                  <LogIn className="w-4 h-4" />
+                  {t("invite.go_to_login")}
+                </Button>
               </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-6 p-3 rounded-lg bg-muted">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">{me.name.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{me.name}</p>
+                    <p className="text-xs text-muted-foreground">{me.email}</p>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full gap-2"
+                  onClick={handleAccept}
+                  disabled={accept.isPending}
+                  data-testid="button-accept-invite"
+                >
+                  <Check className="w-4 h-4" />
+                  {accept.isPending ? t("invite.joining") : t("invite.join_btn", { name: invite.householdName })}
+                </Button>
+              </>
             )}
 
-            {me && (
-              <div className="flex items-center gap-2 mb-6 p-3 rounded-lg bg-muted">
-                <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary">{me.name.charAt(0).toUpperCase()}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{me.name}</p>
-                  <p className="text-xs text-muted-foreground">{me.email}</p>
-                </div>
-              </div>
-            )}
-
-            <Button
-              className="w-full gap-2"
-              onClick={handleAccept}
-              disabled={accept.isPending || login.isPending || (!me && (!name.trim() || !email.trim()))}
-              data-testid="button-accept-invite"
-            >
-              <Check className="w-4 h-4" />
-              {accept.isPending ? t("invite.joining") : t("invite.join_btn", { name: invite.householdName })}
-            </Button>
             <p className="text-xs text-muted-foreground text-center mt-4">
               {t("invite.expires", { date: new Date(invite.expiresAt).toLocaleDateString() })}
             </p>

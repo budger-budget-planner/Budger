@@ -20,7 +20,11 @@ export const HealthCheckResponse = zod.object({
 export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
   email: zod.string(),
+  status: zod.string(),
+  firstLoginDone: zod.boolean(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
@@ -38,25 +42,46 @@ export const UpdateMeBody = zod.object({
 export const UpdateMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
   email: zod.string(),
+  status: zod.string(),
+  firstLoginDone: zod.boolean(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),
 });
 
 /**
- * @summary Login with email and name
+ * @summary Register a new user account
+ */
+
+export const registerBodyPasswordMin = 4;
+
+export const RegisterBody = zod.object({
+  firstName: zod.string().min(1),
+  lastName: zod.string().min(1),
+  email: zod.string().min(1),
+  password: zod.string().min(registerBodyPasswordMin),
+});
+
+/**
+ * @summary Login with email and password
  */
 
 export const LoginBody = zod.object({
-  name: zod.string().min(1),
   email: zod.string().min(1),
+  password: zod.string().min(1),
 });
 
 export const LoginResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
   email: zod.string(),
+  status: zod.string(),
+  firstLoginDone: zod.boolean(),
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   createdAt: zod.string(),

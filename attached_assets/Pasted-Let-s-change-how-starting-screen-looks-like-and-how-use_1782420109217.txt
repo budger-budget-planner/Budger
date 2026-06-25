@@ -1,0 +1,19 @@
+Let's change how starting screen looks like and how user signs up for the app. 
+
+During the starting screen there needs to be a choice to either log in or sign in. Let’s have a login as a default option and sign in as a hyperlink below. Only one window should be available to fill that that is Login/email window.
+Also, right in the starting screen new user should be able to choose language (from to options we already have, so English or polish) 
+
+If user just downloaded the app, they choose a sign in option and provide their First Name, Last Name, email and then create a password in the next screen.For a password screen clone a lockscreen keyboard and make user type a password that is at least 4 digits long. Then when they confirm make them retype to confirm the correctness. When they fill the information, they are ready to log in. 
+
+if someone already owns an account, they should type email in login box. then the password screen appears (the same as password setup screen) and they need to input their password. There should also forgot your password option to click - put it there but when clicked let user know that it’s a placeholder. we will develop this later. 
+
+once they input their password correctly and it’s their first time logging in they should go through the onboarding phase. First, they should be asked if they want to stay signed in. If they mark yes the app will not sign them off. If not, app will sign them off whenever it's terminated. Let them know that it can always be toggled in preferences window (we will add this later)
+When this choice is made and mind that this is their first login, user will be asked for currency and to set up his monthly budget, all in two separate and skippable (similarity to stay logged in, let them know that it can be set up or changed later at any time). currency choice should be made from the ones we already have. 
+Then final onboarding screen would be an inlustrated instruction with several steps on how to connect this app to the wallet app - for now leave couple of slides of a placeholder because I will go in depth with this feature after we are done with this implementation. After they go through this instruction they land in the home tab. Then they are asked to turn notifications for this app and when they click the button to do so they are directed to proper system settings on their phones where they can do it (or this can be done manually if they confirm)
+
+
+If this is not their first time logging in the process is much simplier. They should provide email at login window, then password window should appear and as soon as they put the correct password they should be landing in the home tab. 
+
+Regarding the signup process, we want to collect first name, last name, email, passwords and also, first 100 user should be assigned a special “golden status” for later pricing purposes. This status will not be displayed for users it should just be available for the data purposes. 101st user and later ones should be assigned with “normal status” 
+
+Implement and remember, all the new screen must be created in both polish and English 

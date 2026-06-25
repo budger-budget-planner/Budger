@@ -39,6 +39,7 @@ export * from "./monthlyTotal";
 export * from "./notificationSettings";
 export * from "./notificationSettingsInput";
 export * from "./receiptInput";
+export * from "./registerInput";
 export * from "./transaction";
 export * from "./transactionInput";
 export * from "./transactionUpdate";

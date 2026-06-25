@@ -2,12 +2,19 @@ export type AppPrefs = {
   currency: string;
   language: string;
   totalBudget: number | null;
+  staySignedIn: boolean;
 };
 
 const PREFS_KEY     = "budger_prefs_v1";
 const ONBOARDED_KEY = "budger_onboarded_v1";
+const SESSION_KEY   = "budger_session";
 
-const DEFAULT_PREFS: AppPrefs = { currency: "USD", language: "en", totalBudget: null };
+const DEFAULT_PREFS: AppPrefs = {
+  currency: "USD",
+  language: "en",
+  totalBudget: null,
+  staySignedIn: true,
+};
 
 export function loadPrefs(): AppPrefs {
   try {
@@ -28,6 +35,26 @@ export function isOnboardingDone(): boolean {
 
 export function markOnboardingDone() {
   localStorage.setItem(ONBOARDED_KEY, "1");
+}
+
+/**
+ * Mark that the user has an active browser session (call on login).
+ * If staySignedIn=false, we use sessionStorage so it clears when the tab closes.
+ */
+export function markSession() {
+  sessionStorage.setItem(SESSION_KEY, "1");
+}
+
+/**
+ * Returns true if the session is still live in this browser window.
+ * A "no" means the user closed the tab / restarted without staySignedIn.
+ */
+export function hasActiveSession(): boolean {
+  return !!sessionStorage.getItem(SESSION_KEY);
+}
+
+export function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 export function currencySymbol(currency: string): string {

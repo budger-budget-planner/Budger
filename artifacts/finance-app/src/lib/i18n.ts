@@ -20,6 +20,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "profile.converting":  { en: "Converting…",   pl: "Przeliczanie…" },
 
   // ── Common ──
+  "common.back":        { en: "Back",       pl: "Wróć"       },
   "common.cancel":      { en: "Cancel",     pl: "Anuluj"     },
   "common.save":        { en: "Save",       pl: "Zapisz"     },
   "common.saving":      { en: "Saving…",    pl: "Zapisywanie…"},
@@ -259,41 +260,101 @@ const translations: Record<string, Record<Lang, string>> = {
   "notif.enable_settings":{ en: "Enable notifications in your browser settings.", pl: "Włącz powiadomienia w ustawieniach przeglądarki."},
 
   // ── Login ──
-  "login.tagline":     { en: "Your household finances, in one place.", pl: "Twoje finanse domowe, w jednym miejscu."},
-  "login.sign_in":     { en: "Sign in",          pl: "Zaloguj się"      },
-  "login.no_password": { en: "No password needed", pl: "Nie potrzeba hasła"},
-  "login.your_name":   { en: "Your name",        pl: "Twoje imię"       },
-  "login.continue":    { en: "Continue",         pl: "Kontynuuj"        },
-  "login.signing_in":  { en: "Signing in…",      pl: "Logowanie…"       },
-  "login.failed":      { en: "Sign-in failed. Please try again.", pl: "Logowanie nie powiodło się. Spróbuj ponownie."},
-  "login.footer":      { en: "Budger © 2026",    pl: "Budger © 2026"   },
+  "login.tagline":          { en: "Your household finances, in one place.", pl: "Twoje finanse domowe, w jednym miejscu."},
+  "login.sign_in":          { en: "Sign in",            pl: "Zaloguj się"          },
+  "login.no_password":      { en: "No password needed", pl: "Nie potrzeba hasła"   },
+  "login.your_name":        { en: "Your name",          pl: "Twoje imię"           },
+  "login.continue":         { en: "Continue",           pl: "Kontynuuj"            },
+  "login.signing_in":       { en: "Verifying…",         pl: "Weryfikowanie…"       },
+  "login.failed":           { en: "Sign-in failed. Please try again.", pl: "Logowanie nie powiodło się. Spróbuj ponownie."},
+  "login.footer":           { en: "Budger © 2026",      pl: "Budger © 2026"       },
+  "login.no_account_prompt":{ en: "New here?",          pl: "Nowy użytkownik?"    },
+  "login.sign_up":          { en: "Create an account",  pl: "Utwórz konto"        },
+  "login.no_account":       { en: "No account found for this email. Please sign up first.",
+                               pl: "Nie znaleziono konta dla tego adresu e-mail. Najpierw utwórz konto."},
+  "login.wrong_pin":        { en: "Incorrect PIN. Try again.", pl: "Nieprawidłowy PIN. Spróbuj ponownie."},
+  "login.enter_pin":        { en: "Enter your PIN",     pl: "Podaj swój PIN"       },
+  "login.forgot":           { en: "Forgot PIN?",        pl: "Zapomniałeś PINu?"   },
+  "login.forgot_placeholder":{ en: "Password reset is coming soon. Please contact support for now.",
+                                pl: "Resetowanie hasła wkrótce dostępne. Na razie skontaktuj się z pomocą."},
+  "login.create_account":   { en: "Create account",     pl: "Utwórz konto"        },
+  "login.create_sub":       { en: "Fill in your details to get started.", pl: "Wypełnij dane, aby zacząć."},
+  "login.first_name":       { en: "First name",         pl: "Imię"                },
+  "login.last_name":        { en: "Last name",          pl: "Nazwisko"            },
+  "login.next":             { en: "Next",               pl: "Dalej"               },
+  "login.set_pin":          { en: "Create a PIN",       pl: "Utwórz PIN"          },
+  "login.set_pin_sub":      { en: "Use at least 4 digits — this protects your account.", pl: "Użyj co najmniej 4 cyfr — to chroni Twoje konto."},
+  "login.confirm_pin":      { en: "Confirm your PIN",   pl: "Potwierdź PIN"       },
+  "login.confirm_pin_sub":  { en: "Re-enter the same PIN to confirm.", pl: "Wpisz ponownie ten sam PIN, aby potwierdzić."},
+  "login.pin_mismatch":     { en: "PINs don't match. Please try again.", pl: "PINy się nie zgadzają. Spróbuj ponownie."},
+  "login.email_taken":      { en: "This email is already registered. Please log in.", pl: "Ten adres e-mail jest już zarejestrowany. Zaloguj się."},
+  "login.register_failed":  { en: "Registration failed. Please try again.", pl: "Rejestracja nie powiodła się. Spróbuj ponownie."},
+  "login.creating":         { en: "Creating account…", pl: "Tworzenie konta…"     },
 
   // ── Onboarding ──
-  "ob.welcome":        { en: "Welcome to Budger!",             pl: "Witaj w Budger!"              },
-  "ob.tagline":        { en: "Your household finances in one place.", pl: "Twoje finanse domowe w jednym miejscu."},
-  "ob.setup":          { en: "Let's set up in 30 seconds.",    pl: "Skonfigurujmy w 30 sekund."   },
-  "ob.home_currency":  { en: "Home currency",                  pl: "Waluta domyślna"              },
-  "ob.how_shown":      { en: "How amounts are shown throughout the app", pl: "Sposób wyświetlania kwot w aplikacji"},
-  "ob.language":       { en: "Language",                       pl: "Język"                        },
-  "ob.lang_desc":      { en: "Numbers and dates adapt to your region", pl: "Liczby i daty dostosowują się do Twojego regionu"},
-  "ob.apple_pay":      { en: "Apple Pay",                      pl: "Apple Pay"                    },
-  "ob.check_compat":   { en: "Check your device's compatibility", pl: "Sprawdź kompatybilność urządzenia"},
-  "ob.secure":         { en: "Secure connection (HTTPS)",      pl: "Bezpieczne połączenie (HTTPS)"},
-  "ob.safari":         { en: "Safari browser on iPhone / Mac", pl: "Przeglądarka Safari na iPhone/Mac"},
-  "ob.wallet":         { en: "Cards added to Apple Wallet",    pl: "Karty dodane do Apple Wallet" },
-  "ob.ap_ready":       { en: "Apple Pay is ready on this device!", pl: "Apple Pay jest gotowy na tym urządzeniu!"},
-  "ob.ap_dev":         { en: "Apple Pay works on the published app (HTTPS). In this dev preview it can't be activated, but it will work after publishing.",
-                          pl: "Apple Pay działa na opublikowanej aplikacji (HTTPS). W tym podglądzie deweloperskim nie można go aktywować, ale zadziała po opublikowaniu."},
-  "ob.ap_unavail":     { en: "Open Budger in Safari on iPhone or Mac and add cards to Apple Wallet to enable Apple Pay.",
-                          pl: "Otwórz Budger w Safari na iPhone lub Mac i dodaj karty do Apple Wallet, aby włączyć Apple Pay."},
-  "ob.how_works":      { en: "How it works in Budger",         pl: "Jak działa w Budger"          },
-  "ob.ap_explainer":   { en: "When you add a transaction, tap the Apple Pay button to confirm the amount with Face ID or Touch ID — no card entry needed.",
-                          pl: "Dodając transakcję, dotknij przycisku Apple Pay, aby potwierdzić kwotę Face ID lub Touch ID — bez wpisywania karty."},
-  "ob.note":           { en: "Note:",                          pl: "Uwaga:"                       },
-  "ob.cross_app":      { en: "Apple restricts cross-app data on all devices, so Budger cannot auto-import payments made in other apps (Maps, App Store, etc.). Each transaction is logged manually — it takes just a few seconds.",
-                          pl: "Apple ogranicza dane między aplikacjami na wszystkich urządzeniach, więc Budger nie może automatycznie importować płatności z innych aplikacji (Mapy, App Store itp.). Każda transakcja jest logowana ręcznie — zajmuje to tylko kilka sekund."},
-  "ob.lets_go":        { en: "Let's go!",                      pl: "Zaczynajmy!"                  },
-  "ob.continue":       { en: "Continue →",                     pl: "Kontynuuj →"                  },
+  "ob.welcome":              { en: "Welcome to Budger!",              pl: "Witaj w Budger!"                   },
+  "ob.tagline":              { en: "Your household finances in one place.", pl: "Twoje finanse domowe w jednym miejscu."},
+  "ob.setup":                { en: "Let's set up in 30 seconds.",     pl: "Skonfigurujmy w 30 sekund."        },
+  "ob.home_currency":        { en: "Home currency",                   pl: "Waluta domyślna"                   },
+  "ob.how_shown":            { en: "How amounts are shown throughout the app", pl: "Sposób wyświetlania kwot w aplikacji"},
+  "ob.language":             { en: "Language",                        pl: "Język"                             },
+  "ob.lang_desc":            { en: "Numbers and dates adapt to your region", pl: "Liczby i daty dostosowują się do Twojego regionu"},
+  "ob.apple_pay":            { en: "Apple Pay",                       pl: "Apple Pay"                         },
+  "ob.check_compat":         { en: "Check your device's compatibility", pl: "Sprawdź kompatybilność urządzenia"},
+  "ob.secure":               { en: "Secure connection (HTTPS)",       pl: "Bezpieczne połączenie (HTTPS)"     },
+  "ob.safari":               { en: "Safari browser on iPhone / Mac",  pl: "Przeglądarka Safari na iPhone/Mac" },
+  "ob.wallet":               { en: "Cards added to Apple Wallet",     pl: "Karty dodane do Apple Wallet"      },
+  "ob.ap_ready":             { en: "Apple Pay is ready on this device!", pl: "Apple Pay jest gotowy na tym urządzeniu!"},
+  "ob.ap_dev":               { en: "Apple Pay works on the published app (HTTPS). In this dev preview it can't be activated, but it will work after publishing.",
+                                pl: "Apple Pay działa na opublikowanej aplikacji (HTTPS). W tym podglądzie deweloperskim nie można go aktywować, ale zadziała po opublikowaniu."},
+  "ob.ap_unavail":           { en: "Open Budger in Safari on iPhone or Mac and add cards to Apple Wallet to enable Apple Pay.",
+                                pl: "Otwórz Budger w Safari na iPhone lub Mac i dodaj karty do Apple Wallet, aby włączyć Apple Pay."},
+  "ob.how_works":            { en: "How it works in Budger",          pl: "Jak działa w Budger"               },
+  "ob.ap_explainer":         { en: "When you add a transaction, tap the Apple Pay button to confirm the amount with Face ID or Touch ID — no card entry needed.",
+                                pl: "Dodając transakcję, dotknij przycisku Apple Pay, aby potwierdzić kwotę Face ID lub Touch ID — bez wpisywania karty."},
+  "ob.note":                 { en: "Note:",                           pl: "Uwaga:"                            },
+  "ob.cross_app":            { en: "Apple restricts cross-app data on all devices, so Budger cannot auto-import payments made in other apps (Maps, App Store, etc.). Each transaction is logged manually — it takes just a few seconds.",
+                                pl: "Apple ogranicza dane między aplikacjami na wszystkich urządzeniach, więc Budger nie może automatycznie importować płatności z innych aplikacji (Mapy, App Store itp.). Każda transakcja jest logowana ręcznie — zajmuje to tylko kilka sekund."},
+  "ob.lets_go":              { en: "Let's go!",                       pl: "Zaczynajmy!"                       },
+  "ob.continue":             { en: "Continue →",                      pl: "Kontynuuj →"                       },
+  "ob.skip":                 { en: "Skip for now",                    pl: "Pomiń na razie"                    },
+  "ob.can_skip":             { en: "You can always change this later", pl: "Możesz to zmienić w dowolnym momencie"},
+  // Stay signed in step
+  "ob.stay_signed_in":       { en: "Stay signed in?",                 pl: "Pozostać zalogowanym?"             },
+  "ob.stay_signed_in_desc":  { en: "If yes, Budger will remember you when you return. If no, you'll be signed out whenever the app is closed.",
+                                pl: "Jeśli tak, Budger zapamięta Cię po powrocie. Jeśli nie, zostaniesz wylogowany po zamknięciu aplikacji."},
+  "ob.stay_change_later":    { en: "This can be toggled anytime in Preferences.", pl: "Możesz to zmienić w Preferencjach."},
+  "ob.yes_stay":             { en: "Yes, keep me signed in",          pl: "Tak, pozostań zalogowanym"         },
+  "ob.no_sign_out":          { en: "No, sign me out on close",        pl: "Nie, wyloguj mnie po zamknięciu"   },
+  // Budget step
+  "ob.monthly_budget":       { en: "Monthly budget",                  pl: "Miesięczny budżet"                 },
+  "ob.budget_desc":          { en: "Set your total monthly spending limit — you can skip and set this later.",
+                                pl: "Ustaw miesięczny limit wydatków — możesz pominąć i ustawić później."},
+  "ob.budget_placeholder":   { en: "e.g. 3000",                       pl: "np. 3000"                          },
+  // Wallet step
+  "ob.wallet_title":         { en: "Connect to Wallet",               pl: "Połącz z Portfelem"                },
+  "ob.wallet_subtitle":      { en: "Learn how to link Budger with Apple Wallet", pl: "Dowiedz się, jak połączyć Budger z Apple Wallet"},
+  "ob.wallet_s1_title":      { en: "Open Apple Wallet",               pl: "Otwórz Apple Wallet"               },
+  "ob.wallet_s1_desc":       { en: "This is a placeholder — full Wallet integration instructions coming soon. Open the Apple Wallet app on your iPhone to get started.",
+                                pl: "To jest zastępczy ekran — pełna instrukcja integracji z Portfelem pojawi się wkrótce. Otwórz aplikację Apple Wallet na iPhonie."},
+  "ob.wallet_s2_title":      { en: "Add your cards",                  pl: "Dodaj swoje karty"                 },
+  "ob.wallet_s2_desc":       { en: "Placeholder: detailed setup steps for linking your payment cards will appear here after the feature is fully developed.",
+                                pl: "Zastępczy ekran: szczegółowe kroki konfiguracji połączenia kart płatniczych pojawią się tutaj po pełnym wdrożeniu funkcji."},
+  "ob.wallet_s3_title":      { en: "You're ready!",                   pl: "Gotowe!"                           },
+  "ob.wallet_s3_desc":       { en: "Placeholder: once connected, your Wallet transactions will appear automatically in Budger. Full instructions coming soon.",
+                                pl: "Zastępczy ekran: po połączeniu transakcje z Portfela będą automatycznie pojawiać się w Budger. Pełna instrukcja wkrótce."},
+  "ob.prev":                 { en: "Previous",                        pl: "Poprzedni"                         },
+  "ob.next":                 { en: "Next",                            pl: "Następny"                          },
+  // Notifications step
+  "ob.notif_title":          { en: "Enable notifications",            pl: "Włącz powiadomienia"               },
+  "ob.notif_desc":           { en: "Get daily reminders to log your spending and alerts when you're close to your budget.",
+                                pl: "Otrzymuj codzienne przypomnienia o logowaniu wydatków i alerty, gdy zbliżasz się do budżetu."},
+  "ob.notif_enable_btn":     { en: "Enable notifications",            pl: "Włącz powiadomienia"               },
+  "ob.notif_enabling":       { en: "Enabling…",                       pl: "Włączanie…"                        },
+  "ob.notif_enabled":        { en: "Notifications are enabled! 🎉",   pl: "Powiadomienia są włączone! 🎉"     },
+  "ob.notif_denied":         { en: "Permission denied. Enable notifications in your device settings to use this feature.",
+                                pl: "Odmowa dostępu. Włącz powiadomienia w ustawieniach urządzenia, aby korzystać z tej funkcji."},
+  "ob.skip_notif":           { en: "Skip — I'll do this later",       pl: "Pomiń — zrobię to później"         },
 
   // ── Invite ──
   "invite.revoked":      { en: "Invite revoked",               pl: "Zaproszenie odwołane"         },
@@ -307,6 +368,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "invite.join_btn":     { en: "Join {name}",                  pl: "Dołącz do {name}"             },
   "invite.joining":      { en: "Joining...",                   pl: "Dołączanie..."                },
   "invite.expires":      { en: "Expires {date}",               pl: "Wygasa {date}"                },
+  "invite.go_to_login":  { en: "Log in or create account",     pl: "Zaloguj się lub utwórz konto" },
 
   // ── Currency conversion ──
   "currency.converting": { en: "Converting currency…",         pl: "Przeliczanie waluty…"         },
@@ -475,8 +537,14 @@ export function getDayLabels(): string[] {
     : ["M","T","W","T","F","S","S"];
 }
 
+/** Temporarily override the active language without saving prefs (for live preview) */
+let _langOverride: Lang | null = null;
+export function setLang(lang: Lang) {
+  _langOverride = lang;
+}
+
 export function t(key: string, params?: Record<string, string | number>): string {
-  const lang = loadPrefs().language as Lang;
+  const lang = _langOverride ?? (loadPrefs().language as Lang);
   let str = translations[key]?.[lang] ?? translations[key]?.["en"] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {

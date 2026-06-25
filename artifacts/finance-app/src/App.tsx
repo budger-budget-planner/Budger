@@ -16,7 +16,16 @@ import GoalsPage from "@/pages/Goals";
 import HouseholdPage from "@/pages/Household";
 import NotificationsPage from "@/pages/Notifications";
 import InvitePage from "@/pages/Invite";
-import { isOnboardingDone, markOnboardingDone, savePrefs, type AppPrefs } from "@/lib/prefs";
+import {
+  isOnboardingDone,
+  markOnboardingDone,
+  savePrefs,
+  loadPrefs,
+  hasActiveSession,
+  clearSession,
+  type AppPrefs,
+} from "@/lib/prefs";
+import { useLogout } from "@workspace/api-client-react";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -30,11 +39,42 @@ function SmartNotificationsRunner() {
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe();
   const [, navigate] = useLocation();
+  const logout = useLogout();
   const [onboarded, setOnboarded] = useState(isOnboardingDone);
+  // Track whether onboarding should show (set by login event when isFirstLogin=true)
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) navigate("/login");
+    if (!isLoading && !user) {
+      navigate("/login");
+      return;
+    }
+    if (user) {
+      const prefs = loadPrefs();
+      // If staySignedIn=false and no active session (new browser session) → sign out
+      if (!prefs.staySignedIn && !hasActiveSession()) {
+        clearSession();
+        logout.mutate({} as any, {
+          onSettled: () => {
+            queryClient.clear();
+            navigate("/login");
+          },
+        });
+      }
+    }
   }, [isLoading, user, navigate]);
+
+  // Listen for login event to trigger onboarding for first-time users
+  useEffect(() => {
+    function onLogin(e: Event) {
+      const { isFirstLogin } = (e as CustomEvent).detail ?? {};
+      if (isFirstLogin && !isOnboardingDone()) {
+        setShowOnboarding(true);
+      }
+    }
+    window.addEventListener("budger:login", onLogin);
+    return () => window.removeEventListener("budger:login", onLogin);
+  }, []);
 
   if (isLoading) {
     return (
@@ -45,13 +85,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   if (!user) return null;
 
-  if (!onboarded) {
+  // Server is the source of truth: if firstLoginDone is true, user has been onboarded
+  // (handles the case where a returning user opens the app on a new device without localStorage)
+  const serverSaysOnboarded = user.firstLoginDone === true;
+
+  if (showOnboarding || (!serverSaysOnboarded && !isOnboardingDone())) {
     return (
       <Onboarding
         onComplete={(prefs: AppPrefs) => {
           savePrefs(prefs);
           markOnboardingDone();
           setOnboarded(true);
+          setShowOnboarding(false);
         }}
       />
     );
@@ -72,7 +117,6 @@ function AppRoutes() {
       <Route path="/invite/:token" component={InvitePage} />
       {/*
         wouter v3: <Route> with NO path is an unconditional catch-all (always matches).
-        "/:rest*" does NOT match bare "/" so it can't be used here.
       */}
       <Route>
         <AuthGuard>

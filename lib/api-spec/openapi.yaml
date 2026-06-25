@@ -72,11 +72,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered and logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          description: Email already in use
+
   /auth/login:
     post:
       operationId: login
       tags: [auth]
-      summary: Login with email and name
+      summary: Login with email and password
       requestBody:
         required: true
         content:
@@ -90,6 +111,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+        "404":
+          description: No account found for this email
 
   /auth/logout:
     post:
@@ -886,8 +911,16 @@ components:
           type: integer
         name:
           type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
         email:
           type: string
+        status:
+          type: string
+        firstLoginDone:
+          type: boolean
         householdId:
           type: ["integer", "null"]
         dashboardBlocked:
@@ -898,6 +931,8 @@ components:
         - id
         - name
         - email
+        - status
+        - firstLoginDone
         - householdId
         - dashboardBlocked
         - createdAt
@@ -915,15 +950,36 @@ components:
     LoginInput:
       type: object
       required:
-        - name
         - email
+        - password
       properties:
-        name:
+        email:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+
+    RegisterInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
           type: string
           minLength: 1
         email:
           type: string
           minLength: 1
+        password:
+          type: string
+          minLength: 4
 
     Category:
       type: object

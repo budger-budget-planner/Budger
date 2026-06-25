@@ -5,7 +5,12 @@ import { z } from "zod/v4";
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   email: text("email").notNull().unique(),
+  passwordHash: text("password_hash"),
+  status: text("status").notNull().default("normal"),
+  firstLoginDone: boolean("first_login_done").notNull().default(false),
   householdId: integer("household_id"),
   dashboardBlocked: boolean("dashboard_blocked").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
