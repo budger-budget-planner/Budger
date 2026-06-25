@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
 
   const [screen, setScreen] = useState<Screen>("start");
+  // Set to true after successful registration so the start screen can show a success banner
+  const [justRegistered, setJustRegistered] = useState(false);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -75,13 +77,15 @@ export default function LoginPage() {
   const register = useRegister({
     mutation: {
       onSuccess: () => {
-        markSession();
-        // New users always need onboarding — store flag in sessionStorage
-        // so AuthGuard reads it after navigating to "/"
-        clearOnboardingDone();
-        setPendingOnboarding();
+        // After registration, return to the start screen so the user logs in manually.
+        // Onboarding is triggered by the login handler (when firstLoginDone is false),
+        // NOT by registration — this ensures language chosen on the start screen is
+        // carried into onboarding correctly.
+        setJustRegistered(true);
+        setLoginEmail(signupEmail.trim());
+        setScreen("start");
+        // Invalidate any stale queries but do NOT navigate to "/" yet
         queryClient.invalidateQueries();
-        setLocation("/");
       },
       onError: (err: any) => {
         const msg = err?.response?.data?.error ?? err?.message ?? "";
@@ -184,6 +188,14 @@ export default function LoginPage() {
               </button>
             ))}
           </div>
+
+          {/* Account-created success banner */}
+          {justRegistered && (
+            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
+              <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
+            </div>
+          )}
 
           {/* Logo */}
           <div className="flex flex-col items-center gap-4">

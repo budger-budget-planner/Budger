@@ -292,6 +292,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "login.email_taken":      { en: "This email is already registered. Please log in.", pl: "Ten adres e-mail jest już zarejestrowany. Zaloguj się."},
   "login.register_failed":  { en: "Registration failed. Please try again.", pl: "Rejestracja nie powiodła się. Spróbuj ponownie."},
   "login.creating":         { en: "Creating account…", pl: "Tworzenie konta…"     },
+  "login.account_created":  { en: "Account created!",  pl: "Konto utworzone!"     },
+  "login.account_created_sub": { en: "Sign in to set up your account.", pl: "Zaloguj się, aby skonfigurować konto." },
 
   // ── Onboarding ──
   "ob.welcome":              { en: "Welcome to Budger!",              pl: "Witaj w Budger!"                   },

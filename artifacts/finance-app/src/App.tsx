@@ -83,15 +83,20 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   if (!user) return null;
 
+  // Server is the source of truth for onboarding status.
+  const serverSaysOnboarded = user.firstLoginDone === true;
+
   // ── Server → localStorage sync (run once per user, not on every render) ──
-  // This applies the server's per-user settings (budget, language) to local state.
   // Gated by userId so it runs once on login and whenever the user changes.
-  if (syncedUserIdRef.current !== user.id) {
+  // Also gated by serverSaysOnboarded: until onboarding completes, the server
+  // has only default values (e.g. language = "en") — syncing them would overwrite
+  // the user's locally-chosen language before onboarding even shows.
+  if (syncedUserIdRef.current !== user.id && serverSaysOnboarded) {
     syncedUserIdRef.current = user.id;
     const prefs = loadPrefs();
     let updated = { ...prefs };
 
-    // Budget: server is source of truth; only apply if server has a definitive value
+    // Budget: server is source of truth
     const serverBudget = (user as any).totalBudget;
     if (serverBudget !== undefined) {
       const budgetNum = serverBudget != null ? parseFloat(String(serverBudget)) : null;
@@ -110,12 +115,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Server is the source of truth: if firstLoginDone is true, user has been onboarded.
-  // We only fall back to the localStorage flag for the rare case where the server
-  // hasn't yet updated firstLoginDone (e.g. mid-onboarding refresh).
-  const serverSaysOnboarded = user.firstLoginDone === true;
-
-  if (showOnboarding || (!serverSaysOnboarded && !isOnboardingDone())) {
+  // Onboarding is shown ONLY when explicitly triggered by the login handler
+  // via the sessionStorage flag (setPendingOnboarding). This ensures onboarding
+  // is never shown immediately after registration — the user must log in first.
+  if (showOnboarding) {
     return (
       <Onboarding
         onComplete={(prefs: AppPrefs) => {
