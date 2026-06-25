@@ -575,93 +575,109 @@ export default function HomeSpending() {
   return (
     <div className="flex flex-col min-h-full">
 
-      {/* ── Total budget banner ── */}
+      {/* ── Unified summary card ── */}
       <div className="px-5 pt-4 pb-0">
-        {totalBudget == null ? (
-          <button
-            onClick={() => { setBudgetInput(""); setBudgetOpen(true); }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
-                       bg-white/5 border border-white/10 text-left transition active:opacity-70"
-            data-testid="button-set-budget"
-          >
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-              <Target className="w-4 h-4 text-white/50" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">{t("home.set_budget")}</p>
-              <p className="text-xs text-white/40">{t("home.track_how_close")}</p>
-            </div>
-            <Plus className="w-4 h-4 text-white/30 flex-shrink-0" />
-          </button>
-        ) : (
-          <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-white/50" />
-                <span className="text-sm font-medium">{t("home.monthly_budget")}</span>
-              </div>
+        <div className="rounded-2xl bg-card border border-border px-5 py-4 space-y-3">
+          {totalBudget == null ? (
+            <>
+              {/* No budget: CTA row */}
               <button
-                className="text-xs text-white/40 hover:text-white/70"
-                onClick={() => { setBudgetInput(String(totalBudget)); setBudgetOpen(true); }}
+                onClick={() => { setBudgetInput(""); setBudgetOpen(true); }}
+                className="w-full flex items-center gap-3 py-1 text-left transition active:opacity-70"
+                data-testid="button-set-budget"
               >
-                {t("common.edit")}
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 text-white/50" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{t("home.set_budget")}</p>
+                  <p className="text-xs text-white/40">{t("home.track_how_close")}</p>
+                </div>
+                <Plus className="w-4 h-4 text-white/30 flex-shrink-0" />
               </button>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</span>
-              <span className="text-sm text-white/40">{t("common.of")} {fmtAmt(totalBudget, prefs.currency)}</span>
-            </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${budgetPct}%`,
-                  backgroundColor: total > totalBudget ? "#f87171" : "#818cf8",
-                }}
-              />
-            </div>
-            <p className={`text-xs ${remaining != null && remaining < 0 ? "text-red-400" : "text-white/40"}`}>
-              {remaining != null && remaining >= 0
-                ? prefs.language === "pl"
-                  ? `${t("common.remaining")} ${fmtAmt(remaining, prefs.currency)}`
-                  : `${fmtAmt(remaining, prefs.currency)} ${t("common.remaining")}`
-                : remaining != null
-                  ? `${fmtAmt(-remaining, prefs.currency)} ${t("common.over_budget")}`
-                  : ""}
-            </p>
-          </div>
-        )}
+              {/* Divider */}
+              <div className="border-t border-border" />
+              {/* Stats row */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
+                  <p className="text-3xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
+                  <p className="text-3xl font-bold">{sorted.length}</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Budget headline */}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("home.monthly_budget")}</p>
+                <button
+                  className="text-xs text-white/40 hover:text-white/70 transition"
+                  onClick={() => { setBudgetInput(String(totalBudget)); setBudgetOpen(true); }}
+                >
+                  {t("common.edit")}
+                </button>
+              </div>
+              <p className="text-3xl font-bold leading-tight">{fmtAmt(totalBudget, prefs.currency)}</p>
+
+              {/* Progress bar */}
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${budgetPct}%`, backgroundColor: total > totalBudget ? "#f87171" : "#818cf8" }}
+                  />
+                </div>
+                <p className={`text-xs ${remaining != null && remaining < 0 ? "text-red-400" : "text-white/40"}`}>
+                  {remaining != null && remaining >= 0
+                    ? prefs.language === "pl"
+                      ? `${t("common.remaining")} ${fmtAmt(remaining, prefs.currency)}`
+                      : `${fmtAmt(remaining, prefs.currency)} ${t("common.remaining")}`
+                    : remaining != null
+                      ? `${fmtAmt(-remaining, prefs.currency)} ${t("common.over_budget")}`
+                      : ""}
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Spent + entries row */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
+                  <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
+                  <p className="text-2xl font-bold">{sorted.length}</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ── Month header ── */}
-      <div className="px-5 pt-4 pb-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* ── Month navigation ── */}
+      <div className="px-5 pt-3 pb-0">
+        <div className="flex items-center justify-between bg-card border border-border rounded-2xl px-3 py-2.5">
           <button onClick={() => setViewDate(d => subMonths(d, 1))}
-            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center transition active:scale-90">
+            className="w-9 h-9 rounded-full flex items-center justify-center transition active:scale-90 hover:bg-muted">
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div className="text-center">
-            <p className="text-lg font-bold text-foreground">{fmtMonthYear(viewDate)}</p>
-            {isCurrentMonth && <p className="text-xs text-muted-foreground">{t("home.current_month")}</p>}
+            <p className="text-base font-bold text-foreground">{fmtMonthYear(viewDate)}</p>
+            {isCurrentMonth && <p className="text-[10px] text-muted-foreground">{t("home.current_month")}</p>}
           </div>
           <button
             onClick={() => setViewDate(d => addMonths(d, 1))}
             disabled={isCurrentMonth}
-            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center transition active:scale-90 disabled:opacity-30">
+            className="w-9 h-9 rounded-full flex items-center justify-center transition active:scale-90 hover:bg-muted disabled:opacity-30">
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
-        </div>
-
-        {/* Total card */}
-        <div className="bg-card border border-border rounded-2xl px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
-            <p className="text-3xl font-bold text-foreground">{fmtAmt(total, prefs.currency)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
-            <p className="text-3xl font-bold text-foreground">{sorted.length}</p>
-          </div>
         </div>
       </div>
 
