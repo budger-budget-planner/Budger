@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
@@ -26,6 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showProfile, setShowProfile] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
+  const [rates, setRates]             = useState<Record<string, number> | null>(null);
 
   const logout = useLogout({
     mutation: {
@@ -76,8 +77,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.location.reload();
   }
 
-  const currencyLabel = CURRENCIES.find(c => c.code === prefs.currency)?.label ?? prefs.currency;
-  const languageLabel = LANGUAGES.find(l => l.code === prefs.language)?.label ?? prefs.language;
+  useEffect(() => {
+    if (showProfile && !rates) {
+      fetchRates().then(setRates);
+    }
+  }, [showProfile]);
+
   const nav = navItems();
 
   return (
@@ -122,54 +127,85 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="h-px bg-border" />
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {t("profile.preferences")}
               </p>
 
               {/* Currency */}
-              <div className="flex items-center gap-3 py-1">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{t("profile.currency")}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {converting ? t("profile.converting") : currencyLabel}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {t("profile.currency")}
+                    {converting && <span className="ml-2 normal-case">{t("profile.converting")}</span>}
                   </p>
                 </div>
-                <select
-                  value={prefs.currency}
-                  onChange={e => changeCurrency(e.target.value)}
-                  disabled={converting}
-                  className="bg-muted border border-border rounded-lg px-2 py-1.5 text-sm text-foreground
-                             appearance-none cursor-pointer min-w-0 max-w-[130px] truncate disabled:opacity-50"
-                >
-                  {CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  {CURRENCIES.map(c => {
+                    const isSelected = c.code === prefs.currency;
+                    const rate = rates ? getConversionRate(prefs.currency, c.code, rates) : null;
+                    const rateStr = rate != null
+                      ? rate < 0.01 ? rate.toFixed(4)
+                      : rate < 0.1  ? rate.toFixed(3)
+                      : rate.toFixed(2)
+                      : null;
+                    return (
+                      <button
+                        key={c.code}
+                        onClick={() => changeCurrency(c.code)}
+                        disabled={converting || isSelected}
+                        className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition active:scale-95 disabled:cursor-default ${
+                          isSelected
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-muted/40 text-foreground hover:bg-muted"
+                        } ${converting && !isSelected ? "opacity-40" : ""}`}
+                      >
+                        <span className="font-bold text-sm">{c.symbol} {c.code}</span>
+                        {isSelected ? (
+                          <span className={`text-[10px] mt-0.5 ${isSelected ? "opacity-60" : "opacity-50"}`}>
+                            {c.label.replace(/ \(.*\)/, "")}
+                          </span>
+                        ) : rateStr ? (
+                          <span className="text-[10px] mt-0.5 opacity-50 leading-tight">
+                            1 {prefs.currency} = {rateStr} {c.code}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] mt-0.5 opacity-30">—</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Language */}
-              <div className="flex items-center gap-3 py-1">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                  <Globe className="w-4 h-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {t("profile.language")}
+                  </p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{t("profile.language")}</p>
-                  <p className="text-xs text-muted-foreground truncate">{languageLabel}</p>
+                <div className="flex gap-2">
+                  {LANGUAGES.map(l => {
+                    const isSelected = l.code === prefs.language;
+                    return (
+                      <button
+                        key={l.code}
+                        onClick={() => changeLanguage(l.code)}
+                        disabled={isSelected}
+                        className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-default ${
+                          isSelected
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-muted/40 text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <select
-                  value={prefs.language}
-                  onChange={e => changeLanguage(e.target.value)}
-                  className="bg-muted border border-border rounded-lg px-2 py-1.5 text-sm text-foreground
-                             appearance-none cursor-pointer min-w-0 max-w-[130px]"
-                >
-                  {LANGUAGES.map(l => (
-                    <option key={l.code} value={l.code}>{l.label}</option>
-                  ))}
-                </select>
               </div>
             </div>
 
