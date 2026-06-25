@@ -383,6 +383,7 @@ export const RemoveHouseholdMemberParams = zod.object({
 
 export const CreateInviteBody = zod.object({
   email: zod.string().min(1),
+  goalIds: zod.array(zod.number()).optional(),
 });
 
 /**
@@ -401,6 +402,23 @@ export const ListInvitesResponseItem = zod.object({
 export const ListInvitesResponse = zod.array(ListInvitesResponseItem);
 
 /**
+ * @summary List pending invites addressed to the current user's email
+ */
+export const ListIncomingInvitesResponseItem = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  token: zod.string(),
+  householdId: zod.number(),
+  householdName: zod.string().nullable(),
+  status: zod.string(),
+  expiresAt: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListIncomingInvitesResponse = zod.array(
+  ListIncomingInvitesResponseItem,
+);
+
+/**
  * @summary Accept a household invite
  */
 export const AcceptInviteParams = zod.object({
@@ -413,6 +431,13 @@ export const AcceptInviteResponse = zod.object({
   ownerId: zod.number(),
   budget: zod.number().nullable(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Decline a household invite
+ */
+export const DeclineInviteParams = zod.object({
+  token: zod.coerce.string(),
 });
 
 /**

@@ -35,11 +35,23 @@ router.post("/invites", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "You must be in a household to invite" }); return; }
 
+  const email = parsed.data.email.trim().toLowerCase();
+
+  const [invitedUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!invitedUser) {
+    res.status(422).json({ error: "USER_NOT_FOUND" });
+    return;
+  }
+  if (invitedUser.householdId) {
+    res.status(422).json({ error: "USER_IN_HOUSEHOLD" });
+    return;
+  }
+
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const [invite] = await db.insert(invitesTable).values({
-    email: parsed.data.email,
+    email,
     token,
     householdId: user.householdId,
     expiresAt,
@@ -63,6 +75,27 @@ router.get("/invites", async (req, res): Promise<void> => {
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
 
   res.json(invites.map(i => enrichInvite(i, household)));
+});
+
+router.get("/invites/incoming", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.json([]); return; }
+
+  const now = new Date();
+  const invites = await db.select().from(invitesTable)
+    .where(and(eq(invitesTable.email, user.email), eq(invitesTable.status, "pending")));
+
+  const active = invites.filter(i => i.expiresAt > now);
+
+  const results = await Promise.all(active.map(async invite => {
+    const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));
+    return enrichInvite(invite, household);
+  }));
+
+  res.json(results);
 });
 
 router.get("/invites/:token", async (req, res): Promise<void> => {
@@ -112,6 +145,17 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));
   res.json({ ...household, createdAt: household.createdAt.toISOString() });
+});
+
+router.post("/invites/:token/decline", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const params = CancelInviteParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  await db.update(invitesTable).set({ status: "declined" }).where(eq(invitesTable.token, params.data.token));
+  res.sendStatus(204);
 });
 
 router.delete("/invites/:token", async (req, res): Promise<void> => {

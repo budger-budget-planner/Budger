@@ -25,6 +25,8 @@ export * from "./householdInput";
 export * from "./householdMember";
 export * from "./householdUpdate";
 export * from "./invite";
+export * from "./inviteError";
+export * from "./inviteErrorError";
 export * from "./inviteInput";
 export * from "./listGoalContributionsParams";
 export * from "./listTransactionsParams";

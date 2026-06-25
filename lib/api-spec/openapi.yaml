@@ -470,6 +470,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Invite"
+        "422":
+          description: User not found or already in a household
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteError"
     get:
       operationId: listInvites
       tags: [invites]
@@ -477,6 +483,21 @@ paths:
       responses:
         "200":
           description: Invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invite"
+
+  /invites/incoming:
+    get:
+      operationId: listIncomingInvites
+      tags: [invites]
+      summary: List pending invites addressed to the current user's email
+      responses:
+        "200":
+          description: Incoming invites
           content:
             application/json:
               schema:
@@ -502,6 +523,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Household"
+
+  /invites/{token}/decline:
+    post:
+      operationId: declineInvite
+      tags: [invites]
+      summary: Decline a household invite
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Declined
 
   /invites/{token}:
     get:
@@ -1125,6 +1161,15 @@ components:
           type: array
           items:
             type: integer
+
+    InviteError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [USER_NOT_FOUND, USER_IN_HOUSEHOLD]
 
     NotificationSettings:
       type: object

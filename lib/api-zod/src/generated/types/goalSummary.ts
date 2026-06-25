@@ -10,8 +10,6 @@ export interface GoalSummary {
   goalId: number;
   goalName: string;
   goalColor: string;
-  /** @nullable */
-  householdId: number | null;
   budget: number;
   deadline: string;
   divideByMonths: boolean;

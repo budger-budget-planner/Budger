@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
-import { useLogout, useGetMe } from "@workspace/api-client-react";
+import { useLogout, useGetMe, useListIncomingInvites } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
@@ -23,6 +23,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location]     = useLocation();
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
+  const { data: incomingInvites } = useListIncomingInvites();
+  const hasInvitations = (incomingInvites?.length ?? 0) > 0;
   const [showProfile, setShowProfile] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
@@ -237,16 +239,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       flex items-stretch">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
+          const isHousehold = href === "/household";
+          const showBadge = isHousehold && hasInvitations;
           return (
             <Link
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors
-                          ${active ? "text-foreground" : "text-muted-foreground"}`}
+                          ${active ? "text-foreground" : showBadge ? "text-pink-400" : "text-muted-foreground"}`}
               data-testid={`nav-${href.replace("/", "") || "home"}`}
             >
-              <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-muted" : ""}`}>
+              <div className={`relative p-1.5 rounded-xl transition-colors ${active ? "bg-muted" : ""}`}>
                 <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.6} />
+                {showBadge && (
+                  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-pink-500 border border-black" />
+                )}
               </div>
               <span className="text-[10px] font-medium leading-none">{label}</span>
             </Link>

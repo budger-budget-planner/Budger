@@ -4,10 +4,13 @@ import {
   useGetHousehold,
   useListHouseholdMembers,
   useListInvites,
+  useListIncomingInvites,
   useCreateHousehold,
   useUpdateHousehold,
   useCreateInvite,
   useCancelInvite,
+  useAcceptInvite,
+  useDeclineInvite,
   useRemoveHouseholdMember,
   useLeaveHousehold,
   useGetMe,
@@ -18,6 +21,7 @@ import {
   getGetHouseholdQueryKey,
   getListHouseholdMembersQueryKey,
   getListInvitesQueryKey,
+  getListIncomingInvitesQueryKey,
   getGetMeQueryKey,
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
@@ -25,7 +29,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
-  Lock, Eye, EyeOff, Pencil, Target, Trash2,
+  Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,12 +155,14 @@ export default function HouseholdPage() {
   const { data: household, isLoading: householdLoading } = useGetHousehold();
   const { data: members } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
+  const { data: incomingInvites } = useListIncomingInvites();
   const { data: goals } = useListGoals();
   const { data: goalSummary } = useGetGoalsSummary({});
 
   const [createOpen, setCreateOpen]   = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
   const [inviteOpen, setInviteOpen]         = useState(false);
+  const [inviteResult, setInviteResult] = useState<"sent" | "no_user" | "in_household" | null>(null);
   const [deleteHouseholdOpen, setDeleteHouseholdOpen] = useState(false);
   const [deletingHousehold, setDeletingHousehold]     = useState(false);
   const [householdName, setHouseholdName]   = useState("");
@@ -184,19 +190,22 @@ export default function HouseholdPage() {
       },
     },
   });
-  const createInvite = useCreateInvite({
+  const createInvite = useCreateInvite();
+  const cancelInvite = useCancelInvite({
+    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() }) },
+  });
+  const acceptIncoming = useAcceptInvite({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-        setInviteOpen(false);
-        setInviteEmail("");
+        queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
+        invalidateHousehold(queryClient);
       },
     },
   });
-  const cancelInvite = useCancelInvite({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() }) },
+  const declineIncoming = useDeclineInvite({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() }),
+    },
   });
   const removeMember = useRemoveHouseholdMember({
     mutation: { onSuccess: () => invalidateHousehold(queryClient) },
@@ -207,6 +216,23 @@ export default function HouseholdPage() {
   const updateMe = useUpdateMe({
     mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
   });
+
+  async function handleInviteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    try {
+      await createInvite.mutateAsync({ data: { email: inviteEmail.trim() } });
+      queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() });
+      setInviteResult("sent");
+    } catch (err: any) {
+      const code = err?.data?.error;
+      if (code === "USER_NOT_FOUND") {
+        setInviteResult("no_user");
+      } else if (code === "USER_IN_HOUSEHOLD") {
+        setInviteResult("in_household");
+      }
+    }
+  }
 
   function copyInviteLink(token: string) {
     const base = window.location.origin + import.meta.env.BASE_URL;
@@ -259,6 +285,52 @@ export default function HouseholdPage() {
         <h1 className="text-xl font-bold">{t("hh.title")}</h1>
         <p className="text-sm text-white/40 mt-0.5">{t("hh.subtitle")}</p>
       </div>
+
+      {/* ── Incoming invitations (shown always, above household content) ── */}
+      {incomingInvites && incomingInvites.length > 0 && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-pink-500/20">
+              <Mail className="w-4 h-4 text-pink-400" />
+              <p className="text-sm font-semibold text-pink-300">
+                {t("hh.incoming_invites")} <span className="text-pink-400/70 font-normal">({incomingInvites.length})</span>
+              </p>
+            </div>
+            <div className="divide-y divide-pink-500/10">
+              {incomingInvites.map(inv => (
+                <div key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-4 h-4 text-pink-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{inv.householdName}</p>
+                    <p className="text-xs text-white/40">{t("hh.invite_from")}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
+                      disabled={acceptIncoming.isPending || declineIncoming.isPending}
+                      onClick={() => acceptIncoming.mutate({ token: inv.token })}
+                    >
+                      {t("hh.accept")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-3 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                      disabled={acceptIncoming.isPending || declineIncoming.isPending}
+                      onClick={() => declineIncoming.mutate({ token: inv.token })}
+                    >
+                      {t("hh.decline")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!household ? (
         <div className="px-4 mt-6">
@@ -643,39 +715,83 @@ export default function HouseholdPage() {
       </Dialog>
 
       {/* ── Invite dialog ── */}
-      <Dialog open={inviteOpen} onOpenChange={open => { setInviteOpen(open); if (!open) setInviteEmail(""); }}>
+      <Dialog open={inviteOpen} onOpenChange={open => {
+        setInviteOpen(open);
+        if (!open) { setInviteEmail(""); setInviteResult(null); }
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{t("hh.invite_title")}</DialogTitle></DialogHeader>
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              if (!inviteEmail.trim()) return;
-              createInvite.mutate({ data: { email: inviteEmail.trim() } });
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-1.5">
-              <Label>{t("hh.email_lbl")}</Label>
-              <Input
-                data-testid="input-invite-email"
-                type="email"
-                placeholder="friend@example.com"
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
 
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); }}>
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" className="flex-1" disabled={createInvite.isPending} data-testid="button-send-invite">
-                {createInvite.isPending ? t("common.saving") : t("hh.send_invite")}
+          {inviteResult === "sent" ? (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                <CheckCircle className="w-7 h-7 text-green-400" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-green-400">{t("hh.invite_sent")}</p>
+                <p className="text-sm text-white/50 mt-1">{inviteEmail}</p>
+              </div>
+              <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
+                {t("common.done")}
               </Button>
             </div>
-          </form>
+          ) : inviteResult === "no_user" ? (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center">
+                <XCircle className="w-7 h-7 text-red-400" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-red-400">Not found</p>
+                <p className="text-sm text-white/50 mt-1">{t("hh.no_user_found")}</p>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
+                  {t("common.cancel")}
+                </Button>
+                <Button className="flex-1" onClick={() => setInviteResult(null)}>Try again</Button>
+              </div>
+            </div>
+          ) : inviteResult === "in_household" ? (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-14 h-14 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <AlertCircle className="w-7 h-7 text-yellow-400" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-yellow-400">Already in a household</p>
+                <p className="text-sm text-white/50 mt-1">{t("hh.user_in_hh")}</p>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
+                  {t("common.cancel")}
+                </Button>
+                <Button className="flex-1" onClick={() => setInviteResult(null)}>Try again</Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleInviteSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>{t("hh.email_lbl")}</Label>
+                <Input
+                  data-testid="input-invite-email"
+                  type="email"
+                  placeholder="friend@example.com"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" className="flex-1" disabled={createInvite.isPending} data-testid="button-send-invite">
+                  {createInvite.isPending ? t("hh.sending") : t("hh.send_invite")}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

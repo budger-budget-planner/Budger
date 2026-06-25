@@ -36,6 +36,7 @@ import type {
   HouseholdMember,
   HouseholdUpdate,
   Invite,
+  InviteError,
   InviteInput,
   ListGoalContributionsParams,
   ListTransactionsParams,
@@ -2074,7 +2075,7 @@ export const createInvite = async (
 };
 
 export const getCreateInviteMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<InviteError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2115,13 +2116,13 @@ export type CreateInviteMutationResult = NonNullable<
   Awaited<ReturnType<typeof createInvite>>
 >;
 export type CreateInviteMutationBody = BodyType<InviteInput>;
-export type CreateInviteMutationError = ErrorType<unknown>;
+export type CreateInviteMutationError = ErrorType<InviteError>;
 
 /**
  * @summary Invite someone to the household
  */
 export const useCreateInvite = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<InviteError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2214,6 +2215,81 @@ export function useListInvites<
 }
 
 /**
+ * @summary List pending invites addressed to the current user's email
+ */
+export const getListIncomingInvitesUrl = () => {
+  return `/api/invites/incoming`;
+};
+
+export const listIncomingInvites = async (
+  options?: RequestInit,
+): Promise<Invite[]> => {
+  return customFetch<Invite[]>(getListIncomingInvitesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListIncomingInvitesQueryKey = () => {
+  return [`/api/invites/incoming`] as const;
+};
+
+export const getListIncomingInvitesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listIncomingInvites>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listIncomingInvites>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListIncomingInvitesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listIncomingInvites>>
+  > = ({ signal }) => listIncomingInvites({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listIncomingInvites>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListIncomingInvitesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listIncomingInvites>>
+>;
+export type ListIncomingInvitesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List pending invites addressed to the current user's email
+ */
+
+export function useListIncomingInvites<
+  TData = Awaited<ReturnType<typeof listIncomingInvites>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listIncomingInvites>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListIncomingInvitesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Accept a household invite
  */
 export const getAcceptInviteUrl = (token: string) => {
@@ -2295,6 +2371,90 @@ export const useAcceptInvite = <
   TContext
 > => {
   return useMutation(getAcceptInviteMutationOptions(options));
+};
+
+/**
+ * @summary Decline a household invite
+ */
+export const getDeclineInviteUrl = (token: string) => {
+  return `/api/invites/${token}/decline`;
+};
+
+export const declineInvite = async (
+  token: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeclineInviteUrl(token), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDeclineInviteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineInvite>>,
+    TError,
+    { token: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declineInvite>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  const mutationKey = ["declineInvite"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declineInvite>>,
+    { token: string }
+  > = (props) => {
+    const { token } = props ?? {};
+
+    return declineInvite(token, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclineInviteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declineInvite>>
+>;
+
+export type DeclineInviteMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Decline a household invite
+ */
+export const useDeclineInvite = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineInvite>>,
+    TError,
+    { token: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declineInvite>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  return useMutation(getDeclineInviteMutationOptions(options));
 };
 
 /**

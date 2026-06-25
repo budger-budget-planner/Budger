@@ -163,6 +163,19 @@ export interface Invite {
 export interface InviteInput {
   /** @minLength 1 */
   email: string;
+  goalIds?: number[];
+}
+
+export type InviteErrorError =
+  (typeof InviteErrorError)[keyof typeof InviteErrorError];
+
+export const InviteErrorError = {
+  USER_NOT_FOUND: "USER_NOT_FOUND",
+  USER_IN_HOUSEHOLD: "USER_IN_HOUSEHOLD",
+} as const;
+
+export interface InviteError {
+  error: InviteErrorError;
 }
 
 export interface NotificationSettings {

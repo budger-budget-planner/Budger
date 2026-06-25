@@ -5,9 +5,8 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { InviteErrorError } from "./inviteErrorError";
 
-export interface InviteInput {
-  /** @minLength 1 */
-  email: string;
-  goalIds?: number[];
+export interface InviteError {
+  error: InviteErrorError;
 }
