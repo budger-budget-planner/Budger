@@ -582,7 +582,7 @@ export default function GoalsPage() {
         <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-semibold">Goal Proposals</p>
+            <p className="text-sm font-semibold">{t("goals.proposals")}</p>
             <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
               {pendingProposals.length}
             </span>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import { fetchRates, getConversionRate } from "@/lib/rates";
@@ -25,6 +25,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetMe();
   const { data: incomingInvites } = useListIncomingInvites();
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
+
+  const { data: proposalsData } = useQuery<Array<{ id: number; status: string }>>({
+    queryKey: ["goal-proposals-badge"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasPendingProposals = (proposalsData ?? []).some(p => p.status === "pending");
   const [showProfile, setShowProfile] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
@@ -240,7 +251,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {nav.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           const isHousehold = href === "/household";
-          const showBadge = isHousehold && hasInvitations;
+          const isGoals = href === "/goals";
+          const showBadge = (isHousehold && hasInvitations) || (isGoals && hasPendingProposals);
           return (
             <Link
               key={href}

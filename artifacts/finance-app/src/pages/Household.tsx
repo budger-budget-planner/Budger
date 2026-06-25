@@ -60,29 +60,29 @@ function isChildRole(role: string): boolean {
 }
 
 function roleLabelShort(role: string): string {
-  if (isHeadRole(role)) return "Head";
-  if (role === "parent") return "Parent";
-  return "Child";
+  if (isHeadRole(role)) return t("hh.role_head");
+  if (role === "parent") return t("hh.role_parent");
+  return t("hh.role_child");
 }
 
 function RoleBadge({ role }: { role: string }) {
   if (isHeadRole(role)) {
     return (
       <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-300 bg-amber-300/10 rounded px-1.5 py-0.5">
-        <Crown className="w-2.5 h-2.5" /> Head
+        <Crown className="w-2.5 h-2.5" /> {t("hh.role_head")}
       </span>
     );
   }
   if (role === "parent") {
     return (
       <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-sky-300 bg-sky-300/10 rounded px-1.5 py-0.5">
-        <ShieldCheck className="w-2.5 h-2.5" /> Parent
+        <ShieldCheck className="w-2.5 h-2.5" /> {t("hh.role_parent")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-white/40 bg-white/5 rounded px-1.5 py-0.5">
-      <Baby className="w-2.5 h-2.5" /> Child
+      <Baby className="w-2.5 h-2.5" /> {t("hh.role_child")}
     </span>
   );
 }
@@ -162,7 +162,7 @@ function MemberSheet({
           {/* Role editor — only for head viewing non-self members */}
           {canEditRole && (
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
-              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Member role</p>
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("hh.role_label")}</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {(["head", "parent", "child"] as const).map(r => (
                   <button
@@ -177,14 +177,14 @@ function MemberSheet({
                     }`}
                   >
                     {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
-                    {r === "head" ? "Head" : r === "parent" ? "Parent" : "Child"}
+                    {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
                   </button>
                 ))}
               </div>
               <div className="text-[11px] text-white/30 leading-relaxed">
-                {selectedRole === "head" && "Full access. Can manage goals, roles, and see all dashboards."}
-                {selectedRole === "parent" && "Full access except cannot delete household goals. Can propose goals. Cannot see head's private dashboard."}
-                {selectedRole === "child" && "Can propose goals. Cannot see private dashboards or set their own private."}
+                {selectedRole === "head" && t("hh.role_head_desc_editor")}
+                {selectedRole === "parent" && t("hh.role_parent_desc_editor")}
+                {selectedRole === "child" && t("hh.role_child_desc_editor")}
               </div>
               {selectedRole !== member.role && (
                 <Button
@@ -193,7 +193,7 @@ function MemberSheet({
                   onClick={handleRoleSave}
                   disabled={savingRole}
                 >
-                  {savingRole ? "Saving…" : `Set as ${roleLabelShort(selectedRole)}`}
+                  {savingRole ? t("common.saving") : t("hh.set_as_role", { role: roleLabelShort(selectedRole) })}
                 </Button>
               )}
             </div>
@@ -201,7 +201,7 @@ function MemberSheet({
 
           {/* Spending breakdown */}
           <div>
-            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">This month's spending</p>
+            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -551,15 +551,15 @@ export default function HouseholdPage() {
           {/* ── My role badge ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
             <div className="flex-1">
-              <p className="text-xs text-white/40">Your role</p>
+              <p className="text-xs text-white/40">{t("hh.your_role")}</p>
               <div className="mt-1">
                 <RoleBadge role={myRole} />
               </div>
             </div>
             <div className="text-xs text-white/30 text-right max-w-[60%]">
-              {isHeadRole(myRole) && "Full access. Manage goals, roles, and members."}
-              {myRole === "parent" && "Can propose household goals. Head can always see your dashboard."}
-              {isChildRole(myRole) && "Can propose household goals. Cannot set a private dashboard."}
+              {isHeadRole(myRole) && t("hh.your_role_head_desc")}
+              {myRole === "parent" && t("hh.your_role_parent_desc")}
+              {isChildRole(myRole) && t("hh.your_role_child_desc")}
             </div>
           </div>
 
@@ -708,10 +708,10 @@ export default function HouseholdPage() {
                   <p className="text-xs text-white/40 mt-0.5">
                     {me?.dashboardBlocked
                       ? myRole === "parent"
-                        ? "Hidden from children. Head of household can still see."
-                        : "Hidden from all other members."
+                        ? t("hh.privacy_parent_on")
+                        : t("hh.privacy_head_on")
                       : myRole === "parent"
-                        ? "Visible to everyone. Head can always see yours."
+                        ? t("hh.privacy_parent_off")
                         : t("hh.visible")}
                   </p>
                 </div>
@@ -884,7 +884,7 @@ export default function HouseholdPage() {
               <div className="text-center">
                 <p className="font-semibold text-green-400">{t("hh.invite_sent")}</p>
                 <p className="text-sm text-white/50 mt-1">{inviteEmail}</p>
-                <p className="text-xs text-white/30 mt-0.5">as {roleLabelShort(inviteRole)}</p>
+                <p className="text-xs text-white/30 mt-0.5">{t("hh.invite_as_role", { role: roleLabelShort(inviteRole) })}</p>
               </div>
               <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); setInviteRole("child"); }}>
                 {t("common.done")}
@@ -896,14 +896,14 @@ export default function HouseholdPage() {
                 <XCircle className="w-7 h-7 text-red-400" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-red-400">Not found</p>
+                <p className="font-semibold text-red-400">{t("hh.not_found")}</p>
                 <p className="text-sm text-white/50 mt-1">{t("hh.no_user_found")}</p>
               </div>
               <div className="flex gap-2 w-full">
                 <Button variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
                   {t("common.cancel")}
                 </Button>
-                <Button className="flex-1" onClick={() => setInviteResult(null)}>Try again</Button>
+                <Button className="flex-1" onClick={() => setInviteResult(null)}>{t("hh.try_again")}</Button>
               </div>
             </div>
           ) : inviteResult === "in_household" ? (
@@ -912,14 +912,14 @@ export default function HouseholdPage() {
                 <AlertCircle className="w-7 h-7 text-yellow-400" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-yellow-400">Already in a household</p>
+                <p className="font-semibold text-yellow-400">{t("hh.already_in_hh")}</p>
                 <p className="text-sm text-white/50 mt-1">{t("hh.user_in_hh")}</p>
               </div>
               <div className="flex gap-2 w-full">
                 <Button variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
                   {t("common.cancel")}
                 </Button>
-                <Button className="flex-1" onClick={() => setInviteResult(null)}>Try again</Button>
+                <Button className="flex-1" onClick={() => setInviteResult(null)}>{t("hh.try_again")}</Button>
               </div>
             </div>
           ) : (
@@ -938,7 +938,7 @@ export default function HouseholdPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Role</Label>
+                <Label>{t("hh.role_invite_label")}</Label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {(["head", "parent", "child"] as const).map(r => (
                     <button
@@ -954,14 +954,14 @@ export default function HouseholdPage() {
                       }`}
                     >
                       {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
-                      {r === "head" ? "Head" : r === "parent" ? "Parent" : "Child"}
+                      {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
                     </button>
                   ))}
                 </div>
                 <p className="text-[11px] text-white/30 leading-relaxed">
-                  {inviteRole === "head" && "Full access. Can manage goals, members, and see all dashboards."}
-                  {inviteRole === "parent" && "Full access except cannot delete household goals. Can propose goals."}
-                  {inviteRole === "child" && "View-only for private dashboards. Can propose household goals."}
+                  {inviteRole === "head" && t("hh.invite_role_head_desc")}
+                  {inviteRole === "parent" && t("hh.invite_role_parent_desc")}
+                  {inviteRole === "child" && t("hh.invite_role_child_desc")}
                 </p>
               </div>
 
@@ -1005,7 +1005,7 @@ export default function HouseholdPage() {
                 onClick={() => setDeleteHouseholdOpen(false)}
                 disabled={deletingHousehold}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="button"
