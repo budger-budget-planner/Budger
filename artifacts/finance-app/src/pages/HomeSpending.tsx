@@ -534,12 +534,34 @@ export default function HomeSpending() {
   }
 
   const q = searchQuery.trim().toLowerCase();
+
+  function matchesDateQuery(raw: string, isoDate: string): boolean {
+    const normalised = raw.replace(/\//g, ".");
+    const parts = normalised.split(".");
+    if (parts.length === 3 && parts[2].length === 4) {
+      const [dd, mm, yyyy] = parts;
+      return isoDate === `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    }
+    if (parts.length === 2) {
+      if (parts[1].length === 4) {
+        const [mm, yyyy] = parts;
+        return isoDate.startsWith(`${yyyy}-${mm.padStart(2, "0")}`);
+      }
+      const [dd, mm] = parts;
+      if (dd && mm) {
+        return isoDate.endsWith(`-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`);
+      }
+    }
+    return false;
+  }
+
   const filtered = q
     ? sorted.filter(tx =>
         tx.description.toLowerCase().includes(q) ||
         (tx.categoryName ?? "").toLowerCase().includes(q) ||
         String(tx.amount).includes(q) ||
-        tx.date.includes(q)
+        tx.date.includes(q) ||
+        matchesDateQuery(q, tx.date)
       )
     : sorted;
 
