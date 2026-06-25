@@ -25,6 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetMe();
   const { data: incomingInvites } = useListIncomingInvites();
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
+  const hasHouseholdAlert = !!(user as any)?.pendingHouseholdAlert;
 
   const { data: proposalsData } = useQuery<Array<{ id: number; status: string }>>({
     queryKey: ["goal-proposals-badge"],
@@ -252,7 +253,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const active = isActive(href);
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
-          const showBadge = (isHousehold && hasInvitations) || (isGoals && hasPendingProposals);
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert)) || (isGoals && hasPendingProposals);
           return (
             <Link
               key={href}

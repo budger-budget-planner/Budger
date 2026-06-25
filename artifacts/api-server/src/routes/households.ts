@@ -288,13 +288,18 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
     res.status(403).json({ error: "Only the head of the household can remove members" }); return;
   }
 
+  // Fetch household name to store in alert for the removed user
+  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId));
+
   await db.delete(householdMembersTable).where(
     and(
       eq(householdMembersTable.userId, params.data.userId),
       eq(householdMembersTable.householdId, currentUser.householdId)
     )
   );
-  await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, params.data.userId));
+  await db.update(usersTable)
+    .set({ householdId: null, pendingHouseholdAlert: household?.name ?? "your household" })
+    .where(eq(usersTable.id, params.data.userId));
 
   res.sendStatus(204);
 });

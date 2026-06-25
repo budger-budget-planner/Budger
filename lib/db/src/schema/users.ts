@@ -14,6 +14,7 @@ export const usersTable = pgTable("users", {
   totalBudget: numeric("total_budget", { precision: 12, scale: 2 }),
   householdId: integer("household_id"),
   dashboardBlocked: boolean("dashboard_blocked").notNull().default(false),
+  pendingHouseholdAlert: text("pending_household_alert"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

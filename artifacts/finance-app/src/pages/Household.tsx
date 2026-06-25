@@ -104,21 +104,23 @@ function MemberSheet({
   isMe,
   viewerRole,
   onRoleChange,
+  onRemove,
 }: {
   member: MemberRow;
   onClose: () => void;
   isMe: boolean;
   viewerRole: string;
   onRoleChange?: (newRole: string) => void;
+  onRemove?: () => void;
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
   const [savingRole, setSavingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>(member.role);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const isViewerHead = isHeadRole(viewerRole);
   const canEditRole = isViewerHead && !isMe;
-
-  const blocked = !isMe && member.dashboardBlocked && !data;
+  const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
 
   async function handleRoleSave() {
     if (selectedRole === member.role) { onClose(); return; }
@@ -159,47 +161,7 @@ function MemberSheet({
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-          {/* Role editor — only for head viewing non-self members */}
-          {canEditRole && (
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
-              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("hh.role_label")}</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(["head", "parent", "child"] as const).map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setSelectedRole(r)}
-                    className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 border transition-colors text-xs font-medium ${
-                      selectedRole === r
-                        ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                          : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
-                          : "border-white/30 bg-white/10 text-white"
-                        : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
-                    }`}
-                  >
-                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
-                    {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
-                  </button>
-                ))}
-              </div>
-              <div className="text-[11px] text-white/30 leading-relaxed">
-                {selectedRole === "head" && t("hh.role_head_desc_editor")}
-                {selectedRole === "parent" && t("hh.role_parent_desc_editor")}
-                {selectedRole === "child" && t("hh.role_child_desc_editor")}
-              </div>
-              {selectedRole !== member.role && (
-                <Button
-                  size="sm"
-                  className="w-full h-8 text-xs"
-                  onClick={handleRoleSave}
-                  disabled={savingRole}
-                >
-                  {savingRole ? t("common.saving") : t("hh.set_as_role", { role: roleLabelShort(selectedRole) })}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Spending breakdown */}
+          {/* Spending breakdown — shown first */}
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
             {isLoading ? (
@@ -243,6 +205,83 @@ function MemberSheet({
               </>
             )}
           </div>
+
+          {/* Role editor — only for head viewing non-self members, shown below spending */}
+          {canEditRole && (
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("hh.role_label")}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(["head", "parent", "child"] as const).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setSelectedRole(r)}
+                    className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 border transition-colors text-xs font-medium ${
+                      selectedRole === r
+                        ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
+                          : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
+                          : "border-white/30 bg-white/10 text-white"
+                        : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
+                    }`}
+                  >
+                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
+                    {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] text-white/30 leading-relaxed">
+                {selectedRole === "head" && t("hh.role_head_desc_editor")}
+                {selectedRole === "parent" && t("hh.role_parent_desc_editor")}
+                {selectedRole === "child" && t("hh.role_child_desc_editor")}
+              </div>
+              {selectedRole !== member.role && (
+                <Button
+                  size="sm"
+                  className="w-full h-8 text-xs"
+                  onClick={handleRoleSave}
+                  disabled={savingRole}
+                >
+                  {savingRole ? t("common.saving") : t("hh.set_as_role", { role: roleLabelShort(selectedRole) })}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Remove from household — head only, for non-head members */}
+          {canRemove && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+              {!confirmRemove ? (
+                <button
+                  className="flex items-center gap-2 w-full text-red-400 text-sm font-medium"
+                  onClick={() => setConfirmRemove(true)}
+                >
+                  <Trash2 className="w-4 h-4 flex-shrink-0" />
+                  Remove {member.name} from household
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-red-300 font-medium">Remove {member.name}?</p>
+                  <p className="text-xs text-white/40">They will be notified and lose access to the household.</p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1 h-8 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                      onClick={() => setConfirmRemove(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white border-0"
+                      onClick={() => { onRemove?.(); onClose(); }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -401,6 +440,32 @@ export default function HouseholdPage() {
         <h1 className="text-xl font-bold">{t("hh.title")}</h1>
         <p className="text-sm text-white/40 mt-0.5">{t("hh.subtitle")}</p>
       </div>
+
+      {/* ── Household removal alert ── */}
+      {(me as any)?.pendingHouseholdAlert && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
+            <div className="flex items-start gap-3 px-4 py-4">
+              <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <X className="w-4 h-4 text-pink-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-pink-300">Removed from household</p>
+                <p className="text-xs text-white/50 mt-0.5">
+                  You were removed from <span className="text-white/80 font-medium">{(me as any).pendingHouseholdAlert}</span>.
+                </p>
+              </div>
+              <button
+                className="text-white/30 hover:text-white/70 p-1 flex-shrink-0"
+                onClick={() => updateMe.mutate({ data: { pendingHouseholdAlert: null } as any })}
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Incoming invitations ── */}
       {incomingInvites && incomingInvites.length > 0 && (
@@ -776,6 +841,9 @@ export default function HouseholdPage() {
           onClose={() => setSelectedMember(null)}
           onRoleChange={async (newRole) => {
             await handleRoleChange(selectedMember.userId, newRole);
+          }}
+          onRemove={() => {
+            removeMember.mutate({ userId: selectedMember.userId });
           }}
         />
       )}

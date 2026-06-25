@@ -61,6 +61,21 @@ export function clearSession() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
+const PENDING_ONBOARDING_KEY = "budger:pendingOnboarding";
+
+export function setPendingOnboarding() {
+  sessionStorage.setItem(PENDING_ONBOARDING_KEY, "1");
+}
+
+export function takePendingOnboarding(): boolean {
+  const val = sessionStorage.getItem(PENDING_ONBOARDING_KEY);
+  if (val) {
+    sessionStorage.removeItem(PENDING_ONBOARDING_KEY);
+    return true;
+  }
+  return false;
+}
+
 export function currencySymbol(currency: string): string {
   const map: Record<string, string> = {
     USD: "$", EUR: "€", GBP: "£", PLN: "zł",

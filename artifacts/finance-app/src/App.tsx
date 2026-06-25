@@ -19,11 +19,11 @@ import InvitePage from "@/pages/Invite";
 import {
   isOnboardingDone,
   markOnboardingDone,
-  clearOnboardingDone,
   savePrefs,
   loadPrefs,
   hasActiveSession,
   clearSession,
+  takePendingOnboarding,
   type AppPrefs,
 } from "@/lib/prefs";
 import { useLogout } from "@workspace/api-client-react";
@@ -42,7 +42,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [, navigate] = useLocation();
   const logout = useLogout();
   const [onboarded, setOnboarded] = useState(isOnboardingDone);
-  // Track whether onboarding should show (set by login event when isFirstLogin=true)
+  // Track whether onboarding should show (set when login/register sets sessionStorage flag)
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -61,24 +61,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
             navigate("/login");
           },
         });
+        return;
       }
-    }
-  }, [isLoading, user, navigate]);
-
-  // Listen for login event to trigger onboarding for first-time users.
-  // Always clear the local onboarding flag on any login so a new user on
-  // the same device gets fresh onboarding regardless of who logged in before.
-  useEffect(() => {
-    function onLogin(e: Event) {
-      const { isFirstLogin } = (e as CustomEvent).detail ?? {};
-      if (isFirstLogin) {
-        clearOnboardingDone(); // wipe previous user's flag
+      // Check sessionStorage flag set by Login.tsx before navigation
+      // This is the reliable way to detect first-login across the navigation boundary
+      if (takePendingOnboarding()) {
         setShowOnboarding(true);
       }
     }
-    window.addEventListener("budger:login", onLogin);
-    return () => window.removeEventListener("budger:login", onLogin);
-  }, []);
+  }, [isLoading, user, navigate]);
 
   if (isLoading) {
     return (

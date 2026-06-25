@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import BadgerLogo from "@/components/BadgerLogo";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
-import { LANGUAGES, loadPrefs, savePrefs, markSession } from "@/lib/prefs";
+import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone } from "@/lib/prefs";
 
 type Screen =
   | "start"          // email + language, login default / sign-up link
@@ -49,11 +49,13 @@ export default function LoginPage() {
     mutation: {
       onSuccess: (user) => {
         markSession();
+        // If firstLoginDone is false this is their first login — trigger onboarding
+        // via sessionStorage so AuthGuard picks it up after navigation
+        if (!user.firstLoginDone) {
+          clearOnboardingDone();
+          setPendingOnboarding();
+        }
         queryClient.invalidateQueries();
-        // Pass firstLoginDone flag via a custom event so App.tsx can trigger onboarding
-        window.dispatchEvent(new CustomEvent("budger:login", {
-          detail: { isFirstLogin: !user.firstLoginDone }
-        }));
         setLocation("/");
       },
       onError: (err: any) => {
@@ -74,11 +76,11 @@ export default function LoginPage() {
     mutation: {
       onSuccess: () => {
         markSession();
+        // New users always need onboarding — store flag in sessionStorage
+        // so AuthGuard reads it after navigating to "/"
+        clearOnboardingDone();
+        setPendingOnboarding();
         queryClient.invalidateQueries();
-        // New users always need onboarding
-        window.dispatchEvent(new CustomEvent("budger:login", {
-          detail: { isFirstLogin: true }
-        }));
         setLocation("/");
       },
       onError: (err: any) => {

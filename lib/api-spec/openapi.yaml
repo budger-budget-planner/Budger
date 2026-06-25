@@ -927,6 +927,8 @@ components:
           type: ["integer", "null"]
         dashboardBlocked:
           type: boolean
+        pendingHouseholdAlert:
+          type: ["string", "null"]
         createdAt:
           type: string
       required:
@@ -938,6 +940,7 @@ components:
         - totalBudget
         - householdId
         - dashboardBlocked
+        - pendingHouseholdAlert
         - createdAt
 
     UserUpdate:
@@ -951,6 +954,8 @@ components:
           type: boolean
         totalBudget:
           type: ["number", "null"]
+        pendingHouseholdAlert:
+          type: ["string", "null"]
 
     LoginInput:
       type: object

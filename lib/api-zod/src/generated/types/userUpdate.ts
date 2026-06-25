@@ -12,4 +12,6 @@ export interface UserUpdate {
   dashboardBlocked?: boolean;
   /** @nullable */
   totalBudget?: number | null;
+  /** @nullable */
+  pendingHouseholdAlert?: string | null;
 }
