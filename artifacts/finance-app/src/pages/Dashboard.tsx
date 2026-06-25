@@ -1,14 +1,12 @@
-import { useState } from "react";
 import {
   useGetSpendingSummary,
   useGetMonthlySummary,
-  useGetSpendingHistory,
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingDown, History, ChevronDown, ChevronRight, Target } from "lucide-react";
+import { TrendingDown, Target } from "lucide-react";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
@@ -24,67 +22,8 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
   );
 }
 
-function HistorySection({ currency }: { currency: string }) {
-  const { data: history, isLoading } = useGetSpendingHistory();
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  if (isLoading) return (
-    <div className="flex items-center justify-center py-8">
-      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
-  );
-  if (!history || history.length === 0) return (
-    <p className="text-sm text-muted-foreground text-center py-6">{t("dashboard.no_history")}</p>
-  );
-
-  return (
-    <div className="space-y-2">
-      {history.map(m => (
-        <div key={m.monthKey} className="border border-border rounded-xl overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/40 transition-colors"
-            onClick={() => setExpanded(e => e === m.monthKey ? null : m.monthKey)}
-          >
-            <div className="flex items-center gap-2">
-              {expanded === m.monthKey
-                ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-              <span className="font-medium text-sm">{localiseMonthStr(m.month)} {m.year}</span>
-              <span className="text-xs text-muted-foreground">{m.count} {t("dashboard.tx")}</span>
-            </div>
-            <span className="font-semibold text-sm">{fmtAmt(m.total, currency)}</span>
-          </button>
-          {expanded === m.monthKey && (
-            <div className="border-t border-border px-4 py-3 bg-muted/20 space-y-3">
-              {m.categories.map((cat, i) => (
-                <div key={cat.categoryId ?? "unc"} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: cat.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                      <span className="text-muted-foreground">{cat.categoryName ?? t("common.uncategorized")}</span>
-                      {cat.budget && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${cat.total > cat.budget ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                          {cat.total > cat.budget ? t("dashboard.over") : `${Math.round((cat.total / cat.budget) * 100)}%`}
-                        </span>
-                      )}
-                    </div>
-                    <span className="font-medium">{fmtAmt(cat.total, currency)}</span>
-                  </div>
-                  {cat.budget && <BudgetBar spent={cat.total} budget={cat.budget} color={cat.categoryColor ?? "#818cf8"} />}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const prefs     = loadPrefs();
-  const [historyOpen, setHistoryOpen] = useState(false);
   const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
   const { data: monthly }  = useGetMonthlySummary();
   const { data: goalsSummary } = useGetGoalsSummary({});
@@ -306,28 +245,6 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* History toggle */}
-      <button
-        onClick={() => setHistoryOpen(h => !h)}
-        className="w-full flex items-center justify-between px-4 py-3 mb-4
-                   bg-card border border-border rounded-2xl text-sm font-medium
-                   transition active:opacity-70"
-      >
-        <div className="flex items-center gap-2">
-          <History className="w-4 h-4 text-muted-foreground" />
-          <span>{t("dashboard.spending_history")}</span>
-        </div>
-        {historyOpen
-          ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-      </button>
-
-      {historyOpen && (
-        <div className="mb-4">
-          <HistorySection currency={prefs.currency} />
-        </div>
-      )}
 
     </div>
   );
