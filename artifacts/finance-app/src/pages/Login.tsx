@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useRegister } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +40,19 @@ export default function LoginPage() {
   const [signupPin, setSignupPin]     = useState("");
   const [confirmPin, setConfirmPin]   = useState("");
   const [signupError, setSignupError] = useState("");
+
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      const ratio = vv.height / window.innerHeight;
+      setKeyboardOpen(ratio < 0.75);
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
 
   function changeLang(code: string) {
     setLangState(code);
@@ -171,9 +184,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div className="flex flex-col items-center justify-between min-h-screen px-6 py-10">
+        <div className={`flex flex-col items-center px-6 py-10 transition-all duration-300 ${
+          keyboardOpen
+            ? "min-h-screen justify-center gap-6"
+            : "min-h-screen justify-between"
+        }`}>
           {/* Language picker */}
-          <div className="flex gap-2 self-end">
+          <div className={`flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
             {LANGUAGES.map(l => (
               <button
                 key={l.code}
@@ -197,8 +214,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Logo */}
-          <div className="flex flex-col items-center gap-4">
+          {/* Logo — hidden when keyboard is open */}
+          <div className={`flex flex-col items-center gap-4 ${keyboardOpen ? "hidden" : ""}`}>
             <div className="p-4 rounded-3xl bg-card border border-border shadow-xl">
               <BadgerLogo size={80} />
             </div>
@@ -246,7 +263,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <p className="text-xs text-muted-foreground/50">{t("login.footer")}</p>
+          <p className={`text-xs text-muted-foreground/50 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
         </div>
       )}
 

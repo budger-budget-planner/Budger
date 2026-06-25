@@ -297,7 +297,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-pink-500 border border-black" />
                 )}
               </div>
-              <span className="text-[10px] font-medium leading-none">{label}</span>
+              {active && (
+                <span className="text-[10px] font-medium leading-none">{label}</span>
+              )}
             </Link>
           );
         })}
