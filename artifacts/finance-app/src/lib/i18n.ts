@@ -218,7 +218,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.this_month":      { en: "This month",                  pl: "Ten miesiąc"                   },
   "hh.this_month_breakdown": { en: "This month's breakdown",  pl: "Zestawienie tego miesiąca"     },
   "hh.member_private_msg": { en: "This member has made their dashboard private.", pl: "Ten członek ustawił swój dashboard jako prywatny." },
-  "hh.dashboard_private_msg": { en: "Dashboard is private.",  pl: "Dashboard jest prywatny."      },
+  "hh.dashboard_private_msg": { en: "Dashboard is private.",  pl: "Pulpit jest prywatny."         },
   "hh.breakdown":       { en: "This month's breakdown",      pl: "Zestawienie tego miesiąca"      },
   "hh.total_this_month":{ en: "Total this month",            pl: "Łącznie ten miesiąc"            },
   "hh.budget_amount":   { en: "Budget amount",               pl: "Kwota budżetu"                  },
@@ -385,7 +385,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.deleting_tx":         { en: "Deleting",                  pl: "Usuwanie"                    },
 
   // ── Household roles ──
-  "hh.role_head":               { en: "Head",                     pl: "Szef"                                   },
+  "hh.role_head":               { en: "Head",                     pl: "Głowa rodziny"                          },
   "hh.role_parent":             { en: "Parent",                   pl: "Rodzic"                                 },
   "hh.role_child":              { en: "Child",                    pl: "Dziecko"                                },
   "hh.role_label":              { en: "Member role",              pl: "Rola członka"                           },
