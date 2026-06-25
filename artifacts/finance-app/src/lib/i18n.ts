@@ -62,6 +62,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "dashboard.over":           { en: "Over",                pl: "Przekroczono"                 },
 
   // ── Home / Spending ──
+  "home.search_placeholder":  { en: "Search by name, category, amount or date…", pl: "Szukaj po nazwie, kategorii, kwocie lub dacie…"},
+  "home.search_no_results":   { en: "No transactions match your search.", pl: "Brak transakcji pasujących do wyszukiwania."},
   "home.set_budget":          { en: "Set your total monthly budget",     pl: "Ustaw miesięczny budżet"         },
   "home.track_how_close":     { en: "Track how close you are to your limit", pl: "Śledź, jak blisko jesteś limitu"},
   "home.monthly_budget":      { en: "Monthly Budget",                    pl: "Miesięczny budżet"               },

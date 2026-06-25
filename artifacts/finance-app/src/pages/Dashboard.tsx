@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useGetSpendingSummary,
   useGetMonthlySummary,
@@ -6,7 +7,8 @@ import {
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingDown, Target } from "lucide-react";
+import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
@@ -23,15 +25,19 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
 }
 
 export default function DashboardPage() {
-  const prefs     = loadPrefs();
-  const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({});
-  const { data: monthly }  = useGetMonthlySummary();
-  const { data: goalsSummary } = useGetGoalsSummary({});
+  const prefs = loadPrefs();
+  const [viewDate, setViewDate] = useState(new Date());
+
+  const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
+  const viewMonth      = format(viewDate, "yyyy-MM");
+
+  const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth });
+  const { data: monthly }    = useGetMonthlySummary();
+  const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
 
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
-  const currentMonth  = fmtMonthYear(new Date());
 
   const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
   const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
@@ -41,7 +47,29 @@ export default function DashboardPage() {
 
       <div className="mb-4">
         <h1 className="text-xl font-bold">{t("dashboard.title")}</h1>
-        <p className="text-xs text-muted-foreground">{currentMonth}</p>
+      </div>
+
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-4 bg-card border border-border rounded-2xl px-3 py-2">
+        <button
+          onClick={() => setViewDate(d => subMonths(d, 1))}
+          className="w-8 h-8 rounded-full flex items-center justify-center transition active:scale-90 hover:bg-muted"
+        >
+          <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-semibold">{fmtMonthYear(viewDate)}</p>
+          {isCurrentMonth && (
+            <p className="text-[10px] text-muted-foreground">{t("dashboard.this_month")}</p>
+          )}
+        </div>
+        <button
+          onClick={() => setViewDate(d => addMonths(d, 1))}
+          disabled={isCurrentMonth}
+          className="w-8 h-8 rounded-full flex items-center justify-center transition active:scale-90 hover:bg-muted disabled:opacity-25"
+        >
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Stats strip */}

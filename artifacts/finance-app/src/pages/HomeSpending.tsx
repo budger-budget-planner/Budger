@@ -19,7 +19,7 @@ import {
   getListGoalContributionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -398,13 +398,14 @@ export default function HomeSpending() {
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym = currencySymbol(prefs.currency);
 
-  const [viewDate,    setViewDate]    = useState(new Date());
-  const [addOpen,     setAddOpen]     = useState(false);
-  const [editTx,      setEditTx]      = useState<any | null>(null);
-  const [receiptTx,   setReceiptTx]   = useState<any | null>(null);
-  const [actionTx,    setActionTx]    = useState<number | null>(null);
-  const [budgetOpen,  setBudgetOpen]  = useState(false);
-  const [budgetInput, setBudgetInput] = useState("");
+  const [viewDate,     setViewDate]    = useState(new Date());
+  const [addOpen,      setAddOpen]     = useState(false);
+  const [editTx,       setEditTx]      = useState<any | null>(null);
+  const [receiptTx,    setReceiptTx]   = useState<any | null>(null);
+  const [actionTx,     setActionTx]    = useState<number | null>(null);
+  const [budgetOpen,   setBudgetOpen]  = useState(false);
+  const [budgetInput,  setBudgetInput] = useState("");
+  const [searchQuery,  setSearchQuery] = useState("");
 
   const monthStart     = startOfMonth(viewDate);
   const monthEnd       = endOfMonth(viewDate);
@@ -532,8 +533,18 @@ export default function HomeSpending() {
     setBudgetInput("");
   }
 
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? sorted.filter(tx =>
+        tx.description.toLowerCase().includes(q) ||
+        (tx.categoryName ?? "").toLowerCase().includes(q) ||
+        String(tx.amount).includes(q) ||
+        tx.date.includes(q)
+      )
+    : sorted;
+
   const grouped: Record<string, typeof sorted> = {};
-  for (const tx of sorted) {
+  for (const tx of filtered) {
     if (!grouped[tx.date]) grouped[tx.date] = [];
     grouped[tx.date].push(tx);
   }
@@ -632,6 +643,31 @@ export default function HomeSpending() {
         </div>
       </div>
 
+      {/* ── Search bar ── */}
+      {sorted.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setActionTx(null); }}
+              placeholder={t("home.search_placeholder")}
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-card border border-border text-sm
+                         placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Transaction list ── */}
       <div className="flex-1 px-5 space-y-5 pb-4">
         {isLoading ? (
@@ -644,6 +680,11 @@ export default function HomeSpending() {
             <Button onClick={() => setAddOpen(true)} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" /> {t("home.add_first_entry")}
             </Button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
+            <Search className="w-8 h-8 opacity-30" />
+            <p className="text-sm">{t("home.search_no_results")}</p>
           </div>
         ) : (
           dates.map(date => (
