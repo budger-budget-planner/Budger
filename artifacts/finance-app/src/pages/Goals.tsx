@@ -59,7 +59,7 @@ function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange:
     }
   }
   return (
-    <Input type="text" placeholder="DD/MM/YYYY" value={display}
+    <Input type="text" placeholder={t("goals.date_placeholder")} value={display}
       onChange={handleChange} required={required} inputMode="numeric" />
   );
 }
@@ -134,7 +134,7 @@ function GoalCard({ goal, summary, onEdit, sym }: {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
-              Target: {sym}{Number(budget).toFixed(0)} · Due {goal.deadline}
+              {t("goals.target_due", { amt: `${sym}${Number(budget).toFixed(0)}`, date: goal.deadline })}
             </p>
           </div>
         </div>
@@ -150,14 +150,14 @@ function GoalCard({ goal, summary, onEdit, sym }: {
             />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{sym}{contributed.toFixed(2)} saved</span>
-            <span>{sym}{budget.toFixed(0)} goal</span>
+            <span>{sym}{contributed.toFixed(2)} {t("goals.saved_amt")}</span>
+            <span>{sym}{budget.toFixed(0)} {t("goals.goal_label")}</span>
           </div>
         </div>
 
         {monthlyTarget !== null && (
           <p className="text-xs text-muted-foreground mb-3">
-            Save {sym}{monthlyTarget.toFixed(2)}/mo · {ml} month{ml !== 1 ? "s" : ""} left
+            {t("goals.save_mo_for", { amt: `${sym}${monthlyTarget.toFixed(2)}`, ml, s: "" })}
           </p>
         )}
 
@@ -165,11 +165,11 @@ function GoalCard({ goal, summary, onEdit, sym }: {
           <div className="flex gap-2">
             <button onClick={() => setConfirmDelete(false)}
               className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-              Cancel
+              {t("common.cancel")}
             </button>
             <button onClick={() => remove.mutate({ id: goal.id })} disabled={remove.isPending}
               className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40">
-              {remove.isPending ? "Deleting…" : "Delete"}
+              {remove.isPending ? t("common.deleting") : t("goals.delete_btn")}
             </button>
           </div>
         ) : (
@@ -177,12 +177,12 @@ function GoalCard({ goal, summary, onEdit, sym }: {
             <button onClick={onEdit}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
             </button>
             <button onClick={() => setConfirmDelete(true)}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
+              <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
             </button>
           </div>
         )}
@@ -217,7 +217,7 @@ function GoalFormFields({
         <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("goals.goal_name")} autoFocus required />
       </div>
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Color</Label>
+        <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
         <ColorPicker value={color} onChange={setColor} />
       </div>
       <div className="space-y-1.5">
@@ -237,7 +237,7 @@ function GoalFormFields({
           <p className="text-sm font-medium">{t("goals.divide_mo")}</p>
           <p className="text-xs text-muted-foreground">
             {monthly
-              ? `Save ${sym}${monthly}/mo for ${ml} month${ml !== 1 ? "s" : ""}`
+              ? t("goals.save_mo_for", { amt: `${sym}${monthly}`, ml: ml ?? 0, s: "" })
               : t("goals.calc_monthly")}
           </p>
         </div>
@@ -337,7 +337,7 @@ function EditGoalDialog({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Edit Goal</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("goals.edit_title")}</DialogTitle></DialogHeader>
         <GoalFormFields
           name={name} setName={setName}
           color={color} setColor={setColor}
@@ -351,7 +351,7 @@ function EditGoalDialog({
         {/* Visibility section */}
         {isInHousehold && (
           <div className="border-t border-border pt-3 mt-1 space-y-2">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Goal Visibility</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("goals.visibility")}</p>
             {isCreator ? (
               isHousehold ? (
                 <button
@@ -403,7 +403,7 @@ function EditGoalDialog({
                   <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
                   <div className="flex-1 text-left">
                     <p className="font-medium text-foreground">{t("goals.propose_to_hh")}</p>
-                    <p className="text-xs text-muted-foreground">Request owner to make this a shared goal</p>
+                    <p className="text-xs text-muted-foreground">{t("goals.request_shared")}</p>
                   </div>
                   {proposeState === "pending" && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
                 </button>
@@ -414,7 +414,7 @@ function EditGoalDialog({
 
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            <X className="w-3.5 h-3.5 mr-1" /> Cancel
+            <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
           </Button>
           <Button className="flex-1" onClick={handleSave} disabled={update.isPending}>
             <Check className="w-3.5 h-3.5 mr-1" />
@@ -449,18 +449,18 @@ function PastGoalCard({ goal, sym }: { goal: any; sym: string }) {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
-              {sym}{Number(goal.budget).toFixed(0)} · Ended {goal.deadline}
+              {sym}{Number(goal.budget).toFixed(0)} · {t("goals.ended")} {goal.deadline}
             </p>
           </div>
           {confirmDelete ? (
             <div className="flex gap-1">
               <button onClick={() => setConfirmDelete(false)}
                 className="px-2 py-1 rounded-lg bg-muted text-xs text-muted-foreground">
-                Cancel
+                {t("common.cancel")}
               </button>
               <button onClick={() => remove.mutate({ id: goal.id })} disabled={remove.isPending}
                 className="px-2 py-1 rounded-lg bg-destructive text-xs text-destructive-foreground disabled:opacity-40">
-                {remove.isPending ? "…" : "Delete"}
+                {remove.isPending ? "…" : t("goals.delete_btn")}
               </button>
             </div>
           ) : (
@@ -630,7 +630,7 @@ export default function GoalsPage() {
           {/* Private Goals */}
           <div className="mb-5">
             {isInHousehold && (
-              <SectionHeader icon={Lock} label="Private Goals" count={privateGoals.length} />
+              <SectionHeader icon={Lock} label={t("goals.private_goals")} count={privateGoals.length} />
             )}
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -643,21 +643,21 @@ export default function GoalsPage() {
                 <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
                   <Target className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <p className="text-muted-foreground text-sm">No active goals yet.</p>
+                <p className="text-muted-foreground text-sm">{t("goals.no_active")}</p>
                 <button onClick={() => setAddOpen(true)}
                   className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
-                  Create first goal
+                  {t("goals.create_first")}
                 </button>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-3">No private goals.</p>
+              <p className="text-sm text-muted-foreground py-3">{t("goals.no_private")}</p>
             )}
           </div>
 
           {/* Household Goals */}
           {isInHousehold && (
             <div className="mb-5">
-              <SectionHeader icon={Users} label="Household Goals" count={householdGoals.length} />
+              <SectionHeader icon={Users} label={t("goals.household_goals")} count={householdGoals.length} />
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
@@ -666,10 +666,10 @@ export default function GoalsPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground py-3">
-                  No household goals yet.{" "}
+                  {t("goals.no_household")}{" "}
                   {isCreator
-                    ? "Edit a private goal and make it a Household Goal."
-                    : "Propose a goal to the household owner via Edit."}
+                    ? t("goals.edit_private_hint")
+                    : t("goals.propose_via_edit")}
                 </p>
               )}
             </div>
@@ -686,7 +686,7 @@ export default function GoalsPage() {
       >
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-muted-foreground" />
-          <span>Past Goals</span>
+          <span>{t("goals.past_goals")}</span>
           {pastGoals && pastGoals.length > 0 && (
             <span className="text-xs text-muted-foreground">({pastGoals.length})</span>
           )}
@@ -730,7 +730,7 @@ export default function GoalsPage() {
       {/* Add dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>New Goal</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("goals.new")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-0">
             <GoalFormFields
               name={newName} setName={setNewName}
@@ -741,9 +741,9 @@ export default function GoalsPage() {
               sym={sym}
             />
             <div className="flex gap-2 pt-4">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
               <Button type="submit" className="flex-1" disabled={create.isPending}>
-                {create.isPending ? "Creating…" : "Create"}
+                {create.isPending ? t("goals.creating_btn") : t("goals.create_btn")}
               </Button>
             </div>
           </form>

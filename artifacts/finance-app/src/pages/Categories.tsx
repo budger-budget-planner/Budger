@@ -79,7 +79,7 @@ function BudgetInput({
             mode === "amount" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          {sym} Amount
+          {sym} {t("common.amount")}
         </button>
         <button
           type="button"
@@ -88,7 +88,7 @@ function BudgetInput({
             mode === "percent" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          % of total
+          {t("cat.amount_pct").split("/")[1] ?? "% of total"}
         </button>
       </div>
 
@@ -174,7 +174,7 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
             <p className="font-semibold text-sm text-foreground truncate">{category.name}</p>
             <p className="text-xs text-muted-foreground">
               {category.budget != null
-                ? `Budget: ${sym}${Number(category.budget).toFixed(0)}/mo`
+                ? `${t("cat.budget")} ${sym}${Number(category.budget).toFixed(0)}${t("cat.mo")}`
                 : t("cat.no_budget")}
             </p>
           </div>
@@ -222,14 +222,14 @@ function CategoryCard({ category, onEdit, sym }: { category: any; onEdit: () => 
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
             >
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" /> {t("common.edit")}
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Delete
+              <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
             </button>
           </div>
         )}
@@ -278,11 +278,11 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Color</Label>
+            <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Monthly Budget <span className="font-normal">(optional)</span></Label>
+            <Label className="text-xs text-muted-foreground">{t("cat.monthly_budget_opt")}</Label>
             <BudgetInput
               rawValue={budget}
               onRawChange={setBudget}
@@ -294,7 +294,7 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
           </div>
           <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={onClose}>
-              <X className="w-3.5 h-3.5 mr-1" /> Cancel
+              <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
             </Button>
             <Button className="flex-1" onClick={handleSave} disabled={update.isPending}
               data-testid={`button-save-category-${category.id}`}>
@@ -350,7 +350,7 @@ export default function CategoriesPage() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-xl font-bold">{t("cat.title")}</h1>
-          <p className="text-muted-foreground text-xs mt-0.5">Color-coded spending categories</p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t("cat.subtitle")}</p>
         </div>
         <button
           onClick={() => setAddOpen(true)}
@@ -358,7 +358,7 @@ export default function CategoriesPage() {
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
                      text-sm font-semibold transition active:scale-95"
         >
-          <Plus className="w-4 h-4" /> New
+          <Plus className="w-4 h-4" /> {t("cat.new")}
         </button>
       </div>
 
@@ -423,7 +423,7 @@ export default function CategoriesPage() {
           <DialogHeader><DialogTitle>{t("cat.new")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Name</Label>
+              <Label>{t("cat.name_label")}</Label>
               <Input
                 data-testid="input-new-category-name"
                 placeholder={t("cat.placeholder")}
@@ -432,7 +432,7 @@ export default function CategoriesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Color</Label>
+              <Label>{t("cat.color_label")}</Label>
               <ColorPicker value={newColor} onChange={setNewColor} />
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-6 h-6 rounded-lg" style={{ backgroundColor: newColor }} />
@@ -440,7 +440,7 @@ export default function CategoriesPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Monthly Budget <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label>{t("cat.monthly_budget_opt")}</Label>
               <BudgetInput
                 rawValue={newBudget}
                 onRawChange={setNewBudget}
@@ -451,10 +451,10 @@ export default function CategoriesPage() {
               />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
               <Button type="submit" className="flex-1" disabled={create.isPending}
                 data-testid="button-save-new-category">
-                {create.isPending ? t("common.saving") : t("common.new")}
+                {create.isPending ? t("common.saving") : t("cat.create_btn")}
               </Button>
             </div>
           </form>

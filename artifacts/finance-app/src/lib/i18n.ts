@@ -300,7 +300,126 @@ const translations: Record<string, Record<Lang, string>> = {
   "currency.converted":  { en: "Currency converted",           pl: "Waluta przeliczona"           },
   "currency.failed":     { en: "Conversion failed",            pl: "Przeliczanie nie powiodło się"},
   "currency.offline_rates": { en: "Offline — using last known rates", pl: "Offline — używam ostatnich kursów"},
+
+  // ── Home additional ──
+  "home.current_month":       { en: "current month",           pl: "obecny miesiąc"               },
+  "home.total_spent":         { en: "Total spent",             pl: "Całkowite wydatki"            },
+  "home.entries":             { en: "Entries",                 pl: "Wpisy"                        },
+  "home.new_tx":              { en: "New Transaction",         pl: "Nowa Transakcja"              },
+  "home.total_budget_label":  { en: "Total monthly budget",    pl: "Całkowity miesięczny budżet"  },
+  "home.budget_cap_desc":     { en: "This is your total spending cap for the month. Leave blank to remove.", pl: "To jest Twój miesięczny limit wydatków. Zostaw puste, aby usunąć." },
+  "home.budget_eg":           { en: "e.g. 3000",               pl: "np. 3000"                     },
+  "home.edit_btn":            { en: "Edit",                    pl: "Edytuj"                       },
+  "home.receipt_btn":         { en: "Receipt",                 pl: "Paragon"                      },
+  "home.mo":                  { en: "/mo",                     pl: "/msc"                         },
+
+  // ── Goals additional ──
+  "goals.private_goals":    { en: "Private Goals",             pl: "Prywatne Cele"                },
+  "goals.household_goals":  { en: "Household Goals",           pl: "Cele Gospodarstwa"            },
+  "goals.create_first":     { en: "Create first goal",         pl: "Utwórz pierwszy cel"          },
+  "goals.no_private":       { en: "No private goals.",         pl: "Brak prywatnych celów."       },
+  "goals.no_household":     { en: "No household goals yet.",   pl: "Brak celów gospodarstwa."     },
+  "goals.edit_private_hint":{ en: "Edit a private goal and make it a Household Goal.", pl: "Edytuj prywatny cel i ustaw go jako Cel Gospodarstwa." },
+  "goals.propose_via_edit": { en: "Propose a goal to the household owner via Edit.", pl: "Zaproponuj cel właścicielowi przez Edytuj." },
+  "goals.past_goals":       { en: "Past Goals",                pl: "Przeszłe Cele"               },
+  "goals.edit_title":       { en: "Edit Goal",                 pl: "Edytuj Cel"                  },
+  "goals.date_placeholder": { en: "DD/MM/YYYY",               pl: "DD/MM/RRRR"                  },
+  "goals.create_btn":       { en: "Create",                    pl: "Stwórz"                      },
+  "goals.creating_btn":     { en: "Creating…",                 pl: "Tworzenie…"                  },
+  "goals.target_due":       { en: "Target: {amt} · Due {date}",pl: "Cel: {amt} · Termin {date}"  },
+  "goals.saved_amt":        { en: "saved",                     pl: "zaoszczędzono"               },
+  "goals.goal_label":       { en: "goal",                      pl: "cel"                         },
+  "goals.save_mo_for":      { en: "Save {amt}/mo · {ml} month{s} left", pl: "Oszczędź {amt}/msc · {ml} mies. pozostało" },
+  "goals.ended":            { en: "Ended",                     pl: "Zakończono"                  },
+  "goals.edit_btn":         { en: "Edit",                      pl: "Edytuj"                      },
+  "goals.delete_btn":       { en: "Delete",                    pl: "Usuń"                        },
+  "goals.title_desc":       { en: "Set targets, track progress", pl: "Ustalaj cele, śledź postępy" },
+  "goals.request_shared":   { en: "Request owner to make this a shared goal", pl: "Poproś właściciela o udostępnienie celu" },
+
+  // ── Categories additional ──
+  "cat.monthly_budget_opt": { en: "Monthly Budget (optional)",  pl: "Miesięczny Budżet (opcjonalnie)" },
+  "cat.name_label":         { en: "Name",                      pl: "Nazwa"                       },
+  "cat.color_label":        { en: "Color",                     pl: "Kolor"                       },
+  "cat.amount_pct":         { en: "Amount / % of total",       pl: "Kwota / % całkowitego"       },
+  "cat.create_btn":         { en: "Create",                    pl: "Stwórz"                      },
+  "cat.mo":                 { en: "/mo",                       pl: "/msc"                        },
+
+  // ── Household additional ──
+  "hh.create_share_msg":    { en: "Create one to share expenses with family or roommates", pl: "Utwórz, aby dzielić wydatki z rodziną lub współlokatorami" },
+  "hh.you_label":           { en: "(You)",                     pl: "(Ty)"                        },
+  "hh.due":                 { en: "due",                       pl: "do"                          },
+  "hh.of_goal":             { en: "of",                        pl: "z"                           },
+  "hh.household_name_label":{ en: "Household name",            pl: "Nazwa gospodarstwa"          },
+  "hh.monthly_budget_lbl":  { en: "Monthly budget",            pl: "Miesięczny budżet"           },
+  "hh.optional_lbl":        { en: "(optional)",                pl: "(opcjonalnie)"               },
+  "hh.budget_eg":           { en: "e.g. 5000",                 pl: "np. 5000"                    },
+  "hh.delete_dialog_title": { en: "Delete Household",          pl: "Usuń Gospodarstwo"           },
+  "hh.delete_cannot_undo":  { en: "This action cannot be undone.", pl: "Tej operacji nie można cofnąć." },
+  "hh.delete_full_desc":    { en: "will remove all members from the household. Their transaction history will remain intact.", pl: "spowoduje usunięcie wszystkich członków z gospodarstwa. Historia transakcji pozostanie nienaruszona." },
+  "hh.delete_are_you_sure": { en: "Are you sure you want to permanently delete this household?", pl: "Czy na pewno chcesz trwale usunąć to gospodarstwo?" },
+  "hh.delete_btn":          { en: "Delete Household",          pl: "Usuń Gospodarstwo"           },
+  "hh.deleting_btn":        { en: "Deleting…",                 pl: "Usuwanie…"                   },
+  "hh.budget_amount_lbl":   { en: "Budget amount",             pl: "Kwota budżetu"               },
+  "hh.email_lbl":           { en: "Email address",             pl: "Adres e-mail"                },
+  "hh.category_col":        { en: "Category",                  pl: "Kategoria"                   },
+  "hh.amount_col":          { en: "Amount",                    pl: "Kwota"                       },
+  "hh.total_month_txt":     { en: "Total this month",          pl: "Łącznie ten miesiąc"         },
+  "hh.private_dash_lbl":    { en: "Private dashboard",         pl: "Prywatny Pulpit"             },
+  "hh.remove_member_confirm":{ en: "Remove {name} from the household?", pl: "Usunąć {name} z gospodarstwa?" },
+  "hh.deleting_tx":         { en: "Deleting",                  pl: "Usuwanie"                    },
+
+  // ── Dashboard additional ──
+  "dashboard.by":           { en: "by",                        pl: "do"                          },
+  "dashboard.mo_needed":    { en: "/mo needed",                pl: "/msc ustalono"               },
+  "dashboard.mo_target":    { en: "/mo target",                pl: "/msc cel"                    },
+  "dashboard.total_goal":   { en: "total goal",                pl: "cel łącznie"                 },
 };
+
+// ── Locale-aware date helpers ──────────────────────────────────────────────
+const PL_MONTHS_LONG  = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+const PL_MONTHS_SHORT = ["Sty","Lut","Mar","Kwi","Maj","Cze","Lip","Sie","Wrz","Paź","Lis","Gru"];
+const EN_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const PL_DAYS_SHORT   = ["Nd","Pn","Wt","Śr","Cz","Pt","Sb"]; // Sunday=0
+const EN_DAYS_SHORT   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+/** "June 2026" → "Czerwiec 2026" in Polish */
+export function fmtMonthYear(date: Date): string {
+  const lang = loadPrefs().language as Lang;
+  if (lang === "pl") return `${PL_MONTHS_LONG[date.getMonth()]} ${date.getFullYear()}`;
+  return date.toLocaleString("en-US", { month: "long", year: "numeric" });
+}
+
+/** "2025-06-11" → "Thu, 11 Jun" or "Cz, 11 Cze" */
+export function fmtDayDate(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  const lang = loadPrefs().language as Lang;
+  if (lang === "pl") {
+    return `${PL_DAYS_SHORT[d.getDay()]}, ${d.getDate()} ${PL_MONTHS_SHORT[d.getMonth()]}`;
+  }
+  return `${EN_DAYS_SHORT[d.getDay()]}, ${d.getDate()} ${EN_MONTHS_SHORT[d.getMonth()]}`;
+}
+
+/** Short month name for a Date (Jan / Sty) */
+export function fmtMonthShort(date: Date): string {
+  const lang = loadPrefs().language as Lang;
+  return lang === "pl" ? PL_MONTHS_SHORT[date.getMonth()] : EN_MONTHS_SHORT[date.getMonth()];
+}
+
+/** "Jan" → "Sty" etc. for API-returned month strings */
+export function localiseMonthStr(s: string): string {
+  const lang = loadPrefs().language as Lang;
+  if (lang !== "pl") return s;
+  const idx = EN_MONTHS_SHORT.indexOf(s);
+  return idx >= 0 ? PL_MONTHS_SHORT[idx] : s;
+}
+
+/** Returns locale-aware single-letter / two-letter day labels */
+export function getDayLabels(): string[] {
+  const lang = loadPrefs().language as Lang;
+  return lang === "pl"
+    ? ["Pn","Wt","Śr","Cz","Pt","Sb","Nd"]
+    : ["M","T","W","T","F","S","S"];
+}
 
 export function t(key: string, params?: Record<string, string | number>): string {
   const lang = loadPrefs().language as Lang;

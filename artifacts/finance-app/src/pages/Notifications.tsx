@@ -14,7 +14,7 @@ import {
   saveSmartAlertPrefs,
   type SmartAlertPrefs,
 } from "@/hooks/useSmartNotifications";
-import { t } from "@/lib/i18n";
+import { t, getDayLabels } from "@/lib/i18n";
 
 type Alert = {
   id: string;
@@ -23,15 +23,11 @@ type Alert = {
   enabled: boolean;
 };
 
-const DAYS = [
-  { key: "mon", label: "M" },
-  { key: "tue", label: "T" },
-  { key: "wed", label: "W" },
-  { key: "thu", label: "T" },
-  { key: "fri", label: "F" },
-  { key: "sat", label: "S" },
-  { key: "sun", label: "S" },
-];
+const DAY_KEYS = ["mon","tue","wed","thu","fri","sat","sun"];
+function DAYS() {
+  const labels = getDayLabels();
+  return DAY_KEYS.map((key, i) => ({ key, label: labels[i] }));
+}
 
 const ALERTS_KEY = "budger_alerts_v1";
 
@@ -118,7 +114,7 @@ function AlertCard({
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{t("notif.days")}</span>
           <div className="flex gap-1.5">
-            {DAYS.map(d => {
+            {DAYS().map(d => {
               const active = alert.days.includes(d.key);
               return (
                 <button
@@ -362,35 +358,6 @@ export default function NotificationsPage() {
           />
         </div>
 
-        <div className="mt-3 space-y-2">
-          <div className="rounded-xl bg-card border border-border px-4 py-3 space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">{t("notif.budget_fire")}</p>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs">📊</span>
-                <span className="text-xs text-muted-foreground">{t("notif.spending_75")}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">⚠️</span>
-                <span className="text-xs text-muted-foreground">{t("notif.spending_90")}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-card border border-border px-4 py-3 space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">{t("notif.goal_fire")}</p>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs">🎯</span>
-                <span className="text-xs text-muted-foreground">{t("notif.7_days")}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">📅</span>
-                <span className="text-xs text-muted-foreground">{t("notif.once_month")}</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
     </div>

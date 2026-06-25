@@ -85,7 +85,7 @@ function MemberSpendingSheet({
             {member.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
-            <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">(you)</span>}</p>
+            <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">{t("hh.you_label")}</span>}</p>
             <p className="text-xs text-white/50">This month's breakdown</p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1">
@@ -112,8 +112,8 @@ function MemberSpendingSheet({
           ) : (
             <>
               <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-white/40 uppercase tracking-wider">Category</p>
-                <p className="text-xs text-white/40 uppercase tracking-wider">Amount</p>
+                <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.category_col")}</p>
+                <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
               </div>
               {data.map(row => (
                 <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
@@ -131,7 +131,7 @@ function MemberSpendingSheet({
                 </div>
               ))}
               <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                <span className="text-sm text-white/50">Total this month</span>
+                <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
                 <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + r.total, 0))}</span>
               </div>
             </>
@@ -268,7 +268,7 @@ export default function HouseholdPage() {
             </div>
             <div>
               <p className="font-semibold text-lg">{t("hh.no_household")}</p>
-              <p className="text-sm text-white/40 mt-1">Create one to share expenses with family or roommates</p>
+              <p className="text-sm text-white/40 mt-1">{t("hh.create_share_msg")}</p>
             </div>
             <Button
               className="w-full max-w-xs gap-2 bg-white text-black hover:bg-white/90"
@@ -287,7 +287,7 @@ export default function HouseholdPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-bold text-lg leading-tight" data-testid="text-household-name">{household.name}</p>
-                <p className="text-xs text-white/40 mt-0.5">Since {new Date(household.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
+                <p className="text-xs text-white/40 mt-0.5">{t("hh.since")} {new Date(household.createdAt).toLocaleDateString(loadPrefs().language === "pl" ? "pl-PL" : "en-US", { month: "short", year: "numeric" })}</p>
               </div>
               {household.ownerId === me?.id ? (
                 <Button
@@ -390,7 +390,7 @@ export default function HouseholdPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium truncate">
-                            {m.name} {isMe && <span className="text-white/40 font-normal text-xs">(you)</span>}
+                            {m.name} {isMe && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
                             {m.dashboardBlocked && !isMe && (
                               <span className="ml-1.5 text-white/30" title="Dashboard private">
                                 <EyeOff className="w-3 h-3 inline" />
@@ -415,7 +415,7 @@ export default function HouseholdPage() {
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400/70 hover:text-red-400 transition-opacity flex-shrink-0"
                           onClick={e => {
                             e.stopPropagation();
-                            if (confirm(`Remove ${m.name} from the household?`)) {
+                            if (confirm(t("hh.remove_member_confirm", { name: m.name }))) {
                               removeMember.mutate({ userId: m.userId });
                             }
                           }}
@@ -455,11 +455,11 @@ export default function HouseholdPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{g.name}</p>
-                          <p className="text-xs text-white/40">Due {g.deadline}</p>
+                          <p className="text-xs text-white/40">{t("hh.due")} {g.deadline}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-semibold tabular-nums">{sym}{contributed.toFixed(0)}</p>
-                          <p className="text-xs text-white/40">of {sym}{goalBudget.toFixed(0)}</p>
+                          <p className="text-xs text-white/40">{t("hh.of_goal")} {sym}{goalBudget.toFixed(0)}</p>
                         </div>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -488,7 +488,7 @@ export default function HouseholdPage() {
                 {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium">Private dashboard</p>
+                <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
                 <p className="text-xs text-white/40 mt-0.5">
                   {me?.dashboardBlocked
                     ? t("hh.others_cant")
@@ -566,7 +566,7 @@ export default function HouseholdPage() {
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <Label>Household name</Label>
+              <Label>{t("hh.household_name_label")}</Label>
               <Input
                 data-testid="input-household-name"
                 placeholder={t("hh.name_placeholder")}
@@ -577,12 +577,12 @@ export default function HouseholdPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Monthly budget <span className="text-white/30 font-normal">(optional)</span></Label>
+              <Label>{t("hh.monthly_budget_lbl")} <span className="text-white/30 font-normal">{t("hh.optional_lbl")}</span></Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
                 <Input
                   data-testid="input-household-budget"
-                  placeholder="e.g. 5000"
+                  placeholder={t("hh.budget_eg")}
                   type="number"
                   min="0"
                   step="1"
@@ -615,11 +615,11 @@ export default function HouseholdPage() {
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <Label>Budget amount</Label>
+              <Label>{t("hh.budget_amount_lbl")}</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
                 <Input
-                  placeholder="e.g. 5000"
+                  placeholder={t("hh.budget_eg")}
                   type="number"
                   min="0"
                   step="1"
@@ -653,7 +653,7 @@ export default function HouseholdPage() {
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <Label>Email address</Label>
+              <Label>{t("hh.email_lbl")}</Label>
               <Input
                 data-testid="input-invite-email"
                 type="email"
@@ -682,19 +682,19 @@ export default function HouseholdPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-400">
-              <Trash2 className="w-5 h-5" /> Delete Household
+              <Trash2 className="w-5 h-5" /> {t("hh.delete_btn")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 space-y-1">
-              <p className="text-sm font-semibold text-red-400">This action cannot be undone.</p>
+              <p className="text-sm font-semibold text-red-400">{t("hh.delete_cannot_undo")}</p>
               <p className="text-xs text-white/60">
-                Deleting <span className="font-semibold text-white/80">{household?.name}</span> will
-                remove all members from the household. Their transaction history will remain intact.
+                {t("hh.deleting_tx")} <span className="font-semibold text-white/80">{household?.name}</span>{" "}
+                {t("hh.delete_full_desc")}
               </p>
             </div>
             <p className="text-sm text-white/50">
-              Are you sure you want to permanently delete this household?
+              {t("hh.delete_are_you_sure")}
             </p>
             <div className="flex gap-2">
               <Button
@@ -713,7 +713,7 @@ export default function HouseholdPage() {
                 disabled={deletingHousehold}
                 data-testid="button-confirm-delete-household"
               >
-                {deletingHousehold ? "Deleting…" : "Delete Household"}
+                {deletingHousehold ? t("hh.deleting_btn") : t("hh.delete_btn")}
               </Button>
             </div>
           </div>

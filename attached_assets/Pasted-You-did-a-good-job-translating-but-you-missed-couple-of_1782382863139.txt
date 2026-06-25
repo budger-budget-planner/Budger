@@ -1,0 +1,104 @@
+You did a good job translating but you missed couple of lines. Here’s a breakdown of what needs to be corrected for polish version (we will go tab by tab): 
+
+Home tab:
+Month is not tranlated, shows: June 2026 current month, should show: Czerwiec 2026 obecny miesiąc. 
+Total spent should be całkowite wydatki 
+Entries should be wpisy 
+Days of the week should be translated, so instead of thu, 11 Jun should be cz, 11 Czer.
+
+When clicking add transaction in home tab:
+header says New Transaction, should say Nowa Transakcja.
+Amount should be Kwota 
+Date should be Data (and calendar should show polish abreviations for months)
+Cancel button should say Anuluj 
+
+When clicking set the monthly budget:
+Only header is in polish. total monthly budget should be calkowity miesięczny budżet
+Example text in that window should be in polish 
+Instruction text below should be in polish 
+
+In dashboard tab: 
+Date should be with polish abreviations for months
+In goal field it says: Cel [amount] by [date] • [monthly split amount]/mo needed. Should be Cel [amount] do [date] • ustalono [monthly split amount]/msc 
+Trend miesięczny field need to have polish month abreviations at its chart
+
+When clicking history of records month abreviation is not in polish
+
+When clicking recent activity that field is not translated at all. Translate header and set months abreviations to polish ones. Also this one is not parsing well clean up required 
+
+Categories tab:
+Sub header color-coded spending categories is not translated 
+Under category labels each category has budget: [amount]/mo. Should be Budżet: [amount]/msc.
+Buttons are not translated, they should be edytuj and usuń. 
+Add new category button instead of new should say nowy 
+
+When adding new category:
+Name should be nazwa
+Color should be Kolor 
+Monthly budżet (optional) should be Miesięczny Budzet (opcjonalnie)
+Amount/ % of total should be kwota/ % calkowitego
+Cancel button should say Anuluj 
+Nowy is not properly translated, should be Stworz. 
+
+When editing a category:
+Color should be Kolor
+
+Monthly budżet (optional) should be Miesięczny Budzet (opcjonalnie)
+Amount/ % of total should be kwota/ % calkowitego
+Cancel button should say Anuluj
+
+Goal tab:
+Header and its description is not translated 
+Private goals and household goals headers are not translated
+No private goals feedback in not translated
+No household goals yet. Edit a private goal and make it a Household Goal. - this feedback needs to be translated 
+New goal button needs to be translated 
+Entire text in a goal field need to be translated similarly to categories text., including edit and delete buttons. 
+Past goals needs to translated to Przeszłe Cele
+New button need to be translated 
+
+When clicking new button:
+New goal header needs to be translated
+Color should be Kolor 
+YYYY should be RRRR
+Cancel and create buttons should be Anuluj and stwórz 
+
+When editing a goal:
+Edit goal header needs to be translated 
+Color should be Kolor 
+When toggle is switched result text should be translated (is: save £125/mo for 8 months, should be: oszczędź £125/msc przed 8 miesięcy)
+Goal visibility should be widoczność Celu
+Cancel should be Anuluj. 
+
+Household tab:
+When there is no household created sentence:
+“Create one to share expenses with family or roommates” needs to be translated
+Household general field is not translated need to have everything in polish. 
+(You) label should be (Ty)
+Household goals / shared goals field has some text not translated (due [date] should be do [date] and [amount] of [total goal amount] should be [amount] z [total goal amount]
+Private dashboard shoild say Prywatny Pulpit 
+
+When creating the household:
+Household name header needs to be translated
+Monthly budget header and its example need to be translated
+
+When deleting a household: 
+entire pop up needs to be translated, including buttons
+
+When editing budget: 
+
+budget amount should be translated
+
+When clicking invite: 
+
+Email address header should be translated 
+
+When clicking on a member to see their dashboard:
+All the small text need to be translated - category, amount, total this month. 
+
+Alert tab:
+Days of the week abreviations should be converted to polish ones, so instead of M T W T F S S should be Pn Wt Śr Cz Pt Sb Nd 
+
+Also, smart alerts have doubled descriptions, erase those added with emojis below the toggle switches 
+
+Execute

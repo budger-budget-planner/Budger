@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { t } from "@/lib/i18n";
+import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
 import {
   useListTransactions,
   useListCategories,
@@ -68,7 +68,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
-        <Label>Amount</Label>
+        <Label>{t("common.amount")}</Label>
         <Input
           data-testid="input-amount"
           type="number"
@@ -170,7 +170,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Date</Label>
+          <Label>{t("common.date")}</Label>
           <Input
             data-testid="input-date"
             type="date"
@@ -194,7 +194,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button
           type="submit"
           className="flex-1"
@@ -577,8 +577,8 @@ export default function HomeSpending() {
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div className="text-center">
-            <p className="text-lg font-bold text-foreground">{format(viewDate, "MMMM yyyy")}</p>
-            {isCurrentMonth && <p className="text-xs text-muted-foreground">current month</p>}
+            <p className="text-lg font-bold text-foreground">{fmtMonthYear(viewDate)}</p>
+            {isCurrentMonth && <p className="text-xs text-muted-foreground">{t("home.current_month")}</p>}
           </div>
           <button
             onClick={() => setViewDate(d => addMonths(d, 1))}
@@ -591,11 +591,11 @@ export default function HomeSpending() {
         {/* Total card */}
         <div className="bg-card border border-border rounded-2xl px-5 py-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Total spent</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
             <p className="text-3xl font-bold text-foreground">{sym}{total.toFixed(2)}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Entries</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
             <p className="text-3xl font-bold text-foreground">{sorted.length}</p>
           </div>
         </div>
@@ -618,7 +618,7 @@ export default function HomeSpending() {
           dates.map(date => (
             <div key={date}>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                {format(new Date(date + "T12:00:00"), "EEE, d MMM")}
+                {fmtDayDate(date)}
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
                 {grouped[date].map(tx => {
@@ -661,12 +661,12 @@ export default function HomeSpending() {
                           <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                        bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                            <Camera className="w-3.5 h-3.5" /> Receipt
+                            <Camera className="w-3.5 h-3.5" /> {t("home.receipt_btn")}
                           </button>
                           <button onClick={() => { setEditTx(tx); setActionTx(null); }}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                        bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                            <Pencil className="w-3.5 h-3.5" /> Edit
+                            <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
                           </button>
                           <button
                             onClick={() => remove.mutate({ id: tx.id })}
@@ -699,7 +699,7 @@ export default function HomeSpending() {
       {/* ── Add dialog ── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("home.new_tx")}</DialogTitle></DialogHeader>
           <TxForm
             initial={blank}
             categories={categories ?? []}
@@ -745,7 +745,7 @@ export default function HomeSpending() {
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <Label>Total monthly budget</Label>
+              <Label>{t("home.total_budget_label")}</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
                 <Input
@@ -753,18 +753,18 @@ export default function HomeSpending() {
                   type="number"
                   min="0"
                   step="1"
-                  placeholder="e.g. 3000"
+                  placeholder={t("home.budget_eg")}
                   value={budgetInput}
                   onChange={e => setBudgetInput(e.target.value)}
                   className="pl-7"
                   autoFocus
                 />
               </div>
-              <p className="text-xs text-muted-foreground">This is your total spending cap for the month. Leave blank to remove.</p>
+              <p className="text-xs text-muted-foreground">{t("home.budget_cap_desc")}</p>
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setBudgetOpen(false)}>Cancel</Button>
-              <Button type="submit" className="flex-1">Save</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setBudgetOpen(false)}>{t("common.cancel")}</Button>
+              <Button type="submit" className="flex-1">{t("common.save")}</Button>
             </div>
             {totalBudget != null && (
               <Button

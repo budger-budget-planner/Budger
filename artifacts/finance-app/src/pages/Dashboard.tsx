@@ -12,7 +12,7 @@ import {
 import { TrendingDown, ArrowRight, History, ChevronDown, ChevronRight, Camera, Target } from "lucide-react";
 import { Link } from "wouter";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
-import { t } from "@/lib/i18n";
+import { t, localiseMonthStr } from "@/lib/i18n";
 
 const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -51,7 +51,7 @@ function HistorySection({ sym }: { sym: string }) {
               {expanded === m.monthKey
                 ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-              <span className="font-medium text-sm">{m.month} {m.year}</span>
+              <span className="font-medium text-sm">{localiseMonthStr(m.month)} {m.year}</span>
               <span className="text-xs text-muted-foreground">{m.count} {t("dashboard.tx")}</span>
             </div>
             <span className="font-semibold text-sm">{sym}{m.total.toFixed(2)}</span>
@@ -260,8 +260,8 @@ export default function DashboardPage() {
                         <p className="text-[10px] text-muted-foreground">
                           {displayPct.toFixed(0)}%{" "}
                           {item.divideByMonths && item.monthlyTarget
-                            ? `${t("common.of")} ${sym}${item.monthlyTarget.toFixed(2)}/mo target`
-                            : `${t("common.of")} ${sym}${item.budget.toFixed(0)} total goal`}
+                            ? `${t("common.of")} ${sym}${item.monthlyTarget.toFixed(2)}${t("dashboard.mo_target")}`
+                            : `${t("common.of")} ${sym}${item.budget.toFixed(0)} ${t("dashboard.total_goal")}`}
                         </p>
                       </div>
                     );
@@ -282,8 +282,8 @@ export default function DashboardPage() {
                     </div>
                     <div className="w-full bg-muted rounded-full h-1" />
                     <p className="text-[10px] text-muted-foreground">
-                      {t("goals.target")} {sym}{item.budget.toFixed(0)} by {item.deadline}
-                      {item.monthlyTarget ? ` · ${sym}${item.monthlyTarget.toFixed(0)}/mo needed` : ""}
+                      {t("goals.target")} {sym}{item.budget.toFixed(0)} {t("dashboard.by")} {item.deadline}
+                      {item.monthlyTarget ? ` · ${sym}${item.monthlyTarget.toFixed(0)}${t("dashboard.mo_needed")}` : ""}
                     </p>
                   </div>
                 ))}
@@ -297,7 +297,7 @@ export default function DashboardPage() {
           <p className="text-sm font-semibold mb-3">{t("dashboard.monthly_trend")}</p>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={monthly ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="month" tickFormatter={localiseMonthStr} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false}
                 tickFormatter={v => `${sym}${v}`} />
               <Tooltip
