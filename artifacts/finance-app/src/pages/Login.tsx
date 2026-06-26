@@ -267,7 +267,7 @@ export default function LoginPage() {
 
       {/* ── Login PIN screen ── */}
       {screen === "login-pin" && (
-        <div className="flex flex-col items-center justify-between min-h-screen px-6 py-10">
+        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setLoginPin(""); setLoginError(""); setScreen("start"); }}
             className="self-start text-sm text-muted-foreground flex items-center gap-1"
@@ -275,7 +275,7 @@ export default function LoginPage() {
             ← {t("common.back")}
           </button>
 
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 w-full">
             <h2 className="text-2xl font-bold text-foreground">{t("login.enter_pin")}</h2>
             <p className="text-sm text-muted-foreground text-center">{loginEmail}</p>
             <button
@@ -312,7 +312,7 @@ export default function LoginPage() {
 
       {/* ── Sign-up info screen ── */}
       {screen === "signup-info" && (
-        <div className="flex flex-col items-center justify-between min-h-screen px-6 py-10">
+        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setSignupError(""); setScreen("start"); }}
             className="self-start text-sm text-muted-foreground flex items-center gap-1"
@@ -370,14 +370,12 @@ export default function LoginPage() {
               {t("login.next")}
             </Button>
           </form>
-
-          <div className="h-10" />
         </div>
       )}
 
       {/* ── Sign-up PIN creation screen ── */}
       {screen === "signup-pin" && (
-        <div className="flex flex-col items-center justify-between min-h-screen px-6 py-10">
+        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => setScreen("signup-info")}
             className="self-start text-sm text-muted-foreground flex items-center gap-1"
@@ -411,7 +409,7 @@ export default function LoginPage() {
 
       {/* ── Sign-up PIN confirm screen ── */}
       {screen === "signup-confirm" && (
-        <div className="flex flex-col items-center justify-between min-h-screen px-6 py-10">
+        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setConfirmPin(""); setSignupError(""); setScreen("signup-pin"); }}
             className="self-start text-sm text-muted-foreground flex items-center gap-1"
@@ -436,8 +434,6 @@ export default function LoginPage() {
               label={register.isPending ? t("login.creating") : undefined}
             />
           </div>
-
-          <div className="h-12" />
         </div>
       )}
     </div>
