@@ -198,7 +198,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm flex flex-col items-center" style={{ gap: "clamp(24px, 8vw, 48px)" }}>
 
             {/* Language buttons */}
-            <div className={`login-enter login-enter-d1 flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
+            <div className={`login-enter login-enter-d1 flex gap-2 self-end overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-16 opacity-100"}`}>
               {LANGUAGES.map(l => (
                 <button
                   key={l.code}
@@ -215,7 +215,7 @@ export default function LoginPage() {
             </div>
 
             {/* Logo + name */}
-            <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 ${keyboardOpen ? "hidden" : ""}`}>
+            <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
               <BadgerLogo size={88} />
               <div className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
@@ -261,7 +261,7 @@ export default function LoginPage() {
 
           </div>
 
-          <p className={`login-enter login-enter-d4 text-xs text-muted-foreground/50 mt-6 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
+          <p className={`login-enter login-enter-d4 text-xs text-muted-foreground/50 mt-6 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>{t("login.footer")}</p>
         </div>
       )}
 
