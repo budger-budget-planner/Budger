@@ -275,7 +275,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {fmtAmt(Number(tx.amount), tx.transactionCurrency && !tx.currencyLocked ? tx.transactionCurrency : loadPrefs().currency)}
+                {fmtAmt(Number(tx.amount), tx.transactionCurrency ?? loadPrefs().currency)}
               </span>
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
@@ -799,7 +799,7 @@ export default function HomeSpending() {
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <p className="text-sm font-semibold text-foreground">
-                            −{fmtAmt(Number(tx.amount), (tx.transactionCurrency && !tx.currencyLocked) ? tx.transactionCurrency : prefs.currency)}
+                            −{fmtAmt(Number(tx.amount), tx.transactionCurrency ?? prefs.currency)}
                           </p>
                           {/* Foreign-currency chips */}
                           {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
