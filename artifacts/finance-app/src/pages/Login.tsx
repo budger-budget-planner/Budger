@@ -183,12 +183,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div className={`flex flex-col items-center px-6 py-10 transition-all duration-300 ${
-          keyboardOpen
-            ? "min-h-screen justify-center gap-6"
-            : "min-h-screen justify-between"
-        }`}>
-          {/* Language picker */}
+        <div className="flex flex-col items-center min-h-screen px-6 py-10">
+          {/* Language picker — top right */}
           <div className={`flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
             {LANGUAGES.map(l => (
               <button
@@ -207,60 +203,61 @@ export default function LoginPage() {
 
           {/* Account-created success banner */}
           {justRegistered && (
-            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center">
+            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mt-4">
               <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
           )}
 
-          {/* Logo — hidden when keyboard is open */}
-          <div className={`flex flex-col items-center gap-4 ${keyboardOpen ? "hidden" : ""}`}>
-            <div className="p-4 rounded-3xl bg-card border border-border shadow-xl">
-              <BadgerLogo size={80} />
+          {/* Centre block: logo + form grouped tightly */}
+          <div className="flex flex-col items-center w-full max-w-sm flex-1 justify-center gap-8">
+            {/* Logo — hidden when keyboard is open */}
+            <div className={`flex flex-col items-center gap-3 ${keyboardOpen ? "hidden" : ""}`}>
+              <BadgerLogo size={88} />
+              <div className="text-center">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
+                <p className="text-sm text-muted-foreground mt-1">{t("login.tagline")}</p>
+              </div>
             </div>
-            <div className="text-center">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
-              <p className="text-sm text-muted-foreground mt-1">{t("login.tagline")}</p>
-            </div>
-          </div>
 
-          {/* Login form */}
-          <form onSubmit={handleLoginContinue} className="w-full max-w-sm space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
-              <Input
-                type="email"
-                placeholder="alex@example.com"
-                value={loginEmail}
-                onChange={e => setLoginEmail(e.target.value)}
-                autoComplete="email"
-                required
-                className="h-14 rounded-2xl bg-muted border-border text-base px-4"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full h-14 rounded-2xl text-base font-semibold"
-            >
-              {t("login.continue")}
-            </Button>
-
-            {/* Sign up link */}
-            <div className="text-center pt-2">
-              <span className="text-sm text-muted-foreground">{t("login.no_account_prompt")} </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setSignupError("");
-                  setSignupEmail(loginEmail);
-                  setScreen("signup-info");
-                }}
-                className="text-sm text-foreground underline underline-offset-4"
+            {/* Login form */}
+            <form onSubmit={handleLoginContinue} className="w-full space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
+                <Input
+                  type="email"
+                  placeholder="alex@example.com"
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                  className="h-14 rounded-2xl bg-muted border-border text-base px-4"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-14 rounded-2xl text-base font-semibold"
               >
-                {t("login.sign_up")}
-              </button>
-            </div>
-          </form>
+                {t("login.continue")}
+              </Button>
+
+              {/* Sign up link */}
+              <div className="text-center pt-2">
+                <span className="text-sm text-muted-foreground">{t("login.no_account_prompt")} </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupError("");
+                    setSignupEmail(loginEmail);
+                    setScreen("signup-info");
+                  }}
+                  className="text-sm text-foreground underline underline-offset-4"
+                >
+                  {t("login.sign_up")}
+                </button>
+              </div>
+            </form>
+          </div>
 
           <p className={`text-xs text-muted-foreground/50 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
         </div>

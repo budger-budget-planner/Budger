@@ -9,6 +9,19 @@ export default function BadgerLogo({ size = 40 }: { size?: number }) {
       role="img"
       aria-label="Budger badger logo"
     >
+      <defs>
+        <linearGradient id="bgBorderGrad" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2a2a2a" />
+          <stop offset="55%" stopColor="#505050" />
+          <stop offset="100%" stopColor="#999" />
+        </linearGradient>
+      </defs>
+
+      {/* Dark background tile */}
+      <rect width="100" height="100" rx="22" fill="#111" />
+      {/* Two-tone border: dark top → light bottom */}
+      <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none" stroke="url(#bgBorderGrad)" strokeWidth="1.5" />
+
       {/* Wide cream-white head base */}
       <ellipse cx="50" cy="52" rx="42" ry="34" fill="#F0EDE6" />
 
@@ -22,7 +35,6 @@ export default function BadgerLogo({ size = 40 }: { size?: number }) {
         European badger marking:
           white cheek | BLACK stripe | white center | BLACK stripe | white cheek
         Stripes run from nose sides upward through eyes to the ears.
-        strokeWidth bumped from 19 → 27 for a bolder, more accurate look.
       */}
       <path
         d="M 33 74 Q 24 60 20 46 Q 17 33 20 22"
