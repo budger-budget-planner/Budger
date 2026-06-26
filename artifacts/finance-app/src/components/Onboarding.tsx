@@ -10,6 +10,28 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
+// ── Platform-specific settings path ──────────────────────────────────────────
+
+function getNotifSettingsPath(): { steps: string[]; tip: string } {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) {
+    return {
+      steps: ["iOS Settings", "Safari", "Notifications", "Find this site", "Allow"],
+      tip: "Or long-press the 'AA' icon in Safari's address bar → Website Settings → Notifications → Allow",
+    };
+  }
+  if (/Android/.test(ua)) {
+    return {
+      steps: ["Browser menu (⋮)", "Settings", "Site settings", "Notifications", "Find this site", "Allow"],
+      tip: "Or tap the lock icon in the address bar → Site settings → Notifications → Allow",
+    };
+  }
+  return {
+    steps: ["Browser address bar", "Lock / info icon", "Site settings", "Notifications", "Allow"],
+    tip: "",
+  };
+}
+
 // ── Steps ────────────────────────────────────────────────────────────────────
 
 type Step = "stay-signed-in" | "currency" | "budget" | "wallet" | "notifications";
@@ -216,20 +238,38 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
               <p className="text-sm text-green-400 font-medium">{t("ob.notif_enabled")}</p>
             </div>
           )}
-          {notifStatus === "denied" && (
-            <div className="bg-muted border border-border rounded-2xl px-4 py-3 text-center">
-              <p className="text-xs text-muted-foreground">{t("ob.notif_denied")}</p>
-            </div>
-          )}
+          {notifStatus === "denied" && (() => {
+            const { steps, tip } = getNotifSettingsPath();
+            return (
+              <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground flex-shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Enable them in your device settings, then tap <span className="font-semibold text-foreground">Try Again</span>.</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {steps.map((step, i) => (
+                    <span key={i} className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-foreground bg-background border border-border rounded-lg px-2 py-0.5">{step}</span>
+                      {i < steps.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+                    </span>
+                  ))}
+                </div>
+                {tip && <p className="text-xs text-muted-foreground/70 leading-relaxed">{tip}</p>}
+              </div>
+            );
+          })()}
 
           {notifStatus !== "granted" && (
             <button
               onClick={requestNotifications}
-              disabled={notifStatus === "loading" || notifStatus === "denied"}
+              disabled={notifStatus === "loading"}
               className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
                          disabled:opacity-50 active:scale-95 transition"
             >
-              {notifStatus === "loading" ? t("ob.notif_enabling") : t("ob.notif_enable_btn")}
+              {notifStatus === "loading" ? t("ob.notif_enabling") :
+               notifStatus === "denied"  ? "Try Again" :
+               t("ob.notif_enable_btn")}
             </button>
           )}
 

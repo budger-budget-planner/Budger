@@ -334,11 +334,39 @@ export default function NotificationsPage() {
         <ApplePaySlides modal onClose={() => setShowApplePaySlides(false)} />
       )}
 
-      {permissionStatus === "denied" && (
-        <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs">
-          {t("notif.blocked")}
-        </div>
-      )}
+      {permissionStatus === "denied" && (() => {
+        const ua = navigator.userAgent;
+        const isIOS = /iPad|iPhone|iPod/.test(ua);
+        const isAndroid = /Android/.test(ua);
+        const steps = isIOS
+          ? ["iOS Settings", "Safari", "Notifications", "Find this site", "Allow"]
+          : isAndroid
+          ? ["Browser menu (⋮)", "Settings", "Site settings", "Notifications", "Allow"]
+          : ["Address bar", "Lock icon", "Site settings", "Notifications", "Allow"];
+        const tip = isIOS
+          ? "Or long-press the 'AA' icon in Safari → Website Settings → Notifications → Allow"
+          : isAndroid
+          ? "Or tap the lock icon in the address bar → Site settings → Notifications → Allow"
+          : "";
+        return (
+          <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground flex-shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Enable them in your device settings to use reminders and alerts.</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {steps.map((s, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-foreground bg-background border border-border rounded-lg px-2 py-0.5">{s}</span>
+                  {i < steps.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+                </span>
+              ))}
+            </div>
+            {tip && <p className="text-xs text-muted-foreground/70 leading-relaxed">{tip}</p>}
+          </div>
+        );
+      })()}
 
       {/* ── Daily reminders ── */}
       <section>
