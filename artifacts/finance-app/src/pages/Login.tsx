@@ -198,7 +198,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm flex flex-col items-center" style={{ gap: "clamp(24px, 8vw, 48px)" }}>
 
             {/* Language buttons */}
-            <div className={`flex gap-2 ${keyboardOpen ? "hidden" : ""}`}>
+            <div className={`flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
               {LANGUAGES.map(l => (
                 <button
                   key={l.code}
