@@ -548,8 +548,8 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Nowa pusta automatyzacja · wpisz nazwę akcji · dotknij ją",
   },
   "ap.s5_desc": {
-    en: "Tap New Blank Automation. In the search box, type: Get Contents of URL. Tap the result to add the action.",
-    pl: "Dotknij Nowa pusta automatyzacja. W polu wyszukiwania wpisz: Pobierz zawartość URL. Dotknij wynik, aby dodać akcję.",
+    en: "Tap Create New Shortcut. In the search box, type: Get Contents of URL. Tap the result to add the action.",
+    pl: "Dotknij Utwórz nowy skrót. W polu wyszukiwania wpisz: Pobierz zawartość URL. Dotknij wynik, aby dodać akcję.",
   },
 
   "ap.s6_title": {
