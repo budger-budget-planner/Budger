@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
+import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import {
   useListTransactions,
   useListCategories,
@@ -21,7 +22,7 @@ import {
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -273,7 +274,9 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
           <DialogHeader><DialogTitle>{t("home.receipt", { desc: tx.description })}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{fmtAmt(Number(tx.amount), loadPrefs().currency)}</span>
+              <span className="font-medium text-foreground">
+                {fmtAmt(Number(tx.amount), tx.transactionCurrency && !tx.currencyLocked ? tx.transactionCurrency : loadPrefs().currency)}
+              </span>
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
             {tx.receiptImage ? (
@@ -405,6 +408,7 @@ export default function HomeSpending() {
   const [editTx,       setEditTx]      = useState<any | null>(null);
   const [receiptTx,    setReceiptTx]   = useState<any | null>(null);
   const [actionTx,     setActionTx]    = useState<number | null>(null);
+  const [convertTx,    setConvertTx]   = useState<any | null>(null);
   const [budgetOpen,   setBudgetOpen]  = useState(false);
   const [budgetInput,  setBudgetInput] = useState("");
   const [searchQuery,  setSearchQuery] = useState("");
@@ -766,9 +770,27 @@ export default function HomeSpending() {
                             )}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-foreground flex-shrink-0">
-                          −{fmtAmt(Number(tx.amount), prefs.currency)}
-                        </p>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            −{fmtAmt(Number(tx.amount), (tx.transactionCurrency && !tx.currencyLocked) ? tx.transactionCurrency : prefs.currency)}
+                          </p>
+                          {/* Foreign-currency chips */}
+                          {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
+                            <button
+                              className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20"
+                              onClick={e => { e.stopPropagation(); setConvertTx(tx); setActionTx(null); }}
+                            >
+                              <RefreshCw className="w-2 h-2" />
+                              zmień walutę
+                            </button>
+                          )}
+                          {tx.currencyLocked && tx.transactionCurrency && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-zinc-600 text-zinc-400 bg-zinc-800/40">
+                              <Lock className="w-2 h-2" />
+                              {tx.transactionCurrency}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {actionTx === tx.id && (
@@ -894,6 +916,15 @@ export default function HomeSpending() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Currency conversion dialog */}
+      {convertTx && (
+        <CurrencyConvertSheet
+          tx={convertTx}
+          accountCurrency={prefs.currency}
+          onClose={() => setConvertTx(null)}
+          onConverted={() => invalidateAll(queryClient)}
+        />
+      )}
     </div>
   );
 }
