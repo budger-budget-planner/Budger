@@ -183,35 +183,38 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div className="flex flex-col items-center min-h-screen px-6 py-10">
-          {/* Language picker — top right */}
-          <div className={`flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
-            {LANGUAGES.map(l => (
-              <button
-                key={l.code}
-                onClick={() => changeLang(l.code)}
-                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition border ${
-                  lang === l.code
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground"
-                }`}
-              >
-                {l.code.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
+        <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
           {/* Account-created success banner */}
           {justRegistered && (
-            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mt-4">
+            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
               <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
           )}
 
-          {/* Centre block: logo + form grouped tightly */}
-          <div className="flex flex-col items-center w-full max-w-sm flex-1 justify-center gap-8">
-            {/* Logo — hidden when keyboard is open */}
+          {/*
+            Centered square container — side ≈ phone width, content spread evenly.
+          */}
+          <div className="w-full max-w-sm flex flex-col items-center" style={{ gap: "clamp(24px, 8vw, 48px)" }}>
+
+            {/* Language buttons */}
+            <div className={`flex gap-2 ${keyboardOpen ? "hidden" : ""}`}>
+              {LANGUAGES.map(l => (
+                <button
+                  key={l.code}
+                  onClick={() => changeLang(l.code)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition border ${
+                    lang === l.code
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {l.code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Logo + name */}
             <div className={`flex flex-col items-center gap-3 ${keyboardOpen ? "hidden" : ""}`}>
               <BadgerLogo size={88} />
               <div className="text-center">
@@ -221,7 +224,7 @@ export default function LoginPage() {
             </div>
 
             {/* Login form */}
-            <form onSubmit={handleLoginContinue} className="w-full space-y-4">
+            <form onSubmit={handleLoginContinue} className="w-full space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
                 <Input
@@ -240,9 +243,7 @@ export default function LoginPage() {
               >
                 {t("login.continue")}
               </Button>
-
-              {/* Sign up link */}
-              <div className="text-center pt-2">
+              <div className="text-center pt-1">
                 <span className="text-sm text-muted-foreground">{t("login.no_account_prompt")} </span>
                 <button
                   type="button"
@@ -257,9 +258,10 @@ export default function LoginPage() {
                 </button>
               </div>
             </form>
+
           </div>
 
-          <p className={`text-xs text-muted-foreground/50 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
+          <p className={`text-xs text-muted-foreground/50 mt-6 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
         </div>
       )}
 
