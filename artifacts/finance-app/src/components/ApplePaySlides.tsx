@@ -368,21 +368,16 @@ function CopyLinkButton({ url }: { url: string }) {
   }
 
   return (
-    <div className="w-full space-y-2">
-      <div className="bg-muted/50 border border-border rounded-xl px-3 py-2.5 select-all cursor-text">
-        <p className="text-[10.5px] text-muted-foreground font-mono break-all leading-relaxed tracking-tight">{url}</p>
-      </div>
-      <button
-        onClick={copy}
-        className={`w-full py-3 rounded-2xl font-semibold text-[13px] tracking-tight transition-all active:scale-95 ${
-          copied
-            ? "bg-green-500/15 border border-green-500/30 text-green-400"
-            : "bg-foreground text-background"
-        }`}
-      >
-        {copied ? `✓ ${t("ap.copied")}` : t("ap.copy_link")}
-      </button>
-    </div>
+    <button
+      onClick={copy}
+      className={`w-full py-3 rounded-2xl font-semibold text-[13px] tracking-tight transition-all active:scale-95 ${
+        copied
+          ? "bg-green-500/15 border border-green-500/30 text-green-400"
+          : "bg-foreground text-background"
+      }`}
+    >
+      {copied ? `✓ ${t("ap.copied")}` : t("ap.copy_link")}
+    </button>
   );
 }
 
@@ -475,16 +470,16 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
           style={{ WebkitTapHighlightColor: "transparent" }}
         />
 
-        {/* Content */}
-        <div className="pointer-events-none flex flex-col items-center gap-3 px-4 py-4 w-full h-full justify-between">
+        {/* Content — top-anchored, no spread */}
+        <div className="pointer-events-none flex flex-col items-center gap-4 px-4 pt-5 pb-4 w-full">
 
           {/* Phone mockup */}
-          <div className="flex-1 flex items-center justify-center w-full min-h-0">
+          <div className="flex items-center justify-center w-full max-h-[230px] overflow-hidden">
             {slide.mockup}
           </div>
 
           {/* Title + description */}
-          <div className="w-full space-y-1 flex-shrink-0">
+          <div className="w-full space-y-1">
             <h3 className="text-[13.5px] font-bold text-foreground text-center leading-snug">
               {t(slide.titleKey)}
             </h3>
@@ -494,7 +489,7 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
           </div>
 
           {/* Dot indicators */}
-          <div className="flex gap-1.5 flex-shrink-0 pb-0.5">
+          <div className="flex gap-1.5">
             {SLIDES.map((_, i) => (
               <div
                 key={i}
@@ -504,14 +499,14 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
               />
             ))}
           </div>
-        </div>
 
-        {/* First slide hint */}
-        {idx === 0 && (
-          <p className="pointer-events-none absolute bottom-3 text-[9px] text-muted-foreground/35 tracking-widest uppercase">
-            {t("ap.tap_hint")}
-          </p>
-        )}
+          {/* First slide tap hint — below dots, not overlapping */}
+          {idx === 0 && (
+            <p className="text-[9px] text-muted-foreground/35 tracking-widest uppercase">
+              {t("ap.tap_hint")}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── URL copy section — only on last slide, OUTSIDE the card ── */}
