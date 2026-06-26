@@ -21,6 +21,7 @@ import type {
   CategoryInput,
   CategorySpending,
   CategoryUpdate,
+  CurrencyConvertInput,
   GetGoalsSummaryParams,
   GetRecentActivityParams,
   GetSpendingSummaryParams,
@@ -1397,6 +1398,178 @@ export const useDeleteTransaction = <
   TContext
 > => {
   return useMutation(getDeleteTransactionMutationOptions(options));
+};
+
+/**
+ * @summary Convert a transaction amount to the account currency and clear its transactionCurrency
+ */
+export const getConvertTransactionCurrencyUrl = (id: number) => {
+  return `/api/transactions/${id}/convert-currency`;
+};
+
+export const convertTransactionCurrency = async (
+  id: number,
+  currencyConvertInput: CurrencyConvertInput,
+  options?: RequestInit,
+): Promise<Transaction> => {
+  return customFetch<Transaction>(getConvertTransactionCurrencyUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(currencyConvertInput),
+  });
+};
+
+export const getConvertTransactionCurrencyMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof convertTransactionCurrency>>,
+    TError,
+    { id: number; data: BodyType<CurrencyConvertInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof convertTransactionCurrency>>,
+  TError,
+  { id: number; data: BodyType<CurrencyConvertInput> },
+  TContext
+> => {
+  const mutationKey = ["convertTransactionCurrency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof convertTransactionCurrency>>,
+    { id: number; data: BodyType<CurrencyConvertInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return convertTransactionCurrency(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConvertTransactionCurrencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof convertTransactionCurrency>>
+>;
+export type ConvertTransactionCurrencyMutationBody =
+  BodyType<CurrencyConvertInput>;
+export type ConvertTransactionCurrencyMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Convert a transaction amount to the account currency and clear its transactionCurrency
+ */
+export const useConvertTransactionCurrency = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof convertTransactionCurrency>>,
+    TError,
+    { id: number; data: BodyType<CurrencyConvertInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof convertTransactionCurrency>>,
+  TError,
+  { id: number; data: BodyType<CurrencyConvertInput> },
+  TContext
+> => {
+  return useMutation(getConvertTransactionCurrencyMutationOptions(options));
+};
+
+/**
+ * @summary Permanently lock a transaction in its captured currency
+ */
+export const getLockTransactionCurrencyUrl = (id: number) => {
+  return `/api/transactions/${id}/lock-currency`;
+};
+
+export const lockTransactionCurrency = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Transaction> => {
+  return customFetch<Transaction>(getLockTransactionCurrencyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLockTransactionCurrencyMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lockTransactionCurrency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lockTransactionCurrency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["lockTransactionCurrency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lockTransactionCurrency>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return lockTransactionCurrency(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LockTransactionCurrencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lockTransactionCurrency>>
+>;
+
+export type LockTransactionCurrencyMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Permanently lock a transaction in its captured currency
+ */
+export const useLockTransactionCurrency = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lockTransactionCurrency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lockTransactionCurrency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getLockTransactionCurrencyMutationOptions(options));
 };
 
 /**

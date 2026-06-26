@@ -202,6 +202,17 @@ export const ListTransactionsResponseItem = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
 
@@ -215,6 +226,7 @@ export const CreateTransactionBody = zod.object({
   date: zod.string(),
   paymentMethod: zod.string(),
   receiptImage: zod.string().nullish(),
+  transactionCurrency: zod.string().nullish(),
 });
 
 /**
@@ -239,6 +251,17 @@ export const GetTransactionResponse = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 
 /**
@@ -255,6 +278,8 @@ export const UpdateTransactionBody = zod.object({
   date: zod.string().optional(),
   paymentMethod: zod.string().optional(),
   receiptImage: zod.string().nullish(),
+  transactionCurrency: zod.string().nullish(),
+  currencyLocked: zod.boolean().optional(),
 });
 
 export const UpdateTransactionResponse = zod.object({
@@ -272,6 +297,17 @@ export const UpdateTransactionResponse = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 
 /**
@@ -279,6 +315,84 @@ export const UpdateTransactionResponse = zod.object({
  */
 export const DeleteTransactionParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Convert a transaction amount to the account currency and clear its transactionCurrency
+ */
+export const ConvertTransactionCurrencyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ConvertTransactionCurrencyBody = zod.object({
+  rate: zod
+    .number()
+    .describe(
+      "Multiply the transaction amount by this rate to get the account-currency value",
+    ),
+});
+
+export const ConvertTransactionCurrencyResponse = zod.object({
+  id: zod.number(),
+  amount: zod.number(),
+  description: zod.string(),
+  categoryId: zod.number().nullable(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  categoryIcon: zod.string().nullable(),
+  date: zod.string(),
+  paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  userName: zod.string().nullable(),
+  createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
+});
+
+/**
+ * @summary Permanently lock a transaction in its captured currency
+ */
+export const LockTransactionCurrencyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const LockTransactionCurrencyResponse = zod.object({
+  id: zod.number(),
+  amount: zod.number(),
+  description: zod.string(),
+  categoryId: zod.number().nullable(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  categoryIcon: zod.string().nullable(),
+  date: zod.string(),
+  paymentMethod: zod.string(),
+  receiptImage: zod.string().nullable(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  userName: zod.string().nullable(),
+  createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 
 /**
@@ -307,6 +421,17 @@ export const UploadReceiptResponse = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 
 /**
@@ -331,6 +456,17 @@ export const DeleteReceiptResponse = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 
 /**
@@ -783,6 +919,17 @@ export const GetRecentActivityResponseItem = zod.object({
   householdId: zod.number().nullable(),
   userName: zod.string().nullable(),
   createdAt: zod.string(),
+  transactionCurrency: zod
+    .string()
+    .nullable()
+    .describe(
+      "Currency code the transaction was captured in (null = account currency)",
+    ),
+  currencyLocked: zod
+    .boolean()
+    .describe(
+      "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
 });
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,

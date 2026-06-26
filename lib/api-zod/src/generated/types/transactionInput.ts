@@ -15,4 +15,6 @@ export interface TransactionInput {
   paymentMethod: string;
   /** @nullable */
   receiptImage?: string | null;
+  /** @nullable */
+  transactionCurrency?: string | null;
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,6 +12,12 @@ export const transactionsTable = pgTable("transactions", {
   receiptImage: text("receipt_image"),
   userId: integer("user_id").notNull(),
   householdId: integer("household_id"),
+  /** Currency code (e.g. "PLN", "EUR") this transaction was captured in.
+   *  Null means the transaction is in the user's account currency. */
+  transactionCurrency: text("transaction_currency"),
+  /** When true this row is permanently locked in transactionCurrency and
+   *  will be skipped by bulk currency-conversion operations. */
+  currencyLocked: boolean("currency_locked").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

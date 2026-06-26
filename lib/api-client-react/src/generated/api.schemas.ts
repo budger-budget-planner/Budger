@@ -113,6 +113,13 @@ export interface Transaction {
   /** @nullable */
   userName: string | null;
   createdAt: string;
+  /**
+   * Currency code the transaction was captured in (null = account currency)
+   * @nullable
+   */
+  transactionCurrency: string | null;
+  /** When true the row is frozen in transactionCurrency and skipped by bulk conversions */
+  currencyLocked: boolean;
 }
 
 export interface TransactionInput {
@@ -124,6 +131,8 @@ export interface TransactionInput {
   paymentMethod: string;
   /** @nullable */
   receiptImage?: string | null;
+  /** @nullable */
+  transactionCurrency?: string | null;
 }
 
 export interface TransactionUpdate {
@@ -135,6 +144,14 @@ export interface TransactionUpdate {
   paymentMethod?: string;
   /** @nullable */
   receiptImage?: string | null;
+  /** @nullable */
+  transactionCurrency?: string | null;
+  currencyLocked?: boolean;
+}
+
+export interface CurrencyConvertInput {
+  /** Multiply the transaction amount by this rate to get the account-currency value */
+  rate: number;
 }
 
 export interface ReceiptInput {

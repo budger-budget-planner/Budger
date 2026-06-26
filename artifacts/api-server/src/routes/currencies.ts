@@ -19,6 +19,8 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
 
   const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
   for (const tx of txs) {
+    // Skip rows permanently locked in their original currency
+    if (tx.currencyLocked) continue;
     const newAmt = (parseFloat(tx.amount) * rate).toFixed(2);
     await db.update(transactionsTable)
       .set({ amount: newAmt })

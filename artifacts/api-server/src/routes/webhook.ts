@@ -127,6 +127,8 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
       userId: user.id,
       householdId: user.householdId ?? null,
       categoryId: null,
+      // Store the captured currency so the frontend can flag it as "convertible"
+      transactionCurrency: currency ?? null,
     })
     .returning();
 

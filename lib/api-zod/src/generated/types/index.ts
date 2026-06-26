@@ -10,6 +10,7 @@ export * from "./category";
 export * from "./categoryInput";
 export * from "./categorySpending";
 export * from "./categoryUpdate";
+export * from "./currencyConvertInput";
 export * from "./getGoalsSummaryParams";
 export * from "./getRecentActivityParams";
 export * from "./getSpendingSummaryParams";

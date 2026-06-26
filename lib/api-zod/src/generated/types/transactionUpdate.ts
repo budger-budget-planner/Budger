@@ -15,4 +15,7 @@ export interface TransactionUpdate {
   paymentMethod?: string;
   /** @nullable */
   receiptImage?: string | null;
+  /** @nullable */
+  transactionCurrency?: string | null;
+  currencyLocked?: boolean;
 }

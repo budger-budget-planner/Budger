@@ -28,4 +28,11 @@ export interface Transaction {
   /** @nullable */
   userName: string | null;
   createdAt: string;
+  /**
+   * Currency code the transaction was captured in (null = account currency)
+   * @nullable
+   */
+  transactionCurrency: string | null;
+  /** When true the row is frozen in transactionCurrency and skipped by bulk conversions */
+  currencyLocked: boolean;
 }

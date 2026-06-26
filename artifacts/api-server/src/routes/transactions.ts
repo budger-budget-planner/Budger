@@ -27,6 +27,8 @@ function enrichTransaction(tx: any, category: any, user: any) {
     householdId: tx.householdId,
     userName: user?.name ?? null,
     createdAt: tx.createdAt.toISOString(),
+    transactionCurrency: tx.transactionCurrency ?? null,
+    currencyLocked: tx.currencyLocked ?? false,
   };
 }
 
@@ -135,6 +137,52 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
 
   await db.delete(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   res.sendStatus(204);
+});
+
+router.post("/transactions/:id/convert-currency", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { rate } = req.body as { rate?: unknown };
+  if (typeof rate !== "number" || rate <= 0) {
+    res.status(400).json({ error: "rate must be a positive number" }); return;
+  }
+
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
+  const converted = (parseFloat(existing.amount) * rate).toFixed(2);
+  const [tx] = await db.update(transactionsTable)
+    .set({ amount: converted, transactionCurrency: null, currencyLocked: false })
+    .where(eq(transactionsTable.id, id))
+    .returning();
+
+  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  res.json(enrichTransaction(tx, category, user));
+});
+
+router.post("/transactions/:id/lock-currency", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
+  const [tx] = await db.update(transactionsTable)
+    .set({ currencyLocked: true })
+    .where(eq(transactionsTable.id, id))
+    .returning();
+
+  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  res.json(enrichTransaction(tx, category, user));
 });
 
 router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import {
@@ -12,6 +12,8 @@ import {
   useCreateGoalContribution,
   useListGoalContributions,
   useDeleteGoalContribution,
+  useConvertTransactionCurrency,
+  useLockTransactionCurrency,
   getListTransactionsQueryKey,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
@@ -21,7 +23,7 @@ import {
   getGetGoalsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -426,6 +428,146 @@ const paymentLabel: Record<string, string> = {
   bank_transfer: "Bank Transfer",
 };
 
+function CurrencyConvertSheet({
+  tx,
+  accountCurrency,
+  onClose,
+  onConverted,
+}: {
+  tx: any;
+  accountCurrency: string;
+  onClose: () => void;
+  onConverted: () => void;
+}) {
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(true);
+  const [rateError, setRateError] = useState(false);
+
+  const convert = useConvertTransactionCurrency();
+  const lock = useLockTransactionCurrency();
+
+  const from = tx.transactionCurrency as string;
+  const to = accountCurrency;
+
+  useEffect(() => {
+    setRateLoading(true);
+    setRateError(false);
+    fetch(`https://open.er-api.com/v6/latest/${from}`)
+      .then(r => r.json())
+      .then(data => {
+        const r = data?.rates?.[to];
+        if (typeof r === "number" && r > 0) {
+          setRate(r);
+        } else {
+          setRateError(true);
+        }
+      })
+      .catch(() => setRateError(true))
+      .finally(() => setRateLoading(false));
+  }, [from, to]);
+
+  const preview = rate != null ? (tx.amount * rate).toFixed(2) : null;
+
+  function handleConvert() {
+    if (!rate) return;
+    convert.mutate(
+      { id: tx.id, data: { rate } },
+      { onSuccess: () => { onConverted(); onClose(); } }
+    );
+  }
+
+  function handleLock() {
+    lock.mutate(
+      { id: tx.id },
+      { onSuccess: () => { onConverted(); onClose(); } }
+    );
+  }
+
+  const busy = convert.isPending || lock.isPending;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Zmień walutę
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <p className="text-sm text-muted-foreground">
+            Ta transakcja została zarejestrowana w walucie{" "}
+            <span className="font-semibold text-foreground">{from}</span>, ale Twoje konto jest w{" "}
+            <span className="font-semibold text-foreground">{to}</span>.
+          </p>
+
+          <div className="rounded-lg bg-muted/40 p-4 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Kwota oryginalna</span>
+              <span className="font-semibold">{fmtAmt(tx.amount, from)}</span>
+            </div>
+            {rateLoading && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Kurs wymiany</span>
+                <span className="text-muted-foreground animate-pulse">pobieranie…</span>
+              </div>
+            )}
+            {rateError && (
+              <div className="text-xs text-destructive">
+                Nie udało się pobrać kursu. Wprowadź ręcznie:
+                <input
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  placeholder={`1 ${from} = ? ${to}`}
+                  className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    setRate(isNaN(v) || v <= 0 ? null : v);
+                  }}
+                />
+              </div>
+            )}
+            {!rateLoading && rate != null && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Kurs</span>
+                  <span>1 {from} = {rate.toFixed(4)} {to}</span>
+                </div>
+                <div className="flex justify-between border-t border-border pt-1 mt-1">
+                  <span className="text-muted-foreground">Po przeliczeniu</span>
+                  <span className="font-bold text-foreground">{fmtAmt(Number(preview), to)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button
+              className="w-full"
+              disabled={busy || rateLoading || !rate}
+              onClick={handleConvert}
+            >
+              {convert.isPending ? "Przeliczam…" : `Przelicz na ${to}`}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={busy}
+              onClick={handleLock}
+            >
+              {lock.isPending ? "Zapisuję…" : `Zostaw w ${from} na stałe`}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Wybór jest nieodwracalny. Transakcja zablokowana w {from} nie zmieni się przy przyszłych konwersjach.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function TransactionsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
@@ -433,6 +575,7 @@ export default function TransactionsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTx, setEditTx] = useState<any | null>(null);
   const [receiptTx, setReceiptTx] = useState<any | null>(null);
+  const [convertTx, setConvertTx] = useState<any | null>(null);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -625,7 +768,35 @@ export default function TransactionsPage() {
                     <p className="text-xs text-muted-foreground">{displayName} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
-                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0">{fmtAmt(Number(tx.amount), loadPrefs().currency)}</span>
+                  {/* Amount — show original currency for locked rows */}
+                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0">
+                    {tx.currencyLocked && tx.transactionCurrency
+                      ? fmtAmt(Number(tx.amount), tx.transactionCurrency)
+                      : fmtAmt(Number(tx.amount), loadPrefs().currency)}
+                  </span>
+
+                  {/* Foreign-currency chip */}
+                  {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
+                    <button
+                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors"
+                      title="Ta transakcja jest w innej walucie. Kliknij, aby zmienić."
+                      onClick={() => setConvertTx(tx)}
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" />
+                      zmień walutę
+                    </button>
+                  )}
+                  {/* Locked-currency indicator */}
+                  {tx.currencyLocked && tx.transactionCurrency && (
+                    <span
+                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-zinc-600 text-zinc-400 bg-zinc-800/40"
+                      title={`Zablokowana w ${tx.transactionCurrency}`}
+                    >
+                      <Lock className="w-2.5 h-2.5" />
+                      {tx.transactionCurrency}
+                    </span>
+                  )}
+
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <Button
                       size="icon"
@@ -707,6 +878,16 @@ export default function TransactionsPage() {
           tx={receiptTx}
           open={!!receiptTx}
           onClose={() => setReceiptTx(null)}
+        />
+      )}
+
+      {/* Currency conversion dialog */}
+      {convertTx && (
+        <CurrencyConvertSheet
+          tx={convertTx}
+          accountCurrency={prefs.currency}
+          onClose={() => setConvertTx(null)}
+          onConverted={() => invalidateAll(queryClient, currentMonth)}
         />
       )}
     </div>

@@ -324,6 +324,50 @@ paths:
         "204":
           description: Deleted
 
+  /transactions/{id}/convert-currency:
+    post:
+      operationId: convertTransactionCurrency
+      tags: [transactions]
+      summary: Convert a transaction amount to the account currency and clear its transactionCurrency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyConvertInput"
+      responses:
+        "200":
+          description: Converted transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}/lock-currency:
+    post:
+      operationId: lockTransactionCurrency
+      tags: [transactions]
+      summary: Permanently lock a transaction in its captured currency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Locked transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
   /transactions/{id}/receipt:
     post:
       operationId: uploadReceipt
@@ -1087,6 +1131,12 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+        transactionCurrency:
+          type: ["string", "null"]
+          description: Currency code the transaction was captured in (null = account currency)
+        currencyLocked:
+          type: boolean
+          description: When true the row is frozen in transactionCurrency and skipped by bulk conversions
       required:
         - id
         - amount
@@ -1102,6 +1152,8 @@ components:
         - householdId
         - userName
         - createdAt
+        - transactionCurrency
+        - currencyLocked
 
     TransactionInput:
       type: object
@@ -1123,6 +1175,8 @@ components:
           type: string
         receiptImage:
           type: ["string", "null"]
+        transactionCurrency:
+          type: ["string", "null"]
 
     TransactionUpdate:
       type: object
@@ -1139,6 +1193,18 @@ components:
           type: string
         receiptImage:
           type: ["string", "null"]
+        transactionCurrency:
+          type: ["string", "null"]
+        currencyLocked:
+          type: boolean
+
+    CurrencyConvertInput:
+      type: object
+      required: [rate]
+      properties:
+        rate:
+          type: number
+          description: Multiply the transaction amount by this rate to get the account-currency value
 
     ReceiptInput:
       type: object
