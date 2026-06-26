@@ -210,6 +210,18 @@ export default function NotificationsPage() {
     if ("Notification" in window) setPermissionStatus(Notification.permission);
   }, []);
 
+  // Auto-recheck when user returns from iOS Settings
+  useEffect(() => {
+    if (permissionStatus !== "denied") return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      if (!("Notification" in window)) return;
+      setPermissionStatus(Notification.permission as NotificationPermission);
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [permissionStatus]);
+
   function updateAlert(updated: Alert) {
     setAlerts(prev => prev.map(a => a.id === updated.id ? updated : a));
   }
@@ -335,35 +347,34 @@ export default function NotificationsPage() {
       )}
 
       {permissionStatus === "denied" && (() => {
-        const ua = navigator.userAgent;
-        const isIOS = /iPad|iPhone|iPod/.test(ua);
-        const isAndroid = /Android/.test(ua);
-        const steps = isIOS
-          ? ["iOS Settings", "Safari", "Notifications", "Find this site", "Allow"]
-          : isAndroid
-          ? ["Browser menu (⋮)", "Settings", "Site settings", "Notifications", "Allow"]
-          : ["Address bar", "Lock icon", "Site settings", "Notifications", "Allow"];
-        const tip = isIOS
-          ? "Or long-press the 'AA' icon in Safari → Website Settings → Notifications → Allow"
-          : isAndroid
-          ? "Or tap the lock icon in the address bar → Site settings → Notifications → Allow"
-          : "";
+        const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+        const steps = isStandalone
+          ? ["Settings", "Budger", "Notifications", "Allow Notifications"]
+          : ["Settings", "Safari", "Notifications", "This website", "Allow"];
+        const tip = isStandalone
+          ? ""
+          : "Add Budger to your Home Screen for easier notification management.";
         return (
           <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground flex-shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-              <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
-            </div>
-            <p className="text-xs text-muted-foreground">Enable them in your device settings to use reminders and alerts.</p>
+            <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Open iPhone Settings and follow the path below, then come back — the page will update automatically.
+            </p>
             <div className="flex items-center gap-1.5 flex-wrap">
               {steps.map((s, i) => (
                 <span key={i} className="flex items-center gap-1.5">
-                  <span className="text-xs font-medium text-foreground bg-background border border-border rounded-lg px-2 py-0.5">{s}</span>
-                  {i < steps.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+                  <span className="text-xs font-semibold text-foreground bg-background border border-border rounded-lg px-2 py-1">{s}</span>
+                  {i < steps.length - 1 && <span className="text-muted-foreground text-xs">›</span>}
                 </span>
               ))}
             </div>
-            {tip && <p className="text-xs text-muted-foreground/70 leading-relaxed">{tip}</p>}
+            {tip && <p className="text-xs text-muted-foreground/60 leading-relaxed">{tip}</p>}
+            <button
+              onClick={() => { window.location.href = "app-settings:"; }}
+              className="w-full h-11 rounded-xl bg-background border border-border text-foreground text-sm font-semibold active:scale-95 transition"
+            >
+              Open Settings
+            </button>
           </div>
         );
       })()}

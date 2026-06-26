@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
@@ -10,26 +10,24 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
-// ── Platform-specific settings path ──────────────────────────────────────────
+// ── iOS notification settings path ───────────────────────────────────────────
 
 function getNotifSettingsPath(): { steps: string[]; tip: string } {
-  const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua)) {
+  const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (isStandalone) {
     return {
-      steps: ["iOS Settings", "Safari", "Notifications", "Find this site", "Allow"],
-      tip: "Or long-press the 'AA' icon in Safari's address bar → Website Settings → Notifications → Allow",
-    };
-  }
-  if (/Android/.test(ua)) {
-    return {
-      steps: ["Browser menu (⋮)", "Settings", "Site settings", "Notifications", "Find this site", "Allow"],
-      tip: "Or tap the lock icon in the address bar → Site settings → Notifications → Allow",
+      steps: ["Settings", "Budger", "Notifications", "Allow Notifications"],
+      tip: "",
     };
   }
   return {
-    steps: ["Browser address bar", "Lock / info icon", "Site settings", "Notifications", "Allow"],
-    tip: "",
+    steps: ["Settings", "Safari", "Notifications", "This website", "Allow"],
+    tip: "Add Budger to your Home Screen for easier notification management.",
   };
+}
+
+function openIOSSettings() {
+  window.location.href = "app-settings:";
 }
 
 // ── Steps ────────────────────────────────────────────────────────────────────
@@ -100,6 +98,22 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
     }
     onComplete({ currency, language, totalBudget, staySignedIn });
   }
+
+  // ── Auto-recheck when user returns from iOS Settings ─────────────────────
+
+  useEffect(() => {
+    if (notifStatus !== "denied") return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        setNotifStatus("granted");
+        updateNotif.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [notifStatus]);
 
   // ── Notifications step ────────────────────────────────────────────────────
 
@@ -242,20 +256,25 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
             const { steps, tip } = getNotifSettingsPath();
             return (
               <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground flex-shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-                  <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Enable them in your device settings, then tap <span className="font-semibold text-foreground">Try Again</span>.</p>
+                <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Open your iPhone Settings and follow the path below, then come back — the app will detect it automatically.
+                </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {steps.map((step, i) => (
+                  {steps.map((s, i) => (
                     <span key={i} className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-foreground bg-background border border-border rounded-lg px-2 py-0.5">{step}</span>
-                      {i < steps.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+                      <span className="text-xs font-semibold text-foreground bg-background border border-border rounded-lg px-2 py-1">{s}</span>
+                      {i < steps.length - 1 && <span className="text-muted-foreground text-xs">›</span>}
                     </span>
                   ))}
                 </div>
-                {tip && <p className="text-xs text-muted-foreground/70 leading-relaxed">{tip}</p>}
+                {tip && <p className="text-xs text-muted-foreground/60 leading-relaxed">{tip}</p>}
+                <button
+                  onClick={openIOSSettings}
+                  className="w-full h-11 rounded-xl bg-background border border-border text-foreground text-sm font-semibold active:scale-95 transition"
+                >
+                  Open Settings
+                </button>
               </div>
             );
           })()}
