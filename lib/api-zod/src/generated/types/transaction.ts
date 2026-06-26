@@ -35,4 +35,6 @@ export interface Transaction {
   transactionCurrency: string | null;
   /** When true the row is frozen in transactionCurrency and skipped by bulk conversions */
   currencyLocked: boolean;
+  /** True when the category was assigned automatically by the merchant-rule engine */
+  categoryAutoAssigned: boolean;
 }

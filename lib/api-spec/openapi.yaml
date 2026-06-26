@@ -25,6 +25,8 @@ tags:
     description: Dashboard summaries
   - name: goals
     description: Financial goals
+  - name: merchantCategories
+    description: Merchant auto-categorization rules
 
 paths:
   /healthz:
@@ -938,6 +940,63 @@ paths:
                 items:
                   $ref: "#/components/schemas/Transaction"
 
+  /merchant-categories:
+    get:
+      operationId: listMerchantCategoryRules
+      tags: [merchantCategories]
+      summary: List all merchant auto-categorization rules for the current user
+      responses:
+        "200":
+          description: List of rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MerchantCategoryRule"
+    post:
+      operationId: recordMerchantCategory
+      tags: [merchantCategories]
+      summary: Record a merchant+category assignment (increments count, enables auto-apply at 3)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordMerchantCategoryInput"
+      responses:
+        "200":
+          description: Updated or created rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantCategoryRule"
+
+  /merchant-categories/{id}:
+    patch:
+      operationId: updateMerchantCategoryRule
+      tags: [merchantCategories]
+      summary: Update a merchant rule (e.g. disable auto-apply)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMerchantCategoryRuleInput"
+      responses:
+        "200":
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantCategoryRule"
+
 components:
   schemas:
     HealthStatus:
@@ -1137,6 +1196,9 @@ components:
         currencyLocked:
           type: boolean
           description: When true the row is frozen in transactionCurrency and skipped by bulk conversions
+        categoryAutoAssigned:
+          type: boolean
+          description: True when the category was assigned automatically by the merchant-rule engine
       required:
         - id
         - amount
@@ -1154,6 +1216,7 @@ components:
         - createdAt
         - transactionCurrency
         - currencyLocked
+        - categoryAutoAssigned
 
     TransactionInput:
       type: object
@@ -1586,6 +1649,58 @@ components:
         - monthlyTarget
         - contributed
         - percentage
+
+    RecordMerchantCategoryInput:
+      type: object
+      required: [merchantName, categoryId]
+      properties:
+        merchantName:
+          type: string
+        categoryId:
+          type: integer
+
+    UpdateMerchantCategoryRuleInput:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+        autoApply:
+          type: boolean
+
+    MerchantCategoryRule:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        merchantName:
+          type: string
+        categoryId:
+          type: integer
+        categoryName:
+          type: ["string", "null"]
+        categoryColor:
+          type: ["string", "null"]
+        assignmentCount:
+          type: integer
+        autoApply:
+          type: boolean
+        disabled:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - merchantName
+        - categoryId
+        - categoryName
+        - categoryColor
+        - assignmentCount
+        - autoApply
+        - disabled
+        - createdAt
 
     MonthHistory:
       type: object

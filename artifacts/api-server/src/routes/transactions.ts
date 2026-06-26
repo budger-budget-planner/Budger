@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
 import { eq, or, desc } from "drizzle-orm";
+import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -29,6 +30,7 @@ function enrichTransaction(tx: any, category: any, user: any) {
     createdAt: tx.createdAt.toISOString(),
     transactionCurrency: tx.transactionCurrency ?? null,
     currencyLocked: tx.currencyLocked ?? false,
+    categoryAutoAssigned: tx.categoryAutoAssigned ?? false,
   };
 }
 
@@ -74,12 +76,27 @@ router.post("/transactions", async (req, res): Promise<void> => {
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
+  // If user didn't provide a category, check for an active auto-apply rule
+  let resolvedCategoryId = parsed.data.categoryId ?? null;
+  let categoryAutoAssigned = false;
+  if (!resolvedCategoryId) {
+    const autoId = await getAutoCategory(userId, parsed.data.description);
+    if (autoId) { resolvedCategoryId = autoId; categoryAutoAssigned = true; }
+  }
+
   const [tx] = await db.insert(transactionsTable).values({
     ...parsed.data,
     amount: String(parsed.data.amount),
+    categoryId: resolvedCategoryId,
+    categoryAutoAssigned,
     userId,
     householdId: currentUser?.householdId ?? null,
   }).returning();
+
+  // Record the manual assignment so the engine can learn from it
+  if (parsed.data.categoryId && !categoryAutoAssigned) {
+    await recordMerchantAssignment(userId, parsed.data.description, parsed.data.categoryId);
+  }
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
 
@@ -115,12 +132,22 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   const updateData: any = { ...parsed.data };
   if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
 
+  // When user manually sets a category, clear the auto-assigned flag
+  if (parsed.data.categoryId !== undefined) {
+    updateData.categoryAutoAssigned = false;
+  }
+
   const [tx] = await db.update(transactionsTable)
     .set(updateData)
     .where(eq(transactionsTable.id, params.data.id))
     .returning();
 
   if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+
+  // Record the manual assignment so the engine can learn from it
+  if (parsed.data.categoryId && tx.description) {
+    await recordMerchantAssignment(tx.userId, tx.description, parsed.data.categoryId);
+  }
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));

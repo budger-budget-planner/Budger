@@ -213,6 +213,11 @@ export const ListTransactionsResponseItem = zod.object({
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
     ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
+    ),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
 
@@ -262,6 +267,11 @@ export const GetTransactionResponse = zod.object({
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
     ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
+    ),
 });
 
 /**
@@ -307,6 +317,11 @@ export const UpdateTransactionResponse = zod.object({
     .boolean()
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
     ),
 });
 
@@ -358,6 +373,11 @@ export const ConvertTransactionCurrencyResponse = zod.object({
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
     ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
+    ),
 });
 
 /**
@@ -392,6 +412,11 @@ export const LockTransactionCurrencyResponse = zod.object({
     .boolean()
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
     ),
 });
 
@@ -432,6 +457,11 @@ export const UploadReceiptResponse = zod.object({
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
     ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
+    ),
 });
 
 /**
@@ -466,6 +496,11 @@ export const DeleteReceiptResponse = zod.object({
     .boolean()
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
+    ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
     ),
 });
 
@@ -930,7 +965,77 @@ export const GetRecentActivityResponseItem = zod.object({
     .describe(
       "When true the row is frozen in transactionCurrency and skipped by bulk conversions",
     ),
+  categoryAutoAssigned: zod
+    .boolean()
+    .describe(
+      "True when the category was assigned automatically by the merchant-rule engine",
+    ),
 });
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,
 );
+
+/**
+ * @summary List all merchant auto-categorization rules for the current user
+ */
+export const ListMerchantCategoryRulesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  merchantName: zod.string(),
+  categoryId: zod.number(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  assignmentCount: zod.number(),
+  autoApply: zod.boolean(),
+  disabled: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListMerchantCategoryRulesResponse = zod.array(
+  ListMerchantCategoryRulesResponseItem,
+);
+
+/**
+ * @summary Record a merchant+category assignment (increments count, enables auto-apply at 3)
+ */
+export const RecordMerchantCategoryBody = zod.object({
+  merchantName: zod.string(),
+  categoryId: zod.number(),
+});
+
+export const RecordMerchantCategoryResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  merchantName: zod.string(),
+  categoryId: zod.number(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  assignmentCount: zod.number(),
+  autoApply: zod.boolean(),
+  disabled: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Update a merchant rule (e.g. disable auto-apply)
+ */
+export const UpdateMerchantCategoryRuleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateMerchantCategoryRuleBody = zod.object({
+  disabled: zod.boolean().optional(),
+  autoApply: zod.boolean().optional(),
+});
+
+export const UpdateMerchantCategoryRuleResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  merchantName: zod.string(),
+  categoryId: zod.number(),
+  categoryName: zod.string().nullable(),
+  categoryColor: zod.string().nullable(),
+  assignmentCount: zod.number(),
+  autoApply: zod.boolean(),
+  disabled: zod.boolean(),
+  createdAt: zod.string(),
+});

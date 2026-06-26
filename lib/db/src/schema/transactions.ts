@@ -18,6 +18,8 @@ export const transactionsTable = pgTable("transactions", {
   /** When true this row is permanently locked in transactionCurrency and
    *  will be skipped by bulk currency-conversion operations. */
   currencyLocked: boolean("currency_locked").notNull().default(false),
+  /** True when the category was assigned automatically by the merchant-rule engine */
+  categoryAutoAssigned: boolean("category_auto_assigned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { db, usersTable, transactionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { getAutoCategory } from "../lib/merchantRules";
 
 const router: IRouter = Router();
 
@@ -117,6 +118,9 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
 
   const today = new Date().toISOString().split("T")[0];
 
+  // Auto-apply merchant category rule if one is learned
+  const autoCategory = await getAutoCategory(user.id, merchant);
+
   const [tx] = await db
     .insert(transactionsTable)
     .values({
@@ -126,7 +130,8 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
       paymentMethod: "apple_pay",
       userId: user.id,
       householdId: user.householdId ?? null,
-      categoryId: null,
+      categoryId: autoCategory ?? null,
+      categoryAutoAssigned: autoCategory != null,
       // Store the captured currency so the frontend can flag it as "convertible"
       transactionCurrency: currency ?? null,
     })

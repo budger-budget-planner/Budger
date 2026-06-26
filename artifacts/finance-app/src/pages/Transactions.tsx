@@ -13,6 +13,8 @@ import {
   useCreateGoalContribution,
   useListGoalContributions,
   useDeleteGoalContribution,
+  useUpdateMerchantCategoryRule,
+  listMerchantCategoryRules,
   getListTransactionsQueryKey,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
@@ -439,6 +441,8 @@ export default function TransactionsPage() {
   const [filterCat, setFilterCat] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
+  const updateMerchantRule = useUpdateMerchantCategoryRule();
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -515,6 +519,11 @@ export default function TransactionsPage() {
     const txId = editTx.id;
     const { categoryId, goalContribution } = resolveCategory(form);
 
+    // Was this an auto-assigned category that the user is now overriding?
+    const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
+    const overriddenMerchant = wasAutoAssigned ? editTx.description : null;
+    const overriddenCategoryName = wasAutoAssigned ? (editTx.categoryName ?? "that category") : null;
+
     // Detect whether this tx previously had a goal assignment (categoryId null = goal tx)
     const hadGoal = !editTx.categoryId;
     const nowHasGoal = !!goalContribution;
@@ -536,6 +545,11 @@ export default function TransactionsPage() {
         }),
       });
       if (!patchRes.ok) return;
+
+      // Show popup if user overrode an auto-assigned category
+      if (wasAutoAssigned && overriddenMerchant && overriddenCategoryName) {
+        setAutoRulePrompt({ merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName });
+      }
 
       // Step 2: Manage contributions when goal assignment changes in either direction
       if (needsContribUpdate) {
@@ -748,6 +762,40 @@ export default function TransactionsPage() {
           onClose={() => setConvertTx(null)}
           onConverted={() => invalidateAll(queryClient, currentMonth)}
         />
+      )}
+
+      {/* Auto-category override popup */}
+      {autoRulePrompt && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-sm mx-4 mb-24 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4">
+            <p className="text-sm font-medium text-white mb-1">Stop auto-categorizing?</p>
+            <p className="text-xs text-zinc-400 mb-4">
+              We auto-tagged <span className="text-white font-medium">{autoRulePrompt.merchantName}</span> as{" "}
+              <span className="text-white font-medium">{autoRulePrompt.oldCategoryName}</span>. Stop doing that?
+            </p>
+            <div className="flex gap-2">
+              <button
+                className="flex-1 py-2 rounded-xl bg-zinc-800 text-sm text-zinc-300 hover:bg-zinc-700 transition-colors"
+                onClick={() => setAutoRulePrompt(null)}
+              >
+                Keep auto-tagging
+              </button>
+              <button
+                className="flex-1 py-2 rounded-xl bg-white text-sm text-black font-medium hover:bg-zinc-200 transition-colors"
+                onClick={async () => {
+                  const rules = await listMerchantCategoryRules();
+                  const rule = rules.find(
+                    r => r.merchantName === autoRulePrompt.merchantName.trim().toLowerCase(),
+                  );
+                  if (rule) updateMerchantRule.mutate({ id: rule.id, data: { disabled: true } });
+                  setAutoRulePrompt(null);
+                }}
+              >
+                Yes, stop
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

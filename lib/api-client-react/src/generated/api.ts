@@ -43,15 +43,18 @@ import type {
   ListTransactionsParams,
   LoginInput,
   MemberRoleUpdate,
+  MerchantCategoryRule,
   MonthHistory,
   MonthlyTotal,
   NotificationSettings,
   NotificationSettingsInput,
   ReceiptInput,
+  RecordMerchantCategoryInput,
   RegisterInput,
   Transaction,
   TransactionInput,
   TransactionUpdate,
+  UpdateMerchantCategoryRuleInput,
   User,
   UserUpdate,
 } from "./api.schemas";
@@ -4240,3 +4243,260 @@ export function useGetRecentActivity<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all merchant auto-categorization rules for the current user
+ */
+export const getListMerchantCategoryRulesUrl = () => {
+  return `/api/merchant-categories`;
+};
+
+export const listMerchantCategoryRules = async (
+  options?: RequestInit,
+): Promise<MerchantCategoryRule[]> => {
+  return customFetch<MerchantCategoryRule[]>(
+    getListMerchantCategoryRulesUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListMerchantCategoryRulesQueryKey = () => {
+  return [`/api/merchant-categories`] as const;
+};
+
+export const getListMerchantCategoryRulesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMerchantCategoryRules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMerchantCategoryRules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListMerchantCategoryRulesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMerchantCategoryRules>>
+  > = ({ signal }) => listMerchantCategoryRules({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMerchantCategoryRules>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMerchantCategoryRulesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMerchantCategoryRules>>
+>;
+export type ListMerchantCategoryRulesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all merchant auto-categorization rules for the current user
+ */
+
+export function useListMerchantCategoryRules<
+  TData = Awaited<ReturnType<typeof listMerchantCategoryRules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMerchantCategoryRules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMerchantCategoryRulesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Record a merchant+category assignment (increments count, enables auto-apply at 3)
+ */
+export const getRecordMerchantCategoryUrl = () => {
+  return `/api/merchant-categories`;
+};
+
+export const recordMerchantCategory = async (
+  recordMerchantCategoryInput: RecordMerchantCategoryInput,
+  options?: RequestInit,
+): Promise<MerchantCategoryRule> => {
+  return customFetch<MerchantCategoryRule>(getRecordMerchantCategoryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(recordMerchantCategoryInput),
+  });
+};
+
+export const getRecordMerchantCategoryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordMerchantCategory>>,
+    TError,
+    { data: BodyType<RecordMerchantCategoryInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordMerchantCategory>>,
+  TError,
+  { data: BodyType<RecordMerchantCategoryInput> },
+  TContext
+> => {
+  const mutationKey = ["recordMerchantCategory"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordMerchantCategory>>,
+    { data: BodyType<RecordMerchantCategoryInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return recordMerchantCategory(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordMerchantCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordMerchantCategory>>
+>;
+export type RecordMerchantCategoryMutationBody =
+  BodyType<RecordMerchantCategoryInput>;
+export type RecordMerchantCategoryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a merchant+category assignment (increments count, enables auto-apply at 3)
+ */
+export const useRecordMerchantCategory = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordMerchantCategory>>,
+    TError,
+    { data: BodyType<RecordMerchantCategoryInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof recordMerchantCategory>>,
+  TError,
+  { data: BodyType<RecordMerchantCategoryInput> },
+  TContext
+> => {
+  return useMutation(getRecordMerchantCategoryMutationOptions(options));
+};
+
+/**
+ * @summary Update a merchant rule (e.g. disable auto-apply)
+ */
+export const getUpdateMerchantCategoryRuleUrl = (id: number) => {
+  return `/api/merchant-categories/${id}`;
+};
+
+export const updateMerchantCategoryRule = async (
+  id: number,
+  updateMerchantCategoryRuleInput: UpdateMerchantCategoryRuleInput,
+  options?: RequestInit,
+): Promise<MerchantCategoryRule> => {
+  return customFetch<MerchantCategoryRule>(
+    getUpdateMerchantCategoryRuleUrl(id),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateMerchantCategoryRuleInput),
+    },
+  );
+};
+
+export const getUpdateMerchantCategoryRuleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMerchantCategoryRule>>,
+    TError,
+    { id: number; data: BodyType<UpdateMerchantCategoryRuleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMerchantCategoryRule>>,
+  TError,
+  { id: number; data: BodyType<UpdateMerchantCategoryRuleInput> },
+  TContext
+> => {
+  const mutationKey = ["updateMerchantCategoryRule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMerchantCategoryRule>>,
+    { id: number; data: BodyType<UpdateMerchantCategoryRuleInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateMerchantCategoryRule(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMerchantCategoryRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMerchantCategoryRule>>
+>;
+export type UpdateMerchantCategoryRuleMutationBody =
+  BodyType<UpdateMerchantCategoryRuleInput>;
+export type UpdateMerchantCategoryRuleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a merchant rule (e.g. disable auto-apply)
+ */
+export const useUpdateMerchantCategoryRule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMerchantCategoryRule>>,
+    TError,
+    { id: number; data: BodyType<UpdateMerchantCategoryRuleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMerchantCategoryRule>>,
+  TError,
+  { id: number; data: BodyType<UpdateMerchantCategoryRuleInput> },
+  TContext
+> => {
+  return useMutation(getUpdateMerchantCategoryRuleMutationOptions(options));
+};

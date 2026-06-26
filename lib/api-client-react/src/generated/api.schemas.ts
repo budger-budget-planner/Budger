@@ -120,6 +120,8 @@ export interface Transaction {
   transactionCurrency: string | null;
   /** When true the row is frozen in transactionCurrency and skipped by bulk conversions */
   currencyLocked: boolean;
+  /** True when the category was assigned automatically by the merchant-rule engine */
+  categoryAutoAssigned: boolean;
 }
 
 export interface TransactionInput {
@@ -352,6 +354,31 @@ export interface GoalSummary {
   monthlyTarget: number | null;
   contributed: number;
   percentage: number;
+}
+
+export interface RecordMerchantCategoryInput {
+  merchantName: string;
+  categoryId: number;
+}
+
+export interface UpdateMerchantCategoryRuleInput {
+  disabled?: boolean;
+  autoApply?: boolean;
+}
+
+export interface MerchantCategoryRule {
+  id: number;
+  userId: number;
+  merchantName: string;
+  categoryId: number;
+  /** @nullable */
+  categoryName: string | null;
+  /** @nullable */
+  categoryColor: string | null;
+  assignmentCount: number;
+  autoApply: boolean;
+  disabled: boolean;
+  createdAt: string;
 }
 
 export interface MonthHistory {

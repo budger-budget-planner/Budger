@@ -12,6 +12,8 @@ import {
   useUploadReceipt,
   useDeleteReceipt,
   useUpdateMe,
+  useUpdateMerchantCategoryRule,
+  listMerchantCategoryRules,
   getListTransactionsQueryKey,
   getGetSpendingSummaryQueryKey,
   getGetMonthlySummaryQueryKey,
@@ -412,6 +414,8 @@ export default function HomeSpending() {
   const [budgetOpen,   setBudgetOpen]  = useState(false);
   const [budgetInput,  setBudgetInput] = useState("");
   const [searchQuery,  setSearchQuery] = useState("");
+  const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
+  const updateMerchantRule = useUpdateMerchantCategoryRule();
 
   const monthStart     = startOfMonth(viewDate);
   const monthEnd       = endOfMonth(viewDate);
@@ -505,6 +509,11 @@ export default function HomeSpending() {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const existingContrib = contribByTxId.get(editTx.id) ?? null;
 
+    // Was this an auto-assigned category that the user is now overriding?
+    const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
+    const overriddenMerchant = wasAutoAssigned ? editTx.description : null;
+    const overriddenCategoryName = wasAutoAssigned ? (editTx.categoryName ?? "that category") : null;
+
     update.mutate(
       {
         id: editTx.id,
@@ -520,6 +529,9 @@ export default function HomeSpending() {
         onSuccess: async () => {
           invalidateAll(queryClient);
           setEditTx(null);
+          if (wasAutoAssigned && overriddenMerchant && overriddenCategoryName) {
+            setAutoRulePrompt({ merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName });
+          }
           await syncGoalContribution({
             txId: editTx.id,
             txDate: form.date,
@@ -951,6 +963,40 @@ export default function HomeSpending() {
           onClose={() => setConvertTx(null)}
           onConverted={() => invalidateAll(queryClient)}
         />
+      )}
+
+      {/* Auto-category override popup */}
+      {autoRulePrompt && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-sm mx-4 mb-24 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4">
+            <p className="text-sm font-medium text-white mb-1">Stop auto-categorizing?</p>
+            <p className="text-xs text-zinc-400 mb-4">
+              We auto-tagged <span className="text-white font-medium">{autoRulePrompt.merchantName}</span> as{" "}
+              <span className="text-white font-medium">{autoRulePrompt.oldCategoryName}</span>. Stop doing that?
+            </p>
+            <div className="flex gap-2">
+              <button
+                className="flex-1 py-2 rounded-xl bg-zinc-800 text-sm text-zinc-300 hover:bg-zinc-700 transition-colors"
+                onClick={() => setAutoRulePrompt(null)}
+              >
+                Keep auto-tagging
+              </button>
+              <button
+                className="flex-1 py-2 rounded-xl bg-white text-sm text-black font-medium hover:bg-zinc-200 transition-colors"
+                onClick={async () => {
+                  const rules = await listMerchantCategoryRules();
+                  const rule = rules.find(
+                    r => r.merchantName === autoRulePrompt.merchantName.trim().toLowerCase(),
+                  );
+                  if (rule) updateMerchantRule.mutate({ id: rule.id, data: { disabled: true } });
+                  setAutoRulePrompt(null);
+                }}
+              >
+                Yes, stop
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
