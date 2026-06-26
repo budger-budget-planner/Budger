@@ -495,6 +495,63 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.try_again":               { en: "Try again",                pl: "Spróbuj ponownie"                       },
   "hh.already_in_hh":           { en: "Already in a household",   pl: "Już w gospodarstwie"                    },
 
+  // ── Apple Pay automation slides ──
+  "ap.setup_title":  { en: "Apple Pay Automation",           pl: "Automatyzacja Apple Pay"              },
+  "ap.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
+  "ap.copy_link":    { en: "Copy link",                      pl: "Kopiuj link"                         },
+  "ap.copied":       { en: "✓ Copied!",                      pl: "✓ Skopiowano!"                       },
+  "ap.generating":   { en: "Generating your link…",          pl: "Generowanie linku…"                  },
+  "ap.tap_hint":     { en: "tap right side to continue",     pl: "dotknij prawej strony, aby kontynuować" },
+  "ap.prev":         { en: "Previous",                       pl: "Poprzedni"                           },
+  "ap.next":         { en: "Next",                           pl: "Następny"                            },
+  "ap.configure_btn":{ en: "Set up Apple Pay auto-logging",  pl: "Skonfiguruj automatyczne Apple Pay"  },
+  "ap.configure_desc":{ en: "Every Apple Pay purchase will appear in Budger automatically.", pl: "Każda płatność Apple Pay pojawi się w Budger automatycznie." },
+
+  "ap.s1_title": {
+    en: "Every payment, logged automatically",
+    pl: "Każda płatność — zalogowana automatycznie",
+  },
+  "ap.s1_desc": {
+    en: "When you tap to pay with Apple Pay, Budger receives the transaction instantly and creates the record for you. Nothing to type, nothing to forget.",
+    pl: "Gdy płacisz Apple Pay, Budger natychmiast odbiera transakcję i tworzy wpis. Nic do wpisywania, nic do zapominania.",
+  },
+
+  "ap.s2_title": {
+    en: "Open Shortcuts → tap Automation → tap +",
+    pl: "Otwórz Skróty → Automatyzacja → +",
+  },
+  "ap.s2_desc": {
+    en: "On your iPhone, open the built-in Shortcuts app. Tap the Automation tab at the bottom of the screen. Then tap the + button in the top-right corner to start a new automation.",
+    pl: "Na iPhonie otwórz wbudowaną aplikację Skróty. Dotknij zakładki Automatyzacja na dole ekranu. Następnie dotknij + w prawym górnym rogu, aby rozpocząć nową automatyzację.",
+  },
+
+  "ap.s3_title": {
+    en: "Trigger: Wallet & Apple Pay → Transaction",
+    pl: "Wyzwalacz: Portfel i Apple Pay → Transakcja",
+  },
+  "ap.s3_desc": {
+    en: "Choose New Blank Automation. Scroll to the Wallet & Apple Pay section and select Transaction. Switch \"When to Run\" to Run Immediately, then turn the \"Notify When Run\" toggle OFF.",
+    pl: "Wybierz Nowa pusta automatyzacja. Przewiń do sekcji Portfel i Apple Pay, wybierz Transakcja. Ustaw „Kiedy uruchamiać" na Uruchom natychmiast, a przełącznik „Powiadamiaj o uruchomieniu" ustaw na WYŁ.",
+  },
+
+  "ap.s4_title": {
+    en: "Action: Get Contents of URL — POST · JSON · transaction",
+    pl: "Akcja: Pobierz zawartość adresu URL — POST · JSON · transaction",
+  },
+  "ap.s4_desc": {
+    en: "Add a Get Contents of URL action. Set Method to POST and Request Body to JSON. Add one field: key transaction, value Shortcut Input (the blue variable chip from the picker).",
+    pl: "Dodaj akcję Pobierz zawartość adresu URL. Ustaw Metodę na POST, Treść żądania na JSON. Dodaj jedno pole: klucz transaction, wartość Dane wejściowe skrótu (niebieska etykieta zmiennej).",
+  },
+
+  "ap.s5_title": {
+    en: "Paste your personal link as the URL",
+    pl: "Wklej swój osobisty link jako URL",
+  },
+  "ap.s5_desc": {
+    en: "Copy the link below and paste it into the URL field of the action. Tap Done. From now on, every Apple Pay purchase will appear in Budger the moment you pay.",
+    pl: "Skopiuj link poniżej i wklej go do pola URL w akcji. Dotknij Gotowe. Od tej chwili każda płatność Apple Pay pojawi się w Budger w momencie zapłaty.",
+  },
+
   // ── Dashboard additional ──
   "dashboard.by":           { en: "by",                        pl: "do"                          },
   "dashboard.mo_needed":    { en: "/mo needed",                pl: "/msc ustalono"               },

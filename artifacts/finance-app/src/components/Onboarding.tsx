@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
+import ApplePaySlides from "@/components/ApplePaySlides";
 import {
   useUpdateNotificationSettings,
   useUpdateMe,
@@ -95,7 +96,6 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [walletSlide, setWalletSlide] = useState(0);
-  const [webhookToken, setWebhookToken] = useState<string | null>(null);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
   const [finishing, setFinishing]     = useState(false);
 
@@ -143,17 +143,6 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
     onComplete({ currency, language, totalBudget, staySignedIn });
   }
 
-  // Wallet slide navigation
-  function walletNext() {
-    if (walletSlide < WALLET_SLIDES.length - 1) {
-      setWalletSlide(s => s + 1);
-    } else {
-      next();
-    }
-  }
-  function walletPrev() {
-    if (walletSlide > 0) setWalletSlide(s => s - 1);
-  }
 
   // ── Notifications step ────────────────────────────────────────────────────
 

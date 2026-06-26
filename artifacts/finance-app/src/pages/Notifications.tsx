@@ -5,7 +5,8 @@ import {
   getGetNotificationSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, BellOff, Plus, Trash2, TrendingUp, Target } from "lucide-react";
+import { Bell, BellOff, Plus, Trash2, TrendingUp, Target, Smartphone } from "lucide-react";
+import ApplePaySlides from "@/components/ApplePaySlides";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -185,6 +186,7 @@ export default function NotificationsPage() {
   const [alerts, setAlerts] = useState<Alert[]>(loadAlerts);
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
+  const [showApplePaySlides, setShowApplePaySlides] = useState(false);
 
   useEffect(() => {
     if (settings && !localStorage.getItem(ALERTS_KEY)) {
@@ -289,6 +291,10 @@ export default function NotificationsPage() {
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-lg mx-auto space-y-6">
+
+      {showApplePaySlides && (
+        <ApplePaySlides modal onClose={() => setShowApplePaySlides(false)} />
+      )}
 
       {permissionStatus === "denied" && (
         <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs">
