@@ -470,16 +470,16 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
           style={{ WebkitTapHighlightColor: "transparent" }}
         />
 
-        {/* Content — top-anchored */}
-        <div className="pointer-events-none flex flex-col items-center gap-3 px-4 pt-5 pb-4 w-full">
+        {/* Content — full height, phone top · text middle · dots+hint pinned bottom */}
+        <div className="pointer-events-none flex flex-col items-center w-full h-full px-4 pt-5 pb-4">
 
-          {/* Phone mockup — fixed height so all slides consistent */}
+          {/* Phone mockup — fixed height */}
           <div className="flex items-center justify-center w-full overflow-hidden flex-shrink-0" style={{ height: 200 }}>
             {slide.mockup}
           </div>
 
-          {/* Title + description */}
-          <div className="w-full space-y-1">
+          {/* Title + description — grows to fill space, centred vertically */}
+          <div className="flex-1 flex flex-col items-center justify-center w-full gap-1 py-3">
             <h3 className="text-[13.5px] font-bold text-foreground text-center leading-snug">
               {t(slide.titleKey)}
             </h3>
@@ -488,8 +488,8 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
             </p>
           </div>
 
-          {/* Dot indicators */}
-          <div className="flex gap-1.5">
+          {/* Dots — always at bottom, fixed position */}
+          <div className="flex gap-1.5 flex-shrink-0">
             {SLIDES.map((_, i) => (
               <div
                 key={i}
@@ -500,8 +500,8 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
             ))}
           </div>
 
-          {/* Hint slot — always same height so card size stays fixed across slides */}
-          <div className="h-3 flex items-center justify-center">
+          {/* Hint slot — fixed 20px, always present to keep dots at same Y */}
+          <div className="h-5 flex items-center justify-center flex-shrink-0 mt-2">
             {idx === 0 && (
               <p className="text-[9px] text-muted-foreground/35 tracking-widest uppercase">
                 {t("ap.tap_hint")}
