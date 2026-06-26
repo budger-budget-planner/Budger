@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useGetNotificationSettings,
   useUpdateNotificationSettings,
@@ -16,6 +16,7 @@ import {
   type SmartAlertPrefs,
 } from "@/hooks/useSmartNotifications";
 import { t, getDayLabels } from "@/lib/i18n";
+import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 
 type Alert = {
   id: string;
@@ -187,6 +188,11 @@ export default function NotificationsPage() {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
   const [showApplePaySlides, setShowApplePaySlides] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("budger_haptic_v1") !== "off"; } catch { return true; }
+  });
+  const [previewing, setPreviewing] = useState(false);
+  const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (settings && !localStorage.getItem(ALERTS_KEY)) {
@@ -237,6 +243,25 @@ export default function NotificationsPage() {
     toast({ title: value ? t("notif.alert_enabled") : t("notif.alert_disabled") });
   }
 
+  function toggleHaptic(v: boolean) {
+    setHapticEnabled(v);
+    try { localStorage.setItem("budger_haptic_v1", v ? "on" : "off"); } catch { /* ignore */ }
+    if (v) hapticSniff();
+  }
+
+  // Clear preview timeout on unmount to avoid state update after unmount
+  useEffect(() => {
+    return () => { if (previewTimeout.current) clearTimeout(previewTimeout.current); };
+  }, []);
+
+  async function handlePreview() {
+    if (previewing) return;
+    if (previewTimeout.current) clearTimeout(previewTimeout.current);
+    setPreviewing(true);
+    await triggerBadgerNotification({ haptic: hapticEnabled && canHaptic() });
+    previewTimeout.current = setTimeout(() => setPreviewing(false), 1200);
+  }
+
   async function handleSave() {
     const anyEnabled = alerts.some(a => a.enabled);
 
@@ -275,6 +300,9 @@ export default function NotificationsPage() {
               body: t("notif.dont_forget"),
               icon: "/favicon.ico",
             });
+            // Fire badger sound + haptic (respecting user haptic preference)
+            const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
+            triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
           }
         }, next.getTime() - now.getTime());
       }
@@ -362,6 +390,69 @@ export default function NotificationsPage() {
             checked={smartPrefs.goalAlerts}
             onChange={v => handleSmartToggle("goalAlerts", v)}
           />
+        </div>
+      </section>
+
+      {/* ── Alert Sound & Haptics ── */}
+      <section>
+        <div className="mb-3">
+          <h2 className="text-base font-bold">{t("notif.sound_section")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("notif.sound_desc")}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          {/* Preview row */}
+          <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              {/* Badger sniff icon — animated nose */}
+              <div className="relative w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <span className="text-xl select-none">🦡</span>
+                {previewing && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-foreground animate-ping opacity-80" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Badger Sniff</p>
+                <p className="text-xs text-muted-foreground">sniff · sniff · sniff — sniff · sniff</p>
+              </div>
+            </div>
+            <button
+              onClick={handlePreview}
+              disabled={previewing}
+              className={`px-4 py-1.5 rounded-xl text-sm font-semibold border transition active:scale-95 ${
+                previewing
+                  ? "border-foreground/20 text-muted-foreground"
+                  : "border-border text-foreground bg-muted"
+              }`}
+            >
+              {previewing ? "▶︎" : t("notif.preview_btn")}
+            </button>
+          </div>
+
+          {/* Haptic toggle row */}
+          <div className="flex items-start justify-between gap-3 px-4 py-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-muted-foreground">
+                {/* Vibration icon */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 8v8" /><path d="M6 6v12" />
+                  <rect x="8" y="4" width="8" height="16" rx="2" />
+                  <path d="M18 6v12" /><path d="M22 8v8" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{t("notif.haptic_label")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {canHaptic() ? t("notif.haptic_desc") : t("notif.haptic_unavailable")}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={hapticEnabled && canHaptic()}
+              disabled={!canHaptic()}
+              onCheckedChange={toggleHaptic}
+            />
+          </div>
         </div>
       </section>
 

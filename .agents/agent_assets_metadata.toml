@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "UVGJE6TfVVrsrYhEElwlW"
+uri = "file://attached_assets/generated_audio/badger-sniff.mp3"
+type = "audio"
+title = "badger-sniff"

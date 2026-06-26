@@ -426,6 +426,14 @@ const translations: Record<string, Record<Lang, string>> = {
   "cat.create_btn":         { en: "Create",                    pl: "Stwórz"                      },
   "cat.mo":                 { en: "/mo",                       pl: "/msc"                        },
 
+  // ── Notification sound ──
+  "notif.sound_section":     { en: "Alert Sound & Haptics",        pl: "Dźwięk i wibracje alertu"     },
+  "notif.sound_desc":        { en: "Budger plays a unique badger sniff when a reminder fires.", pl: "Budger odtwarza unikalne prychnięcie borsuka przy przypomnieniu." },
+  "notif.preview_btn":       { en: "Preview",                      pl: "Podgląd"                      },
+  "notif.haptic_label":      { en: "Haptic on silent",             pl: "Wibracje w trybie cichym"     },
+  "notif.haptic_desc":       { en: "Recreates the sniff rhythm as vibration when sound is muted.", pl: "Odtwarza rytm prychnięcia jako wibracje, gdy dźwięk jest wyciszony." },
+  "notif.haptic_unavailable":{ en: "Haptics not supported on this device.", pl: "Wibracje niedostępne na tym urządzeniu." },
+
   // ── Household additional ──
   "hh.create_share_msg":    { en: "Create one to share expenses with family or roommates", pl: "Utwórz, aby dzielić wydatki z rodziną lub współlokatorami" },
   "hh.you_label":           { en: "(You)",                     pl: "(Ty)"                        },
