@@ -183,10 +183,10 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div className="min-h-screen flex flex-col items-center justify-start pt-[5vh] px-6 pb-10">
+        <div key="start" className="min-h-screen flex flex-col items-center justify-start pt-[5vh] px-6 pb-10">
           {/* Account-created success banner */}
           {justRegistered && (
-            <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
+            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
               <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
@@ -198,7 +198,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm flex flex-col items-center" style={{ gap: "clamp(24px, 8vw, 48px)" }}>
 
             {/* Language buttons */}
-            <div className={`flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
+            <div className={`login-enter login-enter-d1 flex gap-2 self-end ${keyboardOpen ? "hidden" : ""}`}>
               {LANGUAGES.map(l => (
                 <button
                   key={l.code}
@@ -215,7 +215,7 @@ export default function LoginPage() {
             </div>
 
             {/* Logo + name */}
-            <div className={`flex flex-col items-center gap-3 ${keyboardOpen ? "hidden" : ""}`}>
+            <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 ${keyboardOpen ? "hidden" : ""}`}>
               <BadgerLogo size={88} />
               <div className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
@@ -224,7 +224,7 @@ export default function LoginPage() {
             </div>
 
             {/* Login form */}
-            <form onSubmit={handleLoginContinue} className="w-full space-y-3">
+            <form onSubmit={handleLoginContinue} className="login-enter login-enter-d3 w-full space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
                 <Input
@@ -261,21 +261,21 @@ export default function LoginPage() {
 
           </div>
 
-          <p className={`text-xs text-muted-foreground/50 mt-6 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
+          <p className={`login-enter login-enter-d4 text-xs text-muted-foreground/50 mt-6 ${keyboardOpen ? "hidden" : ""}`}>{t("login.footer")}</p>
         </div>
       )}
 
       {/* ── Login PIN screen ── */}
       {screen === "login-pin" && (
-        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+        <div key="login-pin" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setLoginPin(""); setLoginError(""); setScreen("start"); }}
-            className="self-start text-sm text-muted-foreground flex items-center gap-1"
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
           >
             ← {t("common.back")}
           </button>
 
-          <div className="flex flex-col items-center gap-2 w-full">
+          <div className="login-enter login-enter-d2 flex flex-col items-center gap-2 w-full">
             <h2 className="text-2xl font-bold text-foreground">{t("login.enter_pin")}</h2>
             <p className="text-sm text-muted-foreground text-center">{loginEmail}</p>
             <button
@@ -290,7 +290,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="w-full">
+          <div className="login-enter login-enter-d3 w-full">
             <PinKeyboard
               value={loginPin}
               onChange={handleLoginPinChange}
@@ -303,7 +303,7 @@ export default function LoginPage() {
           <Button
             onClick={handleLoginSubmit}
             disabled={loginPin.length < 4 || login.isPending}
-            className="w-full h-14 rounded-2xl text-base font-semibold"
+            className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
           >
             {login.isPending ? t("login.signing_in") : t("login.continue")}
           </Button>
@@ -312,20 +312,20 @@ export default function LoginPage() {
 
       {/* ── Sign-up info screen ── */}
       {screen === "signup-info" && (
-        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+        <div key="signup-info" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setSignupError(""); setScreen("start"); }}
-            className="self-start text-sm text-muted-foreground flex items-center gap-1"
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
           >
             ← {t("common.back")}
           </button>
 
-          <div className="text-center">
+          <div className="login-enter login-enter-d2 text-center">
             <h2 className="text-2xl font-bold text-foreground">{t("login.create_account")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("login.create_sub")}</p>
           </div>
 
-          <form onSubmit={handleSignupInfo} className="w-full max-w-sm space-y-3">
+          <form onSubmit={handleSignupInfo} className="login-enter login-enter-d3 w-full max-w-sm space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-sm text-muted-foreground">{t("login.first_name")}</Label>
@@ -375,20 +375,20 @@ export default function LoginPage() {
 
       {/* ── Sign-up PIN creation screen ── */}
       {screen === "signup-pin" && (
-        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+        <div key="signup-pin" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => setScreen("signup-info")}
-            className="self-start text-sm text-muted-foreground flex items-center gap-1"
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
           >
             ← {t("common.back")}
           </button>
 
-          <div className="text-center">
+          <div className="login-enter login-enter-d2 text-center">
             <h2 className="text-2xl font-bold text-foreground">{t("login.set_pin")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("login.set_pin_sub")}</p>
           </div>
 
-          <div className="w-full">
+          <div className="login-enter login-enter-d3 w-full">
             <PinKeyboard
               value={signupPin}
               onChange={handleSignupPin}
@@ -400,7 +400,7 @@ export default function LoginPage() {
           <Button
             onClick={handleSignupPinDone}
             disabled={signupPin.length < 4}
-            className="w-full h-14 rounded-2xl text-base font-semibold"
+            className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
           >
             {t("login.next")}
           </Button>
@@ -409,15 +409,15 @@ export default function LoginPage() {
 
       {/* ── Sign-up PIN confirm screen ── */}
       {screen === "signup-confirm" && (
-        <div className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+        <div key="signup-confirm" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
           <button
             onClick={() => { setConfirmPin(""); setSignupError(""); setScreen("signup-pin"); }}
-            className="self-start text-sm text-muted-foreground flex items-center gap-1"
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
           >
             ← {t("common.back")}
           </button>
 
-          <div className="text-center">
+          <div className="login-enter login-enter-d2 text-center">
             <h2 className="text-2xl font-bold text-foreground">{t("login.confirm_pin")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("login.confirm_pin_sub")}</p>
             {signupError && (
@@ -425,7 +425,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="w-full">
+          <div className="login-enter login-enter-d3 w-full">
             <PinKeyboard
               value={confirmPin}
               onChange={handleConfirmPin}

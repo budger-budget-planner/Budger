@@ -1,5 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+
+/* ── Login screen entrance animations ── */
+@keyframes login-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.login-enter {
+  animation: login-enter 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.login-enter-d1 { animation-delay: 0.04s; }
+.login-enter-d2 { animation-delay: 0.10s; }
+.login-enter-d3 { animation-delay: 0.16s; }
+.login-enter-d4 { animation-delay: 0.22s; }
+.login-enter-d5 { animation-delay: 0.28s; }
+@media (prefers-reduced-motion: reduce) {
+  .login-enter { animation: none; }
+}
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
