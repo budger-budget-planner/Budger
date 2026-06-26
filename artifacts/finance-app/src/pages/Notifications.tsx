@@ -228,7 +228,9 @@ export default function NotificationsPage() {
   async function handleSmartToggle(key: keyof SmartAlertPrefs, value: boolean) {
     if (value) {
       const granted = await ensurePermission();
-      setPermissionStatus(Notification.permission as NotificationPermission);
+      if ("Notification" in window) {
+        setPermissionStatus(Notification.permission as NotificationPermission);
+      }
       if (!granted) {
         toast({
           title: t("notif.perm_denied"),
