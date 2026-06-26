@@ -448,7 +448,24 @@ export default function HomeSpending() {
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
   const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
-  const total  = sorted.reduce((s, tx) => s + Number(tx.amount), 0);
+
+  // Locked foreign-currency transactions are excluded from the main budget total
+  const isLockedForeign = (tx: any) =>
+    tx.currencyLocked && tx.transactionCurrency && tx.transactionCurrency !== prefs.currency;
+
+  const total = sorted
+    .filter(tx => !isLockedForeign(tx))
+    .reduce((s, tx) => s + Number(tx.amount), 0);
+
+  // Group locked-foreign amounts by their original currency for the separate display
+  const lockedByCurrency: Record<string, number> = {};
+  for (const tx of sorted) {
+    if (isLockedForeign(tx)) {
+      const cur = tx.transactionCurrency as string;
+      lockedByCurrency[cur] = (lockedByCurrency[cur] ?? 0) + Number(tx.amount);
+    }
+  }
+  const lockedEntries = Object.entries(lockedByCurrency);
 
   const totalBudget = prefs.totalBudget;
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
@@ -611,6 +628,11 @@ export default function HomeSpending() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
                   <p className="text-3xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                  {lockedEntries.length > 0 && (
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {prefs.language === "pl" ? "(nie przeliczone)" : "(not converted)"}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
@@ -640,6 +662,11 @@ export default function HomeSpending() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
                   <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                  {lockedEntries.length > 0 && (
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {prefs.language === "pl" ? "(nie przeliczone)" : "(not converted)"}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>

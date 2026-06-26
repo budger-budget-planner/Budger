@@ -134,12 +134,33 @@ export function CurrencyConvertSheet({
               disabled={busy}
               onClick={handleLock}
             >
-              {lock.isPending ? "Zapisuję…" : `Zostaw w ${from} na stałe`}
+              {lock.isPending ? "Zapisuję…" : `Zostaw w ${from} (nie przeliczaj)`}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            Wybór jest nieodwracalny. Transakcja zablokowana w {from} nie zmieni się przy przyszłych konwersjach.
-          </p>
+
+          {/* Consequence warning */}
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-zinc-300">Jeśli nie przeliczysz tej transakcji:</p>
+            <ul className="text-xs text-zinc-400 space-y-1 list-none">
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 text-zinc-500">•</span>
+                <span>Nie będzie wliczana do miesięcznego budżetu ani wydatków</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 text-zinc-500">•</span>
+                <span>Pojawi się osobno na ekranie głównym, np.: <span className="font-medium text-zinc-300">wydano 1 000 zł (251,99 PLN, £200)</span></span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 text-zinc-500">•</span>
+                <span>Nie będzie widoczna na wykresach, w dashboardzie ani w celach oszczędnościowych</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 text-zinc-500">•</span>
+                <span>Nie będzie można jej przypisać do kategorii</span>
+              </li>
+            </ul>
+            <p className="text-xs text-zinc-500 pt-0.5">Wybór jest nieodwracalny.</p>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
