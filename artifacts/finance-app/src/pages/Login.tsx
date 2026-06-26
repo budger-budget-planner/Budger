@@ -183,7 +183,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+        <div className="min-h-screen flex flex-col items-center justify-start pt-[18vh] px-6 pb-10">
           {/* Account-created success banner */}
           {justRegistered && (
             <div className="w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
