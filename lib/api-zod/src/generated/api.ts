@@ -787,3 +787,28 @@ export const GetRecentActivityResponseItem = zod.object({
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,
 );
+
+/**
+ * @summary Get or generate the user's iOS Shortcut webhook token
+ */
+export const GetWalletTokenResponse = zod.object({
+  token: zod.string(),
+  webhookUrl: zod.string(),
+});
+
+/**
+ * @summary Regenerate the user's iOS Shortcut webhook token
+ */
+export const RegenerateWalletTokenResponse = zod.object({
+  token: zod.string(),
+  webhookUrl: zod.string(),
+});
+
+/**
+ * @summary Receive an Apple Wallet notification text and create a transaction
+ */
+export const IngestWalletNotificationBody = zod.object({
+  token: zod.string(),
+  text: zod.string(),
+  source: zod.string().nullish(),
+});

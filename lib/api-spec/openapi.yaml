@@ -25,6 +25,8 @@ tags:
     description: Dashboard summaries
   - name: goals
     description: Financial goals
+  - name: wallet
+    description: Apple Wallet auto-import via iOS Shortcuts
 
 paths:
   /healthz:
@@ -894,8 +896,79 @@ paths:
                 items:
                   $ref: "#/components/schemas/Transaction"
 
+  /wallet/token:
+    get:
+      operationId: getWalletToken
+      tags: [wallet]
+      summary: Get or generate the user's iOS Shortcut webhook token
+      responses:
+        "200":
+          description: Webhook token and URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletToken"
+        "401":
+          description: Unauthenticated
+    post:
+      operationId: regenerateWalletToken
+      tags: [wallet]
+      summary: Regenerate the user's iOS Shortcut webhook token
+      responses:
+        "200":
+          description: New webhook token and URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletToken"
+        "401":
+          description: Unauthenticated
+
+  /wallet/ingest:
+    post:
+      operationId: ingestWalletNotification
+      tags: [wallet]
+      summary: Receive an Apple Wallet notification text and create a transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletIngestion"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Could not parse notification text
+        "401":
+          description: Invalid token
+
 components:
   schemas:
+    WalletToken:
+      type: object
+      required: [token, webhookUrl]
+      properties:
+        token:
+          type: string
+        webhookUrl:
+          type: string
+
+    WalletIngestion:
+      type: object
+      required: [token, text]
+      properties:
+        token:
+          type: string
+        text:
+          type: string
+        source:
+          type: ["string", "null"]
+
     HealthStatus:
       type: object
       properties:
