@@ -503,9 +503,9 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
             </p>
           </div>
 
-          {/* Last slide: copy button — needs pointer events re-enabled */}
+          {/* Last slide: copy button — z-20 so it sits above the z-10 tap zones */}
           {isLast && (
-            <div className="pointer-events-auto w-full">
+            <div className="pointer-events-auto relative z-20 w-full">
               {webhookUrl ? (
                 <CopyLinkButton url={webhookUrl} />
               ) : (

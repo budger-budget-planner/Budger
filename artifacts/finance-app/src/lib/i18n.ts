@@ -531,7 +531,7 @@ const translations: Record<string, Record<Lang, string>> = {
   },
   "ap.s3_desc": {
     en: "Choose New Blank Automation. Scroll to the Wallet & Apple Pay section and select Transaction. Switch \"When to Run\" to Run Immediately, then turn the \"Notify When Run\" toggle OFF.",
-    pl: "Wybierz Nowa pusta automatyzacja. Przewiń do sekcji Portfel i Apple Pay, wybierz Transakcja. Ustaw „Kiedy uruchamiać" na Uruchom natychmiast, a przełącznik „Powiadamiaj o uruchomieniu" ustaw na WYŁ.",
+    pl: "Wybierz Nowa pusta automatyzacja. Przewiń do sekcji Portfel i Apple Pay, wybierz Transakcja. Ustaw 'Kiedy uruchamiać' na Uruchom natychmiast, a przełącznik 'Powiadamiaj o uruchomieniu' ustaw na WYŁ.",
   },
 
   "ap.s4_title": {
