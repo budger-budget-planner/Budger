@@ -9,11 +9,13 @@ import notificationsRouter from "./notifications";
 import summaryRouter from "./summary";
 import goalsRouter from "./goals";
 import currenciesRouter from "./currencies";
+import webhookRouter from "./webhook";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(webhookRouter);
 router.use(categoriesRouter);
 router.use(transactionsRouter);
 router.use(householdsRouter);

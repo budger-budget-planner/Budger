@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
@@ -28,13 +28,59 @@ function Dots({ current }: { current: Step }) {
   );
 }
 
-// ── Wallet placeholder slides ─────────────────────────────────────────────────
+// ── Apple Pay shortcut tutorial slides ────────────────────────────────────────
 
 const WALLET_SLIDES = [
-  { icon: "💳", titleKey: "ob.wallet_s1_title", descKey: "ob.wallet_s1_desc" },
-  { icon: "📱", titleKey: "ob.wallet_s2_title", descKey: "ob.wallet_s2_desc" },
-  { icon: "🔗", titleKey: "ob.wallet_s3_title", descKey: "ob.wallet_s3_desc" },
+  {
+    icon: "🪄",
+    title: "Expenses on autopilot",
+    desc: "Every time you tap your iPhone to pay, Budger can log it for you instantly — no typing, no forgetting. Set it up once and it just works.",
+  },
+  {
+    icon: "📱",
+    title: "Open Shortcuts on your iPhone",
+    desc: "Find the Shortcuts app (it comes with every iPhone). Tap Automation at the bottom of the screen, then tap the + button in the top-right corner.",
+  },
+  {
+    icon: "💳",
+    title: "Choose the payment trigger",
+    desc: "Tap New Blank Automation. Scroll down to Wallet & Apple Pay and choose Transaction. Set it to Run Immediately and turn off the notification toggle.",
+  },
+  {
+    icon: "⚙️",
+    title: "Add one action",
+    desc: "Add a Get Contents of URL action. Set Method to POST and Request Body to JSON. Add a single key called  transaction  and set its value to Shortcut Input (the blue chip).",
+  },
+  {
+    icon: "🔗",
+    title: "Paste your personal link",
+    desc: "Copy the link below and paste it as the URL in that action. That's it — every Apple Pay purchase will appear in Budger automatically.",
+  },
 ];
+
+// ── Copy-to-clipboard helper ──────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      onClick={copy}
+      className={`mt-3 w-full px-4 py-3 rounded-2xl font-semibold text-sm transition active:scale-95 ${
+        copied
+          ? "bg-green-900/30 border border-green-700/40 text-green-400"
+          : "bg-foreground text-background"
+      }`}
+    >
+      {copied ? "✓ Copied!" : "Copy link"}
+    </button>
+  );
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -43,18 +89,27 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   const [step, setStep]               = useState<Step>("stay-signed-in");
   const [staySignedIn, setStaySignedIn] = useState(true);
   const [currency, setCurrency]       = useState("USD");
-  // Inherit the language already chosen on the login screen
   const [language]                    = useState(() => {
     try { return JSON.parse(localStorage.getItem("budger_prefs_v1") ?? "{}").language ?? "en"; } catch { return "en"; }
   });
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [walletSlide, setWalletSlide] = useState(0);
+  const [webhookToken, setWebhookToken] = useState<string | null>(null);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
   const [finishing, setFinishing]     = useState(false);
 
   const updateNotif = useUpdateNotificationSettings();
   const updateMe    = useUpdateMe();
+
+  // Fetch webhook token when wallet step is reached
+  useEffect(() => {
+    if (step !== "wallet" || webhookToken) return;
+    fetch(`${import.meta.env.BASE_URL}api/webhook/token`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.token) setWebhookToken(data.token); })
+      .catch(() => {});
+  }, [step, webhookToken]);
 
   function next() {
     const idx = STEPS.indexOf(step);
@@ -71,10 +126,6 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
     if (finishing) return;
     setFinishing(true);
     try {
-      // Persist all user settings to server in one call:
-      // - firstLoginDone:true prevents re-triggering onboarding on next login
-      // - language ensures the chosen language follows the account, not the device
-      // - totalBudget (if set) persists across devices
       const updateData: Record<string, unknown> = {
         firstLoginDone: true,
         language,
@@ -83,43 +134,38 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         updateData.totalBudget = totalBudget;
       }
       await updateMe.mutateAsync({ data: updateData as any });
-      // Invalidate user cache so App.tsx sync gets fresh data (not stale null budget)
       await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
     } catch {
-      // Continue even if network fails; server sync can retry next login
+      // Continue even if network fails
     } finally {
       setFinishing(false);
     }
-    onComplete({
-      currency,
-      language,
-      totalBudget,
-      staySignedIn,
-    });
+    onComplete({ currency, language, totalBudget, staySignedIn });
+  }
+
+  // Wallet slide navigation
+  function walletNext() {
+    if (walletSlide < WALLET_SLIDES.length - 1) {
+      setWalletSlide(s => s + 1);
+    } else {
+      next();
+    }
+  }
+  function walletPrev() {
+    if (walletSlide > 0) setWalletSlide(s => s - 1);
   }
 
   // ── Notifications step ────────────────────────────────────────────────────
 
   async function requestNotifications() {
     setNotifStatus("loading");
-    if (!("Notification" in window)) {
-      setNotifStatus("denied");
-      return;
-    }
-    if (Notification.permission === "granted") {
-      setNotifStatus("granted");
-      return;
-    }
-    if (Notification.permission === "denied") {
-      // Try to open system settings — web can't do this directly, but we can guide
-      setNotifStatus("denied");
-      return;
-    }
+    if (!("Notification" in window)) { setNotifStatus("denied"); return; }
+    if (Notification.permission === "granted") { setNotifStatus("granted"); return; }
+    if (Notification.permission === "denied")  { setNotifStatus("denied");  return; }
     try {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         setNotifStatus("granted");
-        // Turn on smart alerts in DB
         updateNotif.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
       } else {
         setNotifStatus("denied");
@@ -128,6 +174,11 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
       setNotifStatus("denied");
     }
   }
+
+  // Webhook URL for last slide
+  const webhookUrl = webhookToken
+    ? `${window.location.origin}/api/webhook/apple/${webhookToken}`
+    : null;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -143,9 +194,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-foreground mb-2">{t("ob.stay_signed_in")}</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {t("ob.stay_signed_in_desc")}
-            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t("ob.stay_signed_in_desc")}</p>
             <p className="text-xs text-muted-foreground/60 mt-2">{t("ob.stay_change_later")}</p>
           </div>
           <div className="flex flex-col gap-3 w-full">
@@ -216,57 +265,80 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── Wallet instructions (placeholder) ── */}
+      {/* ── Wallet — Apple Pay shortcut tutorial ── */}
       {step === "wallet" && (
         <div className="flex flex-col gap-4 flex-1 w-full max-w-sm justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground">{t("ob.wallet_title")}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t("ob.wallet_subtitle")}</p>
+            <h2 className="text-2xl font-bold text-foreground">Auto-logging</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Step {walletSlide + 1} of {WALLET_SLIDES.length}
+            </p>
           </div>
 
-          {/* Slide card */}
-          <div className="bg-card border border-border rounded-3xl p-8 flex flex-col items-center gap-4 flex-1 justify-center">
-            <span className="text-6xl">{WALLET_SLIDES[walletSlide].icon}</span>
-            <h3 className="text-lg font-bold text-foreground text-center">
-              {t(WALLET_SLIDES[walletSlide].titleKey)}
-            </h3>
-            <p className="text-sm text-muted-foreground text-center leading-relaxed">
-              {t(WALLET_SLIDES[walletSlide].descKey)}
-            </p>
+          {/* Slide card with invisible tap zones */}
+          <div className="relative bg-card border border-border rounded-3xl flex-1 flex flex-col items-center justify-center p-8 gap-5 overflow-hidden">
+            {/* Left tap zone — go back */}
+            <button
+              onClick={walletPrev}
+              disabled={walletSlide === 0}
+              className="absolute inset-y-0 left-0 w-1/2 z-10 select-none cursor-pointer disabled:cursor-default"
+              aria-label="Previous slide"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            />
+            {/* Right tap zone — go forward */}
+            <button
+              onClick={walletNext}
+              className="absolute inset-y-0 right-0 w-1/2 z-10 select-none cursor-pointer"
+              aria-label="Next slide"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            />
+
+            {/* Slide content — pointer-events-none so taps fall through to the zones */}
+            <div className="pointer-events-none flex flex-col items-center gap-4 w-full">
+              <span className="text-6xl select-none">{WALLET_SLIDES[walletSlide].icon}</span>
+              <h3 className="text-lg font-bold text-foreground text-center leading-snug">
+                {WALLET_SLIDES[walletSlide].title}
+              </h3>
+              <p className="text-sm text-muted-foreground text-center leading-relaxed">
+                {WALLET_SLIDES[walletSlide].desc}
+              </p>
+
+              {/* Last slide: webhook URL */}
+              {walletSlide === WALLET_SLIDES.length - 1 && (
+                <div className="w-full mt-1">
+                  {webhookUrl ? (
+                    <div className="pointer-events-auto">
+                      <div className="bg-background border border-border rounded-xl px-3 py-2.5">
+                        <p className="text-xs text-muted-foreground break-all leading-relaxed font-mono select-all">
+                          {webhookUrl}
+                        </p>
+                      </div>
+                      <CopyButton text={webhookUrl} />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      <div className="w-3 h-3 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
+                      <p className="text-xs text-muted-foreground">Generating your link…</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Slide dots */}
-            <div className="flex gap-2 mt-2">
+            <div className="pointer-events-none flex gap-2 mt-1">
               {WALLET_SLIDES.map((_, i) => (
                 <div key={i} className={`h-1.5 rounded-full transition-all ${
                   i === walletSlide ? "w-5 bg-foreground" : "w-2 bg-border"
                 }`} />
               ))}
             </div>
-          </div>
 
-          {/* Slide nav */}
-          <div className="flex gap-3">
-            {walletSlide > 0 && (
-              <button
-                onClick={() => setWalletSlide(s => s - 1)}
-                className="flex-1 h-13 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm"
-              >
-                ← {t("ob.prev")}
-              </button>
-            )}
-            {walletSlide < WALLET_SLIDES.length - 1 ? (
-              <button
-                onClick={() => setWalletSlide(s => s + 1)}
-                className="flex-1 h-13 rounded-2xl bg-foreground text-background font-semibold text-sm"
-              >
-                {t("ob.next")} →
-              </button>
-            ) : (
-              <button
-                onClick={next}
-                className="flex-1 h-13 rounded-2xl bg-foreground text-background font-semibold text-sm"
-              >
-                {t("ob.continue")}
-              </button>
+            {/* Tap hint — only on first slide */}
+            {walletSlide === 0 && (
+              <p className="pointer-events-none absolute bottom-3 text-[10px] text-muted-foreground/40 tracking-wide">
+                tap anywhere to continue
+              </p>
             )}
           </div>
         </div>

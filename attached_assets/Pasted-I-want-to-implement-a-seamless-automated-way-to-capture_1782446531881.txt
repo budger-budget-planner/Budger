@@ -1,0 +1,32 @@
+I want to implement a seamless, automated way to capture expense data directly from Apple Pay transactions on iPhones. 
+
+We are targeting modern iOS systems, specifically up to iOS 26.5. In this environment, we are not using messy text-scraping or notification reading. Instead, we are building a clean workflow using a native iOS Personal Automation in the Shortcuts app. 
+
+Here is the exact step-by-step user workflow we are targeting for the shortcut configuration:
+1. The user creates a new automation triggered by Wallet/Transaction ("whenever I tap my card"), set to "Run Immediately" with notifications turned off.
+2. In the "New Blank Shortcut" setup, they add a "Get Contents of URL" action pointed at our app's webhook URL.
+3. The HTTP method is set to POST and the Request Body is set to JSON.
+4. They add a single Text field where the Value is set to the native "Shortcut Input" (which represents the complete system Transaction object provided by Apple).
+
+Because the "Shortcut Input" is passed as a value inside a JSON field, iOS automatically serializes the entire native Apple transaction dictionary into a nested object or string payload. This payload automatically includes clean properties like: amount (number), currency (string, e.g., "PLN"), and merchant (string, e.g., "Starbucks").
+
+Here is what I need you to do in our codebase step-by-step:
+
+Step 1: Define the Key and Protocol
+- Tell me exactly what string we should use for the "Key" field in the iOS Shortcut setup so that the frontend and backend are perfectly synced (e.g., "transaction_payload" or "apple_data").
+
+Step 2: Create a Secure, Dynamic Webhook Endpoint
+- Create a POST route (e.g., `/api/v1/webhook/apple-pay/{user_obfuscated_token}`) to receive these payloads. Each registered user must have a unique token generated to securely match incoming data to their account.
+
+Step 3: Implement the Parsing Logic
+- Write a backend service to process the incoming POST request. 
+- It must look for our designated Key, handle the nested object or handle stringified JSON safely, and extract the 3 core values we need:
+  * Amount (float)
+  * Currency (string)
+  * Merchant Name (string)
+- Ensure there is proper validation and fallback logging in case a value comes through in an unexpected format.
+
+Step 4: Database Logging
+- Map these extracted fields into our transactions database schema under the appropriate user account.
+
+Please implement the backend models, API routes, and payload parser first. Do not generate any frontend elements for now. Once this code is ready and tested, let me know. Our next major step will be designing an in-app step-by-step tutorial screen for the user based on these exact steps.
