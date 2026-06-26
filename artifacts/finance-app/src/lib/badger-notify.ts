@@ -1,16 +1,17 @@
 /**
  * Badger notification: a quick sniff sound + matching haptic pattern.
  *
- * Rhythm: 4 eighth notes + 1 sustained quarter note (BPM 138).
+ * Rhythm: 4 eighth notes + 1 sustained quarter note (BPM 207, 1.5× faster).
  * Pitch arc: 720 Hz → 590 → 510 → 650 → 808 Hz (down then up, ends a whole tone higher).
+ * Sound model: three acoustic layers — throat rumble + nasal resonance + turbulent sibilance.
  *
- * Haptic pattern mirrors the audio:
- *   sniff  ·  sniff  ·  sniff  ·  sniff  ·  sniff~~~~
- *   [55, 160, 55, 160,  55, 160,  55, 160,  120]  ms
- *    ♪ buzz  gap  ♪ buzz  gap  ♪ buzz  gap  ♪ buzz  gap  ♩ buzz
+ * Haptic pattern mirrors the audio (♪ slot = 145 ms, ♩ slot = 290 ms):
+ *   sniff · sniff · sniff · sniff · sniff~~~~
+ *   [55, 90, 55, 90, 55, 90, 55, 90, 110]  ms
+ *    ♪buzz gap  ♪buzz gap  ♪buzz gap  ♪buzz gap  ♩buzz
  */
 
-export const BADGER_HAPTIC_PATTERN = [55, 160, 55, 160, 55, 160, 55, 160, 120];
+export const BADGER_HAPTIC_PATTERN = [55, 90, 55, 90, 55, 90, 55, 90, 110];
 
 /** Returns true if the Vibration API is available on this device. */
 export function canHaptic(): boolean {

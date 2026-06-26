@@ -192,7 +192,8 @@ export default function NotificationsPage() {
     try { return localStorage.getItem("budger_haptic_v1") !== "off"; } catch { return true; }
   });
   const [previewing, setPreviewing] = useState(false);
-  const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTimeout  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reminderTimers  = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     if (settings && !localStorage.getItem(ALERTS_KEY)) {
@@ -249,9 +250,12 @@ export default function NotificationsPage() {
     if (v) hapticSniff();
   }
 
-  // Clear preview timeout on unmount to avoid state update after unmount
+  // Clear timers on unmount to avoid state updates / dangling callbacks
   useEffect(() => {
-    return () => { if (previewTimeout.current) clearTimeout(previewTimeout.current); };
+    return () => {
+      if (previewTimeout.current) clearTimeout(previewTimeout.current);
+      reminderTimers.current.forEach(clearTimeout);
+    };
   }, []);
 
   async function handlePreview() {
@@ -285,8 +289,11 @@ export default function NotificationsPage() {
       },
     });
 
-    const currentPerm = Notification.permission;
-    if (currentPerm === "granted") {
+    // Clear any previously-scheduled reminder timers before registering new ones
+    reminderTimers.current.forEach(clearTimeout);
+    reminderTimers.current = [];
+
+    if ("Notification" in window && Notification.permission === "granted") {
       for (const alert of alerts) {
         if (!alert.enabled || alert.days.length === 0) continue;
         const [h, m] = alert.time.split(":").map(Number);
@@ -294,8 +301,8 @@ export default function NotificationsPage() {
         const next = new Date();
         next.setHours(h, m, 0, 0);
         if (next <= now) next.setDate(next.getDate() + 1);
-        setTimeout(() => {
-          if (Notification.permission === "granted") {
+        const id = setTimeout(() => {
+          if ("Notification" in window && Notification.permission === "granted") {
             new Notification(t("notif.budger_reminder"), {
               body: t("notif.dont_forget"),
               icon: "/favicon.ico",
@@ -305,6 +312,7 @@ export default function NotificationsPage() {
             triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
           }
         }, next.getTime() - now.getTime());
+        reminderTimers.current.push(id);
       }
     }
   }
