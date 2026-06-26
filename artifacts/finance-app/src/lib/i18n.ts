@@ -508,48 +508,57 @@ const translations: Record<string, Record<Lang, string>> = {
   "ap.configure_desc":{ en: "Every Apple Pay purchase will appear in Budger automatically.", pl: "Każda płatność Apple Pay pojawi się w Budger automatycznie." },
 
   "ap.s1_title": {
-    en: "Every payment, logged automatically",
-    pl: "Każda płatność — zalogowana automatycznie",
+    en: "Every Apple Pay tap, logged for you",
+    pl: "Każde tapnięcie Apple Pay — zalogowane",
   },
   "ap.s1_desc": {
-    en: "When you tap to pay with Apple Pay, Budger receives the transaction instantly and creates the record for you. Nothing to type, nothing to forget.",
-    pl: "Gdy płacisz Apple Pay, Budger natychmiast odbiera transakcję i tworzy wpis. Nic do wpisywania, nic do zapominania.",
+    en: "Set this up once in 5 steps. Every purchase will appear in Budger the moment you pay — nothing to type.",
+    pl: "Skonfiguruj raz w 5 krokach. Każdy zakup pojawi się w Budger w momencie płatności — nic do wpisywania.",
   },
 
   "ap.s2_title": {
-    en: "Open Shortcuts → tap Automation → tap +",
-    pl: "Otwórz Skróty → Automatyzacja → +",
+    en: "Open Shortcuts · tap Automation · tap +",
+    pl: "Otwórz Skróty · Automatyzacja · +",
   },
   "ap.s2_desc": {
-    en: "On your iPhone, open the built-in Shortcuts app. Tap the Automation tab at the bottom of the screen. Then tap the + button in the top-right corner to start a new automation.",
-    pl: "Na iPhonie otwórz wbudowaną aplikację Skróty. Dotknij zakładki Automatyzacja na dole ekranu. Następnie dotknij + w prawym górnym rogu, aby rozpocząć nową automatyzację.",
+    en: "Open the Shortcuts app on your iPhone. Tap Automation at the bottom of the screen. Tap the + button in the top-right corner.",
+    pl: "Otwórz aplikację Skróty na iPhonie. Dotknij Automatyzacja na dole ekranu. Dotknij + w prawym górnym rogu.",
   },
 
   "ap.s3_title": {
-    en: "Trigger: Wallet & Apple Pay → Transaction",
-    pl: "Wyzwalacz: Portfel i Apple Pay → Transakcja",
+    en: "Scroll down · tap Wallet · choose 'Whenever I tap my card'",
+    pl: "Przewiń · dotknij Portfel · wybierz 'Gdy przykładam kartę'",
   },
   "ap.s3_desc": {
-    en: "Choose New Blank Automation. Scroll to the Wallet & Apple Pay section and select Transaction. Switch \"When to Run\" to Run Immediately, then turn the \"Notify When Run\" toggle OFF.",
-    pl: "Wybierz Nowa pusta automatyzacja. Przewiń do sekcji Portfel i Apple Pay, wybierz Transakcja. Ustaw 'Kiedy uruchamiać' na Uruchom natychmiast, a przełącznik 'Powiadamiaj o uruchomieniu' ustaw na WYŁ.",
+    en: "Scroll the trigger list and tap Wallet. On the next screen, choose the option: Whenever I tap my card.",
+    pl: "Przewiń listę wyzwalaczy i dotknij Portfel. Na kolejnym ekranie wybierz opcję: Gdy przykładam kartę.",
   },
 
   "ap.s4_title": {
-    en: "Action: Get Contents of URL — POST · JSON · transaction",
-    pl: "Akcja: Pobierz zawartość adresu URL — POST · JSON · transaction",
+    en: "Choose your card · select Run Immediately · tap Next",
+    pl: "Wybierz kartę · Uruchom natychmiast · dotknij Dalej",
   },
   "ap.s4_desc": {
-    en: "Add a Get Contents of URL action. Set Method to POST and Request Body to JSON. Add one field: key transaction, value Shortcut Input (the blue variable chip from the picker).",
-    pl: "Dodaj akcję Pobierz zawartość adresu URL. Ustaw Metodę na POST, Treść żądania na JSON. Dodaj jedno pole: klucz transaction, wartość Dane wejściowe skrótu (niebieska etykieta zmiennej).",
+    en: "Tap the card(s) you want to track. Under 'When to Run', choose Run Immediately. Tap Next to continue.",
+    pl: "Dotknij kart, które chcesz śledzić. W sekcji 'Kiedy uruchamiać' wybierz Uruchom natychmiast. Dotknij Dalej.",
   },
 
   "ap.s5_title": {
-    en: "Paste your personal link as the URL",
-    pl: "Wklej swój osobisty link jako URL",
+    en: "Tap 'New Blank Automation' · type the action name · tap it",
+    pl: "Nowa pusta automatyzacja · wpisz nazwę akcji · dotknij ją",
   },
   "ap.s5_desc": {
-    en: "Copy the link below and paste it into the URL field of the action. Tap Done. From now on, every Apple Pay purchase will appear in Budger the moment you pay.",
-    pl: "Skopiuj link poniżej i wklej go do pola URL w akcji. Dotknij Gotowe. Od tej chwili każda płatność Apple Pay pojawi się w Budger w momencie zapłaty.",
+    en: "Tap New Blank Automation. In the search box, type: Get Contents of URL. Tap the result to add the action.",
+    pl: "Dotknij Nowa pusta automatyzacja. W polu wyszukiwania wpisz: Pobierz zawartość URL. Dotknij wynik, aby dodać akcję.",
+  },
+
+  "ap.s6_title": {
+    en: "Set POST · add key 'transaction' · paste your link",
+    pl: "Ustaw POST · dodaj klucz 'transaction' · wklej link",
+  },
+  "ap.s6_desc": {
+    en: "Expand the action. Set Method to POST, Body to JSON. Tap + Add field — type transaction as the key, choose Shortcut Input as the value. Copy the link below and paste it into the URL field. Tap Done.",
+    pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dotknij + Dodaj pole — wpisz transaction jako klucz, wybierz Dane wejściowe skrótu jako wartość. Skopiuj link poniżej i wklej go w pole URL. Dotknij Gotowe.",
   },
 
   // ── Dashboard additional ──
