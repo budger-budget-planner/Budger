@@ -181,6 +181,17 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
               className="w-full bg-transparent text-2xl font-bold text-foreground outline-none mt-1 placeholder:text-muted-foreground/40"
             />
           </div>
+          <div className="flex flex-col gap-3 w-full flex-shrink-0">
+            <button onClick={next}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
+                         transition active:scale-95 shadow-sm">
+              {t("ob.continue")}
+            </button>
+            <button onClick={skip}
+              className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4">
+              {t("ob.skip")}
+            </button>
+          </div>
         </div>
       )}
 
@@ -232,8 +243,8 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── Bottom action (skip/continue) for currency & budget steps ── */}
-      {(step === "currency" || step === "budget") && (
+      {/* ── Bottom action (skip/continue) for currency step ── */}
+      {step === "currency" && (
         <div className="flex flex-col gap-3 w-full max-w-sm flex-shrink-0">
           <button onClick={next}
             className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
