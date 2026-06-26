@@ -387,6 +387,18 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
               className="w-full bg-transparent text-2xl font-bold text-foreground outline-none mt-1 placeholder:text-muted-foreground/40"
             />
           </div>
+          {/* Buttons sit directly under the input card */}
+          <div className="flex flex-col gap-3 w-full">
+            <button onClick={next}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
+                         transition active:scale-95 shadow-sm">
+              {t("ob.continue")}
+            </button>
+            <button onClick={skip}
+              className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4">
+              {t("ob.skip")}
+            </button>
+          </div>
         </div>
       )}
 
@@ -398,8 +410,8 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
             <p className="text-xs text-muted-foreground mt-1">{t("ob.wallet_subtitle")}</p>
           </div>
 
-          {/* Slide card */}
-          <div className="bg-card border border-border rounded-3xl px-4 pt-4 pb-5 flex flex-col items-center gap-3 flex-1">
+          {/* Slide card with invisible tap zones for navigation */}
+          <div className="relative bg-card border border-border rounded-3xl px-4 pt-4 pb-5 flex flex-col items-center gap-3 flex-1">
             {/* SVG illustration */}
             <div className="w-full flex-1 flex items-center justify-center min-h-0">
               <div className="w-full" style={{ maxHeight: "160px" }}>
@@ -419,42 +431,30 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
             {/* Sub-slide dots */}
             <div className="flex gap-2 pt-1">
               {WALLET_SLIDES.map((_, i) => (
-                <button
+                <span
                   key={i}
-                  onClick={() => setWalletSlide(i)}
                   className={`h-1.5 rounded-full transition-all ${
                     i === walletSlide ? "w-5 bg-foreground" : "w-2 bg-border"
                   }`}
                 />
               ))}
             </div>
-          </div>
 
-          {/* Slide nav */}
-          <div className="flex gap-3 flex-shrink-0">
-            {walletSlide > 0 && (
-              <button
-                onClick={() => setWalletSlide(s => s - 1)}
-                className="flex-1 h-12 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm"
-              >
-                ← {t("ob.prev")}
-              </button>
-            )}
-            {walletSlide < WALLET_SLIDES.length - 1 ? (
-              <button
-                onClick={() => setWalletSlide(s => s + 1)}
-                className="flex-1 h-12 rounded-2xl bg-foreground text-background font-semibold text-sm"
-              >
-                {t("ob.next")} →
-              </button>
-            ) : (
-              <button
-                onClick={next}
-                className="flex-1 h-12 rounded-2xl bg-foreground text-background font-semibold text-sm"
-              >
-                {t("ob.continue")}
-              </button>
-            )}
+            {/* Tap zones — left half goes back, right half goes forward/continue */}
+            <div className="absolute inset-0 flex rounded-3xl overflow-hidden">
+              <div
+                className="flex-1 cursor-pointer"
+                onClick={() => walletSlide > 0 && setWalletSlide(s => s - 1)}
+              />
+              <div
+                className="flex-1 cursor-pointer"
+                onClick={() =>
+                  walletSlide < WALLET_SLIDES.length - 1
+                    ? setWalletSlide(s => s + 1)
+                    : next()
+                }
+              />
+            </div>
           </div>
         </div>
       )}
@@ -500,8 +500,8 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── Bottom action (skip/continue) for currency & budget steps ── */}
-      {(step === "currency" || step === "budget") && (
+      {/* ── Bottom action (skip/continue) for currency step only ── */}
+      {step === "currency" && (
         <div className="flex flex-col gap-3 w-full max-w-sm flex-shrink-0">
           <button onClick={next}
             className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
