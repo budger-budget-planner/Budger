@@ -430,7 +430,7 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
   }
 
   const inner = (
-    <div className="flex flex-col w-full max-w-sm mx-auto h-full gap-3">
+    <div className="flex flex-col w-full max-w-sm mx-auto gap-3">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-shrink-0">
@@ -452,8 +452,8 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
         )}
       </div>
 
-      {/* ── Slide card ── */}
-      <div className="relative bg-card border border-border rounded-3xl flex-1 flex flex-col items-center overflow-hidden min-h-0">
+      {/* ── Slide card — fixed height sized to last (most text-heavy) slide ── */}
+      <div className="relative bg-card border border-border rounded-3xl flex-shrink-0 flex flex-col items-center overflow-hidden" style={{ height: 440 }}>
 
         {/* Tap zones */}
         <button
@@ -470,11 +470,11 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
           style={{ WebkitTapHighlightColor: "transparent" }}
         />
 
-        {/* Content — top-anchored, no spread */}
-        <div className="pointer-events-none flex flex-col items-center gap-4 px-4 pt-5 pb-4 w-full">
+        {/* Content — top-anchored */}
+        <div className="pointer-events-none flex flex-col items-center gap-3 px-4 pt-5 pb-4 w-full">
 
-          {/* Phone mockup */}
-          <div className="flex items-center justify-center w-full max-h-[230px] overflow-hidden">
+          {/* Phone mockup — fixed height so all slides consistent */}
+          <div className="flex items-center justify-center w-full overflow-hidden flex-shrink-0" style={{ height: 200 }}>
             {slide.mockup}
           </div>
 
@@ -500,12 +500,14 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
             ))}
           </div>
 
-          {/* First slide tap hint — below dots, not overlapping */}
-          {idx === 0 && (
-            <p className="text-[9px] text-muted-foreground/35 tracking-widest uppercase">
-              {t("ap.tap_hint")}
-            </p>
-          )}
+          {/* Hint slot — always same height so card size stays fixed across slides */}
+          <div className="h-3 flex items-center justify-center">
+            {idx === 0 && (
+              <p className="text-[9px] text-muted-foreground/35 tracking-widest uppercase">
+                {t("ap.tap_hint")}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
