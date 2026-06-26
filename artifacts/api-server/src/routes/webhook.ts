@@ -67,13 +67,19 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     payload = raw as Record<string, unknown>;
   }
 
+  // Log the full raw payload on every call so we can see exactly what iOS sends
+  logger.info({ rawBody: req.body, payload }, "Apple Pay webhook: raw payload received");
+
   // ── Extract amount ────────────────────────────────────────────────────────
+  // iOS serialises amounts with the device locale's decimal separator.
+  // Polish locale uses comma: "320,00" — normalise to period before parsing.
   let amount: number | null = null;
   const rawAmount = payload.amount;
   if (typeof rawAmount === "number") {
     amount = rawAmount;
   } else if (typeof rawAmount === "string") {
-    const n = parseFloat(rawAmount);
+    const normalised = rawAmount.replace(/\s/g, "").replace(",", ".");
+    const n = parseFloat(normalised);
     if (!isNaN(n)) amount = n;
   }
 
