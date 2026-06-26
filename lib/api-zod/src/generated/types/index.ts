@@ -45,5 +45,3 @@ export * from "./transactionInput";
 export * from "./transactionUpdate";
 export * from "./user";
 export * from "./userUpdate";
-export * from "./walletIngestion";
-export * from "./walletToken";

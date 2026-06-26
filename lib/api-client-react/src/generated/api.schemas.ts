@@ -5,18 +5,6 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
-export interface WalletToken {
-  token: string;
-  webhookUrl: string;
-}
-
-export interface WalletIngestion {
-  token: string;
-  text: string;
-  /** @nullable */
-  source?: string | null;
-}
-
 export interface HealthStatus {
   status: string;
 }
