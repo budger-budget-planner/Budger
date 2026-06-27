@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
   useGetHousehold,
@@ -31,6 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
   Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
+  Scissors, GitFork, GitMerge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -301,6 +303,60 @@ export default function HouseholdPage() {
   const { data: goals } = useListGoals();
   const { data: goalSummary } = useGetGoalsSummary({});
 
+  const prefs2 = loadPrefs();
+  const sym2 = currencySymbol(prefs2.currency);
+
+  const { data: incomingSplits, refetch: refetchIncoming } = useQuery<any[]>({
+    queryKey: ["splits-incoming"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/incoming`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  const { data: declinedIssuedSplits, refetch: refetchDeclined } = useQuery<any[]>({
+    queryKey: ["splits-issued-declined"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/issued`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  const [splitActionLoading, setSplitActionLoading] = useState<number | null>(null);
+
+  async function acceptSplit(id: number) {
+    setSplitActionLoading(id);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, { method: "PATCH", credentials: "include" });
+      refetchIncoming();
+      queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
+      queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
+    } finally {
+      setSplitActionLoading(null);
+    }
+  }
+
+  async function declineSplit(id: number) {
+    setSplitActionLoading(id);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/decline`, { method: "PATCH", credentials: "include" });
+      refetchIncoming();
+      queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
+    } finally {
+      setSplitActionLoading(null);
+    }
+  }
+
+  async function dismissDeclinedSplit(id: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/dismiss`, { method: "PATCH", credentials: "include" });
+    refetchDeclined();
+    queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
+  }
+
   const [createOpen, setCreateOpen]   = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
   const [inviteOpen, setInviteOpen]         = useState(false);
@@ -509,6 +565,91 @@ export default function HouseholdPage() {
                       {t("hh.decline")}
                     </Button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending split requests (recipient view) ── */}
+      {incomingSplits && incomingSplits.length > 0 && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-pink-500/20">
+              <Scissors className="w-4 h-4 text-pink-400" />
+              <p className="text-sm font-semibold text-pink-300">
+                {t("split.pending_title")} <span className="text-pink-400/70 font-normal">({incomingSplits.length})</span>
+              </p>
+            </div>
+            <div className="divide-y divide-pink-500/10">
+              {incomingSplits.map((split: any) => (
+                <div key={split.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <GitMerge className="w-4 h-4 text-pink-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">
+                      <span className="text-pink-300">{split.issuerName}</span>{" "}
+                      {t("split.wants_you_to_pay")}{" "}
+                      <span className="font-bold">{sym2}{split.splitAmount.toFixed(2)}</span>
+                    </p>
+                    <p className="text-xs text-white/50 mt-0.5 truncate">
+                      {t("split.for")} &ldquo;{split.transactionDescription}&rdquo; · {split.transactionDate}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button size="sm"
+                      className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
+                      disabled={splitActionLoading === split.id}
+                      onClick={() => acceptSplit(split.id)}>
+                      {t("split.accept")}
+                    </Button>
+                    <Button size="sm" variant="ghost"
+                      className="h-8 px-3 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                      disabled={splitActionLoading === split.id}
+                      onClick={() => declineSplit(split.id)}>
+                      {t("split.decline")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Declined split notifications (issuer view) ── */}
+      {declinedIssuedSplits && declinedIssuedSplits.length > 0 && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-zinc-600/40 bg-zinc-700/20 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-600/20">
+              <GitFork className="w-4 h-4 text-zinc-400" />
+              <p className="text-sm font-semibold text-zinc-300">{t("split.pending_title")}</p>
+            </div>
+            <div className="divide-y divide-zinc-600/10">
+              {declinedIssuedSplits.map((split: any) => (
+                <div key={split.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-zinc-600/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <XCircle className="w-4 h-4 text-zinc-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">
+                      <span className="text-zinc-300">{split.recipientName}</span>{" "}
+                      {t("split.declined_msg")}{" "}
+                      <span className="font-bold">{sym2}{split.splitAmount.toFixed(2)}</span>
+                    </p>
+                    <p className="text-xs text-white/50 mt-0.5 truncate">
+                      &ldquo;{split.transactionDescription}&rdquo;
+                    </p>
+                  </div>
+                  <button
+                    className="text-white/30 hover:text-white/70 p-1 flex-shrink-0"
+                    onClick={() => dismissDeclinedSplit(split.id)}
+                    title={t("split.dismiss")}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>

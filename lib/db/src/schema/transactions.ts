@@ -20,6 +20,10 @@ export const transactionsTable = pgTable("transactions", {
   currencyLocked: boolean("currency_locked").notNull().default(false),
   /** True when the category was assigned automatically by the merchant-rule engine */
   categoryAutoAssigned: boolean("category_auto_assigned").notNull().default(false),
+  /** ID of the expense_splits record this transaction is linked to */
+  splitId: integer("split_id"),
+  /** 'issuer' = original transaction (amount reduced), 'recipient' = charged share */
+  splitRole: text("split_role"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

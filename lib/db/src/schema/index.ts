@@ -8,3 +8,4 @@ export * from "./goals";
 export * from "./goal_contributions";
 export * from "./goal_proposals";
 export * from "./merchant_category_rules";
+export * from "./expense_splits";

@@ -31,6 +31,8 @@ function enrichTransaction(tx: any, category: any, user: any) {
     transactionCurrency: tx.transactionCurrency ?? null,
     currencyLocked: tx.currencyLocked ?? false,
     categoryAutoAssigned: tx.categoryAutoAssigned ?? false,
+    splitId: tx.splitId ?? null,
+    splitRole: tx.splitRole ?? null,
   };
 }
 

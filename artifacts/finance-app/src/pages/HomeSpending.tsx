@@ -22,9 +22,11 @@ import {
   getGetGoalsSummaryQueryKey,
   getListGoalContributionsQueryKey,
   getGetMeQueryKey,
+  useGetMe,
+  useListHouseholdMembers,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, GitFork, GitMerge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -346,6 +348,131 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   );
 }
 
+function SplitSheet({
+  tx,
+  members,
+  myUserId,
+  sym,
+  onClose,
+  onSuccess,
+}: {
+  tx: any;
+  members: any[];
+  myUserId: number;
+  sym: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [recipientId, setRecipientId] = useState("");
+  const [splitMode, setSplitMode] = useState<"amount" | "percent">("amount");
+  const [splitValue, setSplitValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const txAmount = Number(tx.amount);
+  const splitAmt = splitMode === "amount"
+    ? parseFloat(splitValue) || 0
+    : ((parseFloat(splitValue) || 0) / 100) * txAmount;
+
+  const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isValid) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/splits`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id, recipientId: parseInt(recipientId), splitAmount: splitAmt }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError((d as any).error ?? t("split.request_sent"));
+        return;
+      }
+      onSuccess();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const others = members.filter((m: any) => m.userId !== myUserId);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl px-5 pt-4"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom, 16px), 24px)" }}>
+        <div className="flex justify-center pt-1 pb-3">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+        <div className="flex items-center gap-3 mb-5">
+          <Scissors className="w-5 h-5 text-muted-foreground" />
+          <div>
+            <p className="font-semibold text-sm">{t("split.title")}</p>
+            <p className="text-xs text-muted-foreground truncate">{tx.description} · {sym}{txAmount.toFixed(2)}</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("split.member_label")}</Label>
+            <Select value={recipientId} onValueChange={setRecipientId}>
+              <SelectTrigger><SelectValue placeholder={t("split.choose_member")} /></SelectTrigger>
+              <SelectContent>
+                {others.map((m: any) => (
+                  <SelectItem key={m.userId} value={String(m.userId)}>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.memberColor ?? "#888" }} />
+                      {m.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>{t("split.amount_label")}</Label>
+              <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+                <button type="button"
+                  className={`px-3 py-1.5 transition-colors ${splitMode === "amount" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
+                  onClick={() => setSplitMode("amount")}>{sym}</button>
+                <button type="button"
+                  className={`px-3 py-1.5 transition-colors ${splitMode === "percent" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
+                  onClick={() => setSplitMode("percent")}>%</button>
+              </div>
+            </div>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                {splitMode === "amount" ? sym : "%"}
+              </span>
+              <Input type="number" min="0.01" step={splitMode === "amount" ? "0.01" : "1"}
+                max={splitMode === "amount" ? txAmount : 100}
+                placeholder="0" value={splitValue} onChange={e => setSplitValue(e.target.value)}
+                className="pl-7" />
+            </div>
+            {splitValue && splitAmt > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t("split.recipient_pays")}: {sym}{splitAmt.toFixed(2)} · {t("split.you_pay")}: {sym}{(txAmount - splitAmt).toFixed(2)}
+              </p>
+            )}
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-2 pb-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>{t("common.cancel")}</Button>
+            <Button type="submit" className="flex-1" disabled={loading || !isValid}>
+              {loading ? "…" : t("split.send_request")}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
   qc.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
@@ -415,7 +542,13 @@ export default function HomeSpending() {
   const [budgetInput,  setBudgetInput] = useState("");
   const [searchQuery,  setSearchQuery] = useState("");
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
+  const [splitTx, setSplitTx] = useState<any | null>(null);
+  const [splitSent, setSplitSent] = useState(false);
   const updateMerchantRule = useUpdateMerchantCategoryRule();
+  const { data: me } = useGetMe();
+  const myUserId = (me as any)?.id;
+  const isInHousehold = !!(me as any)?.householdId;
+  const { data: householdMembers } = useListHouseholdMembers({ query: { enabled: isInHousehold } as any });
 
   const monthStart     = startOfMonth(viewDate);
   const monthEnd       = endOfMonth(viewDate);
@@ -795,7 +928,19 @@ export default function HomeSpending() {
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                            {(tx as any).splitRole === "issuer" && (
+                              <span title={t("split.issued_icon")} className="flex-shrink-0 text-amber-400/80">
+                                <GitFork className="w-3 h-3" strokeWidth={2.5} />
+                              </span>
+                            )}
+                            {(tx as any).splitRole === "recipient" && (
+                              <span title={t("split.received_icon")} className="flex-shrink-0 text-sky-400/80">
+                                <GitMerge className="w-3 h-3" strokeWidth={2.5} />
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground truncate">
                             {categoryLabel}
                             {tx.receiptImage ? " · 📎" : ""}
@@ -833,7 +978,7 @@ export default function HomeSpending() {
                       </div>
 
                       {actionTx === tx.id && (
-                        <div className="flex gap-2 px-3 pb-3">
+                        <div className="flex gap-2 px-3 pb-3 flex-wrap">
                           <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                        bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
@@ -844,6 +989,13 @@ export default function HomeSpending() {
                                        bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
                             <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
                           </button>
+                          {isInHousehold && tx.userId === myUserId && !(tx as any).splitRole && (
+                            <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                              <Scissors className="w-3.5 h-3.5" /> {t("split.btn")}
+                            </button>
+                          )}
                           <button
                             onClick={() => remove.mutate({ id: tx.id })}
                             disabled={remove.isPending}
@@ -995,6 +1147,32 @@ export default function HomeSpending() {
                 Yes, stop
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Split sheet ── */}
+      {splitTx && (
+        <SplitSheet
+          tx={splitTx}
+          members={(householdMembers as any[]) ?? []}
+          myUserId={myUserId}
+          sym={sym}
+          onClose={() => setSplitTx(null)}
+          onSuccess={() => {
+            setSplitTx(null);
+            setSplitSent(true);
+            setTimeout(() => setSplitSent(false), 3000);
+          }}
+        />
+      )}
+
+      {/* ── Split sent toast ── */}
+      {splitSent && (
+        <div className="fixed bottom-24 inset-x-0 flex justify-center z-50 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4">
+            <Scissors className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-medium">{t("split.request_sent")}</p>
           </div>
         </div>
       )}

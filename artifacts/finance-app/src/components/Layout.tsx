@@ -37,6 +37,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     refetchInterval: 30_000,
   });
   const hasPendingProposals = (proposalsData ?? []).some(p => p.status === "pending");
+
+  const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
+    queryKey: ["splits-incoming-badge"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/incoming`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const { data: declinedSplits } = useQuery<Array<{ id: number }>>({
+    queryKey: ["splits-declined-badge"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/issued`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasPendingSplits = (incomingSplits?.length ?? 0) > 0 || (declinedSplits?.length ?? 0) > 0;
   const [showProfile, setShowProfile] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
@@ -282,7 +302,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const active = isActive(href);
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
-          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert)) || (isGoals && hasPendingProposals);
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && hasPendingProposals);
           return (
             <Link
               key={href}

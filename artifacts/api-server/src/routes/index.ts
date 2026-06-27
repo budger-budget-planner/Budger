@@ -11,6 +11,7 @@ import goalsRouter from "./goals";
 import currenciesRouter from "./currencies";
 import webhookRouter from "./webhook";
 import merchantCategoriesRouter from "./merchant-categories";
+import splitsRouter from "./splits";
 
 const router: IRouter = Router();
 
@@ -20,6 +21,7 @@ router.use(webhookRouter);
 router.use(merchantCategoriesRouter);
 router.use(categoriesRouter);
 router.use(transactionsRouter);
+router.use(splitsRouter);
 router.use(householdsRouter);
 router.use(invitesRouter);
 router.use(notificationsRouter);

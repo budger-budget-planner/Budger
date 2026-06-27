@@ -574,6 +574,27 @@ const translations: Record<string, Record<Lang, string>> = {
   "dashboard.mo_needed":    { en: "/mo needed",                pl: "/msc ustalono"               },
   "dashboard.mo_target":    { en: "/mo target",                pl: "/msc"                        },
   "dashboard.total_goal":   { en: "total goal",                pl: "cel łącznie"                 },
+
+  // ── Expense Splits ──
+  "split.btn":              { en: "Split",                     pl: "Podziel"                     },
+  "split.title":            { en: "Split expense",             pl: "Podziel wydatek"             },
+  "split.member_label":     { en: "Split with",                pl: "Podziel z"                   },
+  "split.choose_member":    { en: "Choose member…",            pl: "Wybierz osobę…"              },
+  "split.amount_label":     { en: "Their share",               pl: "Ich część"                   },
+  "split.recipient_pays":   { en: "They pay",                  pl: "Oni płacą"                   },
+  "split.you_pay":          { en: "You pay",                   pl: "Ty płacisz"                  },
+  "split.send_request":     { en: "Send request",              pl: "Wyślij prośbę"               },
+  "split.pending_title":    { en: "Split Requests",            pl: "Prośby o podział"            },
+  "split.incoming_empty":   { en: "No pending split requests", pl: "Brak oczekujących próśb"     },
+  "split.accept":           { en: "Accept",                    pl: "Zaakceptuj"                  },
+  "split.decline":          { en: "Decline",                   pl: "Odrzuć"                      },
+  "split.declined_msg":     { en: "declined your split request for", pl: "odrzucił prośbę o podział" },
+  "split.wants_you_to_pay": { en: "wants you to pay",          pl: "prosi o zapłatę"             },
+  "split.for":              { en: "for",                       pl: "za"                          },
+  "split.dismiss":          { en: "Dismiss",                   pl: "Zamknij"                     },
+  "split.issued_icon":      { en: "You split this expense",    pl: "Podzieliłeś ten wydatek"     },
+  "split.received_icon":    { en: "Charged via split",         pl: "Naliczone przez podział"     },
+  "split.request_sent":     { en: "Split request sent",        pl: "Prośba o podział wysłana"    },
 };
 
 // ── Locale-aware date helpers ──────────────────────────────────────────────
