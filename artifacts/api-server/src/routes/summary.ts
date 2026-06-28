@@ -20,7 +20,8 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
   const categories = await db.select().from(categoriesTable);
   const catMap = new Map(categories.map(c => [c.id, c]));
 
-  const filtered = filterFn ? txs.filter(filterFn) : txs;
+  const unlocked = txs.filter(tx => !tx.currencyLocked);
+  const filtered = filterFn ? unlocked.filter(filterFn) : unlocked;
 
   const grouped = new Map<string, { total: number; count: number; category: any }>();
   for (const tx of filtered) {
@@ -83,7 +84,7 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
     const month = d.getMonth();
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
     const monthTxs = txs.filter(t => t.date.startsWith(prefix));
-    const total = monthTxs.reduce((s, t) => s + parseFloat(t.amount), 0);
+    const total = monthTxs.filter(t => !t.currencyLocked).reduce((s, t) => s + parseFloat(t.amount), 0);
     results.push({ month: monthNames[month], year, total: Math.round(total * 100) / 100, count: monthTxs.length });
   }
 
@@ -124,6 +125,7 @@ router.get("/summary/history", async (req, res): Promise<void> => {
 
       const grouped = new Map<string, { total: number; count: number; category: any }>();
       for (const tx of monthTxs) {
+        if (tx.currencyLocked) continue;
         const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
         const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
         if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
