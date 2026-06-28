@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable } from "@workspace/db";
-import { eq, or, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, or } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -9,13 +9,8 @@ import {
 const router: IRouter = Router();
 
 async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean) {
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const txs = await db.select().from(transactionsTable)
-    .where(
-      currentUser?.householdId
-        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
-        : eq(transactionsTable.userId, userId)
-    );
+    .where(eq(transactionsTable.userId, userId));
 
   const categories = await db.select().from(categoriesTable);
   const catMap = new Map(categories.map(c => [c.id, c]));
@@ -66,13 +61,8 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const txs = await db.select().from(transactionsTable)
-    .where(
-      currentUser?.householdId
-        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
-        : eq(transactionsTable.userId, userId)
-    );
+    .where(eq(transactionsTable.userId, userId));
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const now = new Date();
@@ -95,13 +85,8 @@ router.get("/summary/history", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const txs = await db.select().from(transactionsTable)
-    .where(
-      currentUser?.householdId
-        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
-        : eq(transactionsTable.userId, userId)
-    )
+    .where(eq(transactionsTable.userId, userId))
     .orderBy(desc(transactionsTable.date));
 
   const categories = await db.select().from(categoriesTable);
@@ -167,14 +152,9 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
   if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
 
   const limit = query.data.limit ?? 10;
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
   const txs = await db.select().from(transactionsTable)
-    .where(
-      currentUser?.householdId
-        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
-        : eq(transactionsTable.userId, userId)
-    )
+    .where(eq(transactionsTable.userId, userId))
     .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt))
     .limit(limit);
 
