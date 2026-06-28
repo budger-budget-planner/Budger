@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
   CreateTransactionBody,
@@ -43,14 +43,8 @@ router.get("/transactions", async (req, res): Promise<void> => {
   const query = ListTransactionsQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-
   const txs = await db.select().from(transactionsTable)
-    .where(
-      currentUser?.householdId
-        ? or(eq(transactionsTable.userId, userId), eq(transactionsTable.householdId, currentUser.householdId))
-        : eq(transactionsTable.userId, userId)
-    )
+    .where(eq(transactionsTable.userId, userId))
     .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt));
 
   const categories = await db.select().from(categoriesTable);

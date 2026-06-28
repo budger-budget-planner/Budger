@@ -26,7 +26,7 @@ import {
   useListHouseholdMembers,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, GitFork, GitMerge } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -930,14 +930,13 @@ export default function HomeSpending() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                            {(tx as any).splitRole === "issuer" && (
-                              <span title={t("split.issued_icon")} className="flex-shrink-0 text-amber-400/80">
-                                <GitFork className="w-3 h-3" strokeWidth={2.5} />
-                              </span>
-                            )}
-                            {(tx as any).splitRole === "recipient" && (
-                              <span title={t("split.received_icon")} className="flex-shrink-0 text-sky-400/80">
-                                <GitMerge className="w-3 h-3" strokeWidth={2.5} />
+                            {(tx as any).splitRole && (
+                              <span
+                                title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
+                                className="flex-shrink-0 leading-none"
+                                style={{ fontSize: "10px", filter: "grayscale(1) brightness(1.6)", opacity: 0.7 }}
+                              >
+                                🤝
                               </span>
                             )}
                           </div>
