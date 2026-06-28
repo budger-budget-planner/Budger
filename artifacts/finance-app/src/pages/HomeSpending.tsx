@@ -586,12 +586,12 @@ export default function HomeSpending() {
 
   const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
 
-  // Locked foreign-currency transactions are excluded from the main budget total
+  // Locked currency transactions are excluded from the main budget total (matches server summary logic)
   const isLockedForeign = (tx: any) =>
     tx.currencyLocked && tx.transactionCurrency && tx.transactionCurrency !== prefs.currency;
 
   const total = sorted
-    .filter(tx => !isLockedForeign(tx))
+    .filter(tx => !tx.currencyLocked)
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
   // Group locked-foreign amounts by their original currency for the separate display
