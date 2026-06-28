@@ -67,15 +67,15 @@ function TxForm({
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
       <div className="space-y-1.5">
-        <Label>Amount</Label>
+        <Label>{t("common.amount")}</Label>
         <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00" value={form.amount} onChange={e => set("amount", e.target.value)} required />
       </div>
       <div className="space-y-1.5">
-        <Label>Description</Label>
+        <Label>{t("home.description")}</Label>
         <Input data-testid="input-description" placeholder={t("tx.grocery_placeholder")} value={form.description} onChange={e => set("description", e.target.value)} required />
       </div>
       <div className="space-y-1.5">
-        <Label>Category</Label>
+        <Label>{t("home.category")}</Label>
         <Select value={form.categoryId} onValueChange={v => set("categoryId", v)}>
           <SelectTrigger data-testid="select-category"><SelectValue placeholder={t("home.no_category")} /></SelectTrigger>
           <SelectContent>
@@ -91,13 +91,13 @@ function TxForm({
             {goals.length > 0 && (
               <>
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t border-border mt-1 pt-2">
-                  Goals
+                  {t("tx.goals_group")}
                 </div>
                 {goals.map(g => (
                   <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
                     <span className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
-                      {g.name} (Goal)
+                      {g.name} ({t("tx.goal")})
                     </span>
                   </SelectItem>
                 ))}
@@ -108,18 +108,18 @@ function TxForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Date</Label>
+          <Label>{t("common.date")}</Label>
           <Input data-testid="input-date" type="date" value={form.date} onChange={e => set("date", e.target.value)} required />
         </div>
         <div className="space-y-1.5">
-          <Label>Payment</Label>
+          <Label>{t("home.payment")}</Label>
           <Select value={form.paymentMethod} onValueChange={v => set("paymentMethod", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="card">Card</SelectItem>
-              <SelectItem value="apple_pay">Apple Pay</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+              <SelectItem value="card">{t("home.card")}</SelectItem>
+              <SelectItem value="apple_pay">{t("ob.apple_pay")}</SelectItem>
+              <SelectItem value="cash">{t("home.cash")}</SelectItem>
+              <SelectItem value="bank_transfer">{t("home.bank_transfer")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -191,7 +191,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
     <div className="border-t border-border pt-4 mt-2 space-y-3">
       <div className="flex items-center gap-2">
         <Target className="w-4 h-4 text-muted-foreground" />
-        <p className="text-sm font-medium">Dedicate to Goal</p>
+        <p className="text-sm font-medium">{t("tx.dedicate")}</p>
       </div>
 
       {txContribs.length > 0 && (
@@ -240,7 +240,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
           />
         </div>
         <Button type="submit" size="sm" disabled={saving || !goalId || !amount} className="h-9 px-3">
-          {saving ? "…" : "Add"}
+          {saving ? "…" : t("tx.add_btn")}
         </Button>
       </form>
     </div>
@@ -287,7 +287,7 @@ function ReceiptModal({
       const imageData = await compressImage(file);
       uploadReceipt.mutate({ id: tx.id, data: { imageData } });
     } catch {
-      alert("Could not process image. Please try again.");
+      alert(t("tx.image_error"));
     }
   }
 
@@ -422,12 +422,14 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, month?: string) {
   if (month) qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
 }
 
-const paymentLabel: Record<string, string> = {
-  card: "Card",
-  apple_pay: "Apple Pay",
-  cash: "Cash",
-  bank_transfer: "Bank Transfer",
-};
+function getPaymentLabel(): Record<string, string> {
+  return {
+    card: t("home.card"),
+    apple_pay: t("ob.apple_pay"),
+    cash: t("home.cash"),
+    bank_transfer: t("home.bank_transfer"),
+  };
+}
 
 export default function TransactionsPage() {
   const prefs = loadPrefs();
@@ -585,9 +587,9 @@ export default function TransactionsPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Transactions</h1>
+        <h1 className="text-2xl font-bold">{t("tx.title")}</h1>
         <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2">
-          <Plus className="w-4 h-4" /> Add
+          <Plus className="w-4 h-4" /> {t("common.add")}
         </Button>
       </div>
 
@@ -638,7 +640,7 @@ export default function TransactionsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">{displayName} · {paymentLabel[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
+                    <p className="text-xs text-muted-foreground">{displayName} · {getPaymentLabel()[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
                   {/* Amount — show original currency for locked rows */}
@@ -652,18 +654,18 @@ export default function TransactionsPage() {
                   {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
                     <button
                       className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors"
-                      title="Ta transakcja jest w innej walucie. Kliknij, aby zmienić."
+                      title={t("currency.change_chip_title")}
                       onClick={() => setConvertTx(tx)}
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
-                      zmień walutę
+                      {t("currency.change_chip")}
                     </button>
                   )}
                   {/* Locked-currency indicator */}
                   {tx.currencyLocked && tx.transactionCurrency && (
                     <span
                       className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-zinc-600 text-zinc-400 bg-zinc-800/40"
-                      title={`Zablokowana w ${tx.transactionCurrency}`}
+                      title={t("currency.locked_in", { cur: tx.transactionCurrency })}
                     >
                       <Lock className="w-2.5 h-2.5" />
                       {tx.transactionCurrency}
@@ -710,7 +712,7 @@ export default function TransactionsPage() {
       {/* Add dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("tx.new_dialog")}</DialogTitle></DialogHeader>
           <TxForm initial={blank} categories={categories ?? []} goals={goals ?? []} onSubmit={handleCreate} onCancel={() => setAddOpen(false)} loading={create.isPending} />
         </DialogContent>
       </Dialog>
@@ -718,7 +720,7 @@ export default function TransactionsPage() {
       {/* Edit dialog */}
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Edit Transaction</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("tx.edit_dialog")}</DialogTitle></DialogHeader>
           {editTx && (() => {
             // If this is a goal-assigned tx (categoryId null), find existing contribution
             // so the dropdown shows the current goal instead of "No category"
@@ -768,17 +770,16 @@ export default function TransactionsPage() {
       {autoRulePrompt && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
           <div className="pointer-events-auto w-full max-w-sm mx-4 mb-24 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4">
-            <p className="text-sm font-medium text-white mb-1">Stop auto-categorizing?</p>
+            <p className="text-sm font-medium text-white mb-1">{t("auto_cat.stop_title")}</p>
             <p className="text-xs text-zinc-400 mb-4">
-              We auto-tagged <span className="text-white font-medium">{autoRulePrompt.merchantName}</span> as{" "}
-              <span className="text-white font-medium">{autoRulePrompt.oldCategoryName}</span>. Stop doing that?
+              {t("auto_cat.tagged_msg", { merchant: autoRulePrompt.merchantName, category: autoRulePrompt.oldCategoryName })}
             </p>
             <div className="flex gap-2">
               <button
                 className="flex-1 py-2 rounded-xl bg-zinc-800 text-sm text-zinc-300 hover:bg-zinc-700 transition-colors"
                 onClick={() => setAutoRulePrompt(null)}
               >
-                Keep auto-tagging
+                {t("auto_cat.keep")}
               </button>
               <button
                 className="flex-1 py-2 rounded-xl bg-white text-sm text-black font-medium hover:bg-zinc-200 transition-colors"
@@ -791,7 +792,7 @@ export default function TransactionsPage() {
                   setAutoRulePrompt(null);
                 }}
               >
-                Yes, stop
+                {t("auto_cat.yes_stop")}
               </button>
             </div>
           </div>

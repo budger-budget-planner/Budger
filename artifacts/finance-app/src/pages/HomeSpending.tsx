@@ -775,7 +775,7 @@ export default function HomeSpending() {
                   <p className="text-3xl font-bold">{fmtAmt(total, prefs.currency)}</p>
                   {lockedEntries.length > 0 && (
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {prefs.language === "pl" ? "(nie przeliczone)" : "(not converted)"}
+                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
                     </p>
                   )}
                 </div>
@@ -809,7 +809,7 @@ export default function HomeSpending() {
                   <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
                   {lockedEntries.length > 0 && (
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {prefs.language === "pl" ? "(nie przeliczone)" : "(not converted)"}
+                      +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
                     </p>
                   )}
                 </div>
@@ -1120,17 +1120,16 @@ export default function HomeSpending() {
       {autoRulePrompt && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
           <div className="pointer-events-auto w-full max-w-sm mx-4 mb-24 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4">
-            <p className="text-sm font-medium text-white mb-1">Stop auto-categorizing?</p>
+            <p className="text-sm font-medium text-white mb-1">{t("auto_cat.stop_title")}</p>
             <p className="text-xs text-zinc-400 mb-4">
-              We auto-tagged <span className="text-white font-medium">{autoRulePrompt.merchantName}</span> as{" "}
-              <span className="text-white font-medium">{autoRulePrompt.oldCategoryName}</span>. Stop doing that?
+              {t("auto_cat.tagged_msg", { merchant: autoRulePrompt.merchantName, category: autoRulePrompt.oldCategoryName })}
             </p>
             <div className="flex gap-2">
               <button
                 className="flex-1 py-2 rounded-xl bg-zinc-800 text-sm text-zinc-300 hover:bg-zinc-700 transition-colors"
                 onClick={() => setAutoRulePrompt(null)}
               >
-                Keep auto-tagging
+                {t("auto_cat.keep")}
               </button>
               <button
                 className="flex-1 py-2 rounded-xl bg-white text-sm text-black font-medium hover:bg-zinc-200 transition-colors"
@@ -1143,7 +1142,7 @@ export default function HomeSpending() {
                   setAutoRulePrompt(null);
                 }}
               >
-                Yes, stop
+                {t("auto_cat.yes_stop")}
               </button>
             </div>
           </div>

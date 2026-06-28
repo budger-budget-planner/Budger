@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { fmtAmt } from "@/lib/prefs";
+import { t } from "@/lib/i18n";
 
 export function CurrencyConvertSheet({
   tx,
@@ -69,30 +70,32 @@ export function CurrencyConvertSheet({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
-            Zmień walutę
+            {t("currency.title")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-1">
           <p className="text-sm text-muted-foreground">
-            Ta transakcja została zarejestrowana w walucie{" "}
-            <span className="font-semibold text-foreground">{from}</span>, ale Twoje konto jest w{" "}
-            <span className="font-semibold text-foreground">{to}</span>.
+            {t("currency.recorded_in", { from, to }).split(from)[0]}
+            <span className="font-semibold text-foreground">{from}</span>
+            {t("currency.recorded_in", { from, to }).split(from)[1]?.split(to)[0]}
+            <span className="font-semibold text-foreground">{to}</span>
+            {t("currency.recorded_in", { from, to }).split(to).slice(1).join(to)}
           </p>
 
           <div className="rounded-lg bg-muted/40 p-4 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Kwota oryginalna</span>
+              <span className="text-muted-foreground">{t("currency.original_amount")}</span>
               <span className="font-semibold">{fmtAmt(Number(tx.amount), from)}</span>
             </div>
             {rateLoading && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Kurs wymiany</span>
-                <span className="text-muted-foreground animate-pulse">pobieranie…</span>
+                <span className="text-muted-foreground">{t("currency.exchange_rate")}</span>
+                <span className="text-muted-foreground animate-pulse">{t("currency.fetching")}</span>
               </div>
             )}
             {rateError && (
               <div className="text-xs text-destructive">
-                Nie udało się pobrać kursu. Wprowadź ręcznie:
+                {t("currency.rate_failed")}
                 <input
                   type="number"
                   min="0.000001"
@@ -109,11 +112,11 @@ export function CurrencyConvertSheet({
             {!rateLoading && rate != null && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Kurs</span>
+                  <span className="text-muted-foreground">{t("currency.rate_label")}</span>
                   <span>1 {from} = {rate.toFixed(4)} {to}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-1 mt-1">
-                  <span className="text-muted-foreground">Po przeliczeniu</span>
+                  <span className="text-muted-foreground">{t("currency.converted_to")}</span>
                   <span className="font-bold text-foreground">{fmtAmt(Number(preview), to)}</span>
                 </div>
               </>
@@ -126,7 +129,7 @@ export function CurrencyConvertSheet({
               disabled={busy || rateLoading || !rate}
               onClick={handleConvert}
             >
-              {convert.isPending ? "Przeliczam…" : `Przelicz na ${to}`}
+              {convert.isPending ? t("currency.converting_btn") : t("currency.convert_btn", { to })}
             </Button>
             <Button
               variant="outline"
@@ -134,32 +137,32 @@ export function CurrencyConvertSheet({
               disabled={busy}
               onClick={handleLock}
             >
-              {lock.isPending ? "Zapisuję…" : `Zostaw w ${from} (nie przeliczaj)`}
+              {lock.isPending ? t("currency.locking_btn") : t("currency.lock_btn", { from })}
             </Button>
           </div>
 
           {/* Consequence warning */}
           <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 space-y-1.5">
-            <p className="text-xs font-semibold text-zinc-300">Jeśli nie przeliczysz tej transakcji:</p>
+            <p className="text-xs font-semibold text-zinc-300">{t("currency.warning_title")}</p>
             <ul className="text-xs text-zinc-400 space-y-1 list-none">
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 text-zinc-500">•</span>
-                <span>Nie będzie wliczana do miesięcznego budżetu ani wydatków</span>
+                <span>{t("currency.warning_1")}</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 text-zinc-500">•</span>
-                <span>Pojawi się osobno na ekranie głównym, np.: <span className="font-medium text-zinc-300">wydano 1 000 zł (251,99 PLN, £200)</span></span>
+                <span>{t("currency.warning_2")}</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 text-zinc-500">•</span>
-                <span>Nie będzie widoczna na wykresach, w dashboardzie ani w celach oszczędnościowych</span>
+                <span>{t("currency.warning_3")}</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 text-zinc-500">•</span>
-                <span>Nie będzie można jej przypisać do kategorii</span>
+                <span>{t("currency.warning_4")}</span>
               </li>
             </ul>
-            <p className="text-xs text-zinc-500 pt-0.5">Wybór jest nieodwracalny.</p>
+            <p className="text-xs text-zinc-500 pt-0.5">{t("currency.warning_final")}</p>
           </div>
         </div>
       </DialogContent>

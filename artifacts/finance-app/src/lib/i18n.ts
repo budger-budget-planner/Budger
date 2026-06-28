@@ -595,6 +595,62 @@ const translations: Record<string, Record<Lang, string>> = {
   "split.issued_icon":      { en: "You split this expense",    pl: "Podzieliłeś ten wydatek"     },
   "split.received_icon":    { en: "Charged via split",         pl: "Naliczone przez podział"     },
   "split.request_sent":     { en: "Split request sent",        pl: "Prośba o podział wysłana"    },
+
+  // ── Auto-categorise prompt ──
+  "auto_cat.stop_title":  { en: "Stop auto-categorizing?",                            pl: "Zatrzymać automatyczne kategoryzowanie?"              },
+  "auto_cat.tagged_msg":  { en: "We auto-tagged {merchant} as {category}. Stop doing that?",
+                             pl: "Automatycznie przypisaliśmy {merchant} do kategorii {category}. Zatrzymać?"  },
+  "auto_cat.keep":        { en: "Keep auto-tagging",                                  pl: "Kontynuuj automatyczne tagowanie"                     },
+  "auto_cat.yes_stop":    { en: "Yes, stop",                                          pl: "Tak, zatrzymaj"                                       },
+
+  // ── Home — not converted ──
+  "home.not_converted":   { en: "(not converted)",                                    pl: "(nie przeliczone)"                                    },
+
+  // ── Transactions page ──
+  "tx.new_dialog":        { en: "New Transaction",                                    pl: "Nowa transakcja"                                      },
+  "tx.edit_dialog":       { en: "Edit Transaction",                                   pl: "Edytuj transakcję"                                    },
+  "tx.goals_group":       { en: "Goals",                                              pl: "Cele"                                                 },
+  "tx.image_error":       { en: "Could not process image. Please try again.",         pl: "Nie udało się przetworzyć zdjęcia. Spróbuj ponownie." },
+  "tx.add_btn":           { en: "Add",                                                pl: "Dodaj"                                                },
+  "tx.receipt_label":     { en: "Receipt — {desc}",                                   pl: "Paragon — {desc}"                                     },
+  "tx.no_receipt":        { en: "No receipt attached yet.",                           pl: "Brak paragonu."                                       },
+
+  // ── Currency conversion sheet ──
+  "currency.title":          { en: "Change currency",                                 pl: "Zmień walutę"                                         },
+  "currency.recorded_in":    { en: "This transaction was recorded in {from}, but your account is in {to}.", pl: "Ta transakcja została zarejestrowana w walucie {from}, ale Twoje konto jest w {to}." },
+  "currency.original_amount":{ en: "Original amount",                                 pl: "Kwota oryginalna"                                     },
+  "currency.exchange_rate":  { en: "Exchange rate",                                   pl: "Kurs wymiany"                                         },
+  "currency.fetching":       { en: "fetching…",                                       pl: "pobieranie…"                                          },
+  "currency.rate_failed":    { en: "Could not fetch rate. Enter manually:",           pl: "Nie udało się pobrać kursu. Wprowadź ręcznie:"        },
+  "currency.rate_label":     { en: "Rate",                                            pl: "Kurs"                                                 },
+  "currency.converted_to":   { en: "Converted amount",                                pl: "Po przeliczeniu"                                      },
+  "currency.convert_btn":    { en: "Convert to {to}",                                 pl: "Przelicz na {to}"                                     },
+  "currency.converting_btn": { en: "Converting…",                                     pl: "Przeliczam…"                                          },
+  "currency.lock_btn":       { en: "Keep in {from} (do not convert)",                 pl: "Zostaw w {from} (nie przeliczaj)"                     },
+  "currency.locking_btn":    { en: "Saving…",                                         pl: "Zapisuję…"                                            },
+  "currency.warning_title":  { en: "If you don't convert this transaction:",          pl: "Jeśli nie przeliczysz tej transakcji:"                },
+  "currency.warning_1":      { en: "It won't count towards your monthly budget or spending.", pl: "Nie będzie wliczana do miesięcznego budżetu ani wydatków." },
+  "currency.warning_2":      { en: "It will appear separately on the home screen, e.g.: spent $1,000 (€251.99, £200).", pl: "Pojawi się osobno na ekranie głównym, np.: wydano 1 000 zł (251,99 PLN, £200)." },
+  "currency.warning_3":      { en: "It won't appear in charts, the dashboard, or savings goals.", pl: "Nie będzie widoczna na wykresach, w dashboardzie ani w celach oszczędnościowych." },
+  "currency.warning_4":      { en: "It cannot be assigned to a category.",            pl: "Nie będzie można jej przypisać do kategorii."         },
+  "currency.warning_final":  { en: "This choice is irreversible.",                    pl: "Wybór jest nieodwracalny."                            },
+  "currency.change_chip":    { en: "change currency",                                 pl: "zmień walutę"                                         },
+  "currency.change_chip_title": { en: "This transaction is in a different currency. Click to change.", pl: "Ta transakcja jest w innej walucie. Kliknij, aby zmienić." },
+  "currency.locked_in":      { en: "Locked in {cur}",                                 pl: "Zablokowana w {cur}"                                  },
+
+  // ── Notifications — sound ──
+  "notif.badger_sniff":      { en: "Badger Sniff",                                    pl: "Prychnięcie Borsuka"                                  },
+  "notif.sniff_pattern":     { en: "sniff · sniff · sniff — sniff · sniff",           pl: "prychnięcie · prychnięcie · prychnięcie"              },
+
+  // ── Onboarding — blocked notifications ──
+  "ob.notif_blocked_title":  { en: "Notifications are blocked",                       pl: "Powiadomienia są zablokowane"                         },
+  "ob.notif_blocked_desc":   { en: "Open your iPhone Settings and follow the path below, then come back — the app will detect it automatically.", pl: "Otwórz Ustawienia iPhone'a i podążaj ścieżką poniżej, a następnie wróć — aplikacja wykryje to automatycznie." },
+  "ob.open_settings":        { en: "Open Settings",                                   pl: "Otwórz Ustawienia"                                    },
+  "ob.try_again":            { en: "Try Again",                                        pl: "Spróbuj ponownie"                                     },
+
+  // ── Not found ──
+  "not_found.title":         { en: "Page not found",                                  pl: "Strona nie znaleziona"                                },
+  "not_found.go_home":       { en: "Go Home",                                         pl: "Wróć do głównej"                                      },
 };
 
 // ── Locale-aware date helpers ──────────────────────────────────────────────

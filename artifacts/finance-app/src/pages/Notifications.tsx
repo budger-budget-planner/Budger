@@ -461,8 +461,8 @@ export default function NotificationsPage() {
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">Badger Sniff</p>
-                <p className="text-xs text-muted-foreground">sniff · sniff · sniff — sniff · sniff</p>
+                <p className="text-sm font-medium text-foreground">{t("notif.badger_sniff")}</p>
+                <p className="text-xs text-muted-foreground">{t("notif.sniff_pattern")}</p>
               </div>
             </div>
             <button

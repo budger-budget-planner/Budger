@@ -256,9 +256,9 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
             const { steps, tip } = getNotifSettingsPath();
             return (
               <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
-                <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+                <p className="text-sm font-semibold text-foreground">{t("ob.notif_blocked_title")}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Open your iPhone Settings and follow the path below, then come back — the app will detect it automatically.
+                  {t("ob.notif_blocked_desc")}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {steps.map((s, i) => (
@@ -273,7 +273,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
                   onClick={openIOSSettings}
                   className="w-full h-11 rounded-xl bg-background border border-border text-foreground text-sm font-semibold active:scale-95 transition"
                 >
-                  Open Settings
+                  {t("ob.open_settings")}
                 </button>
               </div>
             );
@@ -287,7 +287,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
                          disabled:opacity-50 active:scale-95 transition"
             >
               {notifStatus === "loading" ? t("ob.notif_enabling") :
-               notifStatus === "denied"  ? "Try Again" :
+               notifStatus === "denied"  ? t("ob.try_again") :
                t("ob.notif_enable_btn")}
             </button>
           )}
