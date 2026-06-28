@@ -418,7 +418,7 @@ function SplitSheet({
             <p className="text-xs text-muted-foreground truncate">{tx.description} · {sym}{txAmount.toFixed(2)}</p>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label>{t("split.member_label")}</Label>
             <Select value={recipientId} onValueChange={setRecipientId}>
@@ -441,10 +441,10 @@ function SplitSheet({
               <div className="flex rounded-lg border border-border overflow-hidden text-xs">
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "amount" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
-                  onClick={() => setSplitMode("amount")}>{sym}</button>
+                  onClick={() => { setSplitMode("amount"); setSplitValue(""); }}>{sym}</button>
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "percent" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
-                  onClick={() => setSplitMode("percent")}>%</button>
+                  onClick={() => { setSplitMode("percent"); setSplitValue(""); }}>%</button>
               </div>
             </div>
             <div className="relative">

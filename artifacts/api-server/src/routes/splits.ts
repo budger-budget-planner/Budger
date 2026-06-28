@@ -86,6 +86,9 @@ router.post("/splits", async (req, res): Promise<void> => {
     recipientId,
     splitAmount: String(splitAmount),
     issuerCurrency: issuerCurrency ?? "USD",
+    // Snapshot the transaction amount now so we can compute the correct fraction
+    // at accept-time even if the issuer later changes currency (which rewrites tx.amount).
+    originalTransactionAmount: tx.amount,
     status: "pending",
   }).returning();
 
@@ -111,8 +114,24 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const [origTx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, split.transactionId));
   if (!origTx) { res.status(404).json({ error: "Original transaction not found" }); return; }
 
-  const splitAmt = parseFloat(split.splitAmount);
-  const newIssuerAmt = (parseFloat(origTx.amount) - splitAmt).toFixed(2);
+  // Use the fraction of the original transaction that was split.
+  // This is correct even when the issuer later converts currency
+  // (which rewrites origTx.amount in-place): the fraction stays valid.
+  // e.g. split 1000 PLN from 2000 PLN → fraction=0.5
+  //      issuer then converts to GBP: origTx.amount becomes £400
+  //      newIssuerAmt = £400 * (1 - 0.5) = £200  ✓
+  //
+  // Legacy splits (created before this fix) have originalTransactionAmount=0.
+  // For those, fall back to direct subtraction — best-effort for same-currency case.
+  const origTxAmt = parseFloat(split.originalTransactionAmount ?? "0");
+  let newIssuerAmt: string;
+  if (origTxAmt > 0) {
+    const fraction = parseFloat(split.splitAmount) / origTxAmt;
+    newIssuerAmt = (parseFloat(origTx.amount) * (1 - fraction)).toFixed(2);
+  } else {
+    // Legacy row: fall back to direct subtraction (pre-fix behavior)
+    newIssuerAmt = (parseFloat(origTx.amount) - parseFloat(split.splitAmount)).toFixed(2);
+  }
 
   // Accept body may include a pre-converted amount+currency from the recipient's frontend
   const { convertedAmount, recipientCurrency } = req.body as {
