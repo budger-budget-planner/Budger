@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { type AppPrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
+import { type AppPrefs, CURRENCIES, LANGUAGES, loadPrefs } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
 import ApplePaySlides from "@/components/ApplePaySlides";
@@ -56,9 +56,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   const [step, setStep]               = useState<Step>("stay-signed-in");
   const [staySignedIn, setStaySignedIn] = useState(true);
   const [currency, setCurrency]       = useState("USD");
-  const [language]                    = useState(() => {
-    try { return JSON.parse(localStorage.getItem("budger_prefs_v1") ?? "{}").language ?? "en"; } catch { return "en"; }
-  });
+  const [language]                    = useState(() => loadPrefs().language ?? "en");
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");

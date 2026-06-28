@@ -5,9 +5,10 @@ export type AppPrefs = {
   staySignedIn: boolean;
 };
 
-const PREFS_KEY     = "budger_prefs_v1";
-const ONBOARDED_KEY = "budger_onboarded_v1";
-const SESSION_KEY   = "budger_session";
+const PREFS_KEY_BASE = "budger_prefs_v1";
+const ONBOARDED_KEY  = "budger_onboarded_v1";
+const SESSION_KEY    = "budger_session";
+const ACTIVE_UID_KEY = "budger_active_uid";
 
 const DEFAULT_PREFS: AppPrefs = {
   currency: "USD",
@@ -16,9 +17,30 @@ const DEFAULT_PREFS: AppPrefs = {
   staySignedIn: true,
 };
 
+/** Store the current user's id so prefs can be namespaced per account. */
+export function setActiveUserId(id: number | null) {
+  if (id == null) {
+    localStorage.removeItem(ACTIVE_UID_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_UID_KEY, String(id));
+  }
+}
+
+export function getActiveUserId(): number | null {
+  const raw = localStorage.getItem(ACTIVE_UID_KEY);
+  if (!raw) return null;
+  const n = parseInt(raw);
+  return isNaN(n) ? null : n;
+}
+
+function prefsKey(): string {
+  const uid = getActiveUserId();
+  return uid != null ? `${PREFS_KEY_BASE}_${uid}` : PREFS_KEY_BASE;
+}
+
 export function loadPrefs(): AppPrefs {
   try {
-    const stored = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null") ?? {};
+    const stored = JSON.parse(localStorage.getItem(prefsKey()) ?? "null") ?? {};
     return { ...DEFAULT_PREFS, ...stored };
   } catch {
     return DEFAULT_PREFS;
@@ -26,7 +48,23 @@ export function loadPrefs(): AppPrefs {
 }
 
 export function savePrefs(p: AppPrefs) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+  localStorage.setItem(prefsKey(), JSON.stringify(p));
+}
+
+/**
+ * After login, call this to migrate any pre-login prefs (e.g. language selected
+ * on the login screen) into the user-scoped key — but only if the user doesn't
+ * already have their own prefs saved (i.e. first login on this device).
+ */
+export function migratePreLoginPrefs() {
+  const uid = getActiveUserId();
+  if (uid == null) return;
+  const userKey = `${PREFS_KEY_BASE}_${uid}`;
+  if (localStorage.getItem(userKey) != null) return; // already has user-scoped prefs, don't overwrite
+  const fallback = localStorage.getItem(PREFS_KEY_BASE);
+  if (fallback) {
+    localStorage.setItem(userKey, fallback);
+  }
 }
 
 export function isOnboardingDone(): boolean {

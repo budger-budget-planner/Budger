@@ -24,6 +24,7 @@ import {
   hasActiveSession,
   clearSession,
   takePendingOnboarding,
+  setActiveUserId,
   type AppPrefs,
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
@@ -58,6 +59,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       // If staySignedIn=false and no active session (new browser session) → sign out
       if (!prefs.staySignedIn && !hasActiveSession()) {
         clearSession();
+        setActiveUserId(null);
         logout.mutate({} as any, {
           onSettled: () => {
             queryClient.clear();

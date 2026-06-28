@@ -4,7 +4,7 @@ import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, 
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
-import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES } from "@/lib/prefs";
+import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId } from "@/lib/prefs";
 import { fetchRates, getConversionRate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
 
@@ -65,6 +65,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
+        // Clear per-user prefs scope so the next user starts with their own settings
+        setActiveUserId(null);
         queryClient.clear();
         window.location.href = import.meta.env.BASE_URL + "login";
       },

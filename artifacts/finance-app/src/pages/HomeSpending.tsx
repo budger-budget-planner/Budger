@@ -353,6 +353,7 @@ function SplitSheet({
   members,
   myUserId,
   sym,
+  issuerCurrency,
   onClose,
   onSuccess,
 }: {
@@ -360,6 +361,7 @@ function SplitSheet({
   members: any[];
   myUserId: number;
   sym: string;
+  issuerCurrency: string;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -386,7 +388,7 @@ function SplitSheet({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: tx.id, recipientId: parseInt(recipientId), splitAmount: splitAmt }),
+        body: JSON.stringify({ transactionId: tx.id, recipientId: parseInt(recipientId), splitAmount: splitAmt, issuerCurrency }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -1156,6 +1158,7 @@ export default function HomeSpending() {
           members={(householdMembers as any[]) ?? []}
           myUserId={myUserId}
           sym={sym}
+          issuerCurrency={prefs.currency}
           onClose={() => setSplitTx(null)}
           onSuccess={() => {
             setSplitTx(null);

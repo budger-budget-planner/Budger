@@ -14,6 +14,7 @@ async function enrichSplit(s: any) {
     transactionDescription: tx?.description ?? "",
     transactionDate: tx?.date ?? "",
     splitAmount: parseFloat(s.splitAmount),
+    issuerCurrency: s.issuerCurrency ?? "USD",
     issuerId: s.issuerId,
     issuerName: issuer?.name ?? "",
     recipientId: s.recipientId,
@@ -52,10 +53,11 @@ router.post("/splits", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { transactionId, recipientId, splitAmount } = req.body as {
+  const { transactionId, recipientId, splitAmount, issuerCurrency } = req.body as {
     transactionId?: number;
     recipientId?: number;
     splitAmount?: number;
+    issuerCurrency?: string;
   };
   if (!transactionId || !recipientId || !splitAmount) {
     res.status(400).json({ error: "Missing required fields" }); return;
@@ -83,6 +85,7 @@ router.post("/splits", async (req, res): Promise<void> => {
     issuerId: userId,
     recipientId,
     splitAmount: String(splitAmount),
+    issuerCurrency: issuerCurrency ?? "USD",
     status: "pending",
   }).returning();
 
@@ -111,12 +114,23 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const splitAmt = parseFloat(split.splitAmount);
   const newIssuerAmt = (parseFloat(origTx.amount) - splitAmt).toFixed(2);
 
+  // Accept body may include a pre-converted amount+currency from the recipient's frontend
+  const { convertedAmount, recipientCurrency } = req.body as {
+    convertedAmount?: number;
+    recipientCurrency?: string;
+  };
+
+  // Use converted amount if provided (cross-currency household), else fall back to raw split amount
+  const recipientAmount = (convertedAmount != null && convertedAmount > 0)
+    ? convertedAmount.toFixed(2)
+    : split.splitAmount;
+
   await db.update(transactionsTable)
     .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer" })
     .where(eq(transactionsTable.id, split.transactionId));
 
   const [recipientTx] = await db.insert(transactionsTable).values({
-    amount: split.splitAmount,
+    amount: recipientAmount,
     description: origTx.description,
     categoryId: origTx.categoryId,
     date: origTx.date,
@@ -125,6 +139,10 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     householdId: origTx.householdId,
     splitId: split.id,
     splitRole: "recipient",
+    // If a different currency was used, tag it so the transaction is identifiable
+    ...(recipientCurrency && recipientCurrency !== split.issuerCurrency
+      ? { transactionCurrency: recipientCurrency }
+      : {}),
   }).returning();
 
   await db.update(expenseSplitsTable)

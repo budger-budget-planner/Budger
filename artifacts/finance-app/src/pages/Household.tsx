@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
+import { fetchRates, convertAmount } from "@/lib/rates";
 
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
@@ -306,6 +307,16 @@ export default function HouseholdPage() {
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
 
+  // Exchange rates for split currency conversion
+  const [splitRates, setSplitRates] = useState<Record<string, number> | null>(null);
+  useEffect(() => { fetchRates().then(setSplitRates); }, []);
+
+  /** Convert a split amount from issuerCurrency → recipient's display currency. */
+  function convertSplitAmount(amount: number, issuerCurrency: string): number {
+    if (!splitRates || issuerCurrency === prefs2.currency) return amount;
+    return convertAmount(amount, issuerCurrency, prefs2.currency, splitRates);
+  }
+
   const { data: incomingSplits, refetch: refetchIncoming } = useQuery<any[]>({
     queryKey: ["splits-incoming"],
     queryFn: async () => {
@@ -328,10 +339,21 @@ export default function HouseholdPage() {
 
   const [splitActionLoading, setSplitActionLoading] = useState<number | null>(null);
 
-  async function acceptSplit(id: number) {
+  async function acceptSplit(id: number, split: any) {
     setSplitActionLoading(id);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, { method: "PATCH", credentials: "include" });
+      // Pass converted amount+currency so the recipient's ledger entry is in their own currency
+      const issuerCur = split.issuerCurrency ?? prefs2.currency;
+      const convertedAmount = splitRates
+        ? convertSplitAmount(split.splitAmount, issuerCur)
+        : split.splitAmount;
+
+      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ convertedAmount, recipientCurrency: prefs2.currency }),
+      });
       refetchIncoming();
       queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
       queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
@@ -592,7 +614,7 @@ export default function HouseholdPage() {
                     <p className="text-sm font-medium text-white">
                       <span className="text-pink-300">{split.issuerName}</span>{" "}
                       {t("split.wants_you_to_pay")}{" "}
-                      <span className="font-bold">{sym2}{split.splitAmount.toFixed(2)}</span>
+                      <span className="font-bold">{fmtAmt(convertSplitAmount(split.splitAmount, split.issuerCurrency ?? prefs2.currency), prefs2.currency)}</span>
                     </p>
                     <p className="text-xs text-white/50 mt-0.5 truncate">
                       {t("split.for")} &ldquo;{split.transactionDescription}&rdquo; · {split.transactionDate}
@@ -602,7 +624,7 @@ export default function HouseholdPage() {
                     <Button size="sm"
                       className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
                       disabled={splitActionLoading === split.id}
-                      onClick={() => acceptSplit(split.id)}>
+                      onClick={() => acceptSplit(split.id, split)}>
                       {t("split.accept")}
                     </Button>
                     <Button size="sm" variant="ghost"

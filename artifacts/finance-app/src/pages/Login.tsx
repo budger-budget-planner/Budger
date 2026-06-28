@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import BadgerLogo from "@/components/BadgerLogo";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
-import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone } from "@/lib/prefs";
+import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
 
 type Screen =
   | "start"          // email + language, login default / sign-up link
@@ -63,6 +63,10 @@ export default function LoginPage() {
   const login = useLogin({
     mutation: {
       onSuccess: (user) => {
+        // Scope prefs to this user so switching accounts doesn't bleed settings
+        setActiveUserId(user.id);
+        // Carry language (selected on login screen) into user-scoped prefs on first login
+        migratePreLoginPrefs();
         markSession();
         // If firstLoginDone is false this is their first login — trigger onboarding
         // via sessionStorage so AuthGuard picks it up after navigation
