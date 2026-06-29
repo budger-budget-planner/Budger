@@ -1022,8 +1022,9 @@ export default function HomeSpending() {
                             </p>
                           )}
                           {isExpanded && hasUnavailable && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 text-right leading-snug">
-                              {t("home.currency_unavailable_badge")}
+                            <span className="inline-flex flex-col items-end text-[10px] font-medium px-2 py-1 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 leading-snug text-right">
+                              <span>{t("home.currency_unavailable")}</span>
+                              <span className="opacity-75">{t("home.currency_unavailable_hint")}</span>
                             </span>
                           )}
                           {isExpanded && (tx as any).splitRole === "issuer" && (tx as any).preSplitAmount != null && (
