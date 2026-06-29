@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, usersTable, householdsTable, householdMembersTable } from "@workspace/db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -88,7 +88,7 @@ router.get("/goals/past", async (req, res): Promise<void> => {
   res.json(goals.map(formatGoal));
 });
 
-// Proposals list — for head members to see pending proposals
+// Share proposals — for head members to see pending share proposals
 router.get("/goals/proposals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -126,7 +126,7 @@ router.get("/goals/proposals", async (req, res): Promise<void> => {
   }));
 });
 
-// Approve a proposal — head only
+// Approve a share proposal — head only
 router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -145,7 +145,7 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-// Decline a proposal — head only
+// Decline a share proposal — head only
 router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -160,6 +160,99 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
   await db.update(goalProposalsTable).set({ status: "declined" }).where(eq(goalProposalsTable.id, id));
+  res.json({ ok: true });
+});
+
+// Edit proposals — for head members to see pending edit proposals
+router.get("/goals/edit-proposals", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
+
+  const proposals = await db.select().from(goalEditProposalsTable)
+    .where(and(eq(goalEditProposalsTable.householdId, user.householdId), eq(goalEditProposalsTable.status, "pending")));
+
+  if (proposals.length === 0) { res.json([]); return; }
+
+  const goalIds = [...new Set(proposals.map(p => p.goalId))];
+  const proposerIds = [...new Set(proposals.map(p => p.proposerId))];
+  const goals = await db.select().from(goalsTable).where(inArray(goalsTable.id, goalIds));
+  const proposers = await db.select().from(usersTable).where(inArray(usersTable.id, proposerIds));
+  const goalMap = new Map(goals.map(g => [g.id, g]));
+  const proposerMap = new Map(proposers.map(u => [u.id, u]));
+
+  res.json(proposals.map(p => {
+    const goal = goalMap.get(p.goalId);
+    return {
+      id: p.id,
+      goalId: p.goalId,
+      goalName: goal?.name ?? null,
+      goalColor: goal?.color ?? null,
+      currentBudget: goal?.budget ? parseFloat(goal.budget) : null,
+      currentCurrency: goal?.currency ?? null,
+      proposerName: proposerMap.get(p.proposerId)?.name ?? null,
+      proposed: {
+        name: p.name,
+        color: p.color,
+        budget: parseFloat(p.budget),
+        currency: p.currency ?? null,
+        deadline: p.deadline,
+        divideByMonths: p.divideByMonths,
+      },
+      status: p.status,
+      createdAt: p.createdAt.toISOString(),
+    };
+  }));
+});
+
+// Approve an edit proposal — head only
+router.post("/goals/edit-proposals/:id/approve", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
+
+  const [proposal] = await db.select().from(goalEditProposalsTable).where(eq(goalEditProposalsTable.id, id));
+  if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
+
+  await db.update(goalEditProposalsTable).set({ status: "approved" }).where(eq(goalEditProposalsTable.id, id));
+  await db.update(goalsTable).set({
+    name: proposal.name,
+    color: proposal.color,
+    budget: proposal.budget,
+    currency: proposal.currency,
+    deadline: proposal.deadline,
+    divideByMonths: proposal.divideByMonths,
+  }).where(eq(goalsTable.id, proposal.goalId));
+
+  res.json({ ok: true });
+});
+
+// Decline an edit proposal — head only
+router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (!isHead(role)) { res.status(403).json({ error: "Not household head" }); return; }
+
+  const [proposal] = await db.select().from(goalEditProposalsTable).where(eq(goalEditProposalsTable.id, id));
+  if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
+
+  await db.update(goalEditProposalsTable).set({ status: "declined" }).where(eq(goalEditProposalsTable.id, id));
   res.json({ ok: true });
 });
 
@@ -183,7 +276,7 @@ router.post("/goals", async (req, res): Promise<void> => {
   res.status(201).json(formatGoal(goal));
 });
 
-// Propose a private goal as a household goal — parent and child use this
+// Propose a private goal as a household goal
 router.post("/goals/:id/propose", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -207,6 +300,54 @@ router.post("/goals/:id/propose", async (req, res): Promise<void> => {
   res.status(201).json(proposal);
 });
 
+// Propose edits to an existing household goal — creator (non-head) only
+router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (!goal.householdId) { res.status(400).json({ error: "Not a household goal" }); return; }
+  if (goal.userId !== userId) { res.status(403).json({ error: "Only the goal creator can propose edits" }); return; }
+
+  const role = await getMemberRole(userId, user.householdId);
+  if (isHead(role)) { res.status(400).json({ error: "Head should use PATCH to edit directly" }); return; }
+
+  const { name, color, budget, currency, deadline, divideByMonths } = req.body;
+  if (!name || !color || !budget || !deadline) {
+    res.status(400).json({ error: "name, color, budget, deadline required" }); return;
+  }
+
+  // Cancel any previously pending edit proposals for this goal by this user
+  await db.update(goalEditProposalsTable)
+    .set({ status: "declined" })
+    .where(and(
+      eq(goalEditProposalsTable.goalId, id),
+      eq(goalEditProposalsTable.proposerId, userId),
+      eq(goalEditProposalsTable.status, "pending")
+    ));
+
+  const [proposal] = await db.insert(goalEditProposalsTable).values({
+    goalId: id,
+    proposerId: userId,
+    householdId: user.householdId,
+    name: String(name),
+    color: String(color),
+    budget: String(parseFloat(budget)),
+    currency: currency ? String(currency) : goal.currency,
+    deadline: String(deadline),
+    divideByMonths: Boolean(divideByMonths),
+    status: "pending",
+  }).returning();
+
+  res.status(201).json({ pending: true, proposalId: proposal.id });
+});
+
 router.patch("/goals/:id", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -216,13 +357,17 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
   if (!goal) { res.status(404).json({ error: "Not found" }); return; }
 
-  // Permission check for household goals: only head OR the goal's original creator can edit
+  // Permission check for household goals
   if (goal.householdId) {
     const user = await userScope(userId);
     if (!user?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
     const role = await getMemberRole(userId, user.householdId);
-    const isGoalCreator = goal.userId === userId;
-    if (!isHead(role) && !isGoalCreator) {
+    if (isHead(role)) {
+      // Head can edit directly — fall through
+    } else if (goal.userId === userId) {
+      // Creator (non-head) must use propose-edit endpoint
+      res.status(403).json({ error: "Use propose-edit to submit changes for head approval" }); return;
+    } else {
       res.status(403).json({ error: "Only the head or goal creator can edit household goals" }); return;
     }
   } else {
@@ -240,7 +385,7 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   if (deadline !== undefined) update.deadline = String(deadline);
   if (divideByMonths !== undefined) update.divideByMonths = Boolean(divideByMonths);
 
-  // Setting householdId (making a goal shared) requires head role OR it must be nullified
+  // Setting householdId (making a goal shared) requires head role OR nullifying
   if ("householdId" in req.body) {
     const newHouseholdId = householdId === null ? null : parseInt(householdId);
     if (newHouseholdId !== null) {
@@ -283,6 +428,7 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
 
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
   await db.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
+  await db.delete(goalEditProposalsTable).where(eq(goalEditProposalsTable.goalId, id));
   await db.delete(goalsTable).where(eq(goalsTable.id, id));
   res.sendStatus(204);
 });

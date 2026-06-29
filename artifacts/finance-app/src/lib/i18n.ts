@@ -162,6 +162,13 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.proposed_by":  { en: "Proposed by {name}",          pl: "Zaproponowane przez {name}"     },
   "goals.approve":      { en: "Approve",                    pl: "Zatwierdź"                      },
   "goals.decline":      { en: "Decline",                    pl: "Odrzuć"                         },
+  "goals.edit_proposals":      { en: "Edit Proposals",              pl: "Propozycje zmian"               },
+  "goals.edit_proposed_by":    { en: "Edit proposed by {name}",     pl: "Zmiana zaproponowana przez {name}" },
+  "goals.propose_changes":     { en: "Propose Changes",             pl: "Zaproponuj zmiany"              },
+  "goals.proposing":           { en: "Proposing…",                  pl: "Wysyłanie…"                     },
+  "goals.edit_proposal_sent":  { en: "Changes sent for approval",   pl: "Zmiany wysłane do zatwierdzenia" },
+  "goals.awaiting_edit_approval": { en: "Awaiting household head approval", pl: "Oczekuje na zatwierdzenie przez szefa" },
+  "goals.arrow_to":            { en: "→",                           pl: "→"                              },
   "goals.color":        { en: "Color",                      pl: "Kolor"                          },
 
   // ── Household ──

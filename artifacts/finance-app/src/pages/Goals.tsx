@@ -43,6 +43,26 @@ type Proposal = {
   createdAt: string;
 };
 
+type EditProposal = {
+  id: number;
+  goalId: number;
+  goalName: string | null;
+  goalColor: string | null;
+  currentBudget: number | null;
+  currentCurrency: string | null;
+  proposerName: string | null;
+  proposed: {
+    name: string;
+    color: string;
+    budget: number;
+    currency: string | null;
+    deadline: string;
+    divideByMonths: boolean;
+  };
+  status: string;
+  createdAt: string;
+};
+
 const EMPTY_RATES: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79, PLN: 3.95 };
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
@@ -105,9 +125,9 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, rates }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
-  canEdit: boolean; rates: Record<string, number>;
+  canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
 }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
@@ -192,11 +212,13 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, rates }: {
                 <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
               </button>
             )}
-            <button onClick={() => setConfirmDelete(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
-              <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
-            </button>
+            {canDelete && (
+              <button onClick={() => setConfirmDelete(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                           bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
+                <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -273,15 +295,15 @@ function GoalFormFields({
 
 function EditGoalDialog({
   goal, open, onClose, sym, alreadyContributed = 0,
-  isCreator, isInHousehold, householdId, onProposalsChange, rates, userCurrency,
+  isCreator, isInHousehold, householdId, onProposalsChange, rates, userCurrency, isNonHeadCreator,
 }: {
   goal: any; open: boolean; onClose: () => void; sym: string; alreadyContributed?: number;
   isCreator: boolean; isInHousehold: boolean; householdId: number | null;
   onProposalsChange: () => void; rates: Record<string, number>; userCurrency: string;
+  isNonHeadCreator: boolean;
 }) {
   const queryClient = useQueryClient();
   const goalCurrency: string = goal.currency || userCurrency;
-  // Prefill budget converted from goal's canonical currency to user's currency
   const prefillBudget = goalCurrency !== userCurrency
     ? String(Math.round(convertAmount(Number(goal.budget), goalCurrency, userCurrency, rates)))
     : String(Number(goal.budget).toFixed(0));
@@ -291,6 +313,7 @@ function EditGoalDialog({
   const [deadline, setDeadline]             = useState(goal.deadline);
   const [divideByMonths, setDivideByMonths] = useState(goal.divideByMonths);
   const [proposeState, setProposeState]     = useState<"idle" | "pending" | "sent" | "already">("idle");
+  const [editProposeState, setEditProposeState] = useState<"idle" | "pending" | "sent">("idle");
   const [togglingHousehold, setTogglingHousehold] = useState(false);
 
   const isHousehold = !!(goal as any).householdId;
@@ -319,11 +342,35 @@ function EditGoalDialog({
   function handleSave() {
     if (!name.trim() || !budget || !deadline) return;
     const budgetNum = parseFloat(budget);
-    // Convert from user's currency back to the goal's canonical currency before saving
     const canonicalBudget = goalCurrency !== userCurrency
       ? convertAmount(budgetNum, userCurrency, goalCurrency, rates)
       : budgetNum;
     update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: canonicalBudget, deadline, divideByMonths } });
+  }
+
+  async function handleProposeEdit() {
+    if (!name.trim() || !budget || !deadline) return;
+    setEditProposeState("pending");
+    const budgetNum = parseFloat(budget);
+    const canonicalBudget = goalCurrency !== userCurrency
+      ? convertAmount(budgetNum, userCurrency, goalCurrency, rates)
+      : budgetNum;
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose-edit`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), color, budget: canonicalBudget, currency: goalCurrency, deadline, divideByMonths }),
+      });
+      if (r.ok) {
+        setEditProposeState("sent");
+        onProposalsChange();
+      } else {
+        setEditProposeState("idle");
+      }
+    } catch {
+      setEditProposeState("idle");
+    }
   }
 
   async function handleMakeHousehold() {
@@ -435,14 +482,38 @@ function EditGoalDialog({
           </div>
         )}
 
+        {/* Edit-propose success state for non-head creators */}
+        {isNonHeadCreator && isHousehold && editProposeState === "sent" && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border">
+            <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">{t("goals.edit_proposal_sent")}</p>
+              <p className="text-xs text-muted-foreground">{t("goals.awaiting_edit_approval")}</p>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
           </Button>
-          <Button className="flex-1" onClick={handleSave} disabled={update.isPending}>
-            <Check className="w-3.5 h-3.5 mr-1" />
-            {update.isPending ? t("common.saving") : t("common.save")}
-          </Button>
+          {isNonHeadCreator && isHousehold ? (
+            editProposeState === "sent" ? (
+              <Button className="flex-1" onClick={onClose}>
+                <Check className="w-3.5 h-3.5 mr-1" /> {t("common.done")}
+              </Button>
+            ) : (
+              <Button className="flex-1" onClick={handleProposeEdit} disabled={editProposeState === "pending"}>
+                <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
+                {editProposeState === "pending" ? t("goals.proposing") : t("goals.propose_changes")}
+              </Button>
+            )
+          ) : (
+            <Button className="flex-1" onClick={handleSave} disabled={update.isPending}>
+              <Check className="w-3.5 h-3.5 mr-1" />
+              {update.isPending ? t("common.saving") : t("common.save")}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -549,11 +620,27 @@ export default function GoalsPage() {
     enabled: isCreator,
   });
 
+  const { data: editProposals, refetch: refetchEditProposals } = useQuery<EditProposal[]>({
+    queryKey: ["goal-edit-proposals"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isCreator,
+  });
+
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
 
   const privateGoals   = (goals ?? []).filter(g => !(g as any).householdId);
   const householdGoals = (goals ?? []).filter(g => !!(g as any).householdId);
   const pendingProposals = (proposals ?? []).filter(p => p.status === "pending");
+  const pendingEditProposals = (editProposals ?? []).filter(p => p.status === "pending");
+
+  function refetchAllProposals() {
+    refetchProposals();
+    refetchEditProposals();
+  }
 
   const create = useCreateGoal({
     mutation: {
@@ -572,10 +659,21 @@ export default function GoalsPage() {
     create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newDeadline, divideByMonths: newDivide } });
   }
 
-  // A user can edit a goal if: private goal (always, it's theirs) or household goal where they are head OR original creator
+  // Household goal: head OR original creator can edit (via propose-edit for creator)
   function canEdit(goal: any): boolean {
     if (!goal.householdId) return true;
     return isCreator || goal.userId === me?.id;
+  }
+
+  // Only head can delete household goals; anyone can delete their own private goals
+  function canDelete(goal: any): boolean {
+    if (!goal.householdId) return goal.userId === me?.id;
+    return isCreator;
+  }
+
+  // Whether user is the goal creator but NOT the head (edits need approval)
+  function isNonHeadCreator(goal: any): boolean {
+    return !isCreator && goal.userId === me?.id && !!goal.householdId;
   }
 
   async function handleApproveProposal(proposalId: number) {
@@ -594,6 +692,22 @@ export default function GoalsPage() {
     refetchProposals();
   }
 
+  async function handleApproveEditProposal(proposalId: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/approve`, {
+      method: "POST", credentials: "include",
+    });
+    queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+    refetchEditProposals();
+  }
+
+  async function handleDeclineEditProposal(proposalId: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
+      method: "POST", credentials: "include",
+    });
+    refetchEditProposals();
+  }
+
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-4">
@@ -610,9 +724,9 @@ export default function GoalsPage() {
         </button>
       </div>
 
-      {/* Pending proposals banner — visible to creator only */}
+      {/* Pending proposals banner — share proposals (visible to head only) */}
       {isCreator && pendingProposals.length > 0 && (
-        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="mb-4 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-semibold">{t("goals.proposals")}</p>
@@ -646,21 +760,81 @@ export default function GoalsPage() {
                   </p>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => handleDeclineProposal(p.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
-                  >
+                  <button onClick={() => handleDeclineProposal(p.id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
                     {t("goals.decline")}
                   </button>
-                  <button
-                    onClick={() => handleApproveProposal(p.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70"
-                  >
+                  <button onClick={() => handleApproveProposal(p.id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
                     {t("goals.approve")}
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending edit proposals — visible to head only */}
+      {isCreator && pendingEditProposals.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">{t("goals.edit_proposals")}</p>
+            <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
+              {pendingEditProposals.length}
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {pendingEditProposals.map(ep => {
+              const propCur = ep.proposed.currency || prefs.currency;
+              const oldBudget = ep.currentBudget != null
+                ? (ep.currentCurrency && ep.currentCurrency !== prefs.currency
+                    ? convertAmount(ep.currentBudget, ep.currentCurrency, prefs.currency, rates)
+                    : ep.currentBudget)
+                : null;
+              const newBudget = propCur !== prefs.currency
+                ? convertAmount(ep.proposed.budget, propCur, prefs.currency, rates)
+                : ep.proposed.budget;
+              return (
+                <div key={ep.id} className="px-4 py-3">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div
+                      className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                      style={{ backgroundColor: (ep.proposed.color ?? ep.goalColor ?? "#818cf8") + "33" }}
+                    >
+                      <Target className="w-3.5 h-3.5" style={{ color: ep.proposed.color ?? ep.goalColor ?? "#818cf8" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {ep.goalName !== ep.proposed.name ? (
+                          <span className="line-through text-muted-foreground mr-1">{ep.goalName}</span>
+                        ) : null}
+                        {ep.proposed.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{t("goals.edit_proposed_by", { name: ep.proposerName ?? "" })}</p>
+                      {oldBudget != null && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fmtAmtRound(oldBudget, prefs.currency)}
+                          {" → "}
+                          <span className="text-foreground font-medium">{fmtAmtRound(newBudget, prefs.currency)}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button onClick={() => handleDeclineEditProposal(ep.id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                        {t("goals.decline")}
+                      </button>
+                      <button onClick={() => handleApproveEditProposal(ep.id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
+                        {t("goals.approve")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -679,7 +853,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} rates={rates} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} />
                 ))}
               </div>
             ) : !isInHousehold ? (
