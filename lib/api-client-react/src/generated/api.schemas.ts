@@ -292,6 +292,8 @@ export interface Goal {
   name: string;
   color: string;
   budget: number;
+  /** @nullable */
+  currency: string | null;
   deadline: string;
   divideByMonths: boolean;
   /** @nullable */
@@ -306,6 +308,7 @@ export interface GoalInput {
   name: string;
   color: string;
   budget: number;
+  currency?: string;
   deadline: string;
   divideByMonths?: boolean;
 }

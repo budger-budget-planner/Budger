@@ -7,6 +7,7 @@ export const goalsTable = pgTable("goals", {
   name: text("name").notNull(),
   color: text("color").notNull().default("#818cf8"),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency"),
   deadline: text("deadline").notNull(),
   divideByMonths: boolean("divide_by_months").notNull().default(false),
   userId: integer("user_id"),

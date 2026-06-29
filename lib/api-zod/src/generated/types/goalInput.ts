@@ -11,6 +11,7 @@ export interface GoalInput {
   name: string;
   color: string;
   budget: number;
+  currency?: string;
   deadline: string;
   divideByMonths?: boolean;
 }

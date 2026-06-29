@@ -14,6 +14,7 @@ function formatGoal(g: any) {
   return {
     ...g,
     budget: parseFloat(g.budget),
+    currency: g.currency ?? null,
     createdAt: g.createdAt.toISOString(),
     updatedAt: g.updatedAt?.toISOString?.() ?? g.createdAt.toISOString(),
   };
@@ -109,15 +110,20 @@ router.get("/goals/proposals", async (req, res): Promise<void> => {
   const goalMap = new Map(goals.map(g => [g.id, g]));
   const proposerMap = new Map(proposers.map(u => [u.id, u]));
 
-  res.json(proposals.map(p => ({
-    id: p.id,
-    goalId: p.goalId,
-    goalName: goalMap.get(p.goalId)?.name ?? null,
-    goalColor: goalMap.get(p.goalId)?.color ?? null,
-    proposerName: proposerMap.get(p.proposerId)?.name ?? null,
-    status: p.status,
-    createdAt: p.createdAt.toISOString(),
-  })));
+  res.json(proposals.map(p => {
+    const goal = goalMap.get(p.goalId);
+    return {
+      id: p.id,
+      goalId: p.goalId,
+      goalName: goal?.name ?? null,
+      goalColor: goal?.color ?? null,
+      goalBudget: goal?.budget ? parseFloat(goal.budget) : null,
+      goalCurrency: goal?.currency ?? null,
+      proposerName: proposerMap.get(p.proposerId)?.name ?? null,
+      status: p.status,
+      createdAt: p.createdAt.toISOString(),
+    };
+  }));
 });
 
 // Approve a proposal — head only
@@ -160,7 +166,7 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
 router.post("/goals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-  const { name, color, budget, deadline, divideByMonths } = req.body;
+  const { name, color, budget, currency, deadline, divideByMonths } = req.body;
   if (!name || !color || !budget || !deadline) {
     res.status(400).json({ error: "name, color, budget, deadline required" }); return;
   }
@@ -168,6 +174,7 @@ router.post("/goals", async (req, res): Promise<void> => {
     name: String(name),
     color: String(color),
     budget: String(parseFloat(budget)),
+    currency: currency ? String(currency) : null,
     deadline: String(deadline),
     divideByMonths: Boolean(divideByMonths),
     userId,
@@ -206,6 +213,25 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
+  if (!goal) { res.status(404).json({ error: "Not found" }); return; }
+
+  // Permission check for household goals: only head OR the goal's original creator can edit
+  if (goal.householdId) {
+    const user = await userScope(userId);
+    if (!user?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+    const role = await getMemberRole(userId, user.householdId);
+    const isGoalCreator = goal.userId === userId;
+    if (!isHead(role) && !isGoalCreator) {
+      res.status(403).json({ error: "Only the head or goal creator can edit household goals" }); return;
+    }
+  } else {
+    // Private goal: only the creator can edit
+    if (goal.userId !== userId) {
+      res.status(403).json({ error: "Not your goal" }); return;
+    }
+  }
+
   const { name, color, budget, deadline, divideByMonths, householdId } = req.body;
   const update: any = {};
   if (name !== undefined) update.name = String(name);
@@ -229,9 +255,8 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
     update.householdId = newHouseholdId;
   }
 
-  const [goal] = await db.update(goalsTable).set(update).where(eq(goalsTable.id, id)).returning();
-  if (!goal) { res.status(404).json({ error: "Not found" }); return; }
-  res.json(formatGoal(goal));
+  const [updated] = await db.update(goalsTable).set(update).where(eq(goalsTable.id, id)).returning();
+  res.json(formatGoal(updated));
 });
 
 router.delete("/goals/:id", async (req, res): Promise<void> => {

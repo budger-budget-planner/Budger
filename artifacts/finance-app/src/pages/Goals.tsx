@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { t } from "@/lib/i18n";
 import {
   useListGoals,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { fetchRates, convertAmount } from "@/lib/rates";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -35,10 +36,14 @@ type Proposal = {
   goalId: number;
   goalName: string | null;
   goalColor: string | null;
+  goalBudget: number | null;
+  goalCurrency: string | null;
   proposerName: string | null;
   status: string;
   createdAt: string;
 };
+
+const EMPTY_RATES: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79, PLN: 3.95 };
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
   function isoToDisplay(iso: string): string {
@@ -100,8 +105,9 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, rates }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
+  canEdit: boolean; rates: Record<string, number>;
 }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
@@ -114,7 +120,11 @@ function GoalCard({ goal, summary, onEdit, currency }: {
   const remove = useDeleteGoal({ mutation: { onSuccess: invalidate } });
 
   const contributed = summary?.contributed ?? 0;
-  const budget = parseFloat(goal.budget);
+  // Convert budget from the goal's canonical currency to the viewer's currency
+  const rawBudget = parseFloat(goal.budget);
+  const budget = goal.currency && goal.currency !== currency
+    ? convertAmount(rawBudget, goal.currency, currency, rates)
+    : rawBudget;
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
   const ml = monthsLeft(goal.deadline);
   const monthlyTarget = goal.divideByMonths
@@ -175,11 +185,13 @@ function GoalCard({ goal, summary, onEdit, currency }: {
           </div>
         ) : (
           <div className="flex gap-2">
-            <button onClick={onEdit}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-              <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
-            </button>
+            {canEdit && (
+              <button onClick={onEdit}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                           bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
+              </button>
+            )}
             <button onClick={() => setConfirmDelete(true)}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
@@ -261,16 +273,21 @@ function GoalFormFields({
 
 function EditGoalDialog({
   goal, open, onClose, sym, alreadyContributed = 0,
-  isCreator, isInHousehold, householdId, onProposalsChange,
+  isCreator, isInHousehold, householdId, onProposalsChange, rates, userCurrency,
 }: {
   goal: any; open: boolean; onClose: () => void; sym: string; alreadyContributed?: number;
   isCreator: boolean; isInHousehold: boolean; householdId: number | null;
-  onProposalsChange: () => void;
+  onProposalsChange: () => void; rates: Record<string, number>; userCurrency: string;
 }) {
   const queryClient = useQueryClient();
+  const goalCurrency: string = goal.currency || userCurrency;
+  // Prefill budget converted from goal's canonical currency to user's currency
+  const prefillBudget = goalCurrency !== userCurrency
+    ? String(Math.round(convertAmount(Number(goal.budget), goalCurrency, userCurrency, rates)))
+    : String(Number(goal.budget).toFixed(0));
   const [name, setName]                     = useState(goal.name);
   const [color, setColor]                   = useState(goal.color);
-  const [budget, setBudget]                 = useState(String(Number(goal.budget).toFixed(0)));
+  const [budget, setBudget]                 = useState(prefillBudget);
   const [deadline, setDeadline]             = useState(goal.deadline);
   const [divideByMonths, setDivideByMonths] = useState(goal.divideByMonths);
   const [proposeState, setProposeState]     = useState<"idle" | "pending" | "sent" | "already">("idle");
@@ -301,7 +318,12 @@ function EditGoalDialog({
 
   function handleSave() {
     if (!name.trim() || !budget || !deadline) return;
-    update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: parseFloat(budget), deadline, divideByMonths } });
+    const budgetNum = parseFloat(budget);
+    // Convert from user's currency back to the goal's canonical currency before saving
+    const canonicalBudget = goalCurrency !== userCurrency
+      ? convertAmount(budgetNum, userCurrency, goalCurrency, rates)
+      : budgetNum;
+    update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: canonicalBudget, deadline, divideByMonths } });
   }
 
   async function handleMakeHousehold() {
@@ -491,6 +513,11 @@ export default function GoalsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
 
+  const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
+  useEffect(() => {
+    fetchRates().then(setRates);
+  }, []);
+
   const [addOpen,     setAddOpen]     = useState(false);
   const [editGoal,    setEditGoal]    = useState<any | null>(null);
   const [showPast,    setShowPast]    = useState(false);
@@ -542,7 +569,13 @@ export default function GoalsPage() {
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || !newBudget || !newDeadline) return;
-    create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), deadline: newDeadline, divideByMonths: newDivide } });
+    create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newDeadline, divideByMonths: newDivide } });
+  }
+
+  // A user can edit a goal if: private goal (always, it's theirs) or household goal where they are head OR original creator
+  function canEdit(goal: any): boolean {
+    if (!goal.householdId) return true;
+    return isCreator || goal.userId === me?.id;
   }
 
   async function handleApproveProposal(proposalId: number) {
@@ -600,6 +633,16 @@ export default function GoalsPage() {
                   <p className="text-sm font-medium truncate">{p.goalName}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("goals.proposed_by", { name: p.proposerName ?? "" })}
+                    {p.goalBudget != null && (
+                      <span className="ml-1">
+                        · {fmtAmtRound(
+                            p.goalCurrency && p.goalCurrency !== prefs.currency
+                              ? convertAmount(p.goalBudget, p.goalCurrency, prefs.currency, rates)
+                              : p.goalBudget,
+                            prefs.currency
+                          )}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
@@ -636,7 +679,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} rates={rates} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -662,7 +705,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} rates={rates} />
                   ))}
                 </div>
               ) : (
@@ -725,6 +768,8 @@ export default function GoalsPage() {
           isInHousehold={isInHousehold}
           householdId={householdId}
           onProposalsChange={() => refetchProposals()}
+          rates={rates}
+          userCurrency={prefs.currency}
         />
       )}
 

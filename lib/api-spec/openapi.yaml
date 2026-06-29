@@ -1513,6 +1513,8 @@ components:
           type: string
         budget:
           type: number
+        currency:
+          type: ["string", "null"]
         deadline:
           type: string
         divideByMonths:
@@ -1528,6 +1530,7 @@ components:
         - name
         - color
         - budget
+        - currency
         - deadline
         - divideByMonths
         - userId
@@ -1549,6 +1552,8 @@ components:
           type: string
         budget:
           type: number
+        currency:
+          type: string
         deadline:
           type: string
         divideByMonths:

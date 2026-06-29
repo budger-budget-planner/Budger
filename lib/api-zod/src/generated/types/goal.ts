@@ -11,6 +11,8 @@ export interface Goal {
   name: string;
   color: string;
   budget: number;
+  /** @nullable */
+  currency: string | null;
   deadline: string;
   divideByMonths: boolean;
   /** @nullable */
