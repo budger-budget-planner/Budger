@@ -935,9 +935,10 @@ export default function HomeSpending() {
                             {(tx as any).splitRole && (
                               <span
                                 title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
-                                className="flex-shrink-0 text-muted-foreground/60"
+                                className="flex-shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-[10px] font-medium text-zinc-400"
                               >
-                                <GitFork className="w-3 h-3" />
+                                <GitFork className="w-2 h-2" />
+                                {t("split.btn")}
                               </span>
                             )}
                           </div>
@@ -946,10 +947,11 @@ export default function HomeSpending() {
                             {tx.receiptImage ? " · 📎" : ""}
                             {contrib && (
                               <span
-                                className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                                style={{ backgroundColor: contrib.color + "33", color: contrib.color }}
+                                className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-medium"
+                                style={{ backgroundColor: contrib.color + "22", borderColor: contrib.color + "66", color: contrib.color }}
                               >
-                                🎯 {contrib.name} {fmtAmt(contrib.amount, prefs.currency)}
+                                <Target className="w-2 h-2 flex-shrink-0" />
+                                {contrib.name} {fmtAmt(contrib.amount, prefs.currency)}
                               </span>
                             )}
                           </p>
