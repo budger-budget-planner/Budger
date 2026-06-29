@@ -1052,12 +1052,14 @@ export default function HomeSpending() {
                                        bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
                             <Camera className="w-3.5 h-3.5" /> {t("home.receipt_btn")}
                           </button>
-                          <button onClick={() => { setEditTx(tx); setActionTx(null); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                            <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
-                          </button>
-                          {isInHousehold && tx.userId === myUserId && !(tx as any).splitRole && (
+                          {!hasUnavailable && (
+                            <button onClick={() => { setEditTx(tx); setActionTx(null); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                              <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
+                            </button>
+                          )}
+                          {!hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole && (
                             <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
