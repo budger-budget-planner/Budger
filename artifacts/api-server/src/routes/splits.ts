@@ -151,7 +151,7 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const [recipientTx] = await db.insert(transactionsTable).values({
     amount: recipientAmount,
     description: origTx.description,
-    categoryId: origTx.categoryId,
+    categoryId: null,
     date: origTx.date,
     paymentMethod: origTx.paymentMethod,
     userId: split.recipientId,

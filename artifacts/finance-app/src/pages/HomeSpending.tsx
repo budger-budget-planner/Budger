@@ -26,7 +26,7 @@ import {
   useListHouseholdMembers,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, GitFork, Scissors, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -418,7 +418,7 @@ function SplitSheet({
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
         <div className="flex items-center gap-3 mb-5">
-          <GitFork className="w-5 h-5 text-muted-foreground" />
+          <Scissors className="w-5 h-5 text-muted-foreground" />
           <div>
             <p className="font-semibold text-sm">{t("split.title")}</p>
             <p className="text-xs text-muted-foreground truncate">{tx.description} · {sym}{txAmount.toFixed(2)}</p>
@@ -964,7 +964,7 @@ export default function HomeSpending() {
                             /* ── Expanded: category + full badge pills ── */
                             <div className="mt-1 space-y-1.5">
                               <p className="text-xs text-muted-foreground">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable) && (
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable || hasForeign) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasSplit && (
                                     <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
@@ -974,19 +974,19 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                   {hasGoal && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-blue-500/60 bg-blue-500/10 text-[10px] font-medium text-blue-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-purple-500/60 bg-purple-500/10 text-[10px] font-medium text-purple-400">
                                       <Target className="w-2 h-2 flex-shrink-0" />
                                       {contrib!.name} {fmtAmt(contrib!.amount, prefs.currency)}
                                     </span>
                                   )}
                                   {hasReceipt && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-yellow-500/60 bg-yellow-500/10 text-[10px] font-medium text-yellow-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/40 bg-white/10 text-[10px] font-medium text-white">
                                       <Camera className="w-2 h-2" />
                                       {t("home.receipt_btn")}
                                     </span>
                                   )}
                                   {hasLocked && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-purple-500/60 bg-purple-500/10 text-[10px] font-medium text-purple-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-zinc-500/60 bg-zinc-500/10 text-[10px] font-medium text-zinc-400">
                                       <Lock className="w-2 h-2" />
                                       {tx.transactionCurrency}
                                     </span>
@@ -997,6 +997,12 @@ export default function HomeSpending() {
                                       {t("home.currency_unavailable")}
                                     </span>
                                   )}
+                                  {hasForeign && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-yellow-500/60 bg-yellow-500/10 text-[10px] font-medium text-yellow-400">
+                                      <RefreshCw className="w-2 h-2" />
+                                      {t("home.currency_available")}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1004,13 +1010,14 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable) && (
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable || hasForeign) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
-                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-blue-500"   />}
-                                  {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />}
-                                  {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                                  {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"      />}
+                                  {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"   />}
                                   {hasUnavailable && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"  />}
+                                  {hasForeign     && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
                                 </div>
                               )}
                             </div>
@@ -1044,7 +1051,7 @@ export default function HomeSpending() {
                               onClick={e => { e.stopPropagation(); setConvertTx(tx); setActionTx(null); }}
                             >
                               <RefreshCw className="w-2 h-2" />
-                              zmień walutę
+                              {t("currency.change_chip")}
                             </button>
                           )}
                         </div>
@@ -1067,7 +1074,7 @@ export default function HomeSpending() {
                             <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                              <GitFork className="w-3.5 h-3.5" /> {t("split.btn")}
+                              <Scissors className="w-3.5 h-3.5" /> {t("split.btn")}
                             </button>
                           )}
                           <button
@@ -1245,7 +1252,7 @@ export default function HomeSpending() {
       {splitSent && (
         <div className="fixed bottom-24 inset-x-0 flex justify-center z-50 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4">
-            <GitFork className="w-4 h-4 text-muted-foreground" />
+            <Scissors className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-medium">{t("split.request_sent")}</p>
           </div>
         </div>

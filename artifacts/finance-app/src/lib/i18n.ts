@@ -390,8 +390,9 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.budget_eg":           { en: "e.g. 3000",               pl: "np. 3000"                     },
   "home.edit_btn":            { en: "Edit",                    pl: "Edytuj"                       },
   "home.edit_tx_title":       { en: "Edit Transaction",        pl: "Edytuj Transakcję"            },
-  "home.currency_unavailable":      { en: "Currency unavailable",                  pl: "Waluta niedostępna"                  },
+  "home.currency_unavailable":      { en: "Unsupported currency",                  pl: "Niewspierana waluta"                  },
   "home.currency_unavailable_hint": { en: "Convert and add manually",               pl: "Przelicz i dodaj ręcznie"             },
+  "home.currency_available":        { en: "Foreign currency",                       pl: "Obca waluta"                          },
   "home.receipt_btn":         { en: "Receipt",                 pl: "Paragon"                      },
   "home.mo":                  { en: "/mo",                     pl: "/msc"                         },
 
@@ -637,7 +638,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "currency.warning_3":      { en: "It won't appear in charts, the dashboard, or savings goals.", pl: "Nie będzie widoczna na wykresach, w dashboardzie ani w celach oszczędnościowych." },
   "currency.warning_4":      { en: "It cannot be assigned to a category.",            pl: "Nie będzie można jej przypisać do kategorii."         },
   "currency.warning_final":  { en: "This choice is irreversible.",                    pl: "Wybór jest nieodwracalny."                            },
-  "currency.change_chip":    { en: "change currency",                                 pl: "zmień walutę"                                         },
+  "currency.change_chip":    { en: "Convert currency",                                pl: "Zmień walutę"                                         },
   "currency.change_chip_title": { en: "This transaction is in a different currency. Click to change.", pl: "Ta transakcja jest w innej walucie. Kliknij, aby zmienić." },
   "currency.locked_in":      { en: "Locked in {cur}",                                 pl: "Zablokowana w {cur}"                                  },
 

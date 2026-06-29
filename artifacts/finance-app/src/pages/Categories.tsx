@@ -402,7 +402,7 @@ export default function CategoriesPage() {
           <p className="text-muted-foreground text-sm">{t("cat.no_categories")}</p>
           <button onClick={() => setAddOpen(true)}
             className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
-            Create first category
+            {t("cat.create_first")}
           </button>
         </div>
       )}

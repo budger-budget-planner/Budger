@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { t } from "@/lib/i18n";
 
@@ -405,6 +405,7 @@ interface ApplePaySlidesProps {
 export default function ApplePaySlides({ onDone, onClose, modal = false }: ApplePaySlidesProps) {
   const [idx, setIdx] = useState(0);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}api/webhook/token`, { credentials: "include" })
@@ -453,7 +454,19 @@ export default function ApplePaySlides({ onDone, onClose, modal = false }: Apple
       </div>
 
       {/* ── Slide card — fixed height sized to last (most text-heavy) slide ── */}
-      <div className="relative bg-card border border-border rounded-3xl flex-shrink-0 flex flex-col items-center overflow-hidden" style={{ height: 440 }}>
+      <div
+        className="relative bg-card border border-border rounded-3xl flex-shrink-0 flex flex-col items-center overflow-hidden"
+        style={{ height: 440 }}
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={e => {
+          if (touchStartX.current === null) return;
+          const delta = e.changedTouches[0].clientX - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(delta) < 40) return;
+          if (delta < 0) goNext();
+          else goPrev();
+        }}
+      >
 
         {/* Tap zones */}
         <button
