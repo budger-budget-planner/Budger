@@ -390,6 +390,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.budget_eg":           { en: "e.g. 3000",               pl: "np. 3000"                     },
   "home.edit_btn":            { en: "Edit",                    pl: "Edytuj"                       },
   "home.edit_tx_title":       { en: "Edit Transaction",        pl: "Edytuj Transakcję"            },
+  "home.currency_unavailable":      { en: "Currency unavailable",                  pl: "Waluta niedostępna"                  },
+  "home.currency_unavailable_hint": { en: "Convert and add manually",               pl: "Przelicz i dodaj ręcznie"             },
   "home.receipt_btn":         { en: "Receipt",                 pl: "Paragon"                      },
   "home.mo":                  { en: "/mo",                     pl: "/msc"                         },
 

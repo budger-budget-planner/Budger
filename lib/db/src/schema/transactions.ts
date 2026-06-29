@@ -27,6 +27,9 @@ export const transactionsTable = pgTable("transactions", {
   /** For issuer split transactions: the original transaction amount BEFORE the split was deducted.
    *  Kept in sync with `amount` during currency conversions so it always reflects the user's currency. */
   preSplitAmount: numeric("pre_split_amount", { precision: 12, scale: 2 }),
+  /** True when the transaction was captured in a currency the app does not support.
+   *  These rows appear in the list but are excluded from all totals and summaries. */
+  currencyUnavailable: boolean("currency_unavailable").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
