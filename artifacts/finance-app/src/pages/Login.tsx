@@ -42,6 +42,7 @@ export default function LoginPage() {
   const [signupError, setSignupError] = useState("");
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [loginChecking, setLoginChecking] = useState(false);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -120,12 +121,33 @@ export default function LoginPage() {
 
   // ── Login flow ──────────────────────────────────────────────────────────────
 
-  function handleLoginContinue(e: React.FormEvent) {
+  async function handleLoginContinue(e: React.FormEvent) {
     e.preventDefault();
     if (!loginEmail.trim()) return;
     setLoginError("");
     setLoginPin("");
-    setScreen("login-pin");
+    setLoginChecking(true);
+    try {
+      const r = await fetch(
+        `${import.meta.env.BASE_URL}api/auth/check-email?email=${encodeURIComponent(loginEmail.trim())}`,
+        { credentials: "include" },
+      );
+      if (r.ok) {
+        const data = await r.json().catch(() => ({}));
+        if (data.exists === false) {
+          setLoginError(t("login.no_account"));
+          return;
+        }
+      }
+      // On non-2xx or ambiguous response: proceed to PIN screen
+      // (the PIN submit itself will surface a more specific error)
+      setScreen("login-pin");
+    } catch {
+      // Network error — let the user through; the PIN screen will surface any real error
+      setScreen("login-pin");
+    } finally {
+      setLoginChecking(false);
+    }
   }
 
   function handleLoginPinChange(pin: string) {
@@ -187,7 +209,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Start screen ── */}
       {screen === "start" && (
-        <div key="start" className="min-h-screen flex flex-col items-center justify-start pt-[5vh] px-6 pb-10">
+        <div key="start" className="min-h-screen flex flex-col items-center justify-center px-6 pb-10">
           {/* Account-created success banner */}
           {justRegistered && (
             <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
@@ -244,8 +266,9 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full h-14 rounded-2xl text-base font-semibold"
+                disabled={loginChecking}
               >
-                {t("login.continue")}
+                {loginChecking ? "…" : t("login.continue")}
               </Button>
               <div className="text-center pt-1">
                 <span className="text-sm text-muted-foreground">{t("login.no_account_prompt")} </span>

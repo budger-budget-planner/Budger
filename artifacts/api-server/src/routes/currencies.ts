@@ -25,8 +25,13 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     // unchanged until the user explicitly converts or locks them
     if (tx.transactionCurrency) continue;
     const newAmt = (parseFloat(tx.amount) * rate).toFixed(2);
+    const updates: Record<string, string> = { amount: newAmt };
+    // Also convert the pre-split snapshot so it stays in the same currency as amount
+    if (tx.preSplitAmount != null) {
+      updates.preSplitAmount = (parseFloat(tx.preSplitAmount) * rate).toFixed(2);
+    }
     await db.update(transactionsTable)
-      .set({ amount: newAmt })
+      .set(updates as any)
       .where(eq(transactionsTable.id, tx.id));
     converted++;
   }

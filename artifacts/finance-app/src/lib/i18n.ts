@@ -592,6 +592,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "split.wants_you_to_pay": { en: "wants you to pay",          pl: "prosi o zapłatę"             },
   "split.for":              { en: "for",                       pl: "za"                          },
   "split.dismiss":          { en: "Dismiss",                   pl: "Zamknij"                     },
+  "split.before_split":      { en: "before split",                                    pl: "przed podziałem"                                      },
   "split.issued_icon":      { en: "You split this expense",    pl: "Podzieliłeś ten wydatek"     },
   "split.received_icon":    { en: "Charged via split",         pl: "Naliczone przez podział"     },
   "split.request_sent":     { en: "Split request sent",        pl: "Prośba o podział wysłana"    },
@@ -639,8 +640,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "currency.locked_in":      { en: "Locked in {cur}",                                 pl: "Zablokowana w {cur}"                                  },
 
   // ── Notifications — sound ──
-  "notif.badger_sniff":      { en: "Badger Sniff",                                    pl: "Prychnięcie Borsuka"                                  },
-  "notif.sniff_pattern":     { en: "sniff · sniff · sniff — sniff · sniff",           pl: "prychnięcie · prychnięcie · prychnięcie"              },
+  "notif.badger_sniff":      { en: "Badger Sniff",                                    pl: "Niuchanie Borsuka"                                    },
+  "notif.sniff_pattern":     { en: "sniff · sniff · sniff — sniff · sniff",           pl: "niuch niuch niuch..."                                 },
 
   // ── Onboarding — blocked notifications ──
   "ob.notif_blocked_title":  { en: "Notifications are blocked",                       pl: "Powiadomienia są zablokowane"                         },

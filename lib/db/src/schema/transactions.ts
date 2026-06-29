@@ -24,6 +24,9 @@ export const transactionsTable = pgTable("transactions", {
   splitId: integer("split_id"),
   /** 'issuer' = original transaction (amount reduced), 'recipient' = charged share */
   splitRole: text("split_role"),
+  /** For issuer split transactions: the original transaction amount BEFORE the split was deducted.
+   *  Kept in sync with `amount` during currency conversions so it always reflects the user's currency. */
+  preSplitAmount: numeric("pre_split_amount", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

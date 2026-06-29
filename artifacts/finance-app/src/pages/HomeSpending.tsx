@@ -26,7 +26,7 @@ import {
   useListHouseholdMembers,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, GitFork } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -412,7 +412,7 @@ function SplitSheet({
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
         <div className="flex items-center gap-3 mb-5">
-          <Scissors className="w-5 h-5 text-muted-foreground" />
+          <GitFork className="w-5 h-5 text-muted-foreground" />
           <div>
             <p className="font-semibold text-sm">{t("split.title")}</p>
             <p className="text-xs text-muted-foreground truncate">{tx.description} · {sym}{txAmount.toFixed(2)}</p>
@@ -935,10 +935,9 @@ export default function HomeSpending() {
                             {(tx as any).splitRole && (
                               <span
                                 title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
-                                className="flex-shrink-0 leading-none"
-                                style={{ fontSize: "10px", filter: "grayscale(1) brightness(1.6)", opacity: 0.7 }}
+                                className="flex-shrink-0 text-muted-foreground/60"
                               >
-                                🤝
+                                <GitFork className="w-3 h-3" />
                               </span>
                             )}
                           </div>
@@ -959,6 +958,11 @@ export default function HomeSpending() {
                           <p className="text-sm font-semibold text-foreground">
                             −{fmtAmt(Number(tx.amount), tx.transactionCurrency ?? prefs.currency)}
                           </p>
+                          {(tx as any).splitRole === "issuer" && (tx as any).preSplitAmount != null && (
+                            <p className="text-[10px] text-muted-foreground/50 leading-tight">
+                              {fmtAmt((tx as any).preSplitAmount, tx.transactionCurrency ?? prefs.currency)} {t("split.before_split")}
+                            </p>
+                          )}
                           {/* Foreign-currency chips */}
                           {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
                             <button
@@ -994,7 +998,7 @@ export default function HomeSpending() {
                             <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                              <Scissors className="w-3.5 h-3.5" /> {t("split.btn")}
+                              <GitFork className="w-3.5 h-3.5" /> {t("split.btn")}
                             </button>
                           )}
                           <button
@@ -1172,7 +1176,7 @@ export default function HomeSpending() {
       {splitSent && (
         <div className="fixed bottom-24 inset-x-0 flex justify-center z-50 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4">
-            <Scissors className="w-4 h-4 text-muted-foreground" />
+            <GitFork className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-medium">{t("split.request_sent")}</p>
           </div>
         </div>

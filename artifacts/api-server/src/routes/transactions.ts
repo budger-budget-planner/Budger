@@ -33,6 +33,7 @@ function enrichTransaction(tx: any, category: any, user: any) {
     categoryAutoAssigned: tx.categoryAutoAssigned ?? false,
     splitId: tx.splitId ?? null,
     splitRole: tx.splitRole ?? null,
+    preSplitAmount: tx.preSplitAmount != null ? parseFloat(tx.preSplitAmount) : null,
   };
 }
 

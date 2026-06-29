@@ -24,6 +24,26 @@ function serializeUser(user: typeof usersTable.$inferSelect) {
   };
 }
 
+// Lightweight in-process rate-limiter for check-email (no extra dependency needed).
+// Allows 10 checks per IP per minute; resets the window on first hit.
+const checkEmailBucket = new Map<string, { count: number; resetAt: number }>();
+router.get("/auth/check-email", async (req, res): Promise<void> => {
+  const ip = (req.headers["x-forwarded-for"] as string ?? req.socket.remoteAddress ?? "unknown").split(",")[0].trim();
+  const now = Date.now();
+  const bucket = checkEmailBucket.get(ip);
+  if (bucket && now < bucket.resetAt) {
+    if (bucket.count >= 10) { res.status(429).json({ error: "Too many requests" }); return; }
+    bucket.count++;
+  } else {
+    checkEmailBucket.set(ip, { count: 1, resetAt: now + 60_000 });
+  }
+  const email = (req.query.email as string ?? "").toLowerCase().trim();
+  if (!email) { res.status(400).json({ error: "Missing email" }); return; }
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.email, email));
+  res.json({ exists: !!user });
+});
+
 router.get("/auth/me", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) {

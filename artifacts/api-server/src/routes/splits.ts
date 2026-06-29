@@ -145,7 +145,7 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     : split.splitAmount;
 
   await db.update(transactionsTable)
-    .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer" })
+    .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer", preSplitAmount: origTx.amount })
     .where(eq(transactionsTable.id, split.transactionId));
 
   const [recipientTx] = await db.insert(transactionsTable).values({
