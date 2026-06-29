@@ -270,6 +270,9 @@ export default function LoginPage() {
               >
                 {loginChecking ? "…" : t("login.continue")}
               </Button>
+              {loginError && (
+                <p className="text-sm text-destructive text-center">{loginError}</p>
+              )}
               <div className="text-center pt-1">
                 <span className="text-sm text-muted-foreground">{t("login.no_account_prompt")} </span>
                 <button
