@@ -5,7 +5,7 @@ import {
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
 } from "recharts";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
@@ -267,8 +267,18 @@ export default function DashboardPage() {
               <Tooltip
                 formatter={(v: any) => [fmtAmt(Number(v), prefs.currency), t("dashboard.spent") ?? "Spent"]}
                 contentStyle={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
+                cursor={false}
               />
-              <Bar dataKey="total" fill="#818cf8" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="total"
+                fill="#818cf8"
+                radius={[4, 4, 0, 0]}
+                activeBar={(props: any) =>
+                  props.total === 0
+                    ? <g />
+                    : <Rectangle {...props} fill="#a78bfa" radius={[4, 4, 0, 0]} />
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
