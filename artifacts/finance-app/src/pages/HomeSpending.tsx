@@ -26,7 +26,7 @@ import {
   useListHouseholdMembers,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, GitFork } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, GitFork, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -249,6 +249,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   const cameraRef    = useRef<HTMLInputElement>(null);
   const libraryRef   = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
+  const [localImage, setLocalImage] = useState<string | null>(tx.receiptImage ?? null);
 
   const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
@@ -257,6 +258,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   const deleteReceipt = useDeleteReceipt({ mutation: { onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
+    setLocalImage(null);
   }}});
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -264,7 +266,10 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     if (!file) return;
     try {
       const imageData = await compressImage(file);
-      uploadReceipt.mutate({ id: tx.id, data: { imageData } });
+      uploadReceipt.mutate(
+        { id: tx.id, data: { imageData } },
+        { onSuccess: () => setLocalImage(imageData) },
+      );
     } catch {
       alert("Could not process image. Please try again.");
     }
@@ -283,28 +288,29 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
               </span>
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
-            {tx.receiptImage ? (
-              <div className="relative group rounded-xl overflow-hidden border border-border">
-                <img src={tx.receiptImage} alt="Receipt"
-                  className="w-full object-cover max-h-64 cursor-pointer"
-                  onClick={() => setLightbox(true)} />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors
-                                flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                  <Button size="sm" variant="secondary" onClick={() => setLightbox(true)} className="gap-1.5">
-                    <ZoomIn className="w-3.5 h-3.5" /> View
+            {localImage ? (
+              <>
+                <div className="relative rounded-xl overflow-hidden border border-border">
+                  <img src={localImage} alt="Receipt"
+                    className="w-full object-cover max-h-64 cursor-pointer"
+                    onClick={() => setLightbox(true)} />
+                  {(uploadReceipt.isPending || deleteReceipt.isPending) && (
+                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" className="gap-2" onClick={() => setLightbox(true)}>
+                    <ZoomIn className="w-4 h-4" /> View
                   </Button>
-                  <Button size="sm" variant="destructive"
+                  <Button variant="destructive" className="gap-2"
                     onClick={() => deleteReceipt.mutate({ id: tx.id })}
-                    disabled={deleteReceipt.isPending} className="gap-1.5">
-                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                    disabled={deleteReceipt.isPending}>
+                    <Trash2 className="w-4 h-4" /> Remove
                   </Button>
                 </div>
-                {(uploadReceipt.isPending || deleteReceipt.isPending) && (
-                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                    <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                  </div>
-                )}
-              </div>
+              </>
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageOff className="w-8 h-8 opacity-40" />
@@ -327,14 +333,14 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
         </DialogContent>
       </Dialog>
 
-      {lightbox && tx.receiptImage && (
+      {lightbox && localImage && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setLightbox(false)}>
           <button className="absolute top-4 right-4 text-white/80 hover:text-white"
             onClick={() => setLightbox(false)}>
             <X className="w-6 h-6" />
           </button>
-          <img src={tx.receiptImage} alt="Receipt full size"
+          <img src={localImage} alt="Receipt full size"
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()} />
         </div>
@@ -915,58 +921,104 @@ export default function HomeSpending() {
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
                 {grouped[date].map(tx => {
-                  const contrib = contribByTxId.get(tx.id);
-                  const dotColor = tx.categoryColor ?? "#666";
-                  const categoryLabel = tx.categoryName ?? t("common.uncategorized");
+                  const contrib    = contribByTxId.get(tx.id);
+                  const dotColor   = tx.categoryColor ?? "#666";
+                  const catLabel   = tx.categoryName ?? t("common.uncategorized");
+                  const isExpanded = actionTx === tx.id;
+
+                  // Badge presence flags
+                  const hasSplit   = !!(tx as any).splitRole;
+                  const hasGoal    = !!contrib;
+                  const hasReceipt = !!tx.receiptImage;
+                  const hasLocked  = !!(tx.currencyLocked && tx.transactionCurrency);
+                  const hasForeign = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked);
+
+                  // Truncated name (30 chars max in collapsed view)
+                  const shortName = tx.description.length > 30
+                    ? tx.description.slice(0, 30).trimEnd() + "…"
+                    : tx.description;
 
                   return (
                     <div key={tx.id}>
+                      {/* ── Main row ── */}
                       <div
-                        className="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
-                        onClick={() => setActionTx(actionTx === tx.id ? null : tx.id)}
+                        className="flex items-start gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
+                        onClick={() => setActionTx(isExpanded ? null : tx.id)}
                       >
-                        <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
+                        {/* Category icon */}
+                        <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                           style={{ backgroundColor: dotColor + "33" }}>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
                         </div>
+
+                        {/* Center content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                            {(tx as any).splitRole && (
-                              <span
-                                title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
-                                className="flex-shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-[10px] font-medium text-zinc-400"
-                              >
-                                <GitFork className="w-2 h-2" />
-                                {t("split.btn")}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {categoryLabel}
-                            {tx.receiptImage ? " · 📎" : ""}
-                            {contrib && (
-                              <span
-                                className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-medium"
-                                style={{ backgroundColor: contrib.color + "22", borderColor: contrib.color + "66", color: contrib.color }}
-                              >
-                                <Target className="w-2 h-2 flex-shrink-0" />
-                                {contrib.name} {fmtAmt(contrib.amount, prefs.currency)}
-                              </span>
-                            )}
+                          {/* Transaction name */}
+                          <p className="text-sm font-medium text-foreground leading-snug" style={{ wordBreak: "break-word" }}>
+                            {isExpanded ? tx.description : shortName}
                           </p>
+
+                          {isExpanded ? (
+                            /* ── Expanded: category + full badge pills ── */
+                            <div className="mt-1 space-y-1.5">
+                              <p className="text-xs text-muted-foreground">{catLabel}</p>
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
+                                <div className="flex flex-wrap gap-1">
+                                  {hasSplit && (
+                                    <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-pink-500/60 bg-pink-500/10 text-[10px] font-medium text-pink-400">
+                                      <Scissors className="w-2 h-2" />
+                                      {t("split.btn")}
+                                    </span>
+                                  )}
+                                  {hasGoal && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-blue-500/60 bg-blue-500/10 text-[10px] font-medium text-blue-400">
+                                      <Target className="w-2 h-2 flex-shrink-0" />
+                                      {contrib!.name} {fmtAmt(contrib!.amount, prefs.currency)}
+                                    </span>
+                                  )}
+                                  {hasReceipt && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-yellow-500/60 bg-yellow-500/10 text-[10px] font-medium text-yellow-400">
+                                      <Camera className="w-2 h-2" />
+                                      {t("home.receipt_btn")}
+                                    </span>
+                                  )}
+                                  {hasLocked && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-purple-500/60 bg-purple-500/10 text-[10px] font-medium text-purple-400">
+                                      <Lock className="w-2 h-2" />
+                                      {tx.transactionCurrency}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* ── Collapsed: category name + colored badge dots ── */
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
+                                  {hasSplit   && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
+                                  {hasGoal    && <span className="w-1.5 h-1.5 rounded-full bg-blue-500"   />}
+                                  {hasReceipt && <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />}
+                                  {hasLocked  && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Amount side */}
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <p className="text-sm font-semibold text-foreground">
                             −{fmtAmt(Number(tx.amount), tx.transactionCurrency ?? prefs.currency)}
                           </p>
-                          {(tx as any).splitRole === "issuer" && (tx as any).preSplitAmount != null && (
-                            <p className="text-[10px] text-muted-foreground/50 leading-tight">
+                          {isExpanded && (tx as any).splitRole === "issuer" && (tx as any).preSplitAmount != null && (
+                            <p className="text-[10px] text-muted-foreground/50 leading-tight text-right">
                               {fmtAmt((tx as any).preSplitAmount, tx.transactionCurrency ?? prefs.currency)} {t("split.before_split")}
                             </p>
                           )}
-                          {/* Foreign-currency chips */}
-                          {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
+                          {isExpanded && hasForeign && (
                             <button
                               className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20"
                               onClick={e => { e.stopPropagation(); setConvertTx(tx); setActionTx(null); }}
@@ -975,16 +1027,11 @@ export default function HomeSpending() {
                               zmień walutę
                             </button>
                           )}
-                          {tx.currencyLocked && tx.transactionCurrency && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-zinc-600 text-zinc-400 bg-zinc-800/40">
-                              <Lock className="w-2 h-2" />
-                              {tx.transactionCurrency}
-                            </span>
-                          )}
                         </div>
                       </div>
 
-                      {actionTx === tx.id && (
+                      {/* ── Expanded action buttons ── */}
+                      {isExpanded && (
                         <div className="flex gap-2 px-3 pb-3 flex-wrap">
                           <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
