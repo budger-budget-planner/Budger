@@ -392,7 +392,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.edit_tx_title":       { en: "Edit Transaction",        pl: "Edytuj Transakcję"            },
   "home.currency_unavailable":      { en: "Unsupported currency",                  pl: "Niewspierana waluta"                  },
   "home.currency_unavailable_hint": { en: "Convert and add manually",               pl: "Przelicz i dodaj ręcznie"             },
-  "home.currency_available":        { en: "Foreign currency",                       pl: "Obca waluta"                          },
+  "home.currency_unavailable_badge":{ en: "Unsupported currency. Convert and add manually.", pl: "Niewspierana waluta. Przelicz i dodaj ręcznie." },
   "home.receipt_btn":         { en: "Receipt",                 pl: "Paragon"                      },
   "home.mo":                  { en: "/mo",                     pl: "/msc"                         },
 

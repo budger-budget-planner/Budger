@@ -964,7 +964,7 @@ export default function HomeSpending() {
                             /* ── Expanded: category + full badge pills ── */
                             <div className="mt-1 space-y-1.5">
                               <p className="text-xs text-muted-foreground">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable || hasForeign) && (
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasSplit && (
                                     <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
@@ -991,18 +991,6 @@ export default function HomeSpending() {
                                       {tx.transactionCurrency}
                                     </span>
                                   )}
-                                  {hasUnavailable && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-amber-500/60 bg-amber-500/10 text-[10px] font-medium text-amber-400">
-                                      <AlertTriangle className="w-2 h-2" />
-                                      {t("home.currency_unavailable")}
-                                    </span>
-                                  )}
-                                  {hasForeign && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-yellow-500/60 bg-yellow-500/10 text-[10px] font-medium text-yellow-400">
-                                      <RefreshCw className="w-2 h-2" />
-                                      {t("home.currency_available")}
-                                    </span>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -1010,14 +998,12 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked || hasUnavailable || hasForeign) && (
+                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
-                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
-                                  {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"      />}
-                                  {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"   />}
-                                  {hasUnavailable && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"  />}
-                                  {hasForeign     && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
+                                  {hasSplit   && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
+                                  {hasGoal    && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                                  {hasReceipt && <span className="w-1.5 h-1.5 rounded-full bg-white"      />}
+                                  {hasLocked  && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"   />}
                                 </div>
                               )}
                             </div>
@@ -1026,8 +1012,8 @@ export default function HomeSpending() {
 
                         {/* Amount side */}
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          {hasUnavailable ? (
-                            <p className="text-sm font-semibold text-amber-400">
+                          {(hasUnavailable || hasForeign) ? (
+                            <p className="text-sm font-semibold text-yellow-400">
                               {Number(tx.amount).toFixed(2)} {tx.transactionCurrency}
                             </p>
                           ) : (
@@ -1036,9 +1022,9 @@ export default function HomeSpending() {
                             </p>
                           )}
                           {isExpanded && hasUnavailable && (
-                            <p className="text-[10px] text-amber-400/70 leading-tight text-right max-w-[120px]">
-                              {t("home.currency_unavailable_hint")}
-                            </p>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 text-right leading-snug">
+                              {t("home.currency_unavailable_badge")}
+                            </span>
                           )}
                           {isExpanded && (tx as any).splitRole === "issuer" && (tx as any).preSplitAmount != null && (
                             <p className="text-[10px] text-muted-foreground/50 leading-tight text-right">
