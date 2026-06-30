@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Check, X, History,
   ChevronDown, ChevronRight, Target, Users, Lock, ArrowUpRight,
+  Bell, CheckCircle2, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,10 +50,43 @@ type MyShareProposal = {
   goalId: number;
   goalName: string | null;
   goalColor: string | null;
+  goalBudget?: number | null;
+  goalCurrency?: string | null;
   status: string;
   declineReason: string | null;
   createdAt: string;
 };
+
+type GoalActivity = {
+  id: number;
+  type: string;
+  goalId: number;
+  goalName: string;
+  goalColor: string;
+  actorName: string | null;
+  createdAt: string;
+};
+
+function localDismissedKey(userId: number | undefined) {
+  return `goal_proposals_dismissed_${userId ?? "anon"}`;
+}
+
+function loadDismissed(userId: number | undefined): Set<string> {
+  try {
+    const raw = localStorage.getItem(localDismissedKey(userId));
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(userId: number | undefined, dismissed: Set<string>) {
+  try {
+    localStorage.setItem(localDismissedKey(userId), JSON.stringify([...dismissed]));
+  } catch {
+    // ignore
+  }
+}
 
 type EditProposal = {
   id: number;
@@ -613,6 +647,7 @@ export default function GoalsPage() {
   const [declineShareReason, setDeclineShareReason] = useState("");
   const [decliningEditId,   setDecliningEditId]   = useState<number | null>(null);
   const [declineEditReason,  setDeclineEditReason]  = useState("");
+  const [dismissedProposals, setDismissedProposals] = useState<Set<string>>(new Set());
 
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
@@ -668,6 +703,24 @@ export default function GoalsPage() {
     refetchInterval: 20_000,
   });
 
+  const { data: activityFeed, refetch: refetchActivity } = useQuery<GoalActivity[]>({
+    queryKey: ["goal-activity"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isInHousehold,
+    refetchInterval: 30_000,
+  });
+
+  // Load dismissed proposals from localStorage when user loads
+  useEffect(() => {
+    if (me?.id) {
+      setDismissedProposals(loadDismissed(me.id));
+    }
+  }, [me?.id]);
+
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
 
   const privateGoals   = (goals ?? []).filter(g => !(g as any).householdId);
@@ -682,8 +735,32 @@ export default function GoalsPage() {
     refetchMyEditProposalsMine();
   }
 
-  const declinedShareFeedback = (myShareProposals ?? []).filter(p => p.status === "declined");
-  const declinedEditFeedback  = (myEditProposalsMine ?? []).filter(p => p.status === "declined");
+  function dismissProposal(key: string) {
+    const next = new Set(dismissedProposals);
+    next.add(key);
+    setDismissedProposals(next);
+    saveDismissed(me?.id, next);
+  }
+
+  async function dismissActivityItem(id: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/activity/${id}/dismiss`, {
+      method: "POST", credentials: "include",
+    });
+    refetchActivity();
+  }
+
+  async function dismissAllActivity() {
+    await fetch(`${import.meta.env.BASE_URL}api/goals/activity/dismiss-all`, {
+      method: "POST", credentials: "include",
+    });
+    refetchActivity();
+  }
+
+  const visibleShareProposals = (myShareProposals ?? [])
+    .filter(p => !dismissedProposals.has(`share_${p.id}`));
+  const visibleEditProposals  = (myEditProposalsMine ?? [])
+    .filter(p => !dismissedProposals.has(`edit_${p.id}`));
+  const hasMyProposals = visibleShareProposals.length > 0 || visibleEditProposals.length > 0;
 
   const create = useCreateGoal({
     mutation: {
@@ -929,46 +1006,154 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Proposal feedback — visible to non-head creators with declined proposals */}
-      {!isCreator && isInHousehold && (declinedShareFeedback.length > 0 || declinedEditFeedback.length > 0) && (
+      {/* My Proposals panel — dismissible per item, shows pending/approved/declined */}
+      {!isCreator && isInHousehold && hasMyProposals && (
         <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-            <X className="w-4 h-4 text-destructive" />
+            <Bell className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-semibold">{t("goals.my_proposals")}</p>
           </div>
           <div className="divide-y divide-border">
-            {declinedShareFeedback.map(p => (
-              <div key={`share-${p.id}`} className="px-4 py-3 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: (p.goalColor ?? "#818cf8") + "33" }}>
-                  <Target className="w-3.5 h-3.5" style={{ color: p.goalColor ?? "#818cf8" }} />
+            {visibleShareProposals.map(p => {
+              const color = p.goalColor ?? "#818cf8";
+              return (
+                <div key={`share-${p.id}`} className="px-4 py-3 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                    style={{ backgroundColor: color + "33" }}>
+                    <Target className="w-3.5 h-3.5" style={{ color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.goalName}</p>
+                    {p.status === "pending" && (
+                      <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" /> {t("goals.proposal_pending_title")}
+                      </p>
+                    )}
+                    {p.status === "approved" && (
+                      <p className="text-xs text-green-400 font-medium flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> {t("goals.share_approved_title")}
+                      </p>
+                    )}
+                    {p.status === "declined" && (
+                      <>
+                        <p className="text-xs text-destructive font-medium mt-0.5">{t("goals.share_declined_title")}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {p.declineReason
+                            ? t("goals.declined_reason", { reason: p.declineReason })
+                            : t("goals.no_reason_given")}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissProposal(`share_${p.id}`)}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
+                    aria-label={t("goals.dismiss")}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+            {visibleEditProposals.map(ep => {
+              const color = ep.goalColor ?? "#818cf8";
+              return (
+                <div key={`edit-${ep.id}`} className="px-4 py-3 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                    style={{ backgroundColor: color + "33" }}>
+                    <Pencil className="w-3.5 h-3.5" style={{ color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{ep.goalName}</p>
+                    {ep.status === "pending" && (
+                      <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" /> {t("goals.proposal_pending_title")}
+                      </p>
+                    )}
+                    {ep.status === "approved" && (
+                      <p className="text-xs text-green-400 font-medium flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> {t("goals.edit_approved_title")}
+                      </p>
+                    )}
+                    {ep.status === "declined" && (
+                      <>
+                        <p className="text-xs text-destructive font-medium mt-0.5">{t("goals.edit_declined_title")}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {ep.declineReason
+                            ? t("goals.declined_reason", { reason: ep.declineReason })
+                            : t("goals.no_reason_given")}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissProposal(`edit_${ep.id}`)}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
+                    aria-label={t("goals.dismiss")}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Household Activity Feed — goal_changed / goal_completed_total / goal_completed_monthly */}
+      {isInHousehold && activityFeed && activityFeed.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">{t("goals.activity_feed")}</p>
+            <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
+              {activityFeed.length}
+            </span>
+            <button
+              onClick={dismissAllActivity}
+              className="text-xs text-muted-foreground hover:text-foreground transition active:opacity-70 ml-1"
+            >
+              {t("goals.dismiss_all")}
+            </button>
+          </div>
+          <div className="divide-y divide-border">
+            {activityFeed.map(a => (
+              <div key={a.id} className="px-4 py-3 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                  style={{ backgroundColor: (a.goalColor ?? "#818cf8") + "33" }}>
+                  {a.type === "goal_completed_total" || a.type === "goal_completed_monthly"
+                    ? <CheckCircle2 className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
+                    : <Target className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
+                  }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{p.goalName}</p>
-                  <p className="text-xs text-destructive font-medium">{t("goals.share_declined_title")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {p.declineReason
-                      ? t("goals.declined_reason", { reason: p.declineReason })
-                      : t("goals.no_reason_given")}
+                  <p className="text-sm font-medium truncate">{a.goalName}</p>
+                  {a.type === "goal_changed" && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("goals.goal_changed_notif", { name: a.actorName ?? "" })}
+                    </p>
+                  )}
+                  {a.type === "goal_completed_total" && (
+                    <p className="text-xs text-green-400 font-medium mt-0.5">
+                      {t("goals.goal_completed_total_notif")}
+                    </p>
+                  )}
+                  {a.type === "goal_completed_monthly" && (
+                    <p className="text-xs text-green-400 font-medium mt-0.5">
+                      {t("goals.goal_completed_monthly_notif", { name: a.goalName })}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">
+                    {new Date(a.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-              </div>
-            ))}
-            {declinedEditFeedback.map(ep => (
-              <div key={`edit-${ep.id}`} className="px-4 py-3 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: (ep.goalColor ?? "#818cf8") + "33" }}>
-                  <Pencil className="w-3.5 h-3.5" style={{ color: ep.goalColor ?? "#818cf8" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{ep.goalName}</p>
-                  <p className="text-xs text-destructive font-medium">{t("goals.edit_declined_title")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {ep.declineReason
-                      ? t("goals.declined_reason", { reason: ep.declineReason })
-                      : t("goals.no_reason_given")}
-                  </p>
-                </div>
+                <button
+                  onClick={() => dismissActivityItem(a.id)}
+                  className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
+                  aria-label={t("goals.dismiss")}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
           </div>

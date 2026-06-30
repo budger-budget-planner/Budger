@@ -10,3 +10,4 @@ export * from "./goal_proposals";
 export * from "./merchant_category_rules";
 export * from "./expense_splits";
 export * from "./goal_edit_proposals";
+export * from "./goal_activity";

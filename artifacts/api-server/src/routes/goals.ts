@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable } from "@workspace/db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -44,6 +44,29 @@ async function getMemberRole(userId: number, householdId: number): Promise<strin
   const [m] = await db.select().from(householdMembersTable)
     .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   return m?.role ?? "child";
+}
+
+async function fanOutActivity(
+  householdId: number,
+  excludeUserIds: number[],
+  type: string,
+  goalId: number,
+  goalName: string,
+  goalColor: string,
+  actorName: string | null,
+) {
+  const members = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.householdId, householdId));
+  const targets = members.filter(m => !excludeUserIds.includes(m.userId));
+  if (targets.length === 0) return;
+  await db.insert(goalActivityTable).values(targets.map(m => ({
+    userId: m.userId,
+    type,
+    goalId,
+    goalName,
+    goalColor,
+    actorName,
+  })));
 }
 
 router.get("/goals", async (req, res): Promise<void> => {
@@ -142,6 +165,20 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
   await db.update(goalProposalsTable).set({ status: "approved" }).where(eq(goalProposalsTable.id, id));
   await db.update(goalsTable).set({ householdId: user.householdId }).where(eq(goalsTable.id, proposal.goalId));
+
+  // Fan-out goal_changed to all members except head and creator (creator sees it via proposals/mine)
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, proposal.goalId));
+  const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  await fanOutActivity(
+    user.householdId,
+    [userId, proposal.proposerId],
+    "goal_changed",
+    proposal.goalId,
+    goal?.name ?? "",
+    goal?.color ?? "#818cf8",
+    actor?.name ?? null,
+  );
+
   res.json({ ok: true });
 });
 
@@ -164,7 +201,7 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-// My own share proposals — any member
+// My own share proposals — any non-head member; returns pending + recently declined/approved
 router.get("/goals/proposals/mine", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -175,7 +212,7 @@ router.get("/goals/proposals/mine", async (req, res): Promise<void> => {
   const proposals = await db.select().from(goalProposalsTable)
     .where(and(
       eq(goalProposalsTable.proposerId, userId),
-      sql`(${goalProposalsTable.status} = 'pending' OR (${goalProposalsTable.status} = 'declined' AND ${goalProposalsTable.createdAt} > ${sevenDaysAgo}))`,
+      sql`(${goalProposalsTable.status} = 'pending' OR ((${goalProposalsTable.status} = 'declined' OR ${goalProposalsTable.status} = 'approved') AND ${goalProposalsTable.createdAt} > ${sevenDaysAgo}))`,
     ));
 
   if (proposals.length === 0) { res.json([]); return; }
@@ -271,6 +308,18 @@ router.post("/goals/edit-proposals/:id/approve", async (req, res): Promise<void>
     divideByMonths: proposal.divideByMonths,
   }).where(eq(goalsTable.id, proposal.goalId));
 
+  // Fan-out goal_changed to all members except head and creator (creator sees it via edit-proposals/mine)
+  const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  await fanOutActivity(
+    user.householdId,
+    [userId, proposal.proposerId],
+    "goal_changed",
+    proposal.goalId,
+    proposal.name,
+    proposal.color,
+    actor?.name ?? null,
+  );
+
   res.json({ ok: true });
 });
 
@@ -294,7 +343,7 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
   res.json({ ok: true });
 });
 
-// My own edit proposals — any member, returns pending + recently declined
+// My own edit proposals — any member; returns pending + recently declined/approved
 router.get("/goals/edit-proposals/mine", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -305,7 +354,7 @@ router.get("/goals/edit-proposals/mine", async (req, res): Promise<void> => {
   const proposals = await db.select().from(goalEditProposalsTable)
     .where(and(
       eq(goalEditProposalsTable.proposerId, userId),
-      sql`(${goalEditProposalsTable.status} = 'pending' OR (${goalEditProposalsTable.status} = 'declined' AND ${goalEditProposalsTable.createdAt} > ${sevenDaysAgo}))`,
+      sql`(${goalEditProposalsTable.status} = 'pending' OR ((${goalEditProposalsTable.status} = 'declined' OR ${goalEditProposalsTable.status} = 'approved') AND ${goalEditProposalsTable.createdAt} > ${sevenDaysAgo}))`,
     ));
 
   if (proposals.length === 0) { res.json([]); return; }
@@ -437,12 +486,15 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
   if (!goal) { res.status(404).json({ error: "Not found" }); return; }
 
+  let editorIsHead = false;
+
   // Permission check for household goals
   if (goal.householdId) {
     const user = await userScope(userId);
     if (!user?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
     const role = await getMemberRole(userId, user.householdId);
     if (isHead(role)) {
+      editorIsHead = true;
       // Head can edit directly — fall through
     } else if (goal.userId === userId) {
       // Creator (non-head) must use propose-edit endpoint
@@ -481,6 +533,21 @@ router.patch("/goals/:id", async (req, res): Promise<void> => {
   }
 
   const [updated] = await db.update(goalsTable).set(update).where(eq(goalsTable.id, id)).returning();
+
+  // If head edited a household goal, fan-out goal_changed to all members except head
+  if (editorIsHead && goal.householdId) {
+    const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    await fanOutActivity(
+      goal.householdId,
+      [userId],
+      "goal_changed",
+      goal.id,
+      updated.name,
+      updated.color,
+      actor?.name ?? null,
+    );
+  }
+
   res.json(formatGoal(updated));
 });
 
@@ -542,17 +609,73 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   if (!goalId || !amount) { res.status(400).json({ error: "goalId and amount required" }); return; }
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const contribMonth = month ?? currentMonth;
+
   const user = await userScope(userId);
   const [contrib] = await db.insert(goalContributionsTable).values({
     goalId: parseInt(goalId),
     transactionId: transactionId ? parseInt(transactionId) : null,
     amount: String(parseFloat(amount)),
-    month: month ?? currentMonth,
+    month: contribMonth,
     userId,
     householdId: user?.householdId ?? null,
   }).returning();
+
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
   res.status(201).json(formatContribution(contrib, goal));
+
+  // After response: check completion thresholds and fan-out activity
+  if (goal?.householdId) {
+    try {
+      // Total contributions for this goal across all time
+      const allContribs = await db.select().from(goalContributionsTable)
+        .where(eq(goalContributionsTable.goalId, goal.id));
+      const totalContributed = allContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+      const goalBudget = parseFloat(goal.budget);
+
+      if (totalContributed >= goalBudget) {
+        const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+        await fanOutActivity(
+          goal.householdId,
+          [],
+          "goal_completed_total",
+          goal.id,
+          goal.name,
+          goal.color,
+          actor?.name ?? null,
+        );
+      } else if (goal.divideByMonths) {
+        // Check monthly threshold
+        const monthContribs = allContribs.filter(c => c.month === contribMonth);
+        const monthTotal = monthContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
+        // Calculate monthly target: remaining / months left (at least 1)
+        const deadlineDate = new Date(goal.deadline);
+        const monthsLeft = Math.max(
+          1,
+          (deadlineDate.getFullYear() - now.getFullYear()) * 12 +
+          (deadlineDate.getMonth() - now.getMonth()) + 1
+        );
+        const remaining = Math.max(0, goalBudget - (totalContributed - parseFloat(contrib.amount)));
+        const monthlyTarget = remaining / monthsLeft;
+
+        if (monthlyTarget > 0 && monthTotal >= monthlyTarget) {
+          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+          await fanOutActivity(
+            goal.householdId,
+            [],
+            "goal_completed_monthly",
+            goal.id,
+            goal.name,
+            goal.color,
+            actor?.name ?? null,
+          );
+        }
+      }
+    } catch {
+      // Non-critical: don't fail the request if activity generation fails
+    }
+  }
 });
 
 router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
@@ -562,6 +685,57 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.id, id));
   res.sendStatus(204);
+});
+
+// Goal activity feed — returns undismissed activity for current user
+router.get("/goals/activity", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const activity = await db.select().from(goalActivityTable)
+    .where(and(
+      eq(goalActivityTable.userId, userId),
+      eq(goalActivityTable.dismissed, false),
+      sql`${goalActivityTable.createdAt} > ${thirtyDaysAgo}`,
+    ))
+    .orderBy(sql`${goalActivityTable.createdAt} DESC`);
+
+  res.json(activity.map(a => ({
+    id: a.id,
+    type: a.type,
+    goalId: a.goalId,
+    goalName: a.goalName,
+    goalColor: a.goalColor,
+    actorName: a.actorName,
+    createdAt: a.createdAt.toISOString(),
+  })));
+});
+
+// Dismiss a goal activity item
+router.post("/goals/activity/:id/dismiss", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db.update(goalActivityTable)
+    .set({ dismissed: true })
+    .where(and(eq(goalActivityTable.id, id), eq(goalActivityTable.userId, userId)));
+
+  res.json({ ok: true });
+});
+
+// Dismiss all goal activity items for current user
+router.post("/goals/activity/dismiss-all", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  await db.update(goalActivityTable)
+    .set({ dismissed: true })
+    .where(and(eq(goalActivityTable.userId, userId), eq(goalActivityTable.dismissed, false)));
+
+  res.json({ ok: true });
 });
 
 export default router;
