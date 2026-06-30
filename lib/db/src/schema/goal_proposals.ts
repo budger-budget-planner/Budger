@@ -6,5 +6,6 @@ export const goalProposalsTable = pgTable("goal_proposals", {
   proposerId: integer("proposer_id").notNull(),
   householdId: integer("household_id").notNull(),
   status: text("status").notNull().default("pending"),
+  declineReason: text("decline_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

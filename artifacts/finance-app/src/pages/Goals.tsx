@@ -40,6 +40,17 @@ type Proposal = {
   goalCurrency: string | null;
   proposerName: string | null;
   status: string;
+  declineReason: string | null;
+  createdAt: string;
+};
+
+type MyShareProposal = {
+  id: number;
+  goalId: number;
+  goalName: string | null;
+  goalColor: string | null;
+  status: string;
+  declineReason: string | null;
   createdAt: string;
 };
 
@@ -51,6 +62,7 @@ type EditProposal = {
   currentBudget: number | null;
   currentCurrency: string | null;
   proposerName: string | null;
+  declineReason: string | null;
   proposed: {
     name: string;
     color: string;
@@ -597,6 +609,10 @@ export default function GoalsPage() {
   const [newBudget,   setNewBudget]   = useState("");
   const [newDeadline, setNewDeadline] = useState("");
   const [newDivide,   setNewDivide]   = useState(false);
+  const [decliningShareId,  setDecliningShareId]  = useState<number | null>(null);
+  const [declineShareReason, setDeclineShareReason] = useState("");
+  const [decliningEditId,   setDecliningEditId]   = useState<number | null>(null);
+  const [declineEditReason,  setDeclineEditReason]  = useState("");
 
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
@@ -630,6 +646,28 @@ export default function GoalsPage() {
     enabled: isCreator,
   });
 
+  const { data: myShareProposals, refetch: refetchMyShareProposals } = useQuery<MyShareProposal[]>({
+    queryKey: ["goal-my-share-proposals"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/mine`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isInHousehold && !isCreator,
+    refetchInterval: 20_000,
+  });
+
+  const { data: myEditProposalsMine, refetch: refetchMyEditProposalsMine } = useQuery<EditProposal[]>({
+    queryKey: ["goal-my-edit-proposals-mine"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/mine`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isInHousehold && !isCreator,
+    refetchInterval: 20_000,
+  });
+
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
 
   const privateGoals   = (goals ?? []).filter(g => !(g as any).householdId);
@@ -640,7 +678,12 @@ export default function GoalsPage() {
   function refetchAllProposals() {
     refetchProposals();
     refetchEditProposals();
+    refetchMyShareProposals();
+    refetchMyEditProposalsMine();
   }
+
+  const declinedShareFeedback = (myShareProposals ?? []).filter(p => p.status === "declined");
+  const declinedEditFeedback  = (myEditProposalsMine ?? []).filter(p => p.status === "declined");
 
   const create = useCreateGoal({
     mutation: {
@@ -685,10 +728,14 @@ export default function GoalsPage() {
     refetchProposals();
   }
 
-  async function handleDeclineProposal(proposalId: number) {
+  async function handleDeclineProposal(proposalId: number, reason: string) {
     await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
       method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() || null }),
     });
+    setDecliningShareId(null);
+    setDeclineShareReason("");
     refetchProposals();
   }
 
@@ -701,10 +748,14 @@ export default function GoalsPage() {
     refetchEditProposals();
   }
 
-  async function handleDeclineEditProposal(proposalId: number) {
+  async function handleDeclineEditProposal(proposalId: number, reason: string) {
     await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
       method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() || null }),
     });
+    setDecliningEditId(null);
+    setDeclineEditReason("");
     refetchEditProposals();
   }
 
@@ -736,39 +787,57 @@ export default function GoalsPage() {
           </div>
           <div className="divide-y divide-border">
             {pendingProposals.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                <div
-                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: (p.goalColor ?? "#818cf8") + "33" }}
-                >
-                  <Target className="w-3.5 h-3.5" style={{ color: p.goalColor ?? "#818cf8" }} />
+              <div key={p.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: (p.goalColor ?? "#818cf8") + "33" }}>
+                    <Target className="w-3.5 h-3.5" style={{ color: p.goalColor ?? "#818cf8" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.goalName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("goals.proposed_by", { name: p.proposerName ?? "" })}
+                      {p.goalBudget != null && (
+                        <span className="ml-1">· {fmtAmtRound(
+                          p.goalCurrency && p.goalCurrency !== prefs.currency
+                            ? convertAmount(p.goalBudget, p.goalCurrency, prefs.currency, rates)
+                            : p.goalBudget, prefs.currency)}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => { setDecliningShareId(p.id); setDeclineShareReason(""); }}
+                      className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                      {t("goals.decline")}
+                    </button>
+                    <button onClick={() => handleApproveProposal(p.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
+                      {t("goals.approve")}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{p.goalName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("goals.proposed_by", { name: p.proposerName ?? "" })}
-                    {p.goalBudget != null && (
-                      <span className="ml-1">
-                        · {fmtAmtRound(
-                            p.goalCurrency && p.goalCurrency !== prefs.currency
-                              ? convertAmount(p.goalBudget, p.goalCurrency, prefs.currency, rates)
-                              : p.goalBudget,
-                            prefs.currency
-                          )}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex gap-1.5 flex-shrink-0">
-                  <button onClick={() => handleDeclineProposal(p.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                    {t("goals.decline")}
-                  </button>
-                  <button onClick={() => handleApproveProposal(p.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
-                    {t("goals.approve")}
-                  </button>
-                </div>
+                {decliningShareId === p.id && (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={declineShareReason}
+                      onChange={e => setDeclineShareReason(e.target.value)}
+                      placeholder={t("goals.decline_reason_placeholder")}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm resize-none focus:outline-none focus:ring-1 focus:ring-border"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setDecliningShareId(null)}
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                        {t("common.cancel")}
+                      </button>
+                      <button onClick={() => handleDeclineProposal(p.id, declineShareReason)}
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70">
+                        {t("goals.confirm_decline")}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -822,7 +891,7 @@ export default function GoalsPage() {
                       )}
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                      <button onClick={() => handleDeclineEditProposal(ep.id)}
+                      <button onClick={() => { setDecliningEditId(ep.id); setDeclineEditReason(""); }}
                         className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
                         {t("goals.decline")}
                       </button>
@@ -832,9 +901,76 @@ export default function GoalsPage() {
                       </button>
                     </div>
                   </div>
+                  {decliningEditId === ep.id && (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={declineEditReason}
+                        onChange={e => setDeclineEditReason(e.target.value)}
+                        placeholder={t("goals.decline_reason_placeholder")}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm resize-none focus:outline-none focus:ring-1 focus:ring-border"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => setDecliningEditId(null)}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                          {t("common.cancel")}
+                        </button>
+                        <button onClick={() => handleDeclineEditProposal(ep.id, declineEditReason)}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70">
+                          {t("goals.confirm_decline")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Proposal feedback — visible to non-head creators with declined proposals */}
+      {!isCreator && isInHousehold && (declinedShareFeedback.length > 0 || declinedEditFeedback.length > 0) && (
+        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <X className="w-4 h-4 text-destructive" />
+            <p className="text-sm font-semibold">{t("goals.my_proposals")}</p>
+          </div>
+          <div className="divide-y divide-border">
+            {declinedShareFeedback.map(p => (
+              <div key={`share-${p.id}`} className="px-4 py-3 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: (p.goalColor ?? "#818cf8") + "33" }}>
+                  <Target className="w-3.5 h-3.5" style={{ color: p.goalColor ?? "#818cf8" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{p.goalName}</p>
+                  <p className="text-xs text-destructive font-medium">{t("goals.share_declined_title")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {p.declineReason
+                      ? t("goals.declined_reason", { reason: p.declineReason })
+                      : t("goals.no_reason_given")}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {declinedEditFeedback.map(ep => (
+              <div key={`edit-${ep.id}`} className="px-4 py-3 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: (ep.goalColor ?? "#818cf8") + "33" }}>
+                  <Pencil className="w-3.5 h-3.5" style={{ color: ep.goalColor ?? "#818cf8" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{ep.goalName}</p>
+                  <p className="text-xs text-destructive font-medium">{t("goals.edit_declined_title")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {ep.declineReason
+                      ? t("goals.declined_reason", { reason: ep.declineReason })
+                      : t("goals.no_reason_given")}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

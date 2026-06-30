@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable } from "@workspace/db";
-import { eq, or, and, lt, gte, inArray } from "drizzle-orm";
+import { eq, or, and, lt, gte, inArray, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -159,8 +159,45 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
 
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
-  await db.update(goalProposalsTable).set({ status: "declined" }).where(eq(goalProposalsTable.id, id));
+  const reason = req.body?.reason ? String(req.body.reason).trim() : null;
+  await db.update(goalProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalProposalsTable.id, id));
   res.json({ ok: true });
+});
+
+// My own share proposals — any member
+router.get("/goals/proposals/mine", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.json([]); return; }
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const proposals = await db.select().from(goalProposalsTable)
+    .where(and(
+      eq(goalProposalsTable.proposerId, userId),
+      sql`(${goalProposalsTable.status} = 'pending' OR (${goalProposalsTable.status} = 'declined' AND ${goalProposalsTable.createdAt} > ${sevenDaysAgo}))`,
+    ));
+
+  if (proposals.length === 0) { res.json([]); return; }
+
+  const goalIds = [...new Set(proposals.map(p => p.goalId))];
+  const goals = await db.select().from(goalsTable).where(inArray(goalsTable.id, goalIds));
+  const goalMap = new Map(goals.map(g => [g.id, g]));
+
+  res.json(proposals.map(p => {
+    const goal = goalMap.get(p.goalId);
+    return {
+      id: p.id,
+      goalId: p.goalId,
+      goalName: goal?.name ?? null,
+      goalColor: goal?.color ?? null,
+      goalBudget: goal?.budget ? parseFloat(goal.budget) : null,
+      goalCurrency: goal?.currency ?? null,
+      status: p.status,
+      declineReason: p.declineReason ?? null,
+      createdAt: p.createdAt.toISOString(),
+    };
+  }));
 });
 
 // Edit proposals — for head members to see pending edit proposals
@@ -252,20 +289,51 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
   const [proposal] = await db.select().from(goalEditProposalsTable).where(eq(goalEditProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
 
-  await db.update(goalEditProposalsTable).set({ status: "declined" }).where(eq(goalEditProposalsTable.id, id));
+  const reason = req.body?.reason ? String(req.body.reason).trim() : null;
+  await db.update(goalEditProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalEditProposalsTable.id, id));
   res.json({ ok: true });
 });
 
-// My own pending edit proposals — any member can call this
+// My own edit proposals — any member, returns pending + recently declined
 router.get("/goals/edit-proposals/mine", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const user = await userScope(userId);
   if (!user?.householdId) { res.json([]); return; }
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const proposals = await db.select().from(goalEditProposalsTable)
-    .where(and(eq(goalEditProposalsTable.proposerId, userId), eq(goalEditProposalsTable.status, "pending")));
-  res.json(proposals);
+    .where(and(
+      eq(goalEditProposalsTable.proposerId, userId),
+      sql`(${goalEditProposalsTable.status} = 'pending' OR (${goalEditProposalsTable.status} = 'declined' AND ${goalEditProposalsTable.createdAt} > ${sevenDaysAgo}))`,
+    ));
+
+  if (proposals.length === 0) { res.json([]); return; }
+
+  const goalIds = [...new Set(proposals.map(p => p.goalId))];
+  const goals = await db.select().from(goalsTable).where(inArray(goalsTable.id, goalIds));
+  const goalMap = new Map(goals.map(g => [g.id, g]));
+
+  res.json(proposals.map(p => {
+    const goal = goalMap.get(p.goalId);
+    return {
+      id: p.id,
+      goalId: p.goalId,
+      goalName: goal?.name ?? null,
+      goalColor: goal?.color ?? null,
+      status: p.status,
+      declineReason: p.declineReason ?? null,
+      proposed: {
+        name: p.name,
+        color: p.color,
+        budget: parseFloat(p.budget),
+        currency: p.currency ?? null,
+        deadline: p.deadline,
+        divideByMonths: p.divideByMonths,
+      },
+      createdAt: p.createdAt.toISOString(),
+    };
+  }));
 });
 
 router.post("/goals", async (req, res): Promise<void> => {

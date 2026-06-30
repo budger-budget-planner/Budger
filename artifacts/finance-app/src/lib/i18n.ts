@@ -170,6 +170,14 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.awaiting_edit_approval": { en: "Awaiting household head approval", pl: "Oczekuje na zatwierdzenie przez głowę rodziny" },
   "goals.arrow_to":            { en: "→",                           pl: "→"                              },
   "goals.color":        { en: "Color",                      pl: "Kolor"                          },
+  "goals.decline_reason_placeholder": { en: "Reason for declining… (optional)", pl: "Powód odrzucenia… (opcjonalnie)" },
+  "goals.confirm_decline":     { en: "Confirm decline",             pl: "Potwierdź odrzucenie"           },
+  "goals.share_declined_title": { en: "Share request declined",     pl: "Odrzucono prośbę o udostępnienie" },
+  "goals.edit_declined_title": { en: "Edit request declined",       pl: "Odrzucono prośbę o edycję"      },
+  "goals.declined_reason":     { en: "Reason: {reason}",            pl: "Powód: {reason}"                },
+  "goals.no_reason_given":     { en: "No reason given",             pl: "Nie podano powodu"              },
+  "goals.dismiss":             { en: "Dismiss",                     pl: "Zamknij"                        },
+  "goals.my_proposals":        { en: "Proposal Feedback",           pl: "Informacja zwrotna"             },
 
   // ── Household ──
   "hh.title":           { en: "Household",                  pl: "Gospodarstwo domowe"            },

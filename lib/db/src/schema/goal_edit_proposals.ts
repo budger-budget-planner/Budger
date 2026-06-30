@@ -12,5 +12,6 @@ export const goalEditProposalsTable = pgTable("goal_edit_proposals", {
   deadline: text("deadline").notNull(),
   divideByMonths: boolean("divide_by_months").notNull().default(false),
   status: text("status").notNull().default("pending"),
+  declineReason: text("decline_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
