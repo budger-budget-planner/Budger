@@ -276,7 +276,7 @@ export default function DashboardPage() {
                 activeBar={(props: any) =>
                   props.total === 0
                     ? <g />
-                    : <Rectangle {...props} fill="#a78bfa" radius={[4, 4, 0, 0]} />
+                    : <Rectangle {...props} fill="#bfdbfe" radius={[4, 4, 0, 0]} />
                 }
               />
             </BarChart>
