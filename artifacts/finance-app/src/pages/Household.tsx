@@ -959,9 +959,18 @@ export default function HouseholdPage() {
               <div className="divide-y divide-white/5">
                 {sharedGoals.map((g: any) => {
                   const s = summaryMap.get(g.id);
-                  const contributed = s?.contributed ?? 0;
-                  const goalBudget = parseFloat(g.budget);
-                  const pct = goalBudget > 0 ? Math.min((contributed / goalBudget) * 100, 100) : 0;
+                  const contributedGoalCur = s?.contributed ?? 0;
+                  const rawBudget = parseFloat(g.budget);
+                  const hhViewerCur = prefs.currency;
+                  const hhGoalCur: string = g.currency ?? hhViewerCur;
+                  const hhHasRates = !!splitRates && Object.keys(splitRates).length > 0;
+                  const goalBudgetDisplay = hhHasRates && hhGoalCur !== hhViewerCur
+                    ? convertAmount(rawBudget, hhGoalCur, hhViewerCur, splitRates!)
+                    : rawBudget;
+                  const contributedDisplay = hhHasRates && hhGoalCur !== hhViewerCur
+                    ? convertAmount(contributedGoalCur, hhGoalCur, hhViewerCur, splitRates!)
+                    : contributedGoalCur;
+                  const pct = rawBudget > 0 ? Math.min((contributedGoalCur / rawBudget) * 100, 100) : 0;
                   return (
                     <div key={g.id} className="px-4 py-3 space-y-2">
                       <div className="flex items-center gap-3">
@@ -976,8 +985,8 @@ export default function HouseholdPage() {
                           <p className="text-xs text-white/40">{t("hh.due")} {g.deadline}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold tabular-nums">{fmtAmtRound(contributed, loadPrefs().currency)}</p>
-                          <p className="text-xs text-white/40">{t("hh.of_goal")} {fmtAmtRound(goalBudget, loadPrefs().currency)}</p>
+                          <p className="text-sm font-semibold tabular-nums">{fmtAmtRound(contributedDisplay, hhViewerCur)}</p>
+                          <p className="text-xs text-white/40">{t("hh.of_goal")} {fmtAmtRound(goalBudgetDisplay, hhViewerCur)}</p>
                         </div>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">

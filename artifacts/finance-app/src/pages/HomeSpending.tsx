@@ -36,6 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { fetchRates, convertAmount } from "@/lib/rates";
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
   function isoToDisplay(iso: string): string {
@@ -503,8 +504,10 @@ async function syncGoalContribution(opts: {
   existingContribId: number | null;
   queryClient: ReturnType<typeof useQueryClient>;
   viewMonth: string;
+  goals: any[];
+  userCurrency: string;
 }) {
-  const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth } = opts;
+  const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth, goals, userCurrency } = opts;
 
   // Delete existing contribution for this transaction if any
   if (existingContribId != null) {
@@ -514,9 +517,18 @@ async function syncGoalContribution(opts: {
     });
   }
 
-  // Create new contribution if needed
+  // Create new contribution if needed, converted to goal's base currency
   if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
     const month = dateToMonth(txDate);
+    const goal = goals.find((g: any) => String(g.id) === String(goalId));
+    const goalCurrency: string = (goal as any)?.currency ?? userCurrency;
+    let contribAmount = parseFloat(goalAmount);
+    if (goalCurrency !== userCurrency) {
+      try {
+        const rates = await fetchRates();
+        contribAmount = convertAmount(parseFloat(goalAmount), userCurrency, goalCurrency, rates);
+      } catch { /* keep unconverted if fetch fails */ }
+    }
     await fetch("/api/goal-contributions", {
       method: "POST",
       credentials: "include",
@@ -524,7 +536,8 @@ async function syncGoalContribution(opts: {
       body: JSON.stringify({
         goalId: parseInt(goalId),
         transactionId: txId,
-        amount: parseFloat(goalAmount),
+        amount: contribAmount,
+        currency: goalCurrency,
         month,
       }),
     });
@@ -640,6 +653,8 @@ export default function HomeSpending() {
             existingContribId: null,
             queryClient,
             viewMonth,
+            goals: goals ?? [],
+            userCurrency: prefs.currency,
           });
         },
       }
@@ -683,6 +698,8 @@ export default function HomeSpending() {
             existingContribId: existingContrib?.id ?? null,
             queryClient,
             viewMonth,
+            goals: goals ?? [],
+            userCurrency: prefs.currency,
           });
         },
       }

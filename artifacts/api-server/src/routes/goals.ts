@@ -605,7 +605,7 @@ router.get("/goal-contributions", async (req, res): Promise<void> => {
 router.post("/goal-contributions", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-  const { goalId, transactionId, amount, month } = req.body;
+  const { goalId, transactionId, amount, month, currency } = req.body;
   if (!goalId || !amount) { res.status(400).json({ error: "goalId and amount required" }); return; }
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -616,6 +616,7 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
     goalId: parseInt(goalId),
     transactionId: transactionId ? parseInt(transactionId) : null,
     amount: String(parseFloat(amount)),
+    currency: currency ?? null,
     month: contribMonth,
     userId,
     householdId: user?.householdId ?? null,

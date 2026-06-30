@@ -185,11 +185,16 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates }
   };
   const remove = useDeleteGoal({ mutation: { onSuccess: invalidate } });
 
-  const contributed = summary?.contributed ?? 0;
-  // Convert budget from the goal's canonical currency to the viewer's currency
+  // Contributions are stored in the goal's base currency; convert to viewer's currency for display
+  const contributedInGoalCurrency = summary?.contributed ?? 0;
+  const hasRates = Object.keys(rates).length > 0;
+  const goalCur = goal.currency;
+  const contributed = goalCur && goalCur !== currency && hasRates
+    ? convertAmount(contributedInGoalCurrency, goalCur, currency, rates)
+    : contributedInGoalCurrency;
   const rawBudget = parseFloat(goal.budget);
-  const budget = goal.currency && goal.currency !== currency
-    ? convertAmount(rawBudget, goal.currency, currency, rates)
+  const budget = goalCur && goalCur !== currency && hasRates
+    ? convertAmount(rawBudget, goalCur, currency, rates)
     : rawBudget;
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
   const ml = monthsLeft(goal.deadline);

@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
-  const hasMyPendingEditProposals = (myEditProposals ?? []).length > 0;
+  const hasMyPendingEditProposals = (myEditProposals ?? []).some((p: any) => p.status !== "pending");
 
   const { data: myShareProposalsBadge } = useQuery<Array<{ id: number; status: string }>>({
     queryKey: ["goal-my-share-proposals-badge"],
@@ -69,7 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
-  const hasMyShareProposals = (myShareProposalsBadge ?? []).length > 0;
+  const hasMyShareProposals = (myShareProposalsBadge ?? []).some(p => p.status !== "pending");
 
   const { data: goalActivityBadge } = useQuery<Array<{ id: number }>>({
     queryKey: ["goal-activity-badge"],

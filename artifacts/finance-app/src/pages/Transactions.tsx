@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { fetchRates, convertAmount } from "@/lib/rates";
 
 type TxFormState = {
   amount: string;
@@ -491,11 +492,17 @@ export default function TransactionsPage() {
     create.mutate(
       { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
       {
-        onSuccess: (tx) => {
+        onSuccess: async (tx) => {
           if (goalContribution) {
-            queryClient.fetchQuery({
-              queryKey: ["createGoalContrib"],
-            }).catch(() => {});
+            const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
+            const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
+            let contribAmount = goalContribution.amount;
+            if (goalCurrency !== prefs.currency) {
+              try {
+                const convRates = await fetchRates();
+                contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
+              } catch { /* keep original if fetch fails */ }
+            }
             fetch("/api/goal-contributions", {
               method: "POST",
               credentials: "include",
@@ -503,7 +510,8 @@ export default function TransactionsPage() {
               body: JSON.stringify({
                 goalId: goalContribution.goalId,
                 transactionId: (tx as any).id,
-                amount: goalContribution.amount,
+                amount: contribAmount,
+                currency: goalCurrency,
                 month,
               }),
             }).then(() => {
@@ -563,6 +571,15 @@ export default function TransactionsPage() {
         ));
 
         if (goalContribution) {
+          const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
+          const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
+          let contribAmount = goalContribution.amount;
+          if (goalCurrency !== prefs.currency) {
+            try {
+              const convRates = await fetchRates();
+              contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
+            } catch { /* keep original if fetch fails */ }
+          }
           await fetch("/api/goal-contributions", {
             method: "POST",
             credentials: "include",
@@ -570,7 +587,8 @@ export default function TransactionsPage() {
             body: JSON.stringify({
               goalId: goalContribution.goalId,
               transactionId: txId,
-              amount: goalContribution.amount,
+              amount: contribAmount,
+              currency: goalCurrency,
               month: currentMonth,
             }),
           });
