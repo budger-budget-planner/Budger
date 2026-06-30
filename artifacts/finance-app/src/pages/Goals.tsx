@@ -879,7 +879,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} rates={rates} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} />
                   ))}
                 </div>
               ) : (
@@ -941,9 +941,10 @@ export default function GoalsPage() {
           isCreator={isCreator}
           isInHousehold={isInHousehold}
           householdId={householdId}
-          onProposalsChange={() => refetchProposals()}
+          onProposalsChange={refetchAllProposals}
           rates={rates}
           userCurrency={prefs.currency}
+          isNonHeadCreator={isNonHeadCreator(editGoal)}
         />
       )}
 
