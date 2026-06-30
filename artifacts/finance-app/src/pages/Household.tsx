@@ -101,6 +101,20 @@ type MemberRow = {
   joinedAt: string;
 };
 
+type GoalContribRow = {
+  goalId: number;
+  goalName: string;
+  goalColor: string;
+  goalCurrency: string | null;
+  budget: number;
+  divideByMonths: boolean;
+  monthlyTarget: number | null;
+  allTimeAmount: number;
+  currentMonthAmount: number;
+  displayAmount: number;
+  percentage: number;
+};
+
 function MemberSheet({
   member,
   onClose,
@@ -119,6 +133,23 @@ function MemberSheet({
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
   const [savingRole, setSavingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>(member.role);
+  const [rates, setRates] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetchRates().then(setRates);
+  }, []);
+
+  const { data: goalContribs, isLoading: contribsLoading } = useQuery<GoalContribRow[]>({
+    queryKey: ["member-goal-contributions", member.userId],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/member-contributions/${member.userId}`, {
+        credentials: "include",
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   const isViewerHead = isHeadRole(viewerRole);
@@ -206,6 +237,50 @@ function MemberSheet({
                   </div>
                 </div>
               </>
+            )}
+          </div>
+
+          {/* Goal contributions section — shown below spending */}
+          <div>
+            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.goal_contributions")}</p>
+            {contribsLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              </div>
+            ) : !goalContribs?.length ? (
+              <div className="text-center py-4 text-white/40 text-sm">{t("hh.no_goal_contributions")}</div>
+            ) : (
+              <div className="space-y-3">
+                {goalContribs.map(g => {
+                  const viewerCurrency = loadPrefs().currency;
+                  const goalCurrency = g.goalCurrency ?? viewerCurrency;
+                  const convertedAmount = Object.keys(rates).length > 0 && goalCurrency !== viewerCurrency
+                    ? convertAmount(g.displayAmount, goalCurrency, viewerCurrency, rates)
+                    : g.displayAmount;
+                  const amtStr = fmtAmt(convertedAmount, viewerCurrency);
+                  const pctStr = `${g.percentage.toFixed(1).replace(/\.0$/, "")}%`;
+                  const contextLabel = g.divideByMonths ? t("hh.goal_contrib_monthly") : t("hh.goal_contrib_total");
+                  return (
+                    <div key={g.goalId} className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.goalColor }} />
+                        <span className="text-sm flex-1 truncate">{g.goalName}</span>
+                        <span className="text-sm font-semibold tabular-nums text-right">
+                          {amtStr}
+                          <span className="text-white/40 font-normal ml-1">({pctStr})</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${Math.min(g.percentage, 100)}%`, backgroundColor: g.goalColor }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-white/30 ml-4">{contextLabel}</p>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 

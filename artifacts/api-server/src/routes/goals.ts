@@ -687,6 +687,85 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+// Member goal contributions — contribution totals per household goal for a specific member
+router.get("/goals/member-contributions/:userId", async (req, res): Promise<void> => {
+  const callerId = (req.session as any)?.userId;
+  if (!callerId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const targetUserId = parseInt(req.params.userId);
+  if (isNaN(targetUserId)) { res.status(400).json({ error: "Invalid userId" }); return; }
+
+  // Verify both caller and target are in the same household
+  const caller = await userScope(callerId);
+  if (!caller?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+
+  const [targetMember] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, caller.householdId)));
+  if (!targetMember) { res.status(403).json({ error: "Target not in same household" }); return; }
+
+  // Get all household goals
+  const householdGoals = await db.select().from(goalsTable)
+    .where(eq(goalsTable.householdId, caller.householdId));
+  if (!householdGoals.length) { res.json([]); return; }
+
+  const goalIds = householdGoals.map(g => g.id);
+
+  // Get ALL contributions from the target member for these goals
+  const allContribs = await db.select().from(goalContributionsTable)
+    .where(and(
+      eq(goalContributionsTable.userId, targetUserId),
+      inArray(goalContributionsTable.goalId, goalIds),
+    ));
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const result = householdGoals.map(g => {
+    const goalContribs = allContribs.filter(c => c.goalId === g.id);
+    const allTimeAmount = goalContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+    const currentMonthAmount = goalContribs
+      .filter(c => c.month === currentMonth)
+      .reduce((s, c) => s + parseFloat(c.amount), 0);
+
+    const budget = parseFloat(g.budget);
+
+    let monthlyTarget: number | null = null;
+    let percentage = 0;
+    let displayAmount = 0;
+
+    if (g.divideByMonths) {
+      const deadlineDate = new Date(g.deadline);
+      const monthsLeft = Math.max(
+        1,
+        (deadlineDate.getFullYear() - now.getFullYear()) * 12
+          + (deadlineDate.getMonth() - now.getMonth()) + 1
+      );
+      monthlyTarget = Math.round((budget / monthsLeft) * 100) / 100;
+      displayAmount = currentMonthAmount;
+      percentage = monthlyTarget > 0 ? Math.round((currentMonthAmount / monthlyTarget) * 10000) / 100 : 0;
+    } else {
+      displayAmount = allTimeAmount;
+      percentage = budget > 0 ? Math.round((allTimeAmount / budget) * 10000) / 100 : 0;
+    }
+
+    return {
+      goalId: g.id,
+      goalName: g.name,
+      goalColor: g.color,
+      goalCurrency: g.currency ?? null,
+      budget,
+      divideByMonths: !!g.divideByMonths,
+      monthlyTarget,
+      allTimeAmount: Math.round(allTimeAmount * 100) / 100,
+      currentMonthAmount: Math.round(currentMonthAmount * 100) / 100,
+      displayAmount: Math.round(displayAmount * 100) / 100,
+      percentage: Math.min(percentage, 100),
+    };
+  }).filter(g => g.allTimeAmount > 0); // only goals with any contribution
+
+  res.json(result);
+});
+
 // Goal activity feed — returns undismissed activity for current user
 router.get("/goals/activity", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
