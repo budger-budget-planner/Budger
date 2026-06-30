@@ -409,8 +409,8 @@ function EditGoalDialog({
         body: JSON.stringify({ name: name.trim(), color, budget: canonicalBudget, currency: goalCurrency, deadline, divideByMonths }),
       });
       if (r.ok) {
-        setEditProposeState("sent");
         onProposalsChange();
+        onClose();
       } else {
         setEditProposeState("idle");
       }
@@ -638,11 +638,13 @@ export default function GoalsPage() {
   const [addOpen,     setAddOpen]     = useState(false);
   const [editGoal,    setEditGoal]    = useState<any | null>(null);
   const [showPast,    setShowPast]    = useState(false);
-  const [newName,     setNewName]     = useState("");
-  const [newColor,    setNewColor]    = useState("#818cf8");
-  const [newBudget,   setNewBudget]   = useState("");
-  const [newDeadline, setNewDeadline] = useState("");
-  const [newDivide,   setNewDivide]   = useState(false);
+  const [newName,               setNewName]               = useState("");
+  const [newColor,              setNewColor]              = useState("#818cf8");
+  const [newBudget,             setNewBudget]             = useState("");
+  const [newDeadline,           setNewDeadline]           = useState("");
+  const [newDivide,             setNewDivide]             = useState(false);
+  const [newProposeToHousehold, setNewProposeToHousehold] = useState(false);
+  const [proposingAfterCreate,  setProposingAfterCreate]  = useState(false);
   const [decliningShareId,  setDecliningShareId]  = useState<number | null>(null);
   const [declineShareReason, setDeclineShareReason] = useState("");
   const [decliningEditId,   setDecliningEditId]   = useState<number | null>(null);
@@ -723,8 +725,16 @@ export default function GoalsPage() {
 
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
 
-  const privateGoals   = (goals ?? []).filter(g => !(g as any).householdId);
-  const householdGoals = (goals ?? []).filter(g => !!(g as any).householdId);
+  const allPrivateGoals = (goals ?? []).filter(g => !(g as any).householdId);
+  const householdGoals  = (goals ?? []).filter(g => !!(g as any).householdId);
+
+  // Pending share proposals for this non-head user
+  const pendingProposalGoalIds = new Set(
+    (myShareProposals ?? []).filter(p => p.status === "pending").map(p => p.goalId)
+  );
+  // Move pending-proposed goals out of private section; show them greyed out in household section
+  const privateGoals           = allPrivateGoals.filter(g => !pendingProposalGoalIds.has((g as any).id));
+  const pendingHouseholdGoals  = allPrivateGoals.filter(g =>  pendingProposalGoalIds.has((g as any).id));
   const pendingProposals = (proposals ?? []).filter(p => p.status === "pending");
   const pendingEditProposals = (editProposals ?? []).filter(p => p.status === "pending");
 
@@ -764,11 +774,34 @@ export default function GoalsPage() {
 
   const create = useCreateGoal({
     mutation: {
+      onSuccess: async (created: any) => {
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+        if (newProposeToHousehold && created?.id) {
+          setProposingAfterCreate(true);
+          try {
+            await fetch(`${import.meta.env.BASE_URL}api/goals/${created.id}/propose`, {
+              method: "POST", credentials: "include",
+            });
+            refetchMyShareProposals();
+            queryClient.invalidateQueries({ queryKey: ["goal-my-share-proposals-badge"] });
+          } finally {
+            setProposingAfterCreate(false);
+          }
+        }
+        setAddOpen(false);
+        setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewDeadline(""); setNewDivide(false);
+        setNewProposeToHousehold(false);
+      },
+    },
+  });
+
+  const deleteGoalForProposal = useDeleteGoal({
+    mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-        setAddOpen(false);
-        setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewDeadline(""); setNewDivide(false);
+        refetchMyShareProposals();
       },
     },
   });
@@ -1042,16 +1075,36 @@ export default function GoalsPage() {
                             ? t("goals.declined_reason", { reason: p.declineReason })
                             : t("goals.no_reason_given")}
                         </p>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => {
+                              deleteGoalForProposal.mutate({ id: p.goalId });
+                              dismissProposal(`share_${p.id}`);
+                            }}
+                            disabled={deleteGoalForProposal.isPending}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-medium transition active:opacity-70 disabled:opacity-40"
+                          >
+                            <Trash2 className="w-3 h-3" /> {t("goals.delete_goal")}
+                          </button>
+                          <button
+                            onClick={() => dismissProposal(`share_${p.id}`)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted text-muted-foreground text-xs font-medium transition active:opacity-70"
+                          >
+                            <Lock className="w-3 h-3" /> {t("goals.keep_as_personal")}
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
-                  <button
-                    onClick={() => dismissProposal(`share_${p.id}`)}
-                    className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
-                    aria-label={t("goals.dismiss")}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {p.status !== "declined" && (
+                    <button
+                      onClick={() => dismissProposal(`share_${p.id}`)}
+                      className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
+                      aria-label={t("goals.dismiss")}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -1196,21 +1249,36 @@ export default function GoalsPage() {
           {/* Household Goals */}
           {isInHousehold && (
             <div className="mb-5">
-              <SectionHeader icon={Users} label={t("goals.household_goals")} count={householdGoals.length} />
+              <SectionHeader icon={Users} label={t("goals.household_goals")} count={householdGoals.length + pendingHouseholdGoals.length} />
+              {/* Pending proposed goals — greyed out, only visible to proposer */}
+              {pendingHouseholdGoals.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  {pendingHouseholdGoals.map(g => (
+                    <div key={`pending-${g.id}`} className="relative opacity-50 pointer-events-none select-none">
+                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} />
+                      <div className="absolute inset-0 flex items-start justify-end p-3 pointer-events-none">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded-full">
+                          {t("goals.pending_hh_badge")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
                     <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} />
                   ))}
                 </div>
-              ) : (
+              ) : pendingHouseholdGoals.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-3">
                   {t("goals.no_household")}{" "}
                   {isCreator
                     ? t("goals.edit_private_hint")
                     : t("goals.propose_via_edit")}
                 </p>
-              )}
+              ) : null}
             </div>
           )}
         </>
@@ -1282,10 +1350,27 @@ export default function GoalsPage() {
               divideByMonths={newDivide} setDivideByMonths={setNewDivide}
               sym={sym}
             />
+            {/* Propose-to-household toggle (non-head members only) */}
+            {isInHousehold && !isCreator && (
+              <button
+                type="button"
+                onClick={() => setNewProposeToHousehold(v => !v)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
+              >
+                <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">{t("goals.propose_on_create")}</p>
+                  <p className="text-xs text-muted-foreground">{t("goals.propose_on_create_desc")}</p>
+                </div>
+                <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${newProposeToHousehold ? "bg-foreground" : "bg-muted border border-border"}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${newProposeToHousehold ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
+                </div>
+              </button>
+            )}
             <div className="flex gap-2 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
-              <Button type="submit" className="flex-1" disabled={create.isPending}>
-                {create.isPending ? t("goals.creating_btn") : t("goals.create_btn")}
+              <Button type="submit" className="flex-1" disabled={create.isPending || proposingAfterCreate}>
+                {(create.isPending || proposingAfterCreate) ? t("goals.creating_btn") : t("goals.create_btn")}
               </Button>
             </div>
           </form>
