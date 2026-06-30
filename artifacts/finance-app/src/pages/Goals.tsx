@@ -598,7 +598,7 @@ export default function GoalsPage() {
   const [newDeadline, setNewDeadline] = useState("");
   const [newDivide,   setNewDivide]   = useState(false);
 
-  const { data: goals,     isLoading }                = useListGoals();
+  const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
   const { data: summary }                             = useGetGoalsSummary({});
   const { data: me }                                  = useGetMe();

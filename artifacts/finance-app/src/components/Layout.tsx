@@ -38,6 +38,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   });
   const hasPendingProposals = (proposalsData ?? []).some(p => p.status === "pending");
 
+  const { data: editProposalsBadge } = useQuery<Array<{ id: number }>>({
+    queryKey: ["goal-edit-proposals-badge"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasPendingEditProposals = (editProposalsBadge ?? []).length > 0;
+
+  const { data: myEditProposals } = useQuery<Array<{ id: number }>>({
+    queryKey: ["goal-my-edit-proposals-badge"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/mine`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasMyPendingEditProposals = (myEditProposals ?? []).length > 0;
+
   const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
     queryKey: ["splits-incoming-badge"],
     queryFn: async () => {
@@ -304,7 +326,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const active = isActive(href);
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
-          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && hasPendingProposals);
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && (hasPendingProposals || hasPendingEditProposals || hasMyPendingEditProposals));
           return (
             <Link
               key={href}

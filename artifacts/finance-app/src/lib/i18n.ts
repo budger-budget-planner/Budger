@@ -167,7 +167,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.propose_changes":     { en: "Propose Changes",             pl: "Zaproponuj zmiany"              },
   "goals.proposing":           { en: "Proposing…",                  pl: "Wysyłanie…"                     },
   "goals.edit_proposal_sent":  { en: "Changes sent for approval",   pl: "Zmiany wysłane do zatwierdzenia" },
-  "goals.awaiting_edit_approval": { en: "Awaiting household head approval", pl: "Oczekuje na zatwierdzenie przez szefa" },
+  "goals.awaiting_edit_approval": { en: "Awaiting household head approval", pl: "Oczekuje na zatwierdzenie przez głowę rodziny" },
   "goals.arrow_to":            { en: "→",                           pl: "→"                              },
   "goals.color":        { en: "Color",                      pl: "Kolor"                          },
 
@@ -486,7 +486,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.role_head_desc_editor":   { en: "Full access. Can manage goals, roles, and see all dashboards.",
                                    pl: "Pełny dostęp. Zarządzaj celami, rolami i przeglądaj wszystkie pulpity." },
   "hh.role_parent_desc_editor": { en: "Full access except cannot delete household goals. Can propose goals. Cannot see head's private dashboard.",
-                                   pl: "Pełny dostęp z wyjątkiem usuwania celów. Może proponować cele. Nie widzi prywatnego pulpitu szefa." },
+                                   pl: "Pełny dostęp z wyjątkiem usuwania celów. Może proponować cele. Nie widzi prywatnego pulpitu głowy rodziny." },
   "hh.role_child_desc_editor":  { en: "Can propose goals. Cannot see private dashboards or set their own private.",
                                    pl: "Może proponować cele. Nie może ustawiać prywatnego pulpitu ani widzieć prywatnych pulpitów." },
   "hh.your_role_head_desc":     { en: "Full access. Manage goals, roles, and members.",

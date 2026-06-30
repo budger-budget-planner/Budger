@@ -256,6 +256,18 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
   res.json({ ok: true });
 });
 
+// My own pending edit proposals — any member can call this
+router.get("/goals/edit-proposals/mine", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const user = await userScope(userId);
+  if (!user?.householdId) { res.json([]); return; }
+
+  const proposals = await db.select().from(goalEditProposalsTable)
+    .where(and(eq(goalEditProposalsTable.proposerId, userId), eq(goalEditProposalsTable.status, "pending")));
+  res.json(proposals);
+});
+
 router.post("/goals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
