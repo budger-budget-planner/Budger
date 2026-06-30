@@ -31,7 +31,7 @@ import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
 });
 
 function SmartNotificationsRunner() {

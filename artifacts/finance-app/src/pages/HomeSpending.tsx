@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import {
@@ -24,6 +24,7 @@ import {
   getGetMeQueryKey,
   useGetMe,
   useListHouseholdMembers,
+  getListGoalsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle } from "lucide-react";
@@ -545,6 +546,8 @@ async function syncGoalContribution(opts: {
 
   queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
   queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) });
+  queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+  queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
 }
 
 export default function HomeSpending() {
@@ -565,6 +568,11 @@ export default function HomeSpending() {
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
+  const [rates, setRates] = useState<Record<string, number> | null>(null);
+
+  useEffect(() => {
+    fetchRates().then(setRates).catch(() => {});
+  }, []);
   const updateMerchantRule = useUpdateMerchantCategoryRule();
   const { data: me } = useGetMe();
   const myUserId = (me as any)?.id;
@@ -587,7 +595,7 @@ export default function HomeSpending() {
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
   // Map transactionId → contribution (for display + edit pre-fill)
-  const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number }>();
+  const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null }>();
   for (const c of contributions ?? []) {
     if (c.transactionId != null && c.goalName) {
       contribByTxId.set(c.transactionId, {
@@ -596,6 +604,7 @@ export default function HomeSpending() {
         name: c.goalName,
         color: c.goalColor ?? "#888",
         amount: c.amount,
+        currency: (c as any).currency ?? null,
       });
     }
   }
@@ -706,8 +715,16 @@ export default function HomeSpending() {
     );
   }
 
+  function contribAmountInUserCurrency(contrib: { amount: number; currency: string | null }): number {
+    if (!contrib.currency || contrib.currency === prefs.currency || !rates) return contrib.amount;
+    return convertAmount(contrib.amount, contrib.currency, prefs.currency, rates);
+  }
+
   function buildEditInitial(tx: any): TxFormState {
     const contrib = contribByTxId.get(tx.id);
+    const goalAmtDisplay = contrib
+      ? String(Math.round(contribAmountInUserCurrency(contrib) * 100) / 100)
+      : "";
     return {
       amount: String(tx.amount),
       description: tx.description,
@@ -716,7 +733,7 @@ export default function HomeSpending() {
       paymentMethod: tx.paymentMethod,
       isGoalExpense: !!contrib,
       goalId: contrib ? String(contrib.goalId) : "none",
-      goalAmount: contrib ? String(contrib.amount) : "",
+      goalAmount: goalAmtDisplay,
     };
   }
 
@@ -993,7 +1010,7 @@ export default function HomeSpending() {
                                   {hasGoal && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-purple-500/60 bg-purple-500/10 text-[10px] font-medium text-purple-400">
                                       <Target className="w-2 h-2 flex-shrink-0" />
-                                      {contrib!.name} {fmtAmt(contrib!.amount, prefs.currency)}
+                                      {contrib!.name} {fmtAmt(contribAmountInUserCurrency(contrib!), prefs.currency)}
                                     </span>
                                   )}
                                   {hasReceipt && (
