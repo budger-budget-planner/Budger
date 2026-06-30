@@ -12,7 +12,17 @@ import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 
-const CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
+const CHART_COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
+
+function BarTooltipContent({ active, payload, label, currency }: any) {
+  if (!active || !payload?.length || !payload[0]?.value) return null;
+  return (
+    <div style={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, padding: "6px 12px", fontSize: 12 }}>
+      <p style={{ color: "#999", marginBottom: 2 }}>{label}</p>
+      <p style={{ color: "#fff", fontWeight: 600 }}>{fmtAmt(payload[0].value, currency)}</p>
+    </div>
+  );
+}
 
 function BudgetBar({ spent, budget, color }: { spent: number; budget: number; color: string }) {
   const pct = Math.min((spent / budget) * 100, 100);
@@ -27,6 +37,7 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
 export default function DashboardPage() {
   const prefs = loadPrefs();
   const [viewDate, setViewDate] = useState(new Date());
+  const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
 
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
@@ -130,11 +141,12 @@ export default function DashboardPage() {
             </div>
           ) : spending && spending.length > 0 ? (
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
                 <ResponsiveContainer width={140} height={140}>
-                  <PieChart>
+                  <PieChart style={{ outline: "none" }}>
                     <Pie data={spending} dataKey="total" cx="50%" cy="50%"
-                      innerRadius={38} outerRadius={64} paddingAngle={2}>
+                      innerRadius={38} outerRadius={64} paddingAngle={2}
+                      style={{ outline: "none" }}>
                       {spending.map((entry, i) => (
                         <Cell key={entry.categoryId ?? "unc"}
                           fill={entry.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
@@ -182,14 +194,15 @@ export default function DashboardPage() {
             </div>
             {activeGoalsWithContribs.length > 0 ? (
               <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
                   <ResponsiveContainer width={140} height={140}>
-                    <PieChart>
+                    <PieChart style={{ outline: "none" }}>
                       <Pie
                         data={goalsSummary.filter(g => g.contributed > 0)}
                         dataKey="contributed"
                         cx="50%" cy="50%"
                         innerRadius={38} outerRadius={64} paddingAngle={2}
+                        style={{ outline: "none" }}
                       >
                         {goalsSummary.filter(g => g.contributed > 0).map((entry, i) => (
                           <Cell key={entry.goalId} fill={entry.goalColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
@@ -260,18 +273,32 @@ export default function DashboardPage() {
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">{t("dashboard.monthly_trend")}</p>
           <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={monthly ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
+            <BarChart
+              data={monthly ?? []}
+              margin={{ top: 4, right: 4, left: -20, bottom: 4 }}
+              onMouseMove={(state: any) => {
+                if (state?.isTooltipActive && state?.activeCoordinate?.y !== undefined) {
+                  const TOOLTIP_H = 54;
+                  const GAP = 4;
+                  const barY = state.activeCoordinate.y;
+                  const chartTop = state.offset?.top ?? 0;
+                  const spaceAbove = barY - chartTop;
+                  setBarTooltipY(spaceAbove < TOOLTIP_H + GAP ? barY + GAP : barY - TOOLTIP_H - GAP);
+                }
+              }}
+              onMouseLeave={() => setBarTooltipY(undefined)}
+            >
               <XAxis dataKey="month" tickFormatter={localiseMonthStr} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false}
                 tickFormatter={v => fmtAmtRound(v, prefs.currency)} />
               <Tooltip
-                formatter={(v: any) => [fmtAmt(Number(v), prefs.currency), t("dashboard.spent") ?? "Spent"]}
-                contentStyle={{ background: "#1c1c1c", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
+                content={<BarTooltipContent currency={prefs.currency} />}
+                position={barTooltipY !== undefined ? { y: barTooltipY } : undefined}
                 cursor={false}
               />
               <Bar
                 dataKey="total"
-                fill="#818cf8"
+                fill="#6366f1"
                 radius={[4, 4, 0, 0]}
                 activeBar={(props: any) =>
                   props.total === 0
