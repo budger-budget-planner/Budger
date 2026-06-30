@@ -27,7 +27,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
   const hasHouseholdAlert = !!(user as any)?.pendingHouseholdAlert;
 
-  const { data: proposalsData } = useQuery<Array<{ id: number; status: string }>>({
+  const { data: proposalsData } = useQuery<Array<{ id: number; status: string; createdAt: string }>>({
     queryKey: ["goal-proposals-badge"],
     queryFn: async () => {
       const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals`, { credentials: "include" });
@@ -36,9 +36,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
-  const hasPendingProposals = (proposalsData ?? []).some(p => p.status === "pending");
 
-  const { data: editProposalsBadge } = useQuery<Array<{ id: number }>>({
+  const { data: editProposalsBadge } = useQuery<Array<{ id: number; createdAt: string }>>({
     queryKey: ["goal-edit-proposals-badge"],
     queryFn: async () => {
       const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals`, { credentials: "include" });
@@ -47,31 +46,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
-  const hasPendingEditProposals = (editProposalsBadge ?? []).length > 0;
 
-  const { data: myEditProposals } = useQuery<Array<{ id: number }>>({
-    queryKey: ["goal-my-edit-proposals-badge"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/mine`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 30_000,
-  });
-  const hasMyPendingEditProposals = (myEditProposals ?? []).some((p: any) => p.status === "declined");
-
-  const { data: myShareProposalsBadge } = useQuery<Array<{ id: number; status: string }>>({
-    queryKey: ["goal-my-share-proposals-badge"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/mine`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 30_000,
-  });
-  const hasMyShareProposals = (myShareProposalsBadge ?? []).some(p => p.status === "declined");
-
-  const { data: goalActivityBadge } = useQuery<Array<{ id: number }>>({
+  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; createdAt: string }>>({
     queryKey: ["goal-activity-badge"],
     queryFn: async () => {
       const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
@@ -80,7 +56,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
-  const hasGoalActivity = (goalActivityBadge ?? []).length > 0;
+
+  // localStorage-based last-seen timestamp per user — badge clears on Goals tab click
+  const [goalsSeenAt, setGoalsSeenAt] = useState<number>(0);
+  useEffect(() => {
+    if (user?.id) {
+      try {
+        const stored = parseInt(localStorage.getItem(`goals_seen_at_${user.id}`) ?? "0") || 0;
+        setGoalsSeenAt(stored);
+      } catch { /* ignore */ }
+    }
+  }, [user?.id]);
+
+  function markGoalsSeen() {
+    const now = Date.now();
+    setGoalsSeenAt(now);
+    try { localStorage.setItem(`goals_seen_at_${(user as any)?.id ?? "x"}`, String(now)); } catch { /* ignore */ }
+  }
+
+  // Badge-worthy activity types — goal_changed is informational only, no badge
+  const BADGE_TYPES = ["goal_completed_total", "goal_completed_monthly", "share_approved", "share_declined", "edit_approved", "edit_declined", "goal_created"];
+
+  const hasNewBadgeActivity = (goalActivityBadge ?? []).some(
+    (a) => BADGE_TYPES.includes(a.type) && new Date(a.createdAt).getTime() > goalsSeenAt,
+  );
+  const hasNewProposals = (proposalsData ?? []).some(
+    (p) => p.status === "pending" && new Date(p.createdAt).getTime() > goalsSeenAt,
+  );
+  const hasNewEditProposals = (editProposalsBadge ?? []).some(
+    (p) => new Date(p.createdAt).getTime() > goalsSeenAt,
+  );
+  const showGoalsBadge = hasNewBadgeActivity || hasNewProposals || hasNewEditProposals;
 
   const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
     queryKey: ["splits-incoming-badge"],
@@ -348,11 +354,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const active = isActive(href);
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
-          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && (hasPendingProposals || hasPendingEditProposals || hasMyPendingEditProposals || hasMyShareProposals || hasGoalActivity));
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && showGoalsBadge);
           return (
             <Link
               key={href}
               href={href}
+              onClick={isGoals ? markGoalsSeen : undefined}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors
                           ${active ? "text-foreground" : showBadge ? "text-pink-400" : "text-muted-foreground"}`}
               data-testid={`nav-${href.replace("/", "") || "home"}`}

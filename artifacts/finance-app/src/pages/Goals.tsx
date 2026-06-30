@@ -67,6 +67,15 @@ type GoalActivity = {
   createdAt: string;
 };
 
+type MemberBreakdownRow = {
+  userId: number;
+  name: string;
+  memberColor: string;
+  allTimeAmount: number;
+  currentMonthAmount: number;
+  goalCurrency: string | null;
+};
+
 function localDismissedKey(userId: number | undefined) {
   return `goal_proposals_dismissed_${userId ?? "anon"}`;
 }
@@ -171,19 +180,31 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
   canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
+  isHousehold?: boolean;
 }) {
-  const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
   };
   const remove = useDeleteGoal({ mutation: { onSuccess: invalidate } });
+
+  const { data: memberBreakdown, isLoading: breakdownLoading } = useQuery<MemberBreakdownRow[]>({
+    queryKey: ["goal-member-breakdown", goal.id],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/member-breakdown`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!isHousehold && expanded,
+    staleTime: 60_000,
+  });
 
   // Contributions are stored in the goal's base currency; convert to viewer's currency for display
   const contributedInGoalCurrency = summary?.contributed ?? 0;
@@ -221,6 +242,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates }
           </div>
         </div>
 
+        {/* Total progress bar */}
         <div className="mb-2 space-y-1">
           <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
             <div
@@ -233,45 +255,102 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates }
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{fmtAmt(contributed, currency)} {t("goals.saved_amt")}</span>
-            <span>{fmtAmtRound(budget, currency)} {t("goals.goal_label")}</span>
+            <span className="font-medium">{t("goals.total_target")}: {fmtAmtRound(budget, currency)}</span>
           </div>
         </div>
 
+        {/* Monthly target indicator */}
         {monthlyTarget !== null && (
-          <p className="text-xs text-muted-foreground mb-3">
-            {t("goals.save_mo_for", { amt: fmtAmt(monthlyTarget, currency), ml, s: "" })}
-          </p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+            <span>{t("goals.monthly_target")}: {fmtAmt(monthlyTarget, currency)}</span>
+            <span className="text-muted-foreground/60">{ml}mo {t("common.remaining")}</span>
+          </div>
         )}
 
-        {confirmDelete ? (
-          <div className="flex gap-2">
-            <button onClick={() => setConfirmDelete(false)}
-              className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-              {t("common.cancel")}
-            </button>
-            <button onClick={() => remove.mutate({ id: goal.id })} disabled={remove.isPending}
-              className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40">
-              {remove.isPending ? t("common.deleting") : t("goals.delete_btn")}
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            {canEdit && (
-              <button onClick={onEdit}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                           bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
-                <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
-              </button>
-            )}
-            {canDelete && (
-              <button onClick={() => setConfirmDelete(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                           bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
-                <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
-              </button>
+        {/* Household member contributions expansion (household goals only) */}
+        {isHousehold && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="w-full flex items-center justify-between text-xs text-muted-foreground py-1.5 border-t border-border/50 mt-1 hover:text-foreground transition active:opacity-70"
+          >
+            <span className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              {t("goals.member_contributions")}
+            </span>
+            {expanded
+              ? <ChevronDown className="w-3.5 h-3.5" />
+              : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
+        )}
+
+        {isHousehold && expanded && (
+          <div className="mt-2 space-y-2.5">
+            {breakdownLoading ? (
+              <div className="flex justify-center py-2">
+                <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : !memberBreakdown || memberBreakdown.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 text-center py-1">{t("goals.no_contributions_yet")}</p>
+            ) : (
+              memberBreakdown.map(m => {
+                const gc = m.goalCurrency;
+                const dispTotal = gc && gc !== currency && hasRates
+                  ? convertAmount(m.allTimeAmount, gc, currency, rates) : m.allTimeAmount;
+                const dispMonth = gc && gc !== currency && hasRates
+                  ? convertAmount(m.currentMonthAmount, gc, currency, rates) : m.currentMonthAmount;
+                return (
+                  <div key={m.userId} className="flex items-center gap-2">
+                    <div
+                      className="w-5 h-5 rounded-full flex-shrink-0 border"
+                      style={{ backgroundColor: m.memberColor + "22", borderColor: m.memberColor }}
+                    />
+                    <span className="text-xs flex-1 truncate text-foreground/80">{m.name}</span>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-medium tabular-nums">{fmtAmt(dispTotal, currency)}</span>
+                      {goal.divideByMonths && (
+                        <span className="text-[10px] text-muted-foreground ml-1">
+                          ({fmtAmt(dispMonth, currency)}/{t("goals.this_month")})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}
+
+        <div className="mt-3">
+          {confirmDelete ? (
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDelete(false)}
+                className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                {t("common.cancel")}
+              </button>
+              <button onClick={() => remove.mutate({ id: goal.id })} disabled={remove.isPending}
+                className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40">
+                {remove.isPending ? t("common.deleting") : t("goals.delete_btn")}
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {canEdit && (
+                <button onClick={onEdit}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                             bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                  <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
+                </button>
+              )}
+              {canDelete && (
+                <button onClick={() => setConfirmDelete(true)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                             bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
+                  <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1158,7 +1237,7 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Household Activity Feed — goal_changed / goal_completed_total / goal_completed_monthly */}
+      {/* Household Activity Feed */}
       {isInHousehold && activityFeed && activityFeed.length > 0 && (
         <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
@@ -1179,7 +1258,7 @@ export default function GoalsPage() {
               <div key={a.id} className="px-4 py-3 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                   style={{ backgroundColor: (a.goalColor ?? "#818cf8") + "33" }}>
-                  {a.type === "goal_completed_total" || a.type === "goal_completed_monthly"
+                  {(a.type === "goal_completed_total" || a.type === "goal_completed_monthly" || a.type === "share_approved" || a.type === "edit_approved")
                     ? <CheckCircle2 className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
                     : <Target className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
                   }
@@ -1199,6 +1278,31 @@ export default function GoalsPage() {
                   {a.type === "goal_completed_monthly" && (
                     <p className="text-xs text-green-400 font-medium mt-0.5">
                       {t("goals.goal_completed_monthly_notif", { name: a.goalName })}
+                    </p>
+                  )}
+                  {a.type === "share_approved" && (
+                    <p className="text-xs text-green-400 font-medium mt-0.5">
+                      {t("goals.share_approved_notif")}
+                    </p>
+                  )}
+                  {a.type === "share_declined" && (
+                    <p className="text-xs text-destructive font-medium mt-0.5">
+                      {t("goals.share_declined_notif")}
+                    </p>
+                  )}
+                  {a.type === "edit_approved" && (
+                    <p className="text-xs text-green-400 font-medium mt-0.5">
+                      {t("goals.edit_approved_notif")}
+                    </p>
+                  )}
+                  {a.type === "edit_declined" && (
+                    <p className="text-xs text-destructive font-medium mt-0.5">
+                      {t("goals.edit_declined_notif")}
+                    </p>
+                  )}
+                  {a.type === "goal_created" && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("goals.goal_created_notif")}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground/60 mt-0.5">
@@ -1273,7 +1377,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold />
                   ))}
                 </div>
               ) : pendingHouseholdGoals.length === 0 ? (

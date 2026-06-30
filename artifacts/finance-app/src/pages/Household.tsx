@@ -32,7 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
   Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
-  Scissors, GitFork, GitMerge,
+  Scissors, GitFork, GitMerge, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,6 +114,70 @@ type GoalContribRow = {
   displayAmount: number;
   percentage: number;
 };
+
+type GoalMemberRow = {
+  userId: number;
+  name: string;
+  memberColor: string;
+  allTimeAmount: number;
+  currentMonthAmount: number;
+  goalCurrency: string | null;
+};
+
+function GoalBreakdownPanel({ goalId, divideByMonths, rates, viewerCurrency }: {
+  goalId: number;
+  divideByMonths: boolean;
+  rates: Record<string, number> | null;
+  viewerCurrency: string;
+}) {
+  const { data: breakdown, isLoading } = useQuery<GoalMemberRow[]>({
+    queryKey: ["goal-member-breakdown-hh", goalId],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goalId}/member-breakdown`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-2">
+        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+  if (!breakdown || breakdown.length === 0) {
+    return <p className="text-xs text-white/30 text-center py-1">{t("goals.no_contributions_yet")}</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {breakdown.map(m => {
+        const gc = m.goalCurrency;
+        const hasRates = !!rates && Object.keys(rates).length > 0;
+        const dispTotal = gc && gc !== viewerCurrency && hasRates
+          ? convertAmount(m.allTimeAmount, gc, viewerCurrency, rates!) : m.allTimeAmount;
+        const dispMonth = gc && gc !== viewerCurrency && hasRates
+          ? convertAmount(m.currentMonthAmount, gc, viewerCurrency, rates!) : m.currentMonthAmount;
+        return (
+          <div key={m.userId} className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 rounded-full flex-shrink-0 border"
+              style={{ backgroundColor: m.memberColor + "22", borderColor: m.memberColor }}
+            />
+            <span className="text-xs flex-1 truncate text-white/70">{m.name}</span>
+            <div className="text-right flex-shrink-0">
+              <span className="text-xs font-medium tabular-nums text-white/90">{fmtAmt(dispTotal, viewerCurrency)}</span>
+              {divideByMonths && (
+                <span className="text-[10px] text-white/30 ml-1">({fmtAmt(dispMonth, viewerCurrency)}/{t("goals.this_month")})</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function MemberSheet({
   member,
@@ -467,6 +531,7 @@ export default function HouseholdPage() {
   const [inviteRole, setInviteRole] = useState<"head" | "parent" | "child">("child");
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
+  const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
   const myMembership = members?.find(m => m.userId === me?.id);
@@ -971,6 +1036,7 @@ export default function HouseholdPage() {
                     ? convertAmount(contributedGoalCur, hhGoalCur, hhViewerCur, splitRates!)
                     : contributedGoalCur;
                   const pct = rawBudget > 0 ? Math.min((contributedGoalCur / rawBudget) * 100, 100) : 0;
+                  const isExpanded = expandedGoalId === g.id;
                   return (
                     <div key={g.id} className="px-4 py-3 space-y-2">
                       <div className="flex items-center gap-3">
@@ -986,7 +1052,7 @@ export default function HouseholdPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-semibold tabular-nums">{fmtAmtRound(contributedDisplay, hhViewerCur)}</p>
-                          <p className="text-xs text-white/40">{t("hh.of_goal")} {fmtAmtRound(goalBudgetDisplay, hhViewerCur)}</p>
+                          <p className="text-xs text-white/40">{t("goals.total_target")}: {fmtAmtRound(goalBudgetDisplay, hhViewerCur)}</p>
                         </div>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -998,9 +1064,31 @@ export default function HouseholdPage() {
                           }}
                         />
                       </div>
-                      <p className="text-xs text-white/30">
-                        {pct >= 100 ? t("hh.goal_reached") : `${pct.toFixed(0)}% ${t("hh.combined")}`}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-white/30">
+                          {pct >= 100 ? t("hh.goal_reached") : `${pct.toFixed(0)}% ${t("hh.combined")}`}
+                        </p>
+                        <button
+                          onClick={() => setExpandedGoalId(isExpanded ? null : g.id)}
+                          className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition active:opacity-70"
+                        >
+                          <Users className="w-3 h-3" />
+                          {t("goals.member_contributions")}
+                          {isExpanded
+                            ? <ChevronDown className="w-3 h-3" />
+                            : <ChevronRight className="w-3 h-3" />}
+                        </button>
+                      </div>
+                      {isExpanded && (
+                        <div className="pt-1 border-t border-white/5">
+                          <GoalBreakdownPanel
+                            goalId={g.id}
+                            divideByMonths={!!g.divideByMonths}
+                            rates={splitRates}
+                            viewerCurrency={hhViewerCur}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
