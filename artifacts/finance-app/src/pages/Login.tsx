@@ -43,6 +43,7 @@ export default function LoginPage() {
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [loginChecking, setLoginChecking] = useState(false);
+  const [loginPinLength, setLoginPinLength] = useState<number | null>(null);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -138,6 +139,7 @@ export default function LoginPage() {
           setLoginError(t("login.no_account"));
           return;
         }
+        setLoginPinLength(typeof data.pinLength === "number" ? data.pinLength : null);
       }
       // On non-2xx or ambiguous response: proceed to PIN screen
       // (the PIN submit itself will surface a more specific error)
@@ -153,6 +155,12 @@ export default function LoginPage() {
   function handleLoginPinChange(pin: string) {
     setLoginPin(pin);
     setLoginError("");
+    // Auto-submit only when we know the exact PIN length and the user has typed exactly that many digits
+    if (loginPinLength !== null && pin.length === loginPinLength && !login.isPending) {
+      setTimeout(() => {
+        login.mutate({ data: { email: loginEmail.trim(), password: pin } });
+      }, 120); // brief pause so the last dot renders before submitting
+    }
   }
 
   function handleLoginSubmit() {
@@ -325,18 +333,21 @@ export default function LoginPage() {
               value={loginPin}
               onChange={handleLoginPinChange}
               minLength={4}
-              maxLength={8}
+              maxLength={loginPinLength ?? 8}
               label={login.isPending ? t("login.signing_in") : undefined}
             />
           </div>
 
-          <Button
-            onClick={handleLoginSubmit}
-            disabled={loginPin.length < 4 || login.isPending}
-            className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
-          >
-            {login.isPending ? t("login.signing_in") : t("login.continue")}
-          </Button>
+          {/* Fallback button for legacy accounts without a stored PIN length */}
+          {loginPinLength === null && (
+            <Button
+              onClick={handleLoginSubmit}
+              disabled={loginPin.length < 4 || login.isPending}
+              className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
+            >
+              {login.isPending ? t("login.signing_in") : t("login.continue")}
+            </Button>
+          )}
         </div>
       )}
 

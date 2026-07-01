@@ -16,6 +16,7 @@ export const usersTable = pgTable("users", {
   dashboardBlocked: boolean("dashboard_blocked").notNull().default(false),
   language: text("language").notNull().default("en"),
   pendingHouseholdAlert: text("pending_household_alert"),
+  pinLength: integer("pin_length"),
   webhookToken: text("webhook_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

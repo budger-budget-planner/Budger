@@ -39,9 +39,9 @@ router.get("/auth/check-email", async (req, res): Promise<void> => {
   }
   const email = (req.query.email as string ?? "").toLowerCase().trim();
   if (!email) { res.status(400).json({ error: "Missing email" }); return; }
-  const [user] = await db.select({ id: usersTable.id }).from(usersTable)
-    .where(eq(usersTable.email, email));
-  res.json({ exists: !!user });
+  const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength })
+    .from(usersTable).where(eq(usersTable.email, email));
+  res.json({ exists: !!user, pinLength: user?.pinLength ?? null });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
@@ -130,6 +130,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     lastName,
     email,
     passwordHash,
+    pinLength: password.length,
     status,
     firstLoginDone: false,
   }).returning();
