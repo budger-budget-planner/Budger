@@ -1302,34 +1302,6 @@ export default function HomeSpending() {
                             /* ── Expanded: category + full badge pills ── */
                             <div className="mt-1 space-y-1.5">
                               <p className="text-xs text-muted-foreground">{catLabel}</p>
-                              {isUnknownCaptured && (
-                                nameEditTxId === tx.id ? (
-                                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                    <input
-                                      autoFocus
-                                      value={nameEditValue}
-                                      onChange={e => setNameEditValue(e.target.value)}
-                                      onKeyDown={e => {
-                                        if (e.key === "Enter") saveNameEdit(tx.id);
-                                        if (e.key === "Escape") setNameEditTxId(null);
-                                      }}
-                                      className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-muted border border-yellow-500/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-yellow-500/60"
-                                    />
-                                    <button
-                                      onClick={() => saveNameEdit(tx.id)}
-                                      className="text-[10px] font-semibold text-yellow-400 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/60 flex-shrink-0"
-                                    >{t("common.save")}</button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                    {t("tx.name_it")}
-                                  </button>
-                                )
-                              )}
                               {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasSplit && (
@@ -1358,6 +1330,34 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                 </div>
+                              )}
+                              {isUnknownCaptured && (
+                                nameEditTxId === tx.id ? (
+                                  <div className="flex items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
+                                    <input
+                                      autoFocus
+                                      value={nameEditValue}
+                                      onChange={e => setNameEditValue(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === "Enter") saveNameEdit(tx.id);
+                                        if (e.key === "Escape") setNameEditTxId(null);
+                                      }}
+                                      className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-muted border border-yellow-500/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-yellow-500/60"
+                                    />
+                                    <button
+                                      onClick={() => saveNameEdit(tx.id)}
+                                      className="text-[10px] font-semibold text-yellow-400 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/60 flex-shrink-0"
+                                    >{t("common.save")}</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20 mt-1"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                    {t("tx.name_it")}
+                                  </button>
+                                )
                               )}
                             </div>
                           ) : (
