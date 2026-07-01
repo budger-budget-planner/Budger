@@ -844,8 +844,8 @@ export default function HomeSpending() {
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
-  const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
-  const [nameEditValue, setNameEditValue] = useState("");
+  const [renameTx,    setRenameTx]    = useState<any | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -993,12 +993,13 @@ export default function HomeSpending() {
     );
   }
 
-  function saveNameEdit(txId: number) {
-    const trimmed = nameEditValue.trim();
+  function saveRename() {
+    if (!renameTx) return;
+    const trimmed = renameValue.trim();
     if (!trimmed) return;
     update.mutate(
-      { id: txId, data: { description: trimmed } },
-      { onSuccess: () => setNameEditTxId(null) },
+      { id: renameTx.id, data: { description: trimmed } },
+      { onSuccess: () => setRenameTx(null) },
     );
   }
 
@@ -1303,32 +1304,13 @@ export default function HomeSpending() {
                             <div className="mt-1 space-y-1.5">
                               <p className="text-xs text-muted-foreground">{catLabel}</p>
                               {isUnknownCaptured && (
-                                nameEditTxId === tx.id ? (
-                                  <div className="flex items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
-                                    <input
-                                      autoFocus
-                                      value={nameEditValue}
-                                      onChange={e => setNameEditValue(e.target.value)}
-                                      onKeyDown={e => {
-                                        if (e.key === "Enter") saveNameEdit(tx.id);
-                                        if (e.key === "Escape") setNameEditTxId(null);
-                                      }}
-                                      className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-muted border border-yellow-500/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-yellow-500/60"
-                                    />
-                                    <button
-                                      onClick={() => saveNameEdit(tx.id)}
-                                      className="text-[10px] font-semibold text-yellow-400 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/60 flex-shrink-0"
-                                    >{t("common.save")}</button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20 mt-1"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                    {t("tx.name_it")}
-                                  </button>
-                                )
+                                <button
+                                  onClick={e => { e.stopPropagation(); setRenameTx(tx); setRenameValue(tx.description); setActionTx(null); }}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20 mt-1"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                  {t("tx.name_it")}
+                                </button>
                               )}
                               {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
                                 <div className="flex flex-wrap gap-1">
@@ -1475,7 +1457,57 @@ export default function HomeSpending() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Edit dialog ── */}
+      {/* ── Rename "Unknown, Captured Online" dialog ── */}
+      <Dialog open={!!renameTx} onOpenChange={() => setRenameTx(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-400">
+              <Pencil className="w-4 h-4" />
+              {t("tx.name_it")}
+            </DialogTitle>
+          </DialogHeader>
+          {renameTx && (
+            <form onSubmit={e => { e.preventDefault(); saveRename(); }} className="space-y-4">
+              {/* Name — enabled, auto-focused */}
+              <div className="space-y-1.5">
+                <Label>{t("home.description")}</Label>
+                <Input
+                  autoFocus
+                  placeholder={t("home.coffee_placeholder")}
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  required
+                  className="border-yellow-500/50 focus-visible:ring-yellow-500/50"
+                />
+              </div>
+
+              {/* Greyed-out context fields */}
+              <div className="space-y-3 opacity-40 pointer-events-none select-none">
+                <div className="space-y-1.5">
+                  <Label>{t("common.amount")}</Label>
+                  <Input disabled value={`${Number(renameTx.amount).toFixed(2)} ${renameTx.transactionCurrency ?? prefs.currency}`} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("home.category")}</Label>
+                  <Input disabled value={renameTx.categoryName ?? t("common.uncategorized")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("common.date")}</Label>
+                  <Input disabled value={renameTx.date ?? ""} />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setRenameTx(null)}>{t("common.cancel")}</Button>
+                <Button type="submit" className="flex-1 bg-yellow-500/20 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500/30" disabled={update.isPending || !renameValue.trim()}>
+                  {update.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("home.edit_tx_title")}</DialogTitle></DialogHeader>
