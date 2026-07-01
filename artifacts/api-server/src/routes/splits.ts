@@ -76,9 +76,23 @@ router.post("/splits", async (req, res): Promise<void> => {
 
   // Block if the remaining amount after the split would be less than what is already
   // dedicated to a goal — the issuer must keep at least that much on their record.
+  // We compare in the transaction's native currency (issuerCurrency):
+  //   - prefer accountAmount/accountCurrency (user-currency amount stored since the fix)
+  //   - fall back to amount/currency when currencies match
+  //   - skip contributions whose stored currency doesn't match and no accountAmount exists
   const contributions = await db.select().from(goalContributionsTable)
     .where(eq(goalContributionsTable.transactionId, transactionId));
-  const totalGoalAmount = contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+  const txCurrency = issuerCurrency ?? "PLN";
+  let totalGoalAmount = 0;
+  for (const c of contributions) {
+    if (c.accountAmount != null && c.accountCurrency != null) {
+      if (c.accountCurrency === txCurrency) {
+        totalGoalAmount += parseFloat(c.accountAmount);
+      }
+    } else if (c.currency === txCurrency) {
+      totalGoalAmount += parseFloat(c.amount);
+    }
+  }
   if (totalGoalAmount > 0) {
     const remaining = parseFloat(tx.amount) - splitAmount;
     if (remaining < totalGoalAmount) {

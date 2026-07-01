@@ -8,6 +8,8 @@ export const goalContributionsTable = pgTable("goal_contributions", {
   transactionId: integer("transaction_id"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency"),
+  accountAmount: numeric("account_amount", { precision: 12, scale: 2 }),
+  accountCurrency: text("account_currency"),
   month: text("month").notNull(),
   userId: integer("user_id").notNull(),
   householdId: integer("household_id"),

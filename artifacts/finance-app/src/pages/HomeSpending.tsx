@@ -548,16 +548,19 @@ async function syncGoalContribution(opts: {
     fetch(`/api/goal-contributions/${id}`, { method: "DELETE", credentials: "include" }),
   ));
 
-  // Create new contribution if needed, converted to goal's base currency
+  // Create new contribution if needed, converted to goal's base currency.
+  // We also store accountAmount/accountCurrency (the pre-conversion user-currency amount)
+  // so that split validation can compare amounts in the same currency as the transaction.
   if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
     const month = dateToMonth(txDate);
     const goal = goals.find((g: any) => String(g.id) === String(goalId));
     const goalCurrency: string = (goal as any)?.currency ?? userCurrency;
-    let contribAmount = parseFloat(goalAmount);
+    const accountAmt = parseFloat(goalAmount);
+    let contribAmount = accountAmt;
     if (goalCurrency !== userCurrency) {
       try {
         const rates = await fetchRates();
-        contribAmount = convertAmount(parseFloat(goalAmount), userCurrency, goalCurrency, rates);
+        contribAmount = convertAmount(accountAmt, userCurrency, goalCurrency, rates);
       } catch { /* keep unconverted if fetch fails */ }
     }
     await fetch("/api/goal-contributions", {
@@ -569,6 +572,8 @@ async function syncGoalContribution(opts: {
         transactionId: txId,
         amount: contribAmount,
         currency: goalCurrency,
+        accountAmount: accountAmt,
+        accountCurrency: userCurrency,
         month,
       }),
     });
@@ -894,16 +899,18 @@ export default function HomeSpending() {
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
 
   // Map transactionId → contribution (for display + edit pre-fill)
-  const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null }>();
+  const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null; accountAmount: number | null; accountCurrency: string | null }>();
   for (const c of contributions ?? []) {
-    if (c.transactionId != null && c.goalName) {
+    if (c.transactionId != null) {
       contribByTxId.set(c.transactionId, {
         id: c.id,
         goalId: c.goalId,
-        name: c.goalName,
+        name: c.goalName ?? "",
         color: c.goalColor ?? "#888",
         amount: c.amount,
         currency: (c as any).currency ?? null,
+        accountAmount: (c as any).accountAmount ?? null,
+        accountCurrency: (c as any).accountCurrency ?? null,
       });
     }
   }

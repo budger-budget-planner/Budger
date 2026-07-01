@@ -30,6 +30,8 @@ function formatContribution(c: any, goal?: any) {
     transactionId: c.transactionId ?? null,
     amount: parseFloat(c.amount),
     currency: c.currency ?? null,
+    accountAmount: c.accountAmount != null ? parseFloat(c.accountAmount) : null,
+    accountCurrency: c.accountCurrency ?? null,
     month: c.month,
     userId: c.userId,
     householdId: c.householdId ?? null,
@@ -690,7 +692,7 @@ router.get("/goal-contributions", async (req, res): Promise<void> => {
 router.post("/goal-contributions", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-  const { goalId, transactionId, amount, month, currency } = req.body;
+  const { goalId, transactionId, amount, month, currency, accountAmount, accountCurrency } = req.body;
   if (!goalId || !amount) { res.status(400).json({ error: "goalId and amount required" }); return; }
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -702,6 +704,8 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
     transactionId: transactionId ? parseInt(transactionId) : null,
     amount: String(parseFloat(amount)),
     currency: currency ?? null,
+    accountAmount: accountAmount != null ? String(parseFloat(accountAmount)) : null,
+    accountCurrency: accountCurrency ?? null,
     month: contribMonth,
     userId,
     householdId: user?.householdId ?? null,
