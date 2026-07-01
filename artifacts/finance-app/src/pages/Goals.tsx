@@ -218,8 +218,9 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
     ? convertAmount(rawBudget, goalCur, currency, rates)
     : rawBudget;
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
-  const ml = monthsLeft(goal.deadline);
-  const monthlyTarget = goal.divideByMonths
+  const isTbd = goal.deadline === "TBD";
+  const ml = isTbd ? null : monthsLeft(goal.deadline);
+  const monthlyTarget = goal.divideByMonths && ml
     ? Math.ceil(Math.max(0, budget - contributed) / ml * 100) / 100
     : null;
 
@@ -237,7 +238,9 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
             <p className="text-xs text-muted-foreground">
-              {t("goals.target_due", { amt: fmtAmtRound(Number(budget), currency), date: goal.deadline })}
+              {isTbd
+                ? t("goals.target_due", { amt: fmtAmtRound(Number(budget), currency), date: t("goals.date_tbd") })
+                : t("goals.target_due", { amt: fmtAmtRound(Number(budget), currency), date: goal.deadline })}
             </p>
           </div>
         </div>
@@ -358,17 +361,20 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
 
 function GoalFormFields({
   name, setName, color, setColor, budget, setBudget,
-  deadline, setDeadline, divideByMonths, setDivideByMonths, sym, alreadyContributed = 0,
+  deadline, setDeadline, divideByMonths, setDivideByMonths,
+  dateTbd, setDateTbd,
+  sym, alreadyContributed = 0,
 }: {
   name: string; setName: (v: string) => void;
   color: string; setColor: (v: string) => void;
   budget: string; setBudget: (v: string) => void;
   deadline: string; setDeadline: (v: string) => void;
   divideByMonths: boolean; setDivideByMonths: (v: boolean) => void;
+  dateTbd: boolean; setDateTbd: (v: boolean) => void;
   sym: string;
   alreadyContributed?: number;
 }) {
-  const ml = deadline ? monthsLeft(deadline) : null;
+  const ml = (!dateTbd && deadline) ? monthsLeft(deadline) : null;
   const budgetNum = parseFloat(budget) || 0;
   const remaining = Math.max(0, budgetNum - alreadyContributed);
   const monthly = ml && budgetNum > 0 && divideByMonths
@@ -393,11 +399,33 @@ function GoalFormFields({
             onChange={e => setBudget(e.target.value)} className="pl-7" required />
         </div>
       </div>
+
+      {/* Deadline row with TBD toggle */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">{t("goals.deadline")}</Label>
-        <DdMmYyyyInput value={deadline} onChange={setDeadline} required />
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">{t("goals.deadline")}</Label>
+          <button
+            type="button"
+            onClick={() => { setDateTbd(!dateTbd); if (!dateTbd) setDeadline(""); }}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+          >
+            <span className={`w-7 h-4 rounded-full relative transition-colors ${dateTbd ? "bg-foreground" : "bg-muted border border-border"}`}>
+              <span className="absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all"
+                style={{ left: dateTbd ? "calc(100% - 0.875rem)" : "0.125rem" }} />
+            </span>
+            {t("goals.date_tbd")}
+          </button>
+        </div>
+        {dateTbd ? (
+          <div className="px-3 py-2.5 rounded-xl bg-muted/40 border border-border text-sm text-muted-foreground">
+            {t("goals.date_tbd")}
+          </div>
+        ) : (
+          <DdMmYyyyInput value={deadline} onChange={setDeadline} required={!dateTbd} />
+        )}
       </div>
-      <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-muted/50 border border-border">
+
+      <div className={`flex items-center gap-3 py-2 px-3 rounded-xl bg-muted/50 border border-border ${dateTbd ? "opacity-40 pointer-events-none" : ""}`}>
         <div className="flex-1">
           <p className="text-sm font-medium">{t("goals.divide_mo")}</p>
           <p className="text-xs text-muted-foreground">
@@ -408,14 +436,14 @@ function GoalFormFields({
         </div>
         <button
           type="button"
-          onClick={() => setDivideByMonths(!divideByMonths)}
+          onClick={() => !dateTbd && setDivideByMonths(!divideByMonths)}
           className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${
-            divideByMonths ? "bg-foreground" : "bg-muted border border-border"
+            divideByMonths && !dateTbd ? "bg-foreground" : "bg-muted border border-border"
           }`}
         >
           <span
             className="absolute top-0.5 w-5 h-5 rounded-full bg-background transition-all"
-            style={{ left: divideByMonths ? "calc(100% - 1.375rem)" : "0.125rem" }}
+            style={{ left: divideByMonths && !dateTbd ? "calc(100% - 1.375rem)" : "0.125rem" }}
           />
         </button>
       </div>
@@ -440,8 +468,9 @@ function EditGoalDialog({
   const [name, setName]                     = useState(goal.name);
   const [color, setColor]                   = useState(goal.color);
   const [budget, setBudget]                 = useState(prefillBudget);
-  const [deadline, setDeadline]             = useState(goal.deadline);
+  const [deadline, setDeadline]             = useState(goal.deadline === "TBD" ? "" : goal.deadline);
   const [divideByMonths, setDivideByMonths] = useState(goal.divideByMonths);
+  const [dateTbd, setDateTbd]               = useState(goal.deadline === "TBD");
   const [proposeState, setProposeState]     = useState<"idle" | "pending" | "sent" | "already">("idle");
   const [editProposeState, setEditProposeState] = useState<"idle" | "pending" | "sent">("idle");
   const [togglingHousehold, setTogglingHousehold] = useState(false);
@@ -470,12 +499,12 @@ function EditGoalDialog({
   });
 
   function handleSave() {
-    if (!name.trim() || !budget || !deadline) return;
+    if (!name.trim() || !budget || (!deadline && !dateTbd)) return;
     const budgetNum = parseFloat(budget);
     const canonicalBudget = goalCurrency !== userCurrency
       ? convertAmount(budgetNum, userCurrency, goalCurrency, rates)
       : budgetNum;
-    update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: canonicalBudget, deadline, divideByMonths } });
+    update.mutate({ id: goal.id, data: { name: name.trim(), color, budget: canonicalBudget, deadline: dateTbd ? "TBD" : deadline, divideByMonths: dateTbd ? false : divideByMonths } });
   }
 
   async function handleProposeEdit() {
@@ -544,6 +573,7 @@ function EditGoalDialog({
           budget={budget} setBudget={setBudget}
           deadline={deadline} setDeadline={setDeadline}
           divideByMonths={divideByMonths} setDivideByMonths={setDivideByMonths}
+          dateTbd={dateTbd} setDateTbd={setDateTbd}
           sym={sym}
           alreadyContributed={alreadyContributed}
         />
@@ -727,6 +757,7 @@ export default function GoalsPage() {
   const [newBudget,             setNewBudget]             = useState("");
   const [newDeadline,           setNewDeadline]           = useState("");
   const [newDivide,             setNewDivide]             = useState(false);
+  const [newTbd,                setNewTbd]                = useState(false);
   const [newProposeToHousehold, setNewProposeToHousehold] = useState(false);
   const [proposingAfterCreate,  setProposingAfterCreate]  = useState(false);
   const [decliningShareId,  setDecliningShareId]  = useState<number | null>(null);
@@ -874,7 +905,7 @@ export default function GoalsPage() {
           }
         }
         setAddOpen(false);
-        setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewDeadline(""); setNewDivide(false);
+        setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewDeadline(""); setNewDivide(false); setNewTbd(false);
         setNewProposeToHousehold(false);
       },
     },
@@ -892,8 +923,8 @@ export default function GoalsPage() {
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim() || !newBudget || !newDeadline) return;
-    create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newDeadline, divideByMonths: newDivide } });
+    if (!newName.trim() || !newBudget || (!newDeadline && !newTbd)) return;
+    create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newTbd ? "TBD" : newDeadline, divideByMonths: newTbd ? false : newDivide } });
   }
 
   // Household goal: head OR original creator can edit (via propose-edit for creator)
@@ -1457,6 +1488,7 @@ export default function GoalsPage() {
               budget={newBudget} setBudget={setNewBudget}
               deadline={newDeadline} setDeadline={setNewDeadline}
               divideByMonths={newDivide} setDivideByMonths={setNewDivide}
+              dateTbd={newTbd} setDateTbd={setNewTbd}
               sym={sym}
             />
             {/* Propose-to-household toggle (non-head members only) */}

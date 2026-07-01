@@ -146,6 +146,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.goal_name":    { en: "Goal name",                  pl: "Nazwa celu"                     },
   "goals.target_amt":   { en: "Target amount",              pl: "Kwota docelowa"                 },
   "goals.deadline":     { en: "Deadline",                   pl: "Termin"                         },
+  "goals.date_tbd":     { en: "Date Unknown",               pl: "Data Nieznana"                  },
+  "goals.no_deadline":  { en: "No deadline",                pl: "Brak terminu"                   },
   "goals.divide_mo":    { en: "Divide by months left",      pl: "Podziel przez pozostałe miesiące"},
   "goals.calc_monthly": { en: "Calculate required monthly savings", pl: "Oblicz wymagane miesięczne oszczędności"},
   "goals.visibility":   { en: "Goal Visibility",            pl: "Widoczność celu"                },

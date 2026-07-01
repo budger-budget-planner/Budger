@@ -382,6 +382,10 @@ function SplitSheet({
     ? parseFloat(splitValue) || 0
     : ((parseFloat(splitValue) || 0) / 100) * txAmount;
 
+  // For locked or foreign-currency transactions, show amounts in the transaction's
+  // own currency, not the account currency.
+  const effectiveSym = tx.transactionCurrency ? currencySymbol(tx.transactionCurrency) : sym;
+
   const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -421,7 +425,7 @@ function SplitSheet({
           <Scissors className="w-5 h-5 text-muted-foreground" />
           <div>
             <p className="font-semibold text-sm">{t("split.title")}</p>
-            <p className="text-xs text-muted-foreground truncate">{tx.description} · {sym}{txAmount.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground truncate">{tx.description} · {effectiveSym}{txAmount.toFixed(2)}</p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -447,7 +451,7 @@ function SplitSheet({
               <div className="flex rounded-lg border border-border overflow-hidden text-xs">
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "amount" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
-                  onClick={() => { setSplitMode("amount"); setSplitValue(""); }}>{sym}</button>
+                  onClick={() => { setSplitMode("amount"); setSplitValue(""); }}>{effectiveSym}</button>
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "percent" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
                   onClick={() => { setSplitMode("percent"); setSplitValue(""); }}>%</button>
@@ -455,7 +459,7 @@ function SplitSheet({
             </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                {splitMode === "amount" ? sym : "%"}
+                {splitMode === "amount" ? effectiveSym : "%"}
               </span>
               <Input type="number" min="0.01" step={splitMode === "amount" ? "0.01" : "1"}
                 max={splitMode === "amount" ? txAmount : 100}
@@ -464,7 +468,7 @@ function SplitSheet({
             </div>
             {splitValue && splitAmt > 0 && (
               <p className="text-xs text-muted-foreground">
-                {t("split.recipient_pays")}: {sym}{splitAmt.toFixed(2)} · {t("split.you_pay")}: {sym}{(txAmount - splitAmt).toFixed(2)}
+                {t("split.recipient_pays")}: {effectiveSym}{splitAmt.toFixed(2)} · {t("split.you_pay")}: {effectiveSym}{(txAmount - splitAmt).toFixed(2)}
               </p>
             )}
           </div>
@@ -1627,7 +1631,7 @@ export default function HomeSpending() {
           members={(householdMembers as any[]) ?? []}
           myUserId={myUserId}
           sym={sym}
-          issuerCurrency={prefs.currency}
+          issuerCurrency={splitTx.transactionCurrency ?? prefs.currency}
           onClose={() => setSplitTx(null)}
           onSuccess={() => {
             setSplitTx(null);
