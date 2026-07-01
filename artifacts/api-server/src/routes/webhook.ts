@@ -205,24 +205,22 @@ function parseTransactionPayload(
     }
   }
 
-  if (amount === null) {
-    return {
-      amount,
-      currency,
-      merchant,
-      path,
-      error: "Could not extract amount from payload",
-    };
-  }
-
-  // If we have an amount but no merchant, fall back to a generic name
+  // Always fall back gracefully so the transaction is recorded.
+  // If no merchant was found, use a placeholder the user can rename.
   if (!merchant) {
     merchant = "Unknown, Captured Online";
   }
 
-  // At this point path is always "structured" or "raw_text" — "unknown" only
-  // occurs when raw is neither string nor object, making extraction impossible.
-  return { amount, currency, merchant, path: path as "structured" | "raw_text" };
+  // If no amount could be extracted (e.g. empty input, unrecognised format),
+  // save as 0 so the capture is not lost — the user can edit the amount later.
+  if (amount === null) {
+    amount = 0;
+  }
+
+  const resolvedPath: "structured" | "raw_text" =
+    path === "unknown" ? "raw_text" : (path as "structured" | "raw_text");
+
+  return { amount, currency, merchant, path: resolvedPath };
 }
 
 // ── GET /webhook/result/:token/:txId — pre-rendered SVG result card ──────────
