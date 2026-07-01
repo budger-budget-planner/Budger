@@ -48,11 +48,11 @@ const SNIFF_SLOTS = [
   { start: 0.145, srcOffset: 0.145, srcDuration: 0.145 },
   { start: 0.290, srcOffset: 0.290, srcDuration: 0.145 },
   { start: 0.435, srcOffset: 0.435, srcDuration: 0.145 },
-  { start: 0.580, srcOffset: 0.580, srcDuration: 0.580 },
+  { start: 0.580, srcOffset: 0.580, srcDuration: 1.0 },
 ];
 
 // Total output duration of the sequence (seconds) — used to schedule the fade-out
-const SEQUENCE_DURATION = 0.580 + 0.580; // 1.160 s
+const SEQUENCE_DURATION = 0.580 + 1.0; // 1.580 s
 
 // Singletons — created once, reused across calls
 let _ctx: AudioContext | null = null;
@@ -100,7 +100,7 @@ export async function playSniffSound(): Promise<void> {
       // On the last (sustained) sniff, schedule a gradual fade-out over the
       // final 0.45 s so it tails off naturally instead of cutting abruptly.
       if (i === SNIFF_SLOTS.length - 1) {
-        const fadeStart = now + SEQUENCE_DURATION - 0.45;
+        const fadeStart = now + SEQUENCE_DURATION - 0.65;
         gain.gain.setValueAtTime(0.9, fadeStart);
         gain.gain.linearRampToValueAtTime(0, now + SEQUENCE_DURATION);
       }
