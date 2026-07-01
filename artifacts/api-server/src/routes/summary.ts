@@ -280,6 +280,7 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
       goalId: g.id,
       goalName: g.name,
       goalColor: g.color,
+      goalCurrency: g.currency ?? null,
       householdId: g.householdId ?? null,
       budget,
       deadline: g.deadline,

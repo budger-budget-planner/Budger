@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { fetchRates, convertAmount } from "@/lib/rates";
 import {
   useGetSpendingSummary,
   useGetMonthlySummary,
@@ -40,6 +41,9 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
+  const [rates, setRates] = useState<Record<string, number>>({});
+
+  useEffect(() => { fetchRates().then(setRates); }, []);
 
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
@@ -52,7 +56,14 @@ export default function DashboardPage() {
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
 
-  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
+  // Convert each goal's contribution from its stored currency to the user's display currency
+  function toUserCurrency(amount: number, goalCurrency: string | null): number {
+    if (!goalCurrency || goalCurrency === prefs.currency || Object.keys(rates).length === 0) return amount;
+    return convertAmount(amount, goalCurrency, prefs.currency, rates);
+  }
+
+  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) =>
+    s + toUserCurrency(g.contributed, (g as any).goalCurrency), 0);
   const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
 
   return (
