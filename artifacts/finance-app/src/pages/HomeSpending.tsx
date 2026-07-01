@@ -129,6 +129,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           value={form.description}
           onChange={e => set("description", e.target.value)}
           required
+          className="border-zinc-500/50 focus-visible:ring-zinc-500/50"
         />
       </div>
 
@@ -235,7 +236,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button
           type="submit"
-          className="flex-1"
+          className="flex-1 bg-zinc-500/10 border border-zinc-500/40 text-foreground hover:bg-zinc-500/20"
           disabled={loading || !!goalAmountError || (form.isGoalExpense && (!form.goalId || form.goalId === "none"))}
           data-testid="button-save-transaction"
         >
@@ -1468,6 +1469,14 @@ export default function HomeSpending() {
           </DialogHeader>
           {renameTx && (
             <form onSubmit={e => { e.preventDefault(); saveRename(); }} className="space-y-4">
+              {/* Greyed-out context fields above */}
+              <div className="space-y-3 opacity-40 pointer-events-none select-none">
+                <div className="space-y-1.5">
+                  <Label>{t("common.amount")}</Label>
+                  <Input disabled value={`${Number(renameTx.amount).toFixed(2)} ${renameTx.transactionCurrency ?? prefs.currency}`} />
+                </div>
+              </div>
+
               {/* Name — enabled, auto-focused */}
               <div className="space-y-1.5">
                 <Label>{t("home.description")}</Label>
@@ -1481,12 +1490,8 @@ export default function HomeSpending() {
                 />
               </div>
 
-              {/* Greyed-out context fields */}
+              {/* Remaining greyed-out context fields */}
               <div className="space-y-3 opacity-40 pointer-events-none select-none">
-                <div className="space-y-1.5">
-                  <Label>{t("common.amount")}</Label>
-                  <Input disabled value={`${Number(renameTx.amount).toFixed(2)} ${renameTx.transactionCurrency ?? prefs.currency}`} />
-                </div>
                 <div className="space-y-1.5">
                   <Label>{t("home.category")}</Label>
                   <Input disabled value={renameTx.categoryName ?? t("common.uncategorized")} />
