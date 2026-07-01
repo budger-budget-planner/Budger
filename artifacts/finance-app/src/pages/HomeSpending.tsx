@@ -111,12 +111,18 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
         <Label>{t("common.amount")}</Label>
         <Input
           data-testid="input-amount"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
+          inputMode="decimal"
           placeholder="0.00"
           value={form.amount}
-          onChange={e => set("amount", e.target.value)}
+          onChange={e => {
+            const v = e.target.value;
+            if (v === "" || /^\d*\.?\d*$/.test(v)) set("amount", v);
+          }}
+          onBlur={() => {
+            const n = parseFloat(form.amount);
+            if (!isNaN(n)) set("amount", n.toFixed(2));
+          }}
           required
         />
       </div>
@@ -191,13 +197,18 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
               <div className="space-y-1.5">
                 <Label>{t("home.amount_toward_goal")}</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={form.amount || undefined}
+                  type="text"
+                  inputMode="decimal"
                   placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
                   value={form.goalAmount}
-                  onChange={e => set("goalAmount", e.target.value)}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
+                  }}
+                  onBlur={() => {
+                    const n = parseFloat(form.goalAmount);
+                    if (!isNaN(n)) set("goalAmount", n.toFixed(2));
+                  }}
                   required={form.isGoalExpense}
                 />
                 {goalAmountError && (
