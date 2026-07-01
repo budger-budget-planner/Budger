@@ -200,16 +200,31 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {goalsSummary.slice(0, 5).map((item, i) => {
                 const color = item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length];
-                const pct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
+                const totalPct = Math.min(item.percentage, 100);
+                const monthlyPct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
                   ? Math.min((item.contributed / item.monthlyTarget) * 100, 100)
-                  : Math.min(item.percentage, 100);
+                  : null;
+                const barPct = monthlyPct ?? totalPct;
                 return (
                   <div key={item.goalId} className="space-y-1">
-                    <p className="text-xs font-medium truncate">{item.goalName}</p>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-xs font-medium truncate">{item.goalName}</p>
+                      <div className="flex items-baseline gap-1.5 flex-shrink-0 text-[10px] text-muted-foreground">
+                        {monthlyPct !== null && (
+                          <span className={monthlyPct >= 100 ? "text-[#34d399]" : ""}>
+                            {monthlyPct.toFixed(0)}% mo
+                          </span>
+                        )}
+                        {monthlyPct !== null && <span className="opacity-30">·</span>}
+                        <span className={totalPct >= 100 ? "text-[#34d399]" : ""}>
+                          {totalPct.toFixed(0)}% total
+                        </span>
+                      </div>
+                    </div>
                     <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: pct >= 100 ? "#34d399" : color }}
+                        style={{ width: `${barPct}%`, backgroundColor: barPct >= 100 ? "#34d399" : color }}
                       />
                     </div>
                   </div>
