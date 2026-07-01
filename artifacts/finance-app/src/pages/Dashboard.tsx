@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   useGetSpendingSummary,
   useGetMonthlySummary,
@@ -36,6 +37,7 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
 
 export default function DashboardPage() {
   const prefs = loadPrefs();
+  const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
 
@@ -185,88 +187,36 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Goals contributions chart */}
+        {/* Goals progress — simplified */}
         {goalsSummary && goalsSummary.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl p-4">
+          <button
+            onClick={() => navigate("/goals")}
+            className="w-full text-left bg-card border border-border rounded-2xl p-4 active:scale-[0.99] transition-transform"
+          >
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-muted-foreground" />
               <p className="text-sm font-semibold">{t("dashboard.goals_progress")}</p>
             </div>
-            {activeGoalsWithContribs.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
-                  <ResponsiveContainer width={140} height={140}>
-                    <PieChart style={{ outline: "none" }}>
-                      <Pie
-                        data={goalsSummary.filter(g => g.contributed > 0)}
-                        dataKey="contributed"
-                        cx="50%" cy="50%"
-                        innerRadius={38} outerRadius={64} paddingAngle={2}
-                        style={{ outline: "none" }}
-                      >
-                        {goalsSummary.filter(g => g.contributed > 0).map((entry, i) => (
-                          <Cell key={entry.goalId} fill={entry.goalColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex-1 space-y-2 min-w-0">
-                  {goalsSummary.slice(0, 6).map((item, i) => {
-                    const displayPct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
-                      ? Math.round((item.contributed / item.monthlyTarget) * 10000) / 100
-                      : item.percentage;
-                    const color = item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length];
-                    return (
-                      <div key={item.goalId} className="space-y-0.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                            <span className="text-muted-foreground truncate">{item.goalName}</span>
-                          </div>
-                          <span className="font-semibold ml-2 flex-shrink-0">{fmtAmt(item.contributed, prefs.currency)}</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                          <div className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${Math.min(displayPct, 100)}%`,
-                              backgroundColor: displayPct >= 100 ? "#34d399" : color,
-                            }}
-                          />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {displayPct.toFixed(0)}%{" "}
-                          {item.divideByMonths && item.monthlyTarget
-                            ? `${t("common.of")} ${fmtAmt(item.monthlyTarget, prefs.currency)}${t("dashboard.mo_target")}`
-                            : `${t("common.of")} ${fmtAmtRound(item.budget, prefs.currency)} ${t("dashboard.total_goal")}`}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {goalsSummary.slice(0, 5).map((item, i) => (
-                  <div key={item.goalId} className="space-y-0.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-muted-foreground">{item.goalName}</span>
-                      </div>
-                      <span className="text-muted-foreground">{t("dashboard.no_contributions")}</span>
+            <div className="space-y-3">
+              {goalsSummary.slice(0, 5).map((item, i) => {
+                const color = item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length];
+                const pct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
+                  ? Math.min((item.contributed / item.monthlyTarget) * 100, 100)
+                  : Math.min(item.percentage, 100);
+                return (
+                  <div key={item.goalId} className="space-y-1">
+                    <p className="text-xs font-medium truncate">{item.goalName}</p>
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: pct >= 100 ? "#34d399" : color }}
+                      />
                     </div>
-                    <div className="w-full bg-muted rounded-full h-1" />
-                    <p className="text-[10px] text-muted-foreground">
-                      {t("goals.target")} {fmtAmtRound(item.budget, prefs.currency)} {t("dashboard.by")} {item.deadline}
-                      {item.monthlyTarget ? ` · ${fmtAmtRound(item.monthlyTarget, prefs.currency)}${t("dashboard.mo_needed")}` : ""}
-                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          </button>
         )}
 
         {/* Monthly trend */}
