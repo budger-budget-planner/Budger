@@ -324,10 +324,7 @@ export default function LoginPage() {
             >
               {t("login.forgot")}
             </button>
-            {loginError && (
-              <p className="text-sm text-destructive text-center mt-1">{loginError}</p>
-            )}
-          </div>
+            </div>
 
           <div className="login-enter login-enter-d3 w-full">
             <PinKeyboard
@@ -336,8 +333,7 @@ export default function LoginPage() {
               minLength={4}
               maxLength={loginPinLength ?? 8}
               label={login.isPending ? t("login.signing_in") : undefined}
-              onSubmit={loginPinLength === null ? handleLoginSubmit : undefined}
-              canSubmit={loginPinLength === null && loginPin.length >= 4 && !login.isPending}
+              error={loginError || undefined}
             />
           </div>
         </div>
