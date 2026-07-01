@@ -650,6 +650,24 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
 router.get("/goal-contributions", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  // If a transactionId is supplied, return all contributions for that transaction
+  // across ALL months — no month filter needed.
+  const transactionIdFilter = typeof req.query.transactionId === "string"
+    ? parseInt(req.query.transactionId) : null;
+
+  if (transactionIdFilter && !isNaN(transactionIdFilter)) {
+    const contribs = await db.select().from(goalContributionsTable)
+      .where(and(
+        eq(goalContributionsTable.userId, userId),
+        eq(goalContributionsTable.transactionId, transactionIdFilter),
+      ));
+    const goals = await db.select().from(goalsTable);
+    const goalMap = new Map(goals.map(g => [g.id, g]));
+    res.json(contribs.map(c => formatContribution(c, goalMap.get(c.goalId))));
+    return;
+  }
+
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const month = typeof req.query.month === "string" ? req.query.month : currentMonth;

@@ -568,11 +568,12 @@ export default function TransactionsPage() {
 
       // Step 2: Manage contributions when goal assignment changes in either direction
       if (needsContribUpdate) {
-        const contribsRes = await fetch(`/api/goal-contributions?month=${currentMonth}`, { credentials: "include" });
-        const contribs: any[] = contribsRes.ok ? await contribsRes.json() : [];
-        const linked = contribs.filter((c: any) => c.transactionId === txId);
+        // Search by transactionId across ALL months — avoids missing contributions
+        // on transactions from past months.
+        const contribsRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
+        const linked: any[] = contribsRes.ok ? await contribsRes.json() : [];
         await Promise.all(linked.map((c: any) =>
-          fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" })
+          fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" }),
         ));
 
         if (goalContribution) {

@@ -516,13 +516,16 @@ async function syncGoalContribution(opts: {
 }) {
   const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth, goals, userCurrency } = opts;
 
-  // Delete existing contribution for this transaction if any
-  if (existingContribId != null) {
-    await fetch(`/api/goal-contributions/${existingContribId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-  }
+  // Find and delete ALL contributions for this transaction across every month.
+  // Searching by transactionId avoids missing contributions from past months
+  // when the caller's viewMonth doesn't match the transaction's date month.
+  const linkedRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
+  const linkedContribs: any[] = linkedRes.ok ? await linkedRes.json() : [];
+  const idsToDelete = new Set<number>(linkedContribs.map((c: any) => c.id));
+  if (existingContribId != null) idsToDelete.add(existingContribId);
+  await Promise.all([...idsToDelete].map(id =>
+    fetch(`/api/goal-contributions/${id}`, { method: "DELETE", credentials: "include" }),
+  ));
 
   // Create new contribution if needed, converted to goal's base currency
   if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
