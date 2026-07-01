@@ -550,6 +550,192 @@ async function syncGoalContribution(opts: {
   queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
 }
 
+function SwipeableTxRow({
+  txId,
+  canSplit,
+  onReceipt,
+  onEdit,
+  onSplit,
+  onDelete,
+  children,
+}: {
+  txId: number;
+  canSplit: boolean;
+  onReceipt: () => void;
+  onEdit: () => void;
+  onSplit: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  const [offset, setOffset] = useState(0);
+  const [animating, setAnimating] = useState(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const currentOffset = useRef(0);
+  const snappedRef = useRef<"left" | "right" | null>(null);
+  const isDragging = useRef(false);
+  const isScrolling = useRef<boolean | null>(null);
+  const hasMoved = useRef(false);
+  const swipeHandled = useRef(false);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
+
+  const RIGHT_WIDTH = canSplit ? 164 : 88;
+  const LEFT_WIDTH = 164;
+  const ACTION_THRESHOLD = 220;
+  const SNAP_THRESHOLD = 44;
+
+  function snapTo(to: number, side: "left" | "right" | null) {
+    setAnimating(true);
+    setOffset(to);
+    snappedRef.current = side;
+    currentOffset.current = to;
+    requestAnimationFrame(() => setTimeout(() => setAnimating(false), 300));
+  }
+
+  function resetRow() { snapTo(0, null); }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail.id;
+      if (id !== txId && snappedRef.current !== null) snapTo(0, null);
+    };
+    window.addEventListener("tx-swipe-open", handler);
+    return () => window.removeEventListener("tx-swipe-open", handler);
+  }, [txId]);
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    isDragging.current = true;
+    isScrolling.current = null;
+    hasMoved.current = false;
+    setAnimating(false);
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!isDragging.current) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+
+    if (isScrolling.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      isScrolling.current = Math.abs(dy) > Math.abs(dx);
+    }
+    if (isScrolling.current === null || isScrolling.current) return;
+
+    hasMoved.current = true;
+
+    const base = snappedRef.current === "left" ? -RIGHT_WIDTH :
+                 snappedRef.current === "right" ? LEFT_WIDTH : 0;
+    let neo = base + dx;
+    const cap = ACTION_THRESHOLD + 50;
+    if (neo < -cap) neo = -cap;
+    if (neo > cap) neo = cap;
+    setOffset(neo);
+    currentOffset.current = neo;
+  }
+
+  function onTouchEnd() {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (!hasMoved.current || isScrolling.current) return;
+
+    swipeHandled.current = true;
+    setTimeout(() => { swipeHandled.current = false; }, 400);
+
+    const off = currentOffset.current;
+
+    if (off < -ACTION_THRESHOLD) {
+      setAnimating(true);
+      setOffset(-window.innerWidth);
+      setTimeout(() => { onDelete(); snapTo(0, null); }, 280);
+    } else if (off > ACTION_THRESHOLD) {
+      setAnimating(true);
+      setOffset(window.innerWidth);
+      setTimeout(() => { onEdit(); snapTo(0, null); }, 280);
+    } else if (off < -SNAP_THRESHOLD && snappedRef.current !== "left") {
+      snapTo(-RIGHT_WIDTH, "left");
+      window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: txId } }));
+    } else if (off > SNAP_THRESHOLD && snappedRef.current !== "right") {
+      snapTo(LEFT_WIDTH, "right");
+      window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: txId } }));
+    } else {
+      snapTo(
+        snappedRef.current === "left" ? -RIGHT_WIDTH :
+        snappedRef.current === "right" ? LEFT_WIDTH : 0,
+        snappedRef.current
+      );
+    }
+  }
+
+  function onClickCapture(e: React.MouseEvent) {
+    if (swipeHandled.current) { e.stopPropagation(); return; }
+    if (snappedRef.current) {
+      const t = e.target as Node;
+      const onPanel = leftPanelRef.current?.contains(t) || rightPanelRef.current?.contains(t);
+      if (!onPanel) { e.stopPropagation(); resetRow(); }
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden" onClickCapture={onClickCapture}>
+      {/* Left panel — swipe right reveals Receipt + Edit */}
+      <div ref={leftPanelRef} className="absolute inset-y-0 left-0 flex" style={{ width: LEFT_WIDTH }}>
+        <button
+          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-blue-700 text-white active:brightness-75"
+          onClick={() => { onReceipt(); resetRow(); }}
+        >
+          <Camera className="w-4 h-4" />
+          <span className="text-[10px] font-semibold tracking-wide">{t("home.receipt_btn")}</span>
+        </button>
+        <button
+          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-zinc-600 text-white active:brightness-75"
+          onClick={() => { onEdit(); resetRow(); }}
+        >
+          <Pencil className="w-4 h-4" />
+          <span className="text-[10px] font-semibold tracking-wide">{t("home.edit_btn")}</span>
+        </button>
+      </div>
+
+      {/* Right panel — swipe left reveals Split? + Delete */}
+      <div ref={rightPanelRef} className="absolute inset-y-0 right-0 flex" style={{ width: RIGHT_WIDTH }}>
+        {canSplit && (
+          <button
+            className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-pink-700 text-white active:brightness-75"
+            onClick={() => { onSplit(); resetRow(); }}
+          >
+            <Scissors className="w-4 h-4" />
+            <span className="text-[10px] font-semibold tracking-wide">{t("split.btn")}</span>
+          </button>
+        )}
+        <button
+          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-red-700 text-white active:brightness-75"
+          onClick={() => { onDelete(); resetRow(); }}
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-[10px] font-semibold tracking-wide">{t("common.delete")}</span>
+        </button>
+      </div>
+
+      {/* Swipeable row content */}
+      <div
+        className="relative z-10 bg-card"
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: animating ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
+          touchAction: "pan-y",
+          willChange: "transform",
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function HomeSpending() {
   const queryClient = useQueryClient();
 
@@ -974,8 +1160,18 @@ export default function HomeSpending() {
                     ? tx.description.slice(0, 30).trimEnd() + "…"
                     : tx.description;
 
+                  const canSwipeSplit = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
+
                   return (
-                    <div key={tx.id}>
+                    <SwipeableTxRow
+                      key={tx.id}
+                      txId={tx.id}
+                      canSplit={canSwipeSplit}
+                      onReceipt={() => { setReceiptTx(tx); setActionTx(null); }}
+                      onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
+                      onSplit={() => { setSplitTx(tx); setActionTx(null); }}
+                      onDelete={() => remove.mutate({ id: tx.id })}
+                    >
                       {/* ── Main row ── */}
                       <div
                         className="flex items-start gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
@@ -1109,7 +1305,7 @@ export default function HomeSpending() {
                           </button>
                         </div>
                       )}
-                    </div>
+                    </SwipeableTxRow>
                   );
                 })}
               </div>
