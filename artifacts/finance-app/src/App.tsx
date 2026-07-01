@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import SplashScreen from "@/components/SplashScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -171,12 +172,22 @@ function AppRoutes() {
   );
 }
 
+function AppWithSplash() {
+  const [splashDone, setSplashDone] = useState(false);
+  return (
+    <>
+      <AppRoutes />
+      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRoutes />
+          <AppWithSplash />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
