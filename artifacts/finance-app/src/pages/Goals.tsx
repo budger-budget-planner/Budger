@@ -207,7 +207,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   });
 
   // Contributions are stored in the goal's base currency; convert to viewer's currency for display
-  const contributedInGoalCurrency = summary?.contributed ?? 0;
+  const contributedInGoalCurrency = summary?.totalContributed ?? 0;
   const hasRates = Object.keys(rates).length > 0;
   const goalCur = goal.currency;
   const contributed = goalCur && goalCur !== currency && hasRates

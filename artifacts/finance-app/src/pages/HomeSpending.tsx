@@ -557,6 +557,7 @@ function SwipeableTxRow({
   onEdit,
   onSplit,
   onDelete,
+  showHint,
   children,
 }: {
   txId: number;
@@ -565,10 +566,28 @@ function SwipeableTxRow({
   onEdit: () => void;
   onSplit: () => void;
   onDelete: () => void;
+  showHint?: boolean;
   children: React.ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    if (!showHint) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const go = (fn: () => void, ms: number) => {
+      const id = setTimeout(() => { if (!cancelled) fn(); }, ms);
+      timers.push(id);
+    };
+    setAnimating(true);
+    go(() => setOffset(-56), 900);          // peek left → red delete panel
+    go(() => setOffset(0),   1550);         // back
+    go(() => setOffset(68),  2100);         // peek right → camera/receipt panel
+    go(() => setOffset(0),   2800);         // back
+    go(() => setAnimating(false), 3150);
+    return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
+  }, [showHint]);
   const startX = useRef(0);
   const startY = useRef(0);
   const currentOffset = useRef(0);
@@ -812,6 +831,11 @@ export default function HomeSpending() {
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
+  const [shouldShowHint] = useState(() => {
+    const ts = localStorage.getItem("budger_swipe_hint_ts");
+    if (!ts) return true;
+    return Date.now() - parseInt(ts, 10) > 14 * 24 * 60 * 60 * 1000;
+  });
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -1029,6 +1053,19 @@ export default function HomeSpending() {
   }
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
+  // Top-most visible transaction ID for the swipe hint wiggle
+  const topTxId = (shouldShowHint && !searchQuery && dates.length > 0)
+    ? grouped[dates[0]]?.[0]?.id ?? null
+    : null;
+
+  // Save hint timestamp once transactions load so repeat visits within 2 weeks skip it
+  useEffect(() => {
+    if (shouldShowHint && topTxId != null) {
+      localStorage.setItem("budger_swipe_hint_ts", String(Date.now()));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topTxId != null]);
+
   return (
     <div className="flex flex-col min-h-full">
 
@@ -1228,6 +1265,7 @@ export default function HomeSpending() {
                       onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
                       onSplit={() => { setSplitTx(tx); setActionTx(null); }}
                       onDelete={() => remove.mutate({ id: tx.id })}
+                      showHint={tx.id === topTxId}
                     >
                       {/* ── Main row ── */}
                       <div

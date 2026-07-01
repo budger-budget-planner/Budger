@@ -1024,7 +1024,7 @@ export default function HouseholdPage() {
               <div className="divide-y divide-white/5">
                 {sharedGoals.map((g: any) => {
                   const s = summaryMap.get(g.id);
-                  const contributedGoalCur = s?.contributed ?? 0;
+                  const contributedGoalCur = s?.totalContributed ?? 0;
                   const rawBudget = parseFloat(g.budget);
                   const hhViewerCur = prefs.currency;
                   const hhGoalCur: string = g.currency ?? hhViewerCur;
