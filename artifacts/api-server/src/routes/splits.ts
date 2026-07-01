@@ -148,8 +148,16 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer", preSplitAmount: origTx.amount })
     .where(eq(transactionsTable.id, split.transactionId));
 
+  // If the original transaction is currency-locked, the recipient's transaction
+  // must inherit that lock + currency so summary.ts excludes it from totals
+  // unless the recipient's account currency matches the locked currency.
+  // In that case we also ignore the frontend's converted amount and use the
+  // raw split amount (which is already in the locked currency).
+  const isLocked = origTx.currencyLocked && !!origTx.transactionCurrency;
+  const finalAmount = isLocked ? split.splitAmount : recipientAmount;
+
   const [recipientTx] = await db.insert(transactionsTable).values({
-    amount: recipientAmount,
+    amount: finalAmount,
     description: origTx.description,
     categoryId: null,
     date: origTx.date,
@@ -158,10 +166,15 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     householdId: origTx.householdId,
     splitId: split.id,
     splitRole: "recipient",
-    // If a different currency was used, tag it so the transaction is identifiable
-    ...(recipientCurrency && recipientCurrency !== split.issuerCurrency
-      ? { transactionCurrency: recipientCurrency }
-      : {}),
+    // Carry over receipt image if the original had one
+    ...(origTx.receiptImage ? { receiptImage: origTx.receiptImage } : {}),
+    // Currency: locked transactions keep their lock + currency;
+    // cross-currency (non-locked) transactions get the recipient's currency tagged.
+    ...(isLocked
+      ? { currencyLocked: true, transactionCurrency: origTx.transactionCurrency }
+      : recipientCurrency && recipientCurrency !== split.issuerCurrency
+        ? { transactionCurrency: recipientCurrency }
+        : {}),
   }).returning();
 
   await db.update(expenseSplitsTable)
