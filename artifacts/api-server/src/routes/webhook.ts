@@ -201,20 +201,31 @@ function parseTransactionPayload(
     } else if (candidateLines.length === 1) {
       merchant = candidateLines[0];
     } else {
-      merchant = raw.slice(0, 80).trim();
+      // No non-amount lines — the input was just a currency amount (e.g. "€120.00").
+      // Don't use the amount string itself as a merchant name.
+      merchant = null;
     }
   }
 
-  // Always fall back gracefully so the transaction is recorded.
-  // If no merchant was found, use a placeholder the user can rename.
-  if (!merchant) {
+  // If merchant is still null or looks like a bare amount string, use the generic placeholder.
+  const amountOnlyRe = /^[$£€]?\s*\d[\d\s]*[.,]\d+(\s+[A-Z]{3})?$/i;
+  if (!merchant || amountOnlyRe.test(merchant.trim())) {
     merchant = "Unknown, Captured Online";
   }
 
-  // If no amount could be extracted (e.g. empty input, unrecognised format),
-  // save as 0 so the capture is not lost — the user can edit the amount later.
+  // Only save if we extracted a real amount.
+  // Never record a $0 placeholder for completely unrecognisable or empty input.
   if (amount === null) {
-    amount = 0;
+    const isEmpty = typeof raw === "string" && raw.trim() === "";
+    return {
+      amount,
+      currency,
+      merchant,
+      path,
+      error: isEmpty
+        ? "No text received — check that your Shortcut is passing the selected text as input"
+        : "Could not extract amount from text",
+    };
   }
 
   const resolvedPath: "structured" | "raw_text" =
