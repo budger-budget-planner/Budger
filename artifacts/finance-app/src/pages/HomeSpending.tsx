@@ -580,17 +580,18 @@ function SwipeableTxRow({
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
 
-  const RIGHT_WIDTH = canSplit ? 164 : 88;
-  const LEFT_WIDTH = 164;
-  const ACTION_THRESHOLD = 220;
-  const SNAP_THRESHOLD = 44;
+  // Snap widths: how wide each panel is at rest after revealing
+  const RIGHT_SNAP = canSplit ? 160 : 88;
+  const LEFT_SNAP  = 160;
+  const ACTION_THRESHOLD = 230;
+  const SNAP_THRESHOLD   = 44;
 
   function snapTo(to: number, side: "left" | "right" | null) {
     setAnimating(true);
     setOffset(to);
     snappedRef.current = side;
     currentOffset.current = to;
-    requestAnimationFrame(() => setTimeout(() => setAnimating(false), 300));
+    requestAnimationFrame(() => setTimeout(() => setAnimating(false), 320));
   }
 
   function resetRow() { snapTo(0, null); }
@@ -625,12 +626,13 @@ function SwipeableTxRow({
 
     hasMoved.current = true;
 
-    const base = snappedRef.current === "left" ? -RIGHT_WIDTH :
-                 snappedRef.current === "right" ? LEFT_WIDTH : 0;
+    const base = snappedRef.current === "left"  ? -RIGHT_SNAP :
+                 snappedRef.current === "right" ? LEFT_SNAP   : 0;
     let neo = base + dx;
-    const cap = ACTION_THRESHOLD + 50;
+    // Hard cap a little past action threshold so there's a visible elastic feel
+    const cap = ACTION_THRESHOLD + 30;
     if (neo < -cap) neo = -cap;
-    if (neo > cap) neo = cap;
+    if (neo > cap)  neo = cap;
     setOffset(neo);
     currentOffset.current = neo;
   }
@@ -646,25 +648,32 @@ function SwipeableTxRow({
     const off = currentOffset.current;
 
     if (off < -ACTION_THRESHOLD) {
+      // Full left extend → delete
       setAnimating(true);
       setOffset(-window.innerWidth);
-      setTimeout(() => { onDelete(); snapTo(0, null); }, 280);
+      setTimeout(() => { onDelete(); snapTo(0, null); }, 300);
     } else if (off > ACTION_THRESHOLD) {
+      // Full right extend → edit
       setAnimating(true);
       setOffset(window.innerWidth);
-      setTimeout(() => { onEdit(); snapTo(0, null); }, 280);
+      setTimeout(() => { onEdit(); snapTo(0, null); }, 300);
+    } else if (snappedRef.current === "left" && off > -(RIGHT_SNAP - SNAP_THRESHOLD)) {
+      // Was showing right panel, user swiped back → close
+      snapTo(0, null);
+    } else if (snappedRef.current === "right" && off < LEFT_SNAP - SNAP_THRESHOLD) {
+      // Was showing left panel, user swiped back → close
+      snapTo(0, null);
     } else if (off < -SNAP_THRESHOLD && snappedRef.current !== "left") {
-      snapTo(-RIGHT_WIDTH, "left");
+      snapTo(-RIGHT_SNAP, "left");
       window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: txId } }));
     } else if (off > SNAP_THRESHOLD && snappedRef.current !== "right") {
-      snapTo(LEFT_WIDTH, "right");
+      snapTo(LEFT_SNAP, "right");
       window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: txId } }));
     } else {
-      snapTo(
-        snappedRef.current === "left" ? -RIGHT_WIDTH :
-        snappedRef.current === "right" ? LEFT_WIDTH : 0,
-        snappedRef.current
-      );
+      // Spring back to current snap
+      if (snappedRef.current === "left")  snapTo(-RIGHT_SNAP, "left");
+      else if (snappedRef.current === "right") snapTo(LEFT_SNAP, "right");
+      else snapTo(0, null);
     }
   }
 
@@ -677,83 +686,100 @@ function SwipeableTxRow({
     }
   }
 
+  // Panel widths track exactly how much is exposed
+  const rightPanelWidth = Math.max(0, -offset);
+  const leftPanelWidth  = Math.max(0,  offset);
+
+  // Extension ratios: 0 at snap, 1 at action threshold
+  const rightExtend = rightPanelWidth > RIGHT_SNAP
+    ? Math.min(1, (rightPanelWidth - RIGHT_SNAP) / Math.max(1, ACTION_THRESHOLD - RIGHT_SNAP))
+    : 0;
+  const leftExtend = leftPanelWidth > LEFT_SNAP
+    ? Math.min(1, (leftPanelWidth - LEFT_SNAP) / Math.max(1, ACTION_THRESHOLD - LEFT_SNAP))
+    : 0;
+
+  // RIGHT panel section widths
+  const splitSnapW  = canSplit ? RIGHT_SNAP / 2 : 0;
+  const deleteSnapW = canSplit ? RIGHT_SNAP / 2 : RIGHT_SNAP;
+  // Split section shrinks to 0 during extension; Delete section fills the rest
+  const splitSectionW  = splitSnapW  * (1 - rightExtend);
+  const deleteSectionW = rightPanelWidth - splitSectionW;
+
+  // LEFT panel section widths
+  const receiptSnapW  = LEFT_SNAP / 2;
+  // Receipt section shrinks to 0 during extension; Edit section fills the rest
+  const receiptSectionW = receiptSnapW * (1 - leftExtend);
+  const editSectionW    = leftPanelWidth - receiptSectionW;
+
   return (
     <div className="relative overflow-hidden" onClickCapture={onClickCapture}>
-      {/* Extension ratios: 0 at snap point, 1 at action threshold */}
-      {(() => {
-        const rightExtend = Math.max(0, Math.min(1, (-offset - RIGHT_WIDTH) / Math.max(1, ACTION_THRESHOLD - RIGHT_WIDTH)));
-        const leftExtend  = Math.max(0, Math.min(1, (offset  - LEFT_WIDTH)  / Math.max(1, ACTION_THRESHOLD - LEFT_WIDTH)));
 
-        // Right-panel bg interpolates zinc-800 (#27272a) → red-700 (#b91c1c)
-        const rR = Math.round(39  + 146 * rightExtend);
-        const rG = Math.round(39  -  11 * rightExtend);
-        const rB = Math.round(42  -  14 * rightExtend);
-        const rightBg = `rgb(${rR},${rG},${rB})`;
-
-        return (
-          <>
-            {/* Left panel — swipe right reveals Receipt + Edit */}
+      {/* ── LEFT panel: only visible when swiping right ── */}
+      {leftPanelWidth > 0 && (
+        <div
+          ref={leftPanelRef}
+          className="absolute inset-y-0 left-0 flex bg-zinc-800 overflow-hidden"
+          style={{ width: leftPanelWidth }}
+        >
+          {/* Receipt section — shrinks and fades during extension */}
+          {receiptSectionW > 0 && (
             <div
-              ref={leftPanelRef}
-              className="absolute inset-y-0 left-0 flex bg-zinc-800"
-              style={{ width: LEFT_WIDTH }}
+              className="flex flex-col items-center justify-center gap-1.5 text-white overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
+              style={{ width: receiptSectionW, opacity: 1 - leftExtend }}
+              onClick={() => { onReceipt(); resetRow(); }}
             >
-              <button
-                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
-                style={{ opacity: 1 - leftExtend, pointerEvents: leftExtend > 0.6 ? "none" : "auto" }}
-                onClick={() => { onReceipt(); resetRow(); }}
-              >
-                <Camera className="w-4 h-4" />
-                <span className="text-[10px] font-semibold tracking-wide">{t("home.receipt_btn")}</span>
-              </button>
-              <button
-                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
-                onClick={() => { onEdit(); resetRow(); }}
-              >
-                <Pencil className="w-4 h-4" />
-                <span className="text-[10px] font-semibold tracking-wide" style={{ opacity: 1 - leftExtend }}>
-                  {t("home.edit_btn")}
-                </span>
-              </button>
+              <Camera className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.receipt_btn")}</span>
             </div>
+          )}
+          {/* Edit section — expands to fill during extension, icon stays centred */}
+          <div
+            className="flex flex-col items-center justify-center gap-1.5 text-white cursor-pointer active:brightness-75 overflow-hidden"
+            style={{ width: editSectionW, minWidth: deleteSnapW }}
+            onClick={() => { onEdit(); resetRow(); }}
+          >
+            <Pencil className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.edit_btn")}</span>
+          </div>
+        </div>
+      )}
 
-            {/* Right panel — swipe left reveals Split? + Delete */}
+      {/* ── RIGHT panel: only visible when swiping left ── */}
+      {rightPanelWidth > 0 && (
+        <div
+          ref={rightPanelRef}
+          className="absolute inset-y-0 right-0 flex overflow-hidden"
+          style={{ width: rightPanelWidth }}
+        >
+          {/* Split section — shrinks and fades during extension */}
+          {canSplit && splitSectionW > 0 && (
             <div
-              ref={rightPanelRef}
-              className="absolute inset-y-0 right-0 flex"
-              style={{ width: RIGHT_WIDTH, backgroundColor: rightBg }}
+              className="flex flex-col items-center justify-center gap-1.5 text-white bg-zinc-800 overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
+              style={{ width: splitSectionW, opacity: 1 - rightExtend }}
+              onClick={() => { onSplit(); resetRow(); }}
             >
-              {canSplit && (
-                <button
-                  className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
-                  style={{ opacity: 1 - rightExtend, pointerEvents: rightExtend > 0.6 ? "none" : "auto", backgroundColor: "transparent" }}
-                  onClick={() => { onSplit(); resetRow(); }}
-                >
-                  <Scissors className="w-4 h-4" />
-                  <span className="text-[10px] font-semibold tracking-wide">{t("split.btn")}</span>
-                </button>
-              )}
-              <button
-                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
-                style={{ backgroundColor: "transparent" }}
-                onClick={() => { onDelete(); resetRow(); }}
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="text-[10px] font-semibold tracking-wide" style={{ opacity: 1 - rightExtend }}>
-                  {t("common.delete")}
-                </span>
-              </button>
+              <Scissors className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[10px] font-semibold whitespace-nowrap">{t("split.btn")}</span>
             </div>
-          </>
-        );
-      })()}
+          )}
+          {/* Delete section — always red, expands to fill during extension */}
+          <div
+            className="flex flex-col items-center justify-center gap-1.5 text-white bg-red-700 overflow-hidden cursor-pointer active:brightness-75"
+            style={{ width: deleteSectionW, minWidth: deleteSnapW }}
+            onClick={() => { onDelete(); resetRow(); }}
+          >
+            <Trash2 className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[10px] font-semibold whitespace-nowrap">{t("common.delete")}</span>
+          </div>
+        </div>
+      )}
 
-      {/* Swipeable row content */}
+      {/* ── Swipeable row content ── */}
       <div
         className="relative z-10 bg-card"
         style={{
           transform: `translateX(${offset}px)`,
-          transition: animating ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
+          transition: animating ? "transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
           touchAction: "pan-y",
           willChange: "transform",
         }}
