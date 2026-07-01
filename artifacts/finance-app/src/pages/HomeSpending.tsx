@@ -679,43 +679,74 @@ function SwipeableTxRow({
 
   return (
     <div className="relative overflow-hidden" onClickCapture={onClickCapture}>
-      {/* Left panel — swipe right reveals Receipt + Edit */}
-      <div ref={leftPanelRef} className="absolute inset-y-0 left-0 flex" style={{ width: LEFT_WIDTH }}>
-        <button
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-blue-700 text-white active:brightness-75"
-          onClick={() => { onReceipt(); resetRow(); }}
-        >
-          <Camera className="w-4 h-4" />
-          <span className="text-[10px] font-semibold tracking-wide">{t("home.receipt_btn")}</span>
-        </button>
-        <button
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-zinc-600 text-white active:brightness-75"
-          onClick={() => { onEdit(); resetRow(); }}
-        >
-          <Pencil className="w-4 h-4" />
-          <span className="text-[10px] font-semibold tracking-wide">{t("home.edit_btn")}</span>
-        </button>
-      </div>
+      {/* Extension ratios: 0 at snap point, 1 at action threshold */}
+      {(() => {
+        const rightExtend = Math.max(0, Math.min(1, (-offset - RIGHT_WIDTH) / Math.max(1, ACTION_THRESHOLD - RIGHT_WIDTH)));
+        const leftExtend  = Math.max(0, Math.min(1, (offset  - LEFT_WIDTH)  / Math.max(1, ACTION_THRESHOLD - LEFT_WIDTH)));
 
-      {/* Right panel — swipe left reveals Split? + Delete */}
-      <div ref={rightPanelRef} className="absolute inset-y-0 right-0 flex" style={{ width: RIGHT_WIDTH }}>
-        {canSplit && (
-          <button
-            className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-pink-700 text-white active:brightness-75"
-            onClick={() => { onSplit(); resetRow(); }}
-          >
-            <Scissors className="w-4 h-4" />
-            <span className="text-[10px] font-semibold tracking-wide">{t("split.btn")}</span>
-          </button>
-        )}
-        <button
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-red-700 text-white active:brightness-75"
-          onClick={() => { onDelete(); resetRow(); }}
-        >
-          <Trash2 className="w-4 h-4" />
-          <span className="text-[10px] font-semibold tracking-wide">{t("common.delete")}</span>
-        </button>
-      </div>
+        // Right-panel bg interpolates zinc-800 (#27272a) → red-700 (#b91c1c)
+        const rR = Math.round(39  + 146 * rightExtend);
+        const rG = Math.round(39  -  11 * rightExtend);
+        const rB = Math.round(42  -  14 * rightExtend);
+        const rightBg = `rgb(${rR},${rG},${rB})`;
+
+        return (
+          <>
+            {/* Left panel — swipe right reveals Receipt + Edit */}
+            <div
+              ref={leftPanelRef}
+              className="absolute inset-y-0 left-0 flex bg-zinc-800"
+              style={{ width: LEFT_WIDTH }}
+            >
+              <button
+                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
+                style={{ opacity: 1 - leftExtend, pointerEvents: leftExtend > 0.6 ? "none" : "auto" }}
+                onClick={() => { onReceipt(); resetRow(); }}
+              >
+                <Camera className="w-4 h-4" />
+                <span className="text-[10px] font-semibold tracking-wide">{t("home.receipt_btn")}</span>
+              </button>
+              <button
+                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
+                onClick={() => { onEdit(); resetRow(); }}
+              >
+                <Pencil className="w-4 h-4" />
+                <span className="text-[10px] font-semibold tracking-wide" style={{ opacity: 1 - leftExtend }}>
+                  {t("home.edit_btn")}
+                </span>
+              </button>
+            </div>
+
+            {/* Right panel — swipe left reveals Split? + Delete */}
+            <div
+              ref={rightPanelRef}
+              className="absolute inset-y-0 right-0 flex"
+              style={{ width: RIGHT_WIDTH, backgroundColor: rightBg }}
+            >
+              {canSplit && (
+                <button
+                  className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
+                  style={{ opacity: 1 - rightExtend, pointerEvents: rightExtend > 0.6 ? "none" : "auto", backgroundColor: "transparent" }}
+                  onClick={() => { onSplit(); resetRow(); }}
+                >
+                  <Scissors className="w-4 h-4" />
+                  <span className="text-[10px] font-semibold tracking-wide">{t("split.btn")}</span>
+                </button>
+              )}
+              <button
+                className="flex-1 flex flex-col items-center justify-center gap-1.5 text-white active:brightness-75"
+                style={{ backgroundColor: "transparent" }}
+                onClick={() => { onDelete(); resetRow(); }}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="text-[10px] font-semibold tracking-wide" style={{ opacity: 1 - rightExtend }}>
+                  {t("common.delete")}
+                </span>
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Swipeable row content */}
       <div
