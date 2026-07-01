@@ -401,24 +401,26 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
 
   const result = parseTransactionPayload(req.body);
 
+  // When we can't extract an amount (e.g. empty text from WebView share sheets,
+  // unrecognised format), save a €0 placeholder so the Shortcut returns a success
+  // card and the user can fix the name + amount inside the app via "Name it".
+  let amount: number;
+  let currency: string | null;
+  let merchant: string;
+
   if ("error" in result) {
     logger.warn(
       { body: req.body, ...result },
-      "Apple Pay webhook: missing required fields (amount or merchant)",
+      "Apple Pay webhook: could not parse payload — saving placeholder transaction",
     );
-    res.status(422).json({
-      error: result.error,
-      hint: result.path === "structured"
-        ? 'Ensure the Shortcut sends { "transaction": <Shortcut Input> } as JSON'
-        : "Raw text received but could not parse amount or merchant. Check the format.",
-      received: result.path === "structured"
-        ? req.body?.transaction
-        : { rawText: req.body?.transaction },
-    });
-    return;
+    amount   = 0;
+    currency = null;
+    merchant = "Unknown, Captured Online";
+  } else {
+    amount   = result.amount;
+    currency = result.currency;
+    merchant = result.merchant;
   }
-
-  const { amount, currency, merchant } = result;
   const today = new Date().toISOString().split("T")[0];
   const autoCategory = await getAutoCategory(user.id, merchant);
 
