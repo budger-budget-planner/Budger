@@ -625,12 +625,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "ss.configure_desc":  { en: "Select any price text online, share it, and Budger logs it instantly.", pl: "Zaznacz cenę na stronie, udostępnij ją, a Budger zapisze ją automatycznie." },
 
   "ss.s1_title": {
-    en: "Select a price → Copy → Share → Budger logs it",
-    pl: "Zaznacz cenę → Kopiuj → Udostępnij → Budger ją zapisze",
+    en: "Select a price, share it — Budger logs it",
+    pl: "Zaznacz cenę, udostępnij — Budger ją zapisze",
   },
   "ss.s1_desc": {
-    en: "Go to Shortcuts, tap + to create a new shortcut, and rename it to 'Feed the Budger'. Then: highlight any price, tap Copy first, then tap Share → Feed the Budger. Copying first is required — iOS does not forward selected text through the Share Sheet.",
-    pl: "Otwórz Skróty, dotknij + aby dodać nowy skrót i zmień nazwę na 'Nakarm Budgera'. Następnie: zaznacz kwotę, najpierw dotknij Kopiuj, a potem Udostępnij → Nakarm Budgera. Kopiowanie jest wymagane — iOS nie przekazuje zaznaczonego tekstu przez kartę Udostępnij.",
+    en: "Go to Shortcuts, tap + to create a new shortcut, and rename it to 'Feed the Budger'. Then: highlight any price on a webpage, tap Share → Feed the Budger, and the transaction appears in Budger instantly.",
+    pl: "Otwórz Skróty, dotknij + aby dodać nowy skrót i zmień jego nazwę na 'Nakarm Budgera'. Następnie: zaznacz dowolną kwotę na stronie, dotknij Udostępnij → Nakarm Budgera — transakcja pojawi się w Budger natychmiast.",
   },
   "ss.s2_title": {
     en: "Add a Text action → tap ⓘ → Show in Share Sheet",
@@ -649,20 +649,20 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Pojawiła się akcja 'Odbierz [Tekst] z [karty Udostępnij]'. Dotknij pierwsze niebieskie pole (po 'Odbierz'), wyczyść wszystko i zaznacz tylko Tekst. Potwierdź.",
   },
   "ss.s4_title": {
-    en: "Add 'Get Clipboard' action — reads what you Copied",
-    pl: "Dodaj akcję 'Pobierz ze schowka' — odczytuje to, co skopiowałeś",
+    en: "In the Text action — swipe keyboard row to find Shortcut Input",
+    pl: "W akcji Tekst — przesuń rząd klawiatury, aby znaleźć Dane wejściowe skrótu",
   },
   "ss.s4_desc": {
-    en: "Tap + Add Action and search for 'clipboard'. Select Get Clipboard and add it. This is the step that reliably reads the price you copied — iOS Share Sheet does not pass selected text, but clipboard always works.",
-    pl: "Dotknij + Dodaj akcję i wyszukaj 'schowek'. Wybierz Pobierz ze schowka i dodaj. Ten krok niezawodnie odczytuje skopiowaną kwotę — iOS nie przekazuje zaznaczonego tekstu, ale schowek zawsze działa.",
+    en: "Tap inside the Text action's field. A row of variable chips appears above the keyboard — swipe it left to reveal Shortcut Input (it's hidden by default). Tap it to insert it.",
+    pl: "Dotknij pola w akcji Tekst. Nad klawiaturą pojawi się rząd zmiennych — przesuń go w lewo, aby znaleźć Dane wejściowe skrótu (jest ukryte). Dotknij go, aby wstawić.",
   },
   "ss.s5_title": {
-    en: "Add 'Get Contents of URL' · POST · JSON · transaction → Clipboard",
-    pl: "Dodaj 'Pobierz zawartość URL' · POST · JSON · transaction → Schowek",
+    en: "Add 'Get Contents of URL' · POST · JSON · transaction → Text",
+    pl: "Dodaj 'Pobierz zawartość URL' · POST · JSON · transaction → Tekst",
   },
   "ss.s5_desc": {
-    en: "Add action Get Contents of URL. Expand it: set Method to POST, leave Body as JSON. Add a new field — name it transaction and set its value to the Clipboard variable (green chip). Paste your URL from the button below.",
-    pl: "Dodaj akcję Pobierz zawartość URL. Rozwiń: ustaw Metodę na POST, zostaw Treść jako JSON. Dodaj nowe pole — nazwij je transaction i ustaw wartość na zmienną Schowek (zielony chip). Wklej URL z przycisku poniżej.",
+    en: "Add action Get Contents of URL. Expand it: set Method to POST, leave Body as JSON. Add a new field — name it transaction and set its value to the Text variable (yellow chip). Paste your URL from the button below.",
+    pl: "Dodaj akcję Pobierz zawartość URL. Rozwiń: ustaw Metodę na POST, zostaw Treść jako JSON. Dodaj nowe pole — nazwij je transaction i ustaw wartość na zmienną Tekst (żółty chip). Wklej URL z przycisku poniżej.",
   },
   "ss.s6_title": {
     en: "Add Show Notification → type the message → tap Done",
