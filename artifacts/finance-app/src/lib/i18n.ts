@@ -100,6 +100,7 @@ const translations: Record<string, Record<Lang, string>> = {
   // ── Transactions ──
   "tx.title":       { en: "Transactions",     pl: "Transakcje"        },
   "tx.search":      { en: "Search…",          pl: "Szukaj…"           },
+  "tx.name_it":     { en: "Name it",          pl: "Nazwij"             },
   "tx.all_cats":    { en: "All categories",   pl: "Wszystkie kategorie"},
   "tx.no_results":  { en: "No results found.",pl: "Brak wyników."     },
   "tx.goals":       { en: "Goals",            pl: "Cele"              },

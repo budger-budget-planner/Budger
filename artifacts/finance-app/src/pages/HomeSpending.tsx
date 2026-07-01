@@ -844,6 +844,8 @@ export default function HomeSpending() {
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
+  const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
+  const [nameEditValue, setNameEditValue] = useState("");
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -988,6 +990,15 @@ export default function HomeSpending() {
           });
         },
       }
+    );
+  }
+
+  function saveNameEdit(txId: number) {
+    const trimmed = nameEditValue.trim();
+    if (!trimmed) return;
+    update.mutate(
+      { id: txId, data: { description: trimmed } },
+      { onSuccess: () => setNameEditTxId(null) },
     );
   }
 
@@ -1255,7 +1266,8 @@ export default function HomeSpending() {
                     ? tx.description.slice(0, 30).trimEnd() + "…"
                     : tx.description;
 
-                  const canSwipeSplit = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
+                  const canSwipeSplit     = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
+                  const isUnknownCaptured = tx.description === "Unknown, Captured Online";
 
                   return (
                     <SwipeableTxRow
@@ -1282,7 +1294,7 @@ export default function HomeSpending() {
                         {/* Center content */}
                         <div className="flex-1 min-w-0">
                           {/* Transaction name */}
-                          <p className="text-sm font-medium text-foreground leading-snug" style={{ wordBreak: "break-word" }}>
+                          <p className={`text-sm font-medium leading-snug ${isUnknownCaptured ? "text-yellow-400" : "text-foreground"}`} style={{ wordBreak: "break-word" }}>
                             {isExpanded ? tx.description : shortName}
                           </p>
 
@@ -1318,6 +1330,34 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                 </div>
+                              )}
+                              {isUnknownCaptured && (
+                                nameEditTxId === tx.id ? (
+                                  <div className="flex items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
+                                    <input
+                                      autoFocus
+                                      value={nameEditValue}
+                                      onChange={e => setNameEditValue(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === "Enter") saveNameEdit(tx.id);
+                                        if (e.key === "Escape") setNameEditTxId(null);
+                                      }}
+                                      className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-muted border border-yellow-500/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-yellow-500/60"
+                                    />
+                                    <button
+                                      onClick={() => saveNameEdit(tx.id)}
+                                      className="text-[10px] font-semibold text-yellow-400 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/60 flex-shrink-0"
+                                    >{t("common.save")}</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20 mt-1"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                    {t("tx.name_it")}
+                                  </button>
+                                )
                               )}
                             </div>
                           ) : (

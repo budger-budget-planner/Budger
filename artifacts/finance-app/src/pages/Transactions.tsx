@@ -450,6 +450,8 @@ export default function TransactionsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
+  const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
+  const [nameEditValue, setNameEditValue] = useState("");
   const updateMerchantRule = useUpdateMerchantCategoryRule();
 
   const now = new Date();
@@ -465,6 +467,21 @@ export default function TransactionsPage() {
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => invalidateAll(queryClient) } });
+
+  async function saveName(txId: number) {
+    const trimmed = nameEditValue.trim();
+    if (!trimmed) return;
+    const res = await fetch(`/api/transactions/${txId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: trimmed }),
+    });
+    if (res.ok) {
+      invalidateAll(queryClient, currentMonth);
+      setNameEditTxId(null);
+    }
+  }
 
   const filtered = (transactions ?? []).filter(tx => {
     if (search && !tx.description.toLowerCase().includes(search.toLowerCase())) return false;
@@ -656,15 +673,49 @@ export default function TransactionsPage() {
                 <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">{tx.description}</p>
-                      {tx.receiptImage && (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                          <Camera className="w-2.5 h-2.5" /> receipt
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{displayName} · {getPaymentLabel()[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
+                    {nameEditTxId === tx.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={nameEditValue}
+                          onChange={e => setNameEditValue(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") saveName(tx.id);
+                            if (e.key === "Escape") setNameEditTxId(null);
+                          }}
+                          className="flex-1 min-w-0 px-2 py-0.5 rounded-lg bg-muted border border-yellow-500/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-yellow-500/60"
+                        />
+                        <button
+                          onClick={() => saveName(tx.id)}
+                          className="text-[10px] font-semibold text-yellow-400 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/60 flex-shrink-0"
+                        >{t("common.save")}</button>
+                        <button
+                          onClick={() => setNameEditTxId(null)}
+                          className="text-[10px] font-medium text-muted-foreground flex-shrink-0"
+                        >{t("common.cancel")}</button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
+                          {tx.receiptImage && (
+                            <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              <Camera className="w-2.5 h-2.5" /> receipt
+                            </span>
+                          )}
+                        </div>
+                        {tx.description === "Unknown, Captured Online" && (
+                          <button
+                            onClick={() => { setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors mt-1"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            {t("tx.name_it")}
+                          </button>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5">{displayName} · {getPaymentLabel()[tx.paymentMethod] ?? tx.paymentMethod}{tx.userName ? ` · ${tx.userName}` : ""}</p>
+                      </>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
                   {/* Amount — show original currency for locked rows */}
