@@ -343,7 +343,10 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     "Apple Pay webhook: transaction created",
   );
 
-  res.status(201).json({ success: true, transactionId: tx.id });
+  const logoUrl = `${req.protocol}://${req.get("host")}/api/webhook/budger-logo.svg`;
+  const preview = `Saved: ${merchant} — ${amount}${currency ? " " + currency : ""}`;
+
+  res.status(201).json({ success: true, transactionId: tx.id, preview, logo_url: logoUrl });
 });
 
 export default router;
