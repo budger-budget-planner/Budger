@@ -618,6 +618,52 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dotknij + Dodaj pole — wpisz transaction jako klucz, wybierz Dane wejściowe skrótu jako wartość. Skopiuj link poniżej i wklej go w pole URL. Dotknij Gotowe.",
   },
 
+  // ── Share Sheet Shortcut tutorial ──
+  "ss.setup_title":     { en: "Share Sheet Shortcut",              pl: "Skrót do Udostępniania"             },
+  "ss.configure_btn":   { en: "Set up Share Sheet auto-logging",   pl: "Skonfiguruj skrót Udostępniania"    },
+  "ss.configure_desc":  { en: "Select any price text online, share it, and Budger logs it instantly.", pl: "Zaznacz tekst z ceną, udostępnij go, a Budger zapisze go automatycznie." },
+
+  "ss.s1_title": {
+    en: "Select a price → Share → logged instantly",
+    pl: "Zaznacz cenę → Udostępnij → gotowe",
+  },
+  "ss.s1_desc": {
+    en: "Highlight any price or payment text on a webpage or in an email. Tap Share and choose Send To Budger — the amount is captured in seconds.",
+    pl: "Zaznacz dowolną cenę lub kwatę na stronie lub w e-mailu. Dotknij Udostępnij i wybierz Send To Budger — kwota zostanie zapisana w kilka sekund.",
+  },
+  "ss.s2_title": {
+    en: "Open Shortcuts → My Shortcuts → tap +",
+    pl: "Otwórz Skróty → Moje skróty → dotknij +",
+  },
+  "ss.s2_desc": {
+    en: "Open the Shortcuts app on your iPhone. Make sure you're on the My Shortcuts tab, then tap the + button in the top-right corner to create a new shortcut.",
+    pl: "Otwórz aplikację Skróty na iPhonie. Upewnij się, że jesteś na karcie Moje skróty, a następnie dotknij przycisku + w prawym górnym rogu.",
+  },
+  "ss.s3_title": {
+    en: "Name it 'Send To Budger' → add Receive Text",
+    pl: "Nazwij 'Send To Budger' → dodaj Odbierz tekst",
+  },
+  "ss.s3_desc": {
+    en: "Tap the name at the top and type Send To Budger. Tap Add Action and search for Receive Text from Share Sheet. Add it — this lets the shortcut accept shared text.",
+    pl: "Dotknij nazwy u góry i wpisz Send To Budger. Dotknij Dodaj akcję i wyszukaj Odbierz tekst z karty Udostępnij. Dodaj ją.",
+  },
+  "ss.s4_title": {
+    en: "Search and add 'Get Contents of URL'",
+    pl: "Wyszukaj i dodaj 'Pobierz zawartość URL'",
+  },
+  "ss.s4_desc": {
+    en: "Tap Add Action again and search Get Contents of URL. Tap the result to add it below the Receive Text step. This action will POST the selected text to Budger.",
+    pl: "Dotknij Dodaj akcję i wyszukaj Pobierz zawartość URL. Dotknij wynik, aby dodać go pod krokiem Odbierz tekst.",
+  },
+  "ss.s5_title": {
+    en: "Set POST · JSON · transaction → Shortcut Input · copy URL",
+    pl: "Ustaw POST · JSON · transaction → dane wejściowe · skopiuj URL",
+  },
+  "ss.s5_desc": {
+    en: "Expand the action. Set Method to POST, Body to JSON. Add a field — key: transaction, value: Shortcut Input. Add a Show Notification step. Copy the link below and paste it into the URL field. Tap Done.",
+    pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dodaj pole — klucz: transaction, wartość: Dane wejściowe skrótu. Dodaj krok Pokaż powiadomienie. Skopiuj link i wklej go w pole URL. Dotknij Gotowe.",
+  },
+
   // ── Dashboard additional ──
   "dashboard.by":           { en: "by",                        pl: "do"                          },
   "dashboard.mo_needed":    { en: "/mo needed",                pl: "/msc ustalono"               },

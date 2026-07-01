@@ -7,6 +7,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Plus, Trash2, TrendingUp, Target, Smartphone } from "lucide-react";
 import ApplePaySlides from "@/components/ApplePaySlides";
+import ShareSheetSlides from "@/components/ShareSheetSlides";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -188,6 +189,7 @@ export default function NotificationsPage() {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
   const [showApplePaySlides, setShowApplePaySlides] = useState(false);
+  const [showShareSheetSlides, setShowShareSheetSlides] = useState(false);
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem("budger_haptic_v1") !== "off"; } catch { return true; }
   });
@@ -344,6 +346,10 @@ export default function NotificationsPage() {
 
       {showApplePaySlides && (
         <ApplePaySlides modal onClose={() => setShowApplePaySlides(false)} />
+      )}
+
+      {showShareSheetSlides && (
+        <ShareSheetSlides modal onClose={() => setShowShareSheetSlides(false)} />
       )}
 
       {permissionStatus === "denied" && (() => {
@@ -522,6 +528,32 @@ export default function NotificationsPage() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground leading-snug">{t("ap.configure_btn")}</p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("ap.configure_desc")}</p>
+          </div>
+          <svg className="w-4 h-4 text-muted-foreground flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </section>
+
+      {/* ── Share Sheet shortcut ── */}
+      <section>
+        <div className="mb-3">
+          <h2 className="text-base font-bold">{t("ss.setup_title")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("ss.configure_desc")}</p>
+        </div>
+
+        <button
+          onClick={() => setShowShareSheetSlides(true)}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-card border border-border transition active:scale-95 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground leading-snug">{t("ss.configure_btn")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("ss.configure_desc")}</p>
           </div>
           <svg className="w-4 h-4 text-muted-foreground flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
