@@ -702,6 +702,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "split.issued_icon":      { en: "You split this expense",    pl: "Podzieliłeś ten wydatek"     },
   "split.received_icon":    { en: "Charged via split",         pl: "Naliczone przez podział"     },
   "split.request_sent":     { en: "Split request sent",        pl: "Prośba o podział wysłana"    },
+  "split.goal_block":       { en: "Can't split: remaining {rem} would be less than {goal} dedicated to a goal. Reduce the split amount.", pl: "Nie można podzielić: pozostałe {rem} byłoby mniejsze niż {goal} przeznaczone na cel. Zmniejsz kwotę podziału." },
 
   // ── Auto-categorise prompt ──
   "auto_cat.stop_title":  { en: "Stop auto-categorizing?",                            pl: "Zatrzymać automatyczne kategoryzowanie?"              },

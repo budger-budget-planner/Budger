@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable } from "@workspace/db";
+import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -72,6 +72,23 @@ router.post("/splits", async (req, res): Promise<void> => {
   }
   if (splitAmount <= 0) {
     res.status(400).json({ error: "Split amount must be positive" }); return;
+  }
+
+  // Block if the remaining amount after the split would be less than what is already
+  // dedicated to a goal — the issuer must keep at least that much on their record.
+  const contributions = await db.select().from(goalContributionsTable)
+    .where(eq(goalContributionsTable.transactionId, transactionId));
+  const totalGoalAmount = contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+  if (totalGoalAmount > 0) {
+    const remaining = parseFloat(tx.amount) - splitAmount;
+    if (remaining < totalGoalAmount) {
+      res.status(400).json({
+        error: "split_would_violate_goal",
+        goalAmount: totalGoalAmount,
+        remaining,
+      });
+      return;
+    }
   }
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));

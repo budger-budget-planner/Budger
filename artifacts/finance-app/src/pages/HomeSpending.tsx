@@ -360,6 +360,7 @@ function SplitSheet({
   myUserId,
   sym,
   issuerCurrency,
+  goalContrib,
   onClose,
   onSuccess,
 }: {
@@ -368,6 +369,7 @@ function SplitSheet({
   myUserId: number;
   sym: string;
   issuerCurrency: string;
+  goalContrib?: { name: string; amount: number } | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -386,7 +388,13 @@ function SplitSheet({
   // own currency, not the account currency.
   const effectiveSym = tx.transactionCurrency ? currencySymbol(tx.transactionCurrency) : sym;
 
-  const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount;
+  // Block split if it would leave less than the goal-dedicated amount on this transaction
+  const wouldViolateGoal = !!(
+    goalContrib && goalContrib.amount > 0 && splitValue !== "" && splitAmt > 0 &&
+    (txAmount - splitAmt) < goalContrib.amount
+  );
+
+  const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount && !wouldViolateGoal;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -470,6 +478,17 @@ function SplitSheet({
               <p className="text-xs text-muted-foreground">
                 {t("split.recipient_pays")}: {effectiveSym}{splitAmt.toFixed(2)} · {t("split.you_pay")}: {effectiveSym}{(txAmount - splitAmt).toFixed(2)}
               </p>
+            )}
+            {wouldViolateGoal && goalContrib && (
+              <div className="flex items-start gap-2 rounded-xl border border-yellow-500/50 bg-yellow-500/10 px-3 py-2.5">
+                <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-400">
+                  {t("split.goal_block", {
+                    rem: `${effectiveSym}${(txAmount - splitAmt).toFixed(2)}`,
+                    goal: `${effectiveSym}${goalContrib.amount.toFixed(2)}`,
+                  })}
+                </p>
+              </div>
             )}
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -1632,6 +1651,7 @@ export default function HomeSpending() {
           myUserId={myUserId}
           sym={sym}
           issuerCurrency={splitTx.transactionCurrency ?? prefs.currency}
+          goalContrib={contribByTxId.get(splitTx.id) ?? null}
           onClose={() => setSplitTx(null)}
           onSuccess={() => {
             setSplitTx(null);
