@@ -52,8 +52,8 @@ export default function DashboardPage() {
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
 
-  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + ((g as any).totalContributed ?? g.contributed), 0);
-  const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => (g as any).totalContributed > 0 || g.contributed > 0);
+  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
+  const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
