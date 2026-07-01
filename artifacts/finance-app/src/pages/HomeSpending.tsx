@@ -581,11 +581,15 @@ function SwipeableTxRow({
       timers.push(id);
     };
     setAnimating(true);
-    go(() => setOffset(-30), 400);          // gentle peek left
-    go(() => setOffset(0),   750);          // ease back
-    go(() => setOffset(38),  1000);         // gentle peek right
-    go(() => setOffset(0),   1350);         // ease back
-    go(() => setAnimating(false), 1500);
+    go(() => setOffset(-30), 100);          // left ×1
+    go(() => setOffset(0),   260);          // back
+    go(() => setOffset(-30), 370);          // left ×2
+    go(() => setOffset(0),   530);          // back
+    go(() => setOffset(38),  660);          // right ×1
+    go(() => setOffset(0),   820);          // back
+    go(() => setOffset(38),  930);          // right ×2
+    go(() => setOffset(0),   1090);         // back
+    go(() => setAnimating(false), 1200);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
@@ -798,7 +802,7 @@ function SwipeableTxRow({
         className="relative z-10 bg-card"
         style={{
           transform: `translateX(${offset}px)`,
-          transition: animating ? "transform 0.32s cubic-bezier(0.4,0,0.2,1)" : "none",
+          transition: animating ? "transform 0.15s cubic-bezier(0.4,0,0.2,1)" : "none",
           touchAction: "pan-y",
           willChange: "transform",
         }}
