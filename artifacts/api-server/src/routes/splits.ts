@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -78,19 +79,25 @@ router.post("/splits", async (req, res): Promise<void> => {
   // dedicated to a goal — the issuer must keep at least that much on their record.
   // We compare in the transaction's native currency (issuerCurrency):
   //   - prefer accountAmount/accountCurrency (user-currency amount stored since the fix)
-  //   - fall back to amount/currency when currencies match
-  //   - skip contributions whose stored currency doesn't match and no accountAmount exists
+  //   - otherwise convert amount/currency into the transaction currency (handles both
+  //     legacy contributions predating accountAmount, and same-currency contributions)
   const contributions = await db.select().from(goalContributionsTable)
     .where(eq(goalContributionsTable.transactionId, transactionId));
   const txCurrency = issuerCurrency ?? "PLN";
   let totalGoalAmount = 0;
-  for (const c of contributions) {
-    if (c.accountAmount != null && c.accountCurrency != null) {
-      if (c.accountCurrency === txCurrency) {
-        totalGoalAmount += parseFloat(c.accountAmount);
+  if (contributions.length > 0) {
+    const rates = await fetchRates();
+    for (const c of contributions) {
+      if (c.accountAmount != null && c.accountCurrency != null) {
+        totalGoalAmount += c.accountCurrency === txCurrency
+          ? parseFloat(c.accountAmount)
+          : convertAmount(parseFloat(c.accountAmount), c.accountCurrency, txCurrency, rates);
+      } else {
+        const contribCurrency = c.currency ?? txCurrency;
+        totalGoalAmount += contribCurrency === txCurrency
+          ? parseFloat(c.amount)
+          : convertAmount(parseFloat(c.amount), contribCurrency, txCurrency, rates);
       }
-    } else if (c.currency === txCurrency) {
-      totalGoalAmount += parseFloat(c.amount);
     }
   }
   if (totalGoalAmount > 0) {

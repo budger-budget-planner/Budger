@@ -361,6 +361,7 @@ function SplitSheet({
   sym,
   issuerCurrency,
   goalContrib,
+  rates,
   onClose,
   onSuccess,
 }: {
@@ -370,6 +371,7 @@ function SplitSheet({
   sym: string;
   issuerCurrency: string;
   goalContrib?: { name: string; amount: number; currency?: string | null; accountAmount?: number | null; accountCurrency?: string | null } | null;
+  rates: Record<string, number> | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -391,17 +393,20 @@ function SplitSheet({
   // Amount dedicated to the goal, expressed in the transaction's own currency
   // (issuerCurrency). Prefer the stored accountAmount/accountCurrency snapshot
   // taken at contribution-time — it matches exactly what the backend uses to
-  // block the split. Only fall back to the (possibly currency-mismatched)
-  // goal-currency amount if no account snapshot is available.
+  // block the split. For legacy contributions without that snapshot (or any
+  // other currency mismatch), convert using live rates instead of skipping —
+  // mirrors the backend's fallback so the client warning matches the block.
   const goalAmountInTxCurrency = (() => {
     if (!goalContrib) return 0;
-    if (goalContrib.accountAmount != null && goalContrib.accountCurrency === issuerCurrency) {
-      return goalContrib.accountAmount;
+    if (goalContrib.accountAmount != null && goalContrib.accountCurrency != null) {
+      return goalContrib.accountCurrency === issuerCurrency
+        ? goalContrib.accountAmount
+        : convertAmount(goalContrib.accountAmount, goalContrib.accountCurrency, issuerCurrency, rates ?? {});
     }
-    if (goalContrib.currency === issuerCurrency) {
-      return goalContrib.amount;
-    }
-    return 0;
+    const contribCurrency = goalContrib.currency ?? issuerCurrency;
+    return contribCurrency === issuerCurrency
+      ? goalContrib.amount
+      : convertAmount(goalContrib.amount, contribCurrency, issuerCurrency, rates ?? {});
   })();
 
   // Block split if it would leave less than the goal-dedicated amount on this transaction
@@ -1675,6 +1680,7 @@ export default function HomeSpending() {
           sym={sym}
           issuerCurrency={splitTx.transactionCurrency ?? prefs.currency}
           goalContrib={contribByTxId.get(splitTx.id) ?? null}
+          rates={rates}
           onClose={() => setSplitTx(null)}
           onSuccess={() => {
             setSplitTx(null);
