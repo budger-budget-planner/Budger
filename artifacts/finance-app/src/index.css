@@ -293,6 +293,14 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after { inset: -1px; }
 }
 
+@keyframes splash-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+.splash-pulse {
+  animation: splash-pulse 2s ease-in-out infinite;
+}
+
 @keyframes pin-shake {
   0%, 100% { transform: translateX(0); }
   15%       { transform: translateX(-9px); }
