@@ -489,6 +489,12 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetMonthlySummaryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   qc.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
+  // Invalidate ALL goal-related queries so progress bars stay accurate
+  // after any transaction create / update / delete.
+  qc.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+  qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
+  qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+  qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
 }
 
 function dateToMonth(dateStr: string): string {

@@ -22,6 +22,7 @@ import {
   getGetSpendingHistoryQueryKey,
   getListGoalContributionsQueryKey,
   getGetGoalsSummaryQueryKey,
+  getListGoalsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
@@ -420,7 +421,11 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, month?: string) {
   qc.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   qc.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-  if (month) qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+  // Always invalidate ALL months of goal contributions (prefix match) so
+  // progress bars update whether or not we know the transaction's month.
+  qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
+  qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+  qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
 }
 
 function getPaymentLabel(): Record<string, string> {
