@@ -277,7 +277,7 @@ export default function NotificationsPage() {
     if (previewTimeout.current) clearTimeout(previewTimeout.current);
     setPreviewing(true);
     await triggerBadgerNotification({ haptic: hapticEnabled && canHaptic() });
-    previewTimeout.current = setTimeout(() => setPreviewing(false), 1200);
+    previewTimeout.current = setTimeout(() => setPreviewing(false), 2000);
   }
 
   async function handleSave() {

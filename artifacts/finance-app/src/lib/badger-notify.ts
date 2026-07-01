@@ -42,14 +42,17 @@ const SNIFF_RATES = [
 ];
 
 // Slot boundaries in source-buffer seconds
-// 4 × ♪ (0.145 s each) + 1 × ♩ (0.290 s)
+// 4 × ♪ (0.145 s each) + 1 × ♩ (0.580 s — extended sustain with fade-out)
 const SNIFF_SLOTS = [
   { start: 0,     srcOffset: 0,     srcDuration: 0.145 },
   { start: 0.145, srcOffset: 0.145, srcDuration: 0.145 },
   { start: 0.290, srcOffset: 0.290, srcDuration: 0.145 },
   { start: 0.435, srcOffset: 0.435, srcDuration: 0.145 },
-  { start: 0.580, srcOffset: 0.580, srcDuration: 0.290 },
+  { start: 0.580, srcOffset: 0.580, srcDuration: 0.580 },
 ];
+
+// Total output duration of the sequence (seconds) — used to schedule the fade-out
+const SEQUENCE_DURATION = 0.580 + 0.580; // 1.160 s
 
 // Singletons — created once, reused across calls
 let _ctx: AudioContext | null = null;
@@ -94,12 +97,17 @@ export async function playSniffSound(): Promise<void> {
       const gain = ctx.createGain();
       gain.gain.value = 0.9;
 
+      // On the last (sustained) sniff, schedule a gradual fade-out over the
+      // final 0.45 s so it tails off naturally instead of cutting abruptly.
+      if (i === SNIFF_SLOTS.length - 1) {
+        const fadeStart = now + SEQUENCE_DURATION - 0.45;
+        gain.gain.setValueAtTime(0.9, fadeStart);
+        gain.gain.linearRampToValueAtTime(0, now + SEQUENCE_DURATION);
+      }
+
       src.connect(gain);
       gain.connect(ctx.destination);
 
-      // when   = output timeline start
-      // offset = where in the source buffer to begin reading (seconds)
-      // duration = how many source-buffer seconds to consume
       src.start(now + start, srcOffset, srcDuration);
     });
   } catch {
