@@ -581,11 +581,11 @@ function SwipeableTxRow({
       timers.push(id);
     };
     setAnimating(true);
-    go(() => setOffset(-56), 300);          // peek left → red delete panel
-    go(() => setOffset(0),   517);          // back
-    go(() => setOffset(68),  700);          // peek right → camera/receipt panel
-    go(() => setOffset(0),   933);          // back
-    go(() => setAnimating(false), 1050);
+    go(() => setOffset(-56), 150);          // peek left → red delete panel
+    go(() => setOffset(0),   258);          // back
+    go(() => setOffset(68),  350);          // peek right → camera/receipt panel
+    go(() => setOffset(0),   466);          // back
+    go(() => setAnimating(false), 525);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
