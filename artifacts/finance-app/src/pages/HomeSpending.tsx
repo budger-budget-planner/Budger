@@ -1268,7 +1268,6 @@ export default function HomeSpending() {
 
                   const canSwipeSplit     = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
                   const isUnknownCaptured = tx.description === "Unknown, Captured Online";
-                  const isRenaming        = nameEditTxId === tx.id;
 
                   return (
                     <SwipeableTxRow
@@ -1283,11 +1282,11 @@ export default function HomeSpending() {
                     >
                       {/* ── Main row ── */}
                       <div
-                        className={`flex items-start gap-3 px-4 py-3.5 transition-colors cursor-pointer ${isRenaming ? "" : "active:bg-muted/40"}`}
-                        onClick={() => { if (!isRenaming) setActionTx(isExpanded ? null : tx.id); }}
+                        className="flex items-start gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
+                        onClick={() => setActionTx(isExpanded ? null : tx.id)}
                       >
                         {/* Category icon */}
-                        <div className={`w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5 transition-opacity ${isRenaming ? "opacity-25" : ""}`}
+                        <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                           style={{ backgroundColor: dotColor + "33" }}>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
                         </div>
@@ -1295,19 +1294,19 @@ export default function HomeSpending() {
                         {/* Center content */}
                         <div className="flex-1 min-w-0">
                           {/* Transaction name */}
-                          <p className={`text-sm font-medium leading-snug transition-opacity ${isUnknownCaptured ? "text-yellow-400" : "text-foreground"} ${isRenaming ? "opacity-25" : ""}`} style={{ wordBreak: "break-word" }}>
+                          <p className={`text-sm font-medium leading-snug ${isUnknownCaptured ? "text-yellow-400" : "text-foreground"}`} style={{ wordBreak: "break-word" }}>
                             {isExpanded ? tx.description : shortName}
                           </p>
 
                           {isExpanded ? (
                             /* ── Expanded: category + full badge pills ── */
                             <div className="mt-1 space-y-1.5">
-                              <p className={`text-xs text-muted-foreground transition-opacity ${isRenaming ? "opacity-25" : ""}`}>{catLabel}</p>
+                              <p className="text-xs text-muted-foreground">{catLabel}</p>
                               {isUnknownCaptured && (
                                 nameEditTxId === tx.id ? (
                                   <div className="flex items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
                                     <input
-                                      ref={el => el?.focus()}
+                                      autoFocus
                                       value={nameEditValue}
                                       onChange={e => setNameEditValue(e.target.value)}
                                       onKeyDown={e => {
@@ -1332,7 +1331,7 @@ export default function HomeSpending() {
                                 )
                               )}
                               {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
-                                <div className={`flex flex-wrap gap-1 transition-opacity ${isRenaming ? "opacity-25 pointer-events-none" : ""}`}>
+                                <div className="flex flex-wrap gap-1">
                                   {hasSplit && (
                                     <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
                                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-pink-500/60 bg-pink-500/10 text-[10px] font-medium text-pink-400">
@@ -1378,7 +1377,7 @@ export default function HomeSpending() {
                         </div>
 
                         {/* Amount side */}
-                        <div className={`flex flex-col items-end gap-1 flex-shrink-0 transition-opacity ${isRenaming ? "opacity-25 pointer-events-none" : ""}`}>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           {(hasUnavailable || hasForeign) ? (
                             <p className="text-sm font-semibold text-yellow-400">
                               {Number(tx.amount).toFixed(2)} {tx.transactionCurrency}
