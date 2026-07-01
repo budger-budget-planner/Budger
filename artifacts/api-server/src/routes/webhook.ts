@@ -5,6 +5,69 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getAutoCategory } from "../lib/merchantRules";
 
+// ── SVG result card builder ───────────────────────────────────────────────────
+
+function buildResultSvg(merchant: string, amount: number, currency: string | null): string {
+  const amountStr = `${amount}${currency ? " " + currency : ""}`;
+  // Escape XML special chars
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  return `<svg width="400" height="220" viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="220" rx="24" fill="#111111"/>
+  <rect x="1" y="1" width="398" height="218" rx="23" fill="none" stroke="#333" stroke-width="1.5"/>
+
+  <!-- Badger logo (80×80, top-left padded) -->
+  <g transform="translate(24,24) scale(0.8)">
+    <defs>
+      <linearGradient id="g" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#999"/>
+        <stop offset="55%" stop-color="#505050"/>
+        <stop offset="100%" stop-color="#2a2a2a"/>
+      </linearGradient>
+      <clipPath id="c"><rect width="100" height="100" rx="22"/></clipPath>
+    </defs>
+    <rect width="100" height="100" rx="22" fill="#1e1e1e"/>
+    <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none" stroke="url(#g)" stroke-width="1.5"/>
+    <ellipse cx="50" cy="52" rx="42" ry="34" fill="#F0EDE6"/>
+    <ellipse cx="19" cy="24" rx="12" ry="11" fill="#777"/>
+    <ellipse cx="81" cy="24" rx="12" ry="11" fill="#777"/>
+    <ellipse cx="19" cy="25" rx="7" ry="6.5" fill="#aaa"/>
+    <ellipse cx="81" cy="25" rx="7" ry="6.5" fill="#aaa"/>
+    <path d="M33 74 Q24 60 20 46 Q17 33 20 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
+    <path d="M67 74 Q76 60 80 46 Q83 33 80 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
+    <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6"/>
+    <ellipse cx="10" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
+    <ellipse cx="90" cy="52" rx="13" ry="19" fill="#F0EDE6"/>
+    <ellipse cx="50" cy="70" rx="20" ry="14" fill="#E8E4DC"/>
+    <circle cx="29" cy="48" r="10.5" fill="white"/>
+    <circle cx="71" cy="48" r="10.5" fill="white"/>
+    <circle cx="30" cy="49" r="7" fill="#0d0d0d"/>
+    <circle cx="70" cy="49" r="7" fill="#0d0d0d"/>
+    <circle cx="32.5" cy="47" r="2.5" fill="white"/>
+    <circle cx="72.5" cy="47" r="2.5" fill="white"/>
+    <ellipse cx="50" cy="67" rx="9" ry="7" fill="#111"/>
+    <ellipse cx="47" cy="65" rx="3" ry="2.2" fill="#2a2a2a"/>
+    <path d="M41 73 Q50 81 59 73" stroke="#999" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- App name -->
+  <text x="112" y="54" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#888" letter-spacing="1">BUDGER</text>
+
+  <!-- Checkmark + Saved label -->
+  <text x="112" y="82" font-family="system-ui,-apple-system,sans-serif" font-size="20" fill="#ffffff" font-weight="600">&#x2713; Saved</text>
+
+  <!-- Divider -->
+  <line x1="24" y1="140" x2="376" y2="140" stroke="#2a2a2a" stroke-width="1"/>
+
+  <!-- Merchant -->
+  <text x="24" y="172" font-family="system-ui,-apple-system,sans-serif" font-size="22" fill="#ffffff" font-weight="700">${esc(merchant)}</text>
+
+  <!-- Amount -->
+  <text x="24" y="200" font-family="system-ui,-apple-system,sans-serif" font-size="17" fill="#aaaaaa">${esc(amountStr)}</text>
+</svg>`;
+}
+
 const router: IRouter = Router();
 
 // ── Shared parsing types ──────────────────────────────────────────────────────
@@ -156,6 +219,37 @@ function parseTransactionPayload(
   // occurs when raw is neither string nor object, making extraction impossible.
   return { amount, currency, merchant, path: path as "structured" | "raw_text" };
 }
+
+// ── GET /webhook/result/:token/:txId — pre-rendered SVG result card ──────────
+
+router.get("/webhook/result/:token/:txId", async (req, res): Promise<void> => {
+  const { token, txId } = req.params;
+
+  const [user] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.webhookToken, token));
+
+  if (!user) {
+    res.status(404).send("Not found");
+    return;
+  }
+
+  const [tx] = await db
+    .select({ description: transactionsTable.description, amount: transactionsTable.amount, transactionCurrency: transactionsTable.transactionCurrency })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.id, Number(txId)));
+
+  if (!tx || !tx.description) {
+    res.status(404).send("Transaction not found");
+    return;
+  }
+
+  const svg = buildResultSvg(tx.description, parseFloat(tx.amount), tx.transactionCurrency ?? null);
+  res.setHeader("Content-Type", "image/svg+xml");
+  res.setHeader("Cache-Control", "public, max-age=300");
+  res.send(svg);
+});
 
 // ── GET /webhook/budger-logo.svg ─────────────────────────────────────────────
 
@@ -343,10 +437,10 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     "Apple Pay webhook: transaction created",
   );
 
-  const logoUrl = `${req.protocol}://${req.get("host")}/api/webhook/budger-logo.svg`;
-  const preview = `Saved: ${merchant} — ${amount}${currency ? " " + currency : ""}`;
+  const base = `${req.protocol}://${req.get("host")}`;
+  const resultUrl = `${base}/api/webhook/result/${token}/${tx.id}`;
 
-  res.status(201).json({ success: true, transactionId: tx.id, preview, logo_url: logoUrl });
+  res.status(201).json({ success: true, transactionId: tx.id, result_url: resultUrl });
 });
 
 export default router;
