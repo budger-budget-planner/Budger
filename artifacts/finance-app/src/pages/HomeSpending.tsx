@@ -209,27 +209,13 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>{t("common.date")}</Label>
-          <DdMmYyyyInput
-            value={form.date}
-            onChange={v => set("date", v)}
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t("home.payment")}</Label>
-          <Select value={form.paymentMethod} onValueChange={v => set("paymentMethod", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="card">{t("home.card")}</SelectItem>
-              <SelectItem value="apple_pay">Apple Pay</SelectItem>
-              <SelectItem value="cash">{t("home.cash")}</SelectItem>
-              <SelectItem value="bank_transfer">{t("home.bank_transfer")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-1.5">
+        <Label>{t("common.date")}</Label>
+        <DdMmYyyyInput
+          value={form.date}
+          onChange={v => set("date", v)}
+          required
+        />
       </div>
 
       <div className="flex gap-2 pt-1">
