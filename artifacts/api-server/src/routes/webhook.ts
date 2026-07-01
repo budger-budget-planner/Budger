@@ -131,24 +131,47 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
 
     const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-    // Amount: match things like "251,99" / "251.99" / "1 234,00" / "1,234.00"
-    // Must have at least 2 digits before the separator and exactly 2 after
-    const amountMatch = raw.match(/\b(\d[\d\s]*[\.,]\d{2})\b/);
-    if (amountMatch) {
-      const normalised = amountMatch[1].replace(/\s/g, "").replace(",", ".");
+    // Currency symbol → ISO code mapping (prefix symbols: $12.50  £9.99  €3,00)
+    const SYMBOL_MAP: Record<string, string> = { "$": "USD", "£": "GBP", "€": "EUR" };
+
+    // 1. Try symbol-prefixed amount first: $251.99 / £12,50 / €99.00
+    const symbolPrefixRe = /([$£€])\s*(\d[\d\s]*[\.,]\d{2})\b/;
+    const symbolMatch = raw.match(symbolPrefixRe);
+    if (symbolMatch) {
+      currency = SYMBOL_MAP[symbolMatch[1]] ?? null;
+      const normalised = symbolMatch[2].replace(/\s/g, "").replace(",", ".");
       const n = parseFloat(normalised);
       if (!isNaN(n)) amount = n;
     }
 
-    // Currency: optional 3-letter ISO code appearing after the amount
-    const currencyMatch = raw.match(/\b(\d[\d\s]*[\.,]\d{2})\s+([A-Z]{3})\b/);
-    if (currencyMatch?.[2]) {
-      currency = currencyMatch[2].toUpperCase();
+    // 2. Try amount followed by ISO code or PLN variants: "251,99 PLN" / "251,99 zł" / "251,99 zl"
+    //    This also covers $-less USD etc., and overrides the symbol path if more specific.
+    const suffixCurrencyRe = /\b(\d[\d\s]*[\.,]\d{2})\s+([A-Z]{3}|zł|zl)\b/i;
+    const suffixMatch = raw.match(suffixCurrencyRe);
+    if (suffixMatch) {
+      const code = suffixMatch[2].toLowerCase();
+      currency = (code === "zł" || code === "zl") ? "PLN" : suffixMatch[2].toUpperCase();
+      // Also capture amount from this match if not already found via symbol prefix
+      if (amount === null) {
+        const normalised = suffixMatch[1].replace(/\s/g, "").replace(",", ".");
+        const n = parseFloat(normalised);
+        if (!isNaN(n)) amount = n;
+      }
+    }
+
+    // 3. Fallback: plain decimal number without any currency marker
+    if (amount === null) {
+      const plainAmountMatch = raw.match(/\b(\d[\d\s]*[\.,]\d{2})\b/);
+      if (plainAmountMatch) {
+        const normalised = plainAmountMatch[1].replace(/\s/g, "").replace(",", ".");
+        const n = parseFloat(normalised);
+        if (!isNaN(n)) amount = n;
+      }
     }
 
     // Merchant: prefer second non-empty line (often: bank name, merchant, amount …)
-    // Skip lines that look purely numeric / like an amount
-    const amountLineRe = /^\d[\d\s]*[.,]\d{2}(\s+[A-Z]{3})?$/;
+    // Skip lines that look like an amount line (number + optional currency)
+    const amountLineRe = /^[$£€]?\s*\d[\d\s]*[.,]\d{2}(\s+([A-Z]{3}|zł|zl))?$/i;
     const candidateLines = lines.filter(l => !amountLineRe.test(l));
     if (candidateLines.length >= 2) {
       merchant = candidateLines[1]; // second non-amount line is usually merchant
