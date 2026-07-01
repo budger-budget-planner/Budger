@@ -16,6 +16,12 @@ export interface GoalContribution {
   /** @nullable */
   transactionId: number | null;
   amount: number;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  accountAmount: number | null;
+  /** @nullable */
+  accountCurrency: string | null;
   month: string;
   userId: number;
   /** @nullable */

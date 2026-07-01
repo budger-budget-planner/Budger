@@ -369,7 +369,7 @@ function SplitSheet({
   myUserId: number;
   sym: string;
   issuerCurrency: string;
-  goalContrib?: { name: string; amount: number } | null;
+  goalContrib?: { name: string; amount: number; currency?: string | null; accountAmount?: number | null; accountCurrency?: string | null } | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -388,10 +388,26 @@ function SplitSheet({
   // own currency, not the account currency.
   const effectiveSym = tx.transactionCurrency ? currencySymbol(tx.transactionCurrency) : sym;
 
+  // Amount dedicated to the goal, expressed in the transaction's own currency
+  // (issuerCurrency). Prefer the stored accountAmount/accountCurrency snapshot
+  // taken at contribution-time — it matches exactly what the backend uses to
+  // block the split. Only fall back to the (possibly currency-mismatched)
+  // goal-currency amount if no account snapshot is available.
+  const goalAmountInTxCurrency = (() => {
+    if (!goalContrib) return 0;
+    if (goalContrib.accountAmount != null && goalContrib.accountCurrency === issuerCurrency) {
+      return goalContrib.accountAmount;
+    }
+    if (goalContrib.currency === issuerCurrency) {
+      return goalContrib.amount;
+    }
+    return 0;
+  })();
+
   // Block split if it would leave less than the goal-dedicated amount on this transaction
   const wouldViolateGoal = !!(
-    goalContrib && goalContrib.amount > 0 && splitValue !== "" && splitAmt > 0 &&
-    (txAmount - splitAmt) < goalContrib.amount
+    goalAmountInTxCurrency > 0 && splitValue !== "" && splitAmt > 0 &&
+    (txAmount - splitAmt) < goalAmountInTxCurrency
   );
 
   const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount && !wouldViolateGoal;
@@ -485,7 +501,7 @@ function SplitSheet({
                 <p className="text-xs text-yellow-400">
                   {t("split.goal_block", {
                     rem: `${effectiveSym}${(txAmount - splitAmt).toFixed(2)}`,
-                    goal: `${effectiveSym}${goalContrib.amount.toFixed(2)}`,
+                    goal: `${effectiveSym}${goalAmountInTxCurrency.toFixed(2)}`,
                   })}
                 </p>
               </div>
@@ -908,9 +924,9 @@ export default function HomeSpending() {
         name: c.goalName ?? "",
         color: c.goalColor ?? "#888",
         amount: c.amount,
-        currency: (c as any).currency ?? null,
-        accountAmount: (c as any).accountAmount ?? null,
-        accountCurrency: (c as any).accountCurrency ?? null,
+        currency: c.currency ?? null,
+        accountAmount: c.accountAmount ?? null,
+        accountCurrency: c.accountCurrency ?? null,
       });
     }
   }

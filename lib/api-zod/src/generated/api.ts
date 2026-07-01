@@ -828,6 +828,9 @@ export const ListGoalContributionsResponseItem = zod.object({
   goalColor: zod.string().nullable(),
   transactionId: zod.number().nullable(),
   amount: zod.number(),
+  currency: zod.string().nullable(),
+  accountAmount: zod.number().nullable(),
+  accountCurrency: zod.string().nullable(),
   month: zod.string(),
   userId: zod.number(),
   householdId: zod.number().nullable(),
@@ -844,6 +847,9 @@ export const CreateGoalContributionBody = zod.object({
   goalId: zod.number(),
   transactionId: zod.number().nullish(),
   amount: zod.number(),
+  currency: zod.string().nullish(),
+  accountAmount: zod.number().nullish(),
+  accountCurrency: zod.string().nullish(),
   month: zod.string().optional(),
 });
 

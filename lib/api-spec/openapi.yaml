@@ -1588,6 +1588,12 @@ components:
           type: ["integer", "null"]
         amount:
           type: number
+        currency:
+          type: ["string", "null"]
+        accountAmount:
+          type: ["number", "null"]
+        accountCurrency:
+          type: ["string", "null"]
         month:
           type: string
         userId:
@@ -1603,6 +1609,9 @@ components:
         - goalColor
         - transactionId
         - amount
+        - currency
+        - accountAmount
+        - accountCurrency
         - month
         - userId
         - householdId
@@ -1620,6 +1629,12 @@ components:
           type: ["integer", "null"]
         amount:
           type: number
+        currency:
+          type: ["string", "null"]
+        accountAmount:
+          type: ["number", "null"]
+        accountCurrency:
+          type: ["string", "null"]
         month:
           type: string
 
