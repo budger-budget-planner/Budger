@@ -44,8 +44,8 @@ export default function DashboardPage() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
 
-  const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth });
-  const { data: monthly }    = useGetMonthlySummary();
+  const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
+  const { data: monthly }    = useGetMonthlySummary({ currency: prefs.currency } as any);
   const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
 
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
