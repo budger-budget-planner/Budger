@@ -618,50 +618,58 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dotknij + Dodaj pole — wpisz transaction jako klucz, wybierz Dane wejściowe skrótu jako wartość. Skopiuj link poniżej i wklej go w pole URL. Dotknij Gotowe.",
   },
 
-  // ── Share Sheet Shortcut tutorial ──
-  "ss.setup_title":     { en: "Share Sheet Shortcut",              pl: "Skrót do Udostępniania"             },
-  "ss.configure_btn":   { en: "Set up Share Sheet auto-logging",   pl: "Skonfiguruj skrót Udostępniania"    },
-  "ss.configure_desc":  { en: "Select any price text online, share it, and Budger logs it instantly.", pl: "Zaznacz tekst z ceną, udostępnij go, a Budger zapisze go automatycznie." },
+  // ── Capturing Online Payments tutorial ──
+  "ss.setup_title":     { en: "Capturing Online Payments",                   pl: "Przechwytywanie płatności online"        },
+  "ss.configure_btn":   { en: "Set up online payment capture",               pl: "Skonfiguruj przechwytywanie płatności"   },
+  "ss.configure_desc":  { en: "Select any price text online, share it, and Budger logs it instantly.", pl: "Zaznacz cenę na stronie, udostępnij ją, a Budger zapisze ją automatycznie." },
 
   "ss.s1_title": {
-    en: "Select a price → Share → logged instantly",
-    pl: "Zaznacz cenę → Udostępnij → gotowe",
+    en: "Select a price, share it — Budger logs it",
+    pl: "Zaznacz cenę, udostępnij — Budger ją zapisze",
   },
   "ss.s1_desc": {
-    en: "Highlight any price or payment text on a webpage or in an email. Tap Share and choose Send To Budger — the amount is captured in seconds.",
-    pl: "Zaznacz dowolną cenę lub kwatę na stronie lub w e-mailu. Dotknij Udostępnij i wybierz Send To Budger — kwota zostanie zapisana w kilka sekund.",
+    en: "Highlight any price or amount on a webpage. Tap Share → Send To Budger. The transaction appears in Budger instantly — no typing needed.",
+    pl: "Zaznacz dowolną kwotę na stronie. Dotknij Udostępnij → Send To Budger. Transakcja pojawi się w Budger natychmiast.",
   },
   "ss.s2_title": {
-    en: "Open Shortcuts → My Shortcuts → tap +",
-    pl: "Otwórz Skróty → Moje skróty → dotknij +",
+    en: "Add a Text action → tap ⓘ → Show in Share Sheet",
+    pl: "Dodaj akcję Tekst → dotknij ⓘ → Pokaż w karcie Udostępnij",
   },
   "ss.s2_desc": {
-    en: "Open the Shortcuts app on your iPhone. Make sure you're on the My Shortcuts tab, then tap the + button in the top-right corner to create a new shortcut.",
-    pl: "Otwórz aplikację Skróty na iPhonie. Upewnij się, że jesteś na karcie Moje skróty, a następnie dotknij przycisku + w prawym górnym rogu.",
+    en: "Open Shortcuts → tap + for a new shortcut. Search for Text and add it. An ⓘ icon appears on the action — tap it and choose Show in Share Sheet. A 'Receive…' action will appear automatically.",
+    pl: "Otwórz Skróty → dotknij + aby dodać nowy skrót. Wyszukaj Tekst i dodaj. Na akcji pojawi się ikona ⓘ — dotknij jej i wybierz Pokaż w karcie Udostępnij. Automatycznie pojawi się akcja 'Odbierz…'.",
   },
   "ss.s3_title": {
-    en: "Name it 'Send To Budger' → add Receive Text",
-    pl: "Nazwij 'Send To Budger' → dodaj Odbierz tekst",
+    en: "Tap the first field of 'Receive…' → choose Text only",
+    pl: "Dotknij pierwsze pole 'Odbierz…' → wybierz tylko Tekst",
   },
   "ss.s3_desc": {
-    en: "Tap the name at the top and type Send To Budger. Tap Add Action and search for Receive Text from Share Sheet. Add it — this lets the shortcut accept shared text.",
-    pl: "Dotknij nazwy u góry i wpisz Send To Budger. Dotknij Dodaj akcję i wyszukaj Odbierz tekst z karty Udostępnij. Dodaj ją.",
+    en: "The 'Receive [Text] from [Share Sheet]' action has appeared. Tap the first blue field (after 'Receive'), clear everything, and select only Text. Confirm to close the picker.",
+    pl: "Pojawiła się akcja 'Odbierz [Tekst] z [karty Udostępnij]'. Dotknij pierwsze niebieskie pole (po 'Odbierz'), wyczyść wszystko i zaznacz tylko Tekst. Potwierdź.",
   },
   "ss.s4_title": {
-    en: "Search and add 'Get Contents of URL'",
-    pl: "Wyszukaj i dodaj 'Pobierz zawartość URL'",
+    en: "In the Text action — swipe keyboard row to find Shortcut Input",
+    pl: "W akcji Tekst — przesuń rząd klawiatury, aby znaleźć Dane wejściowe skrótu",
   },
   "ss.s4_desc": {
-    en: "Tap Add Action again and search Get Contents of URL. Tap the result to add it below the Receive Text step. This action will POST the selected text to Budger.",
-    pl: "Dotknij Dodaj akcję i wyszukaj Pobierz zawartość URL. Dotknij wynik, aby dodać go pod krokiem Odbierz tekst.",
+    en: "Tap inside the Text action's field. A row of variable chips appears above the keyboard — swipe it left to reveal Shortcut Input (it's hidden by default). Tap it to insert it.",
+    pl: "Dotknij pola w akcji Tekst. Nad klawiaturą pojawi się rząd zmiennych — przesuń go w lewo, aby znaleźć Dane wejściowe skrótu (jest ukryte). Dotknij go, aby wstawić.",
   },
   "ss.s5_title": {
-    en: "Set POST · JSON · transaction → Shortcut Input · copy URL",
-    pl: "Ustaw POST · JSON · transaction → dane wejściowe · skopiuj URL",
+    en: "Add 'Get Contents of URL' · POST · JSON · transaction → Text",
+    pl: "Dodaj 'Pobierz zawartość URL' · POST · JSON · transaction → Tekst",
   },
   "ss.s5_desc": {
-    en: "Expand the action. Set Method to POST, Body to JSON. Add a field — key: transaction, value: Shortcut Input. Add a Show Notification step. Copy the link below and paste it into the URL field. Tap Done.",
-    pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dodaj pole — klucz: transaction, wartość: Dane wejściowe skrótu. Dodaj krok Pokaż powiadomienie. Skopiuj link i wklej go w pole URL. Dotknij Gotowe.",
+    en: "Add action Get Contents of URL. Expand it: set Method to POST, leave Body as JSON. Add a new field — name it transaction and set its value to the Text variable (yellow chip). Paste your URL from the button below.",
+    pl: "Dodaj akcję Pobierz zawartość URL. Rozwiń: ustaw Metodę na POST, zostaw Treść jako JSON. Dodaj nowe pole — nazwij je transaction i ustaw wartość na zmienną Tekst (żółty chip). Wklej URL z przycisku poniżej.",
+  },
+  "ss.s6_title": {
+    en: "Add Show Notification → type the message → tap Done",
+    pl: "Dodaj Pokaż powiadomienie → wpisz wiadomość → dotknij Gotowe",
+  },
+  "ss.s6_desc": {
+    en: "Add one more action: Show Notification. Type 🦡 Captured and Saved to Budger 🦡 as the message. Tap Done to save the shortcut. Copy the URL below and paste it into the URL field of the Get Contents action.",
+    pl: "Dodaj jeszcze jedną akcję: Pokaż powiadomienie. Wpisz 🦡 Captured and Saved to Budger 🦡 jako wiadomość. Dotknij Gotowe, aby zapisać skrót. Skopiuj URL poniżej i wklej go w pole URL akcji Pobierz zawartość.",
   },
 
   // ── Dashboard additional ──

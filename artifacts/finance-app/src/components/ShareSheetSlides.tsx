@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { t } from "@/lib/i18n";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared iPhone frame
+// iPhone frame
 // ─────────────────────────────────────────────────────────────────────────────
 function Phone({ id, children }: { id: string; children: React.ReactNode }) {
   const clip = `ss-clip-${id}`;
@@ -48,228 +48,293 @@ function NavBar({ title, back, rightLabel }: { title: string; back?: string; rig
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 1 — Result preview: select price text → share → Budger logs it
+// SLIDE 1 — Result: select price text online → share → Budger logs it
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup1() {
   return (
     <Phone id="ss1">
-      {/* Safari-style address bar */}
+      {/* Safari address bar */}
       <rect x="11" y="44" width="242" height="50" fill="#111" />
       <rect x="22" y="54" width="220" height="28" rx="9" fill="#1c1c1e" />
       <text x="132" y="73" textAnchor="middle" fontSize="10.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">shop.example.com</text>
       <rect x="11" y="94" width="242" height="0.5" fill="#2a2a2e" />
 
-      {/* Webpage content */}
-      <rect x="11" y="95" width="242" height="200" fill="#111" />
-      <text x="24" y="120" fontSize="11" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Order Confirmation</text>
-      <text x="24" y="145" fontSize="14" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Morning Latte</text>
-      <text x="24" y="163" fontSize="11" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">1 × Oat milk, medium</text>
+      {/* Page content */}
+      <rect x="11" y="95" width="242" height="190" fill="#111" />
+      <text x="24" y="118" fontSize="10.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Order Confirmation</text>
+      <text x="24" y="140" fontSize="14" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Morning Latte · Oat</text>
+      {/* Price selected */}
+      <rect x="22" y="152" width="62" height="22" rx="5" fill="#0a84ff" fillOpacity="0.35" />
+      <text x="53" y="167" textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">€4.80</text>
+      <circle cx="22" cy="163" r="4" fill="#0a84ff" />
+      <circle cx="84" cy="163" r="4" fill="#0a84ff" />
+      {/* Share callout */}
+      <rect x="18" y="178" width="44" height="20" rx="5" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.8" />
+      <text x="40" y="191" textAnchor="middle" fontSize="9.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Share</text>
 
-      {/* Price text — selected / highlighted */}
-      <rect x="22" y="176" width="66" height="22" rx="5" fill="#0a84ff" fillOpacity="0.35" />
-      <text x="55" y="191" textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">€4.80</text>
-      {/* Selection handles */}
-      <circle cx="22" cy="187" r="4" fill="#0a84ff" />
-      <circle cx="88" cy="187" r="4" fill="#0a84ff" />
-      <rect x="22" y="175.5" width="66" height="1" fill="#0a84ff" />
-      <rect x="22" y="198.5" width="66" height="1" fill="#0a84ff" />
-
-      {/* Callout: Share */}
-      <rect x="22" y="205" width="44" height="20" rx="5" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.8" />
-      <text x="44" y="218" textAnchor="middle" fontSize="9.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Share</text>
-
-      {/* Bottom share sheet */}
-      <rect x="11" y="290" width="242" height="169" rx="0" fill="#1c1c1e" />
-      <rect x="96" y="296" width="72" height="4" rx="2" fill="#3a3a3e" />
-
-      {/* App row */}
-      <text x="24" y="317" fontSize="10" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Share via Shortcuts</text>
-      {/* Highlighted: Send To Budger */}
-      <rect x="14" y="324" width="236" height="44" rx="10" fill="#0a84ff" fillOpacity="0.13" stroke="#0a84ff" strokeWidth="0.7" />
-      <rect x="24" y="335" width="28" height="22" rx="7" fill="#30d158" />
-      <text x="38" y="350" textAnchor="middle" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">⚡</text>
-      <text x="60" y="351" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Send To Budger</text>
-      <rect x="11" y="370" width="242" height="0.5" fill="#2e2e32" />
-      <text x="24" y="390" fontSize="12" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Copy</text>
-      <rect x="11" y="400" width="242" height="0.5" fill="#2e2e32" />
-      <text x="24" y="420" fontSize="12" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Look Up</text>
+      {/* Share sheet */}
+      <rect x="11" y="285" width="242" height="174" fill="#1c1c1e" />
+      <rect x="96" y="291" width="72" height="4" rx="2" fill="#3a3a3e" />
+      <text x="132" y="311" textAnchor="middle" fontSize="10" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Share via Shortcuts</text>
+      {/* Send To Budger row — highlighted */}
+      <rect x="14" y="318" width="236" height="44" rx="10" fill="#0a84ff" fillOpacity="0.13" stroke="#0a84ff" strokeWidth="0.7" />
+      <rect x="24" y="329" width="24" height="22" rx="7" fill="#30d158" />
+      <text x="36" y="344" textAnchor="middle" fontSize="10" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">⚡</text>
+      <text x="56" y="344" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Send To Budger</text>
+      <rect x="11" y="364" width="242" height="0.5" fill="#2e2e32" />
+      <text x="24" y="382" fontSize="12" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Copy</text>
+      <rect x="11" y="392" width="242" height="0.5" fill="#2e2e32" />
+      <text x="24" y="410" fontSize="12" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Look Up</text>
     </Phone>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 2 — Shortcuts app, My Shortcuts tab, tap +
+// SLIDE 2 — Shortcuts → new shortcut → add "Text" action → tap ⓘ → Show in Share Sheet
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup2() {
   return (
     <Phone id="ss2">
-      <rect x="11" y="44" width="242" height="54" fill="#000" />
-      <text x="24" y="84" fontSize="24" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Shortcuts</text>
+      <NavBar title="New Shortcut" back="Shortcuts" rightLabel="Done" />
 
-      {/* + button */}
-      <circle cx="240" cy="72" r="16" fill="#0a84ff" fillOpacity="0.15" />
-      <text x="240" y="78" textAnchor="middle" fontSize="22" fontWeight="300" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">+</text>
-      <circle cx="240" cy="72" r="20" fill="none" stroke="#0a84ff" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2" />
+      {/* Text action card — added */}
+      <rect x="14" y="96" width="236" height="56" rx="14" fill="#1c1c1e" />
+      {/* Yellow Text icon */}
+      <rect x="22" y="110" width="26" height="26" rx="7" fill="#ffd60a" />
+      <text x="35" y="127" textAnchor="middle" fontSize="12" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">T</text>
+      <text x="55" y="122" fontSize="13" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
+      <text x="55" y="136" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Tap to edit…</text>
+      {/* ⓘ icon — highlighted with pulsing ring */}
+      <circle cx="228" cy="124" r="11" fill="#0a84ff" fillOpacity="0.2" stroke="#0a84ff" strokeWidth="1.2" strokeDasharray="2.5 1.5" />
+      <circle cx="228" cy="124" r="7" fill="#0a84ff" fillOpacity="0.85" />
+      <text x="228" y="128" textAnchor="middle" fontSize="9" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">i</text>
 
-      <rect x="11" y="98" width="242" height="0.5" fill="#2a2a2e" />
+      {/* Callout dropdown from ⓘ */}
+      <rect x="100" y="156" width="152" height="108" rx="12" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.8" />
+      {/* Arrow pointing up to ⓘ */}
+      <polygon points="220,150 228,156 236,150" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.4" />
+      <text x="176" y="177" textAnchor="middle" fontSize="10.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Action Settings</text>
+      <rect x="108" y="182" width="136" height="0.5" fill="#3a3a3e" />
+      <text x="176" y="199" textAnchor="middle" fontSize="11" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Add to Home Screen</text>
+      <rect x="108" y="204" width="136" height="0.5" fill="#3a3a3e" />
+      {/* Highlighted row */}
+      <rect x="102" y="205" width="148" height="28" rx="0" fill="#0a84ff" fillOpacity="0.14" />
+      <text x="176" y="223" textAnchor="middle" fontSize="11" fontWeight="600" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Show in Share Sheet</text>
+      <rect x="108" y="234" width="136" height="0.5" fill="#3a3a3e" />
+      <text x="176" y="251" textAnchor="middle" fontSize="11" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Delete Action</text>
 
-      {/* Existing shortcut thumbnails — faded */}
-      <rect x="16" y="110" width="105" height="90" rx="16" fill="#1c1c1e" opacity="0.5" />
-      <rect x="143" y="110" width="105" height="90" rx="16" fill="#1c1c1e" opacity="0.3" />
-      <rect x="16" y="210" width="105" height="90" rx="16" fill="#1c1c1e" opacity="0.2" />
-      <rect x="143" y="210" width="105" height="90" rx="16" fill="#1c1c1e" opacity="0.15" />
-
-      {/* Bottom tab bar */}
-      <rect x="11" y="416" width="242" height="0.5" fill="#2a2a2e" />
-      <rect x="11" y="416" width="242" height="43" fill="#0d0d0d" />
-      {/* My Shortcuts — active */}
-      <rect x="28" y="422" width="16" height="12" rx="2" fill="#0a84ff" />
-      <rect x="32" y="418" width="8" height="4" rx="1" fill="#0a84ff" />
-      <text x="36" y="451" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Shortcuts</text>
-      {/* Automation tab */}
-      <circle cx="132" cy="430" r="8" fill="none" stroke="#3a3a3e" strokeWidth="1.8" />
-      <line x1="132" y1="424" x2="132" y2="430" stroke="#3a3a3e" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="132" y1="430" x2="137" y2="433" stroke="#3a3a3e" strokeWidth="1.6" strokeLinecap="round" />
-      <text x="132" y="451" textAnchor="middle" fontSize="8.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Automation</text>
-      {/* Gallery tab */}
-      <rect x="214" y="422" width="16" height="16" rx="2" fill="none" stroke="#3a3a3e" strokeWidth="1.4" />
-      <line x1="220" y1="422" x2="220" y2="438" stroke="#3a3a3e" strokeWidth="1" />
-      <line x1="214" y1="430" x2="230" y2="430" stroke="#3a3a3e" strokeWidth="1" />
-      <text x="222" y="451" textAnchor="middle" fontSize="8.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Gallery</text>
+      {/* Add action button — faded */}
+      <rect x="68" y="280" width="128" height="30" rx="15" fill="#1c1c1e" stroke="#2a2a2e" strokeWidth="0.8" opacity="0.5" />
+      <text x="132" y="300" textAnchor="middle" fontSize="11.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">+ Add Action</text>
     </Phone>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 3 — Name it "Send To Budger" + add Receive Text from Share Sheet
+// SLIDE 3 — "Receive [Text] from [Share Sheet]" appeared → tap first field → choose Text only
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup3() {
   return (
     <Phone id="ss3">
       <NavBar title="New Shortcut" back="Shortcuts" rightLabel="Done" />
 
-      {/* Shortcut name chip */}
-      <rect x="68" y="96" width="128" height="30" rx="15" fill="#1c1c1e" stroke="#3a3a3e" strokeWidth="0.8" />
-      <text x="132" y="116" textAnchor="middle" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Send To Budger</text>
+      {/* Receive … from … action */}
+      <rect x="14" y="96" width="236" height="72" rx="14" fill="#1c1c1e" />
+      <rect x="14" y="96" width="236" height="36" rx="14" fill="#272729" />
+      <rect x="14" y="114" width="236" height="18" fill="#272729" />
+      <rect x="20" y="107" width="22" height="17" rx="5" fill="#0a84ff" opacity="0.85" />
+      <text x="31" y="119" textAnchor="middle" fontSize="9" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">↙</text>
+      <text x="48" y="119" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Receive</text>
+      {/* First field — highlighted/tapped */}
+      <rect x="93" y="110" width="50" height="18" rx="9" fill="#0a84ff" stroke="#0a84ff" strokeWidth="0.6" />
+      <text x="118" y="122" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
+      <text x="148" y="119" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">from</text>
+      <rect x="172" y="110" width="64" height="18" rx="9" fill="#3a3a3e" />
+      <text x="204" y="122" textAnchor="middle" fontSize="9.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Share Sheet</text>
+      {/* If no input row */}
+      <rect x="14" y="132" width="236" height="0.5" fill="#2e2e32" />
+      <text x="22" y="155" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">If there's no input:</text>
+      <text x="154" y="155" fontSize="10" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Continue</text>
 
-      <rect x="11" y="136" width="242" height="0.5" fill="#2a2a2e" />
+      {/* Type picker popup */}
+      <rect x="14" y="172" width="236" height="200" rx="16" fill="#1e1e22" stroke="#2e2e32" strokeWidth="0.8" />
+      <text x="132" y="193" textAnchor="middle" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Choose Type</text>
+      <rect x="14" y="200" width="236" height="0.5" fill="#2e2e32" />
 
-      {/* Receive Text from Share Sheet — highlighted action card */}
-      <rect x="14" y="146" width="236" height="80" rx="14" fill="#1c1c1e" stroke="#0a84ff" strokeWidth="0.9" strokeOpacity="0.6" />
-      {/* Action icon */}
-      <rect x="22" y="158" width="28" height="28" rx="8" fill="#0a84ff" opacity="0.85" />
-      <text x="36" y="176" textAnchor="middle" fontSize="13" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">↙</text>
-      <text x="58" y="167" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Receive</text>
-      <text x="58" y="181" fontSize="10.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
-      <text x="98" y="181" fontSize="10.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">from</text>
-      <text x="120" y="181" fontSize="10.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Share Sheet</text>
-      {/* If no input line */}
-      <rect x="14" y="210" width="236" height="0.5" fill="#2e2e32" />
-      <text x="22" y="227" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">If there's no input:</text>
-      <text x="152" y="227" fontSize="10" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Continue</text>
+      {/* Text — checked/selected */}
+      <rect x="14" y="201" width="236" height="38" fill="#0a84ff" fillOpacity="0.10" />
+      <text x="32" y="224" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
+      <text x="240" y="224" textAnchor="end" fontSize="14" fontWeight="700" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">✓</text>
+      <rect x="14" y="239" width="236" height="0.5" fill="#2e2e32" />
 
-      {/* Add action prompt */}
-      <rect x="14" y="240" width="236" height="0.5" fill="#2a2a2e" />
-      <rect x="68" y="260" width="128" height="32" rx="16" fill="#1c1c1e" stroke="#2a2a2e" strokeWidth="0.8" />
-      <text x="132" y="280" textAnchor="middle" fontSize="12" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">+ Add Action</text>
-
-      {/* Search bar at bottom */}
-      <rect x="16" y="310" width="232" height="32" rx="10" fill="#1c1c1e" />
-      <text x="132" y="330" textAnchor="middle" fontSize="11" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Search actions…</text>
+      {/* Other types — grey/deselected */}
+      <text x="32" y="262" fontSize="12" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Images</text>
+      <rect x="14" y="277" width="236" height="0.5" fill="#2e2e32" />
+      <text x="32" y="300" fontSize="12" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Files</text>
+      <rect x="14" y="315" width="236" height="0.5" fill="#2e2e32" />
+      <text x="32" y="338" fontSize="12" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">URLs</text>
+      <rect x="14" y="353" width="236" height="0.5" fill="#2e2e32" />
     </Phone>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 4 — Search "Get Contents of URL" and add it
+// SLIDE 4 — "Text" action: tap field → swipe keyboard row → choose Shortcut Input
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup4() {
   return (
     <Phone id="ss4">
       <NavBar title="New Shortcut" back="Shortcuts" rightLabel="Done" />
 
-      {/* Search bar */}
-      <rect x="16" y="94" width="232" height="32" rx="10" fill="#1c1c1e" />
-      <text x="50" y="115" fontSize="11.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Contents of URL</text>
-      <rect x="34" y="103" width="10" height="10" rx="2" fill="#636368" opacity="0.4" />
-      <rect x="220" y="103" width="14" height="14" rx="7" fill="#3a3a3e" />
-      <text x="227" y="113" textAnchor="middle" fontSize="9" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">✕</text>
-      <rect x="11" y="130" width="242" height="0.5" fill="#1e1e22" />
+      {/* Receive action — compact/faded */}
+      <rect x="14" y="96" width="236" height="32" rx="10" fill="#1c1c1e" opacity="0.5" />
+      <text x="28" y="116" fontSize="10.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
 
-      {/* Result row — highlighted */}
-      <rect x="11" y="131" width="242" height="60" fill="#0a84ff" fillOpacity="0.08" />
-      <rect x="20" y="145" width="30" height="30" rx="8" fill="#0a84ff" opacity="0.85" />
-      <text x="35" y="163" textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">↗</text>
-      <text x="58" y="160" fontSize="13" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Contents of URL</text>
-      <text x="58" y="175" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Web · Networking</text>
-      <rect x="11" y="191" width="242" height="0.5" fill="#1e1e22" />
+      {/* Text action — active/focused */}
+      <rect x="14" y="136" width="236" height="52" rx="14" fill="#1c1c1e" stroke="#0a84ff" strokeWidth="0.8" strokeOpacity="0.6" />
+      <rect x="22" y="150" width="22" height="22" rx="6" fill="#ffd60a" />
+      <text x="33" y="165" textAnchor="middle" fontSize="11" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">T</text>
+      {/* Text field with cursor */}
+      <rect x="50" y="148" width="190" height="26" rx="8" fill="#2a2a2e" stroke="#0a84ff" strokeWidth="0.8" />
+      <text x="60" y="164" fontSize="11" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Tap to type…</text>
+      <rect x="163" y="153" width="1.5" height="16" rx="0.7" fill="#0a84ff" />
 
-      {/* Dimmed second result */}
-      <rect x="20" y="203" width="30" height="30" rx="8" fill="#2a2a2e" opacity="0.4" />
-      <text x="58" y="221" fontSize="13" fill="#3a3a3e" fontFamily="-apple-system,system-ui,sans-serif">Get File</text>
-      <rect x="11" y="245" width="242" height="0.5" fill="#1e1e22" />
+      {/* Swipe hint arrow */}
+      <text x="132" y="208" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">swipe left on the row above keyboard</text>
+      <text x="132" y="220" textAnchor="middle" fontSize="9" fill="#3a3a3e" fontFamily="-apple-system,system-ui,sans-serif">↓</text>
 
-      <text x="132" y="285" textAnchor="middle" fontSize="10.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Tap to add it to your shortcut</text>
+      {/* Variable row above keyboard */}
+      <rect x="11" y="300" width="242" height="38" fill="#1a1a1e" />
+      <rect x="11" y="300" width="242" height="0.5" fill="#2e2e32" />
+      {/* Shortcut Input chip — highlighted */}
+      <rect x="14" y="309" width="96" height="22" rx="11" fill="#0a84ff" />
+      <text x="62" y="323" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Shortcut Input</text>
+      {/* Other chips — faded */}
+      <rect x="116" y="309" width="52" height="22" rx="11" fill="#2a2a2e" />
+      <text x="142" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Clipboard</text>
+      <rect x="174" y="309" width="40" height="22" rx="11" fill="#2a2a2e" />
+      <text x="194" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Date</text>
+      <rect x="220" y="309" width="30" height="22" rx="11" fill="#2a2a2e" />
+      <text x="235" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">…</text>
+
+      {/* Keyboard */}
+      <rect x="11" y="338" width="242" height="121" fill="#1c1c1e" />
+      {/* Key rows — simplified */}
+      {[0,1,2,3,4,5,6,7,8,9].map((i) => (
+        <rect key={i} x={16 + i * 23} y="346" width="19" height="22" rx="5" fill="#2c2c2e" />
+      ))}
+      {[0,1,2,3,4,5,6,7,8].map((i) => (
+        <rect key={i} x={18 + i * 25} y="374" width="21" height="22" rx="5" fill="#2c2c2e" />
+      ))}
+      {[0,1,2,3,4,5,6].map((i) => (
+        <rect key={i} x={30 + i * 27} y="402" width="23" height="22" rx="5" fill="#2c2c2e" />
+      ))}
+      <rect x="16" y="430" width="50" height="22" rx="5" fill="#2c2c2e" />
+      <rect x="72" y="430" width="120" height="22" rx="5" fill="#2c2c2e" />
+      <rect x="198" y="430" width="50" height="22" rx="5" fill="#2c2c2e" />
     </Phone>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 5 — Configured action: POST · JSON · transaction → Shortcut Input · Show Notification
+// SLIDE 5 — Add "Get Contents of URL" · POST · JSON · transaction → Text action
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup5() {
   return (
     <Phone id="ss5">
-      <NavBar title="Send To Budger" back="Shortcuts" rightLabel="Done" />
+      <NavBar title="New Shortcut" back="Shortcuts" rightLabel="Done" />
 
-      {/* Receive Text block — compact / faded */}
-      <rect x="14" y="95" width="236" height="36" rx="10" fill="#1c1c1e" opacity="0.55" />
-      <rect x="22" y="107" width="20" height="20" rx="6" fill="#0a84ff" opacity="0.6" />
-      <text x="50" y="118" fontSize="10.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
+      {/* Receive — faded */}
+      <rect x="14" y="96" width="236" height="26" rx="8" fill="#1c1c1e" opacity="0.4" />
+      <text x="28" y="113" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
 
-      {/* Get Contents of URL — main action */}
-      <rect x="14" y="140" width="236" height="175" rx="14" fill="#1c1c1e" />
+      {/* Text — faded */}
+      <rect x="14" y="128" width="236" height="26" rx="8" fill="#1c1c1e" opacity="0.4" />
+      <rect x="22" y="136" width="16" height="14" rx="4" fill="#ffd60a" opacity="0.5" />
+      <text x="44" y="146" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Text · Shortcut Input</text>
 
-      {/* Action header */}
-      <rect x="14" y="140" width="236" height="34" rx="14" fill="#272729" />
-      <rect x="14" y="156" width="236" height="18" fill="#272729" />
-      <rect x="20" y="152" width="20" height="14" rx="4" fill="#0a84ff" opacity="0.85" />
-      <text x="48" y="162" fontSize="11.5" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Contents of URL</text>
+      {/* Get Contents of URL — main */}
+      <rect x="14" y="162" width="236" height="174" rx="14" fill="#1c1c1e" />
+      <rect x="14" y="162" width="236" height="32" rx="14" fill="#272729" />
+      <rect x="14" y="178" width="236" height="16" fill="#272729" />
+      <rect x="20" y="173" width="18" height="13" rx="4" fill="#0a84ff" opacity="0.85" />
+      <text x="44" y="182" fontSize="11" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Contents of URL</text>
 
-      {/* URL field */}
-      <rect x="14" y="176" width="236" height="0.5" fill="#2e2e32" />
-      <text x="22" y="192" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">URL</text>
-      <rect x="46" y="181" width="196" height="20" rx="6" fill="#0a84ff" fillOpacity="0.10" stroke="#0a84ff" strokeWidth="0.6" />
-      <text x="54" y="195" fontSize="8.5" fill="#4da3ff" fontFamily="-apple-system,system-ui,sans-serif">https://budger.app/api/webhook/…</text>
+      {/* URL */}
+      <rect x="14" y="194" width="236" height="0.5" fill="#2e2e32" />
+      <text x="22" y="210" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">URL</text>
+      <rect x="44" y="199" width="198" height="18" rx="6" fill="#0a84ff" fillOpacity="0.10" stroke="#0a84ff" strokeWidth="0.5" />
+      <text x="52" y="211" fontSize="8" fill="#4da3ff" fontFamily="-apple-system,system-ui,sans-serif">https://…/api/webhook/apple/…</text>
 
-      {/* Method */}
-      <rect x="14" y="203" width="236" height="0.5" fill="#2e2e32" />
-      <text x="22" y="221" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Method</text>
-      <rect x="192" y="211" width="36" height="18" rx="9" fill="#0a84ff" fillOpacity="0.2" stroke="#0a84ff" strokeWidth="0.6" />
-      <text x="210" y="223" textAnchor="middle" fontSize="9" fontWeight="700" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">POST</text>
+      {/* Method POST */}
+      <rect x="14" y="219" width="236" height="0.5" fill="#2e2e32" />
+      <text x="22" y="235" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Method</text>
+      <rect x="195" y="225" width="36" height="18" rx="9" fill="#0a84ff" fillOpacity="0.2" stroke="#0a84ff" strokeWidth="0.6" />
+      <text x="213" y="237" textAnchor="middle" fontSize="9" fontWeight="700" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">POST</text>
 
       {/* Body JSON */}
-      <rect x="14" y="231" width="236" height="0.5" fill="#2e2e32" />
-      <text x="22" y="249" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Request Body</text>
-      <rect x="188" y="239" width="40" height="18" rx="9" fill="#30d158" fillOpacity="0.15" stroke="#30d158" strokeWidth="0.6" />
-      <text x="208" y="251" textAnchor="middle" fontSize="9" fontWeight="700" fill="#30d158" fontFamily="-apple-system,system-ui,sans-serif">JSON</text>
+      <rect x="14" y="245" width="236" height="0.5" fill="#2e2e32" />
+      <text x="22" y="261" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Request Body</text>
+      <rect x="191" y="251" width="38" height="18" rx="9" fill="#30d158" fillOpacity="0.15" stroke="#30d158" strokeWidth="0.5" />
+      <text x="210" y="263" textAnchor="middle" fontSize="9" fontWeight="700" fill="#30d158" fontFamily="-apple-system,system-ui,sans-serif">JSON</text>
 
-      {/* transaction → Shortcut Input */}
-      <rect x="14" y="259" width="236" height="0.5" fill="#2e2e32" />
-      <rect x="18" y="265" width="80" height="22" rx="7" fill="#2a2a2e" />
-      <text x="58" y="280" textAnchor="middle" fontSize="10.5" fontWeight="500" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">transaction</text>
-      <rect x="104" y="265" width="102" height="22" rx="11" fill="#0a84ff" />
-      <text x="155" y="280" textAnchor="middle" fontSize="10" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Shortcut Input</text>
+      {/* transaction → Text chip */}
+      <rect x="14" y="271" width="236" height="0.5" fill="#2e2e32" />
+      <rect x="18" y="277" width="76" height="20" rx="7" fill="#2a2a2e" />
+      <text x="56" y="291" textAnchor="middle" fontSize="10" fontWeight="500" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">transaction</text>
+      {/* Value: Text variable chip (yellow = Text action variable) */}
+      <rect x="100" y="277" width="60" height="20" rx="10" fill="#ffd60a" />
+      <text x="130" y="291" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
 
       {/* Add field */}
-      <rect x="14" y="289" width="236" height="0.5" fill="#2e2e32" />
-      <text x="132" y="308" textAnchor="middle" fontSize="10" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">+ Add field</text>
+      <rect x="14" y="299" width="236" height="0.5" fill="#2e2e32" />
+      <text x="132" y="320" textAnchor="middle" fontSize="10" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">+ Add new field</text>
+      <rect x="14" y="334" width="236" height="0.5" fill="#2e2e32" />
+    </Phone>
+  );
+}
 
-      {/* Show Notification block */}
-      <rect x="14" y="326" width="236" height="36" rx="10" fill="#1c1c1e" />
-      <rect x="22" y="337" width="20" height="15" rx="4" fill="#ff453a" opacity="0.85" />
-      <text x="50" y="349" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Show notification · </text>
-      <text x="152" y="349" fontSize="10.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Captured ✓</text>
+// ─────────────────────────────────────────────────────────────────────────────
+// SLIDE 6 — Add Show Notification · "🦡 Captured and Saved to Budger 🦡" · copy URL
+// ─────────────────────────────────────────────────────────────────────────────
+function Mockup6() {
+  return (
+    <Phone id="ss6">
+      <NavBar title="Send To Budger" back="Shortcuts" rightLabel="Done" />
+
+      {/* Receive — faded */}
+      <rect x="14" y="96" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
+      <text x="28" y="112" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
+
+      {/* Text — faded */}
+      <rect x="14" y="126" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
+      <rect x="20" y="133" width="13" height="11" rx="3" fill="#ffd60a" opacity="0.5" />
+      <text x="38" y="142" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Text · Shortcut Input</text>
+
+      {/* Get Contents — faded */}
+      <rect x="14" y="156" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
+      <rect x="20" y="163" width="13" height="11" rx="3" fill="#0a84ff" opacity="0.5" />
+      <text x="38" y="172" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Get Contents of URL · POST · JSON</text>
+
+      {/* Show Notification — highlighted */}
+      <rect x="14" y="188" width="236" height="100" rx="14" fill="#1c1c1e" stroke="#0a84ff" strokeWidth="0.8" strokeOpacity="0.5" />
+      <rect x="14" y="188" width="236" height="32" rx="14" fill="#272729" />
+      <rect x="14" y="204" width="236" height="16" fill="#272729" />
+      {/* Bell icon */}
+      <rect x="20" y="198" width="18" height="14" rx="4" fill="#ff453a" opacity="0.9" />
+      <text x="29" y="209" textAnchor="middle" fontSize="8" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">🔔</text>
+      <text x="44" y="209" fontSize="11" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Show Notification</text>
+
+      {/* Notification body field */}
+      <rect x="14" y="222" width="236" height="0.5" fill="#2e2e32" />
+      <rect x="18" y="228" width="228" height="52" rx="9" fill="#2a2a2e" />
+      <text x="30" y="248" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">🦡 Captured and Saved</text>
+      <text x="30" y="264" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">to Budger 🦡</text>
+
+      {/* Done / Done label */}
+      <rect x="14" y="300" width="236" height="0.5" fill="#2a2a2e" />
+      <text x="132" y="325" textAnchor="middle" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Tap Done — then copy the URL below</text>
+      <text x="132" y="342" textAnchor="middle" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">and paste it into the URL field</text>
     </Phone>
   );
 }
@@ -310,6 +375,7 @@ const SLIDES = [
   { mockup: <Mockup3 />, titleKey: "ss.s3_title", descKey: "ss.s3_desc" },
   { mockup: <Mockup4 />, titleKey: "ss.s4_title", descKey: "ss.s4_desc" },
   { mockup: <Mockup5 />, titleKey: "ss.s5_title", descKey: "ss.s5_desc" },
+  { mockup: <Mockup6 />, titleKey: "ss.s6_title", descKey: "ss.s6_desc" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -352,7 +418,7 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
   const inner = (
     <div className="flex flex-col w-full max-w-sm mx-auto gap-3">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
@@ -372,7 +438,7 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
         )}
       </div>
 
-      {/* ── Slide card ── */}
+      {/* Slide card */}
       <div
         className="relative bg-card border border-border rounded-3xl flex-shrink-0 flex flex-col items-center overflow-hidden"
         style={{ height: 440 }}
@@ -401,15 +467,10 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
           style={{ WebkitTapHighlightColor: "transparent" }}
         />
 
-        {/* Content */}
         <div className="pointer-events-none flex flex-col items-center w-full h-full px-4 pt-5 pb-4">
-
-          {/* Phone mockup */}
           <div className="flex items-center justify-center w-full overflow-hidden flex-shrink-0" style={{ height: 200 }}>
             {slide.mockup}
           </div>
-
-          {/* Title + description */}
           <div className="flex-1 flex flex-col items-center justify-center w-full gap-1 py-3">
             <h3 className="text-[13.5px] font-bold text-foreground text-center leading-snug">
               {t(slide.titleKey)}
@@ -418,8 +479,6 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
               {t(slide.descKey)}
             </p>
           </div>
-
-          {/* Dots */}
           <div className="flex gap-1.5 flex-shrink-0">
             {SLIDES.map((_, i) => (
               <div
@@ -430,8 +489,6 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
               />
             ))}
           </div>
-
-          {/* Hint slot */}
           <div className="h-5 flex items-center justify-center flex-shrink-0 mt-2">
             {idx === 0 && (
               <p className="text-[9px] text-muted-foreground/35 tracking-widest uppercase">
@@ -442,7 +499,7 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
         </div>
       </div>
 
-      {/* ── URL copy section — only on last slide ── */}
+      {/* URL copy — only on last slide */}
       {isLast && (
         <div className="flex-shrink-0 pb-1">
           {webhookUrl ? (
