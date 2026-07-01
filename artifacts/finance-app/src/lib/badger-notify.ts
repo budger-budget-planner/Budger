@@ -8,7 +8,7 @@
  *   Sniff 2: −1   (down a semitone)
  *   Sniff 3: −3   (down a tone from 2nd)
  *   Sniff 4: −1   (up a tone from 3rd)
- *   Sniff 5:  0   (up a semitone from 4th, back to base)
+ *   Sniff 5: +1   (up a tone from 4th — lands a semitone above base)
  *
  * Haptic pattern mirrors the audio (♪ slot = 145 ms, ♩ slot = 290 ms):
  *   sniff · sniff · sniff · sniff · sniff~~~~
@@ -38,7 +38,7 @@ const SNIFF_RATES = [
   Math.pow(2, -1 / 12), // sniff 2 — ↓1 semitone
   Math.pow(2, -3 / 12), // sniff 3 — ↓2 semitones from sniff 2 (= ↓3 from base)
   Math.pow(2, -1 / 12), // sniff 4 — ↑2 semitones from sniff 3 (= ↓1 from base)
-  Math.pow(2,  0 / 12), // sniff 5 — ↑1 semitone from sniff 4 (= base)
+  Math.pow(2, +1 / 12), // sniff 5 — ↑2 semitones from sniff 4 (= 1 semitone above base)
 ];
 
 // Slot boundaries in source-buffer seconds
