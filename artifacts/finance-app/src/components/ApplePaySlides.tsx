@@ -376,7 +376,7 @@ function CopyLinkButton({ url }: { url: string }) {
           : "bg-foreground text-background"
       }`}
     >
-      {copied ? `✓ ${t("ap.copied")}` : t("ap.copy_link")}
+      {copied ? t("ap.copied") : t("ap.copy_link")}
     </button>
   );
 }

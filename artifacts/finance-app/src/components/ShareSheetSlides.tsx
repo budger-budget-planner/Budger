@@ -361,7 +361,7 @@ function CopyLinkButton({ url }: { url: string }) {
           : "bg-foreground text-background"
       }`}
     >
-      {copied ? `✓ ${t("ap.copied")}` : t("ap.copy_link")}
+      {copied ? t("ap.copied") : t("ap.copy_link")}
     </button>
   );
 }
@@ -405,6 +405,7 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
 
   const total = SLIDES.length;
   const isLast = idx === total - 1;
+  const showCopy = idx === 4;
   const slide = SLIDES[idx];
 
   function goNext() {
@@ -499,8 +500,8 @@ export default function ShareSheetSlides({ onDone, onClose, modal = false }: Sha
         </div>
       </div>
 
-      {/* URL copy — only on last slide */}
-      {isLast && (
+      {/* URL copy — on slide 5 */}
+      {showCopy && (
         <div className="flex-shrink-0 pb-1">
           {webhookUrl ? (
             <CopyLinkButton url={webhookUrl} />

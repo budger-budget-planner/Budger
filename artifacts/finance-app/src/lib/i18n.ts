@@ -556,7 +556,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "ap.setup_title":  { en: "Apple Pay Automation",           pl: "Automatyzacja Apple Pay"              },
   "ap.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
   "ap.copy_link":    { en: "Copy link",                      pl: "Kopiuj link"                         },
-  "ap.copied":       { en: "✓ Copied!",                      pl: "✓ Skopiowano!"                       },
+  "ap.copied":       { en: "Copied!",                        pl: "Skopiowano!"                         },
   "ap.generating":   { en: "Generating your link…",          pl: "Generowanie linku…"                  },
   "ap.tap_hint":     { en: "tap right side to continue",     pl: "dotknij prawej strony, aby kontynuować" },
   "ap.prev":         { en: "Previous",                       pl: "Poprzedni"                           },
