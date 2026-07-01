@@ -165,6 +165,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
+  // Backfill pinLength for accounts registered before this field was added
+  if (!user.pinLength) {
+    await db.update(usersTable).set({ pinLength: password.length }).where(eq(usersTable.id, user.id));
+  }
+
   (req.session as any).userId = user.id;
   // firstLoginDone: false means this is their first login — the client triggers onboarding.
   // We do NOT set firstLoginDone=true here; the Onboarding component does that once complete.

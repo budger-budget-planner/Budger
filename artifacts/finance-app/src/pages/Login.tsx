@@ -157,8 +157,9 @@ export default function LoginPage() {
     setLoginError("");
     // Auto-submit only when we know the exact PIN length and the user has typed exactly that many digits
     if (loginPinLength !== null && pin.length === loginPinLength && !login.isPending) {
+      const email = loginEmail.trim();
       setTimeout(() => {
-        login.mutate({ data: { email: loginEmail.trim(), password: pin } });
+        login.mutate({ data: { email, password: pin } });
       }, 120); // brief pause so the last dot renders before submitting
     }
   }
@@ -335,19 +336,10 @@ export default function LoginPage() {
               minLength={4}
               maxLength={loginPinLength ?? 8}
               label={login.isPending ? t("login.signing_in") : undefined}
+              onSubmit={loginPinLength === null ? handleLoginSubmit : undefined}
+              canSubmit={loginPinLength === null && loginPin.length >= 4 && !login.isPending}
             />
           </div>
-
-          {/* Fallback button for legacy accounts without a stored PIN length */}
-          {loginPinLength === null && (
-            <Button
-              onClick={handleLoginSubmit}
-              disabled={loginPin.length < 4 || login.isPending}
-              className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
-            >
-              {login.isPending ? t("login.signing_in") : t("login.continue")}
-            </Button>
-          )}
         </div>
       )}
 
