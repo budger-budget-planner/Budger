@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, transactionsTable } from "@workspace/db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -762,36 +762,6 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
       // Non-critical: don't fail the request if activity generation fails
     }
   }
-});
-
-router.post("/goal-contributions/cleanup", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-
-  // Find all contributions belonging to this user that reference a transaction
-  // which no longer exists, then delete them.
-  const contribs = await db.select().from(goalContributionsTable)
-    .where(and(
-      eq(goalContributionsTable.userId, userId),
-      sql`${goalContributionsTable.transactionId} IS NOT NULL`,
-    ));
-
-  const orphaned: number[] = [];
-  for (const c of contribs) {
-    if (c.transactionId == null) continue;
-    const [tx] = await db.select({ id: transactionsTable.id })
-      .from(transactionsTable)
-      .where(eq(transactionsTable.id, c.transactionId))
-      .limit(1);
-    if (!tx) orphaned.push(c.id);
-  }
-
-  if (orphaned.length > 0) {
-    await db.delete(goalContributionsTable)
-      .where(inArray(goalContributionsTable.id, orphaned));
-  }
-
-  res.json({ removed: orphaned.length });
 });
 
 router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
