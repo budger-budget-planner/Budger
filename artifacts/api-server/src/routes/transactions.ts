@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
@@ -159,6 +159,11 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
 
   const params = DeleteTransactionParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  // Remove any goal contributions that were linked to this transaction so
+  // goal progress bars and totals stay accurate.
+  await db.delete(goalContributionsTable)
+    .where(eq(goalContributionsTable.transactionId, params.data.id));
 
   await db.delete(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   res.sendStatus(204);
