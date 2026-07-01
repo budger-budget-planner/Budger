@@ -52,8 +52,8 @@ export default function DashboardPage() {
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
 
-  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + g.contributed, 0);
-  const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
+  const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) => s + ((g as any).totalContributed ?? g.contributed), 0);
+  const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => (g as any).totalContributed > 0 || g.contributed > 0);
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
@@ -200,7 +200,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {goalsSummary.slice(0, 5).map((item, i) => {
                 const color = item.goalColor ?? CHART_COLORS[i % CHART_COLORS.length];
-                const totalPct = Math.min(item.percentage, 100);
+                const totalPct = Math.min((item as any).totalPercentage ?? item.percentage, 100);
                 const monthlyPct = item.divideByMonths && item.monthlyTarget && item.monthlyTarget > 0
                   ? Math.min((item.contributed / item.monthlyTarget) * 100, 100)
                   : null;

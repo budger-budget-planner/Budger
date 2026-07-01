@@ -212,11 +212,11 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
       )
     : await db.select().from(goalsTable).where(eq(goalsTable.userId, userId));
 
-  // Fetch current user's contributions
+  // Fetch current user's contributions for the selected month
   const myContribs = await db.select().from(goalContributionsTable)
     .where(and(eq(goalContributionsTable.userId, userId), eq(goalContributionsTable.month, month)));
 
-  // Fetch all household members' contributions (for household goals)
+  // Fetch all household members' contributions for the selected month (for household goals)
   const householdContribs = currentUser?.householdId
     ? await db.select().from(goalContributionsTable)
         .where(and(
@@ -225,21 +225,43 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
         ))
     : [];
 
+  // Fetch all-time contributions (no month filter) for total progress
+  const myAllTimeContribs = await db.select().from(goalContributionsTable)
+    .where(eq(goalContributionsTable.userId, userId));
+
+  const householdAllTimeContribs = currentUser?.householdId
+    ? await db.select().from(goalContributionsTable)
+        .where(eq(goalContributionsTable.householdId, currentUser.householdId))
+    : [];
+
   // Deduplicate by id (user's own appear in both)
   const contribMap = new Map([...myContribs, ...householdContribs].map(c => [c.id, c]));
   const allContribs = Array.from(contribMap.values());
 
+  const allTimeContribMap = new Map([...myAllTimeContribs, ...householdAllTimeContribs].map(c => [c.id, c]));
+  const allAllTimeContribs = Array.from(allTimeContribMap.values());
+
   const result = goals.map(g => {
     const isHouseholdGoal = !!g.householdId;
+
+    // Monthly contributions
     let goalContribs;
     if (isHouseholdGoal && currentUser?.householdId) {
-      // Household goal: aggregate ALL members' contributions
       goalContribs = allContribs.filter(c => c.goalId === g.id && c.householdId === currentUser.householdId);
     } else {
-      // Personal goal: only current user's contributions
       goalContribs = allContribs.filter(c => c.goalId === g.id && c.userId === userId);
     }
     const contributed = goalContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+
+    // All-time contributions
+    let allTimeGoalContribs;
+    if (isHouseholdGoal && currentUser?.householdId) {
+      allTimeGoalContribs = allAllTimeContribs.filter(c => c.goalId === g.id && c.householdId === currentUser.householdId);
+    } else {
+      allTimeGoalContribs = allAllTimeContribs.filter(c => c.goalId === g.id && c.userId === userId);
+    }
+    const totalContributed = allTimeGoalContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+
     const budget = parseFloat(g.budget);
 
     let monthlyTarget: number | null = null;
@@ -265,6 +287,8 @@ router.get("/summary/goals", async (req, res): Promise<void> => {
       monthlyTarget,
       contributed: Math.round(contributed * 100) / 100,
       percentage: budget > 0 ? Math.round((contributed / budget) * 10000) / 100 : 0,
+      totalContributed: Math.round(totalContributed * 100) / 100,
+      totalPercentage: budget > 0 ? Math.round((totalContributed / budget) * 10000) / 100 : 0,
     };
   }).sort((a, b) => b.contributed - a.contributed);
 
