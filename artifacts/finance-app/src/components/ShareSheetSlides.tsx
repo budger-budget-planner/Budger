@@ -68,9 +68,15 @@ function Mockup1() {
       <text x="53" y="167" textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">€4.80</text>
       <circle cx="22" cy="163" r="4" fill="#0a84ff" />
       <circle cx="84" cy="163" r="4" fill="#0a84ff" />
-      {/* Share callout */}
-      <rect x="18" y="178" width="44" height="20" rx="5" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.8" />
-      <text x="40" y="191" textAnchor="middle" fontSize="9.5" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">Share</text>
+      {/* Context menu — Copy first, then Share */}
+      <rect x="14" y="174" width="80" height="50" rx="10" fill="#2c2c2e" stroke="#3a3a3e" strokeWidth="0.8" />
+      {/* Copy — step 1, highlighted */}
+      <rect x="14" y="174" width="80" height="24" rx="10" fill="#0a84ff" fillOpacity="0.20" />
+      <rect x="14" y="186" width="80" height="12" fill="#0a84ff" fillOpacity="0.20" />
+      <text x="54" y="190" textAnchor="middle" fontSize="10" fontWeight="700" fill="#0a84ff" fontFamily="-apple-system,system-ui,sans-serif">① Copy</text>
+      <rect x="16" y="198" width="76" height="0.5" fill="#3a3a3e" />
+      {/* Share — step 2 */}
+      <text x="54" y="213" textAnchor="middle" fontSize="10" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">② Share…</text>
 
       {/* Share sheet */}
       <rect x="11" y="285" width="242" height="174" fill="#1c1c1e" />
@@ -179,7 +185,7 @@ function Mockup3() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 4 — "Text" action: tap field → swipe keyboard row → choose Shortcut Input
+// SLIDE 4 — Add "Get Clipboard" action (replaces Text + Shortcut Input)
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup4() {
   return (
@@ -190,48 +196,32 @@ function Mockup4() {
       <rect x="14" y="96" width="236" height="32" rx="10" fill="#1c1c1e" opacity="0.5" />
       <text x="28" y="116" fontSize="10.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
 
-      {/* Text action — active/focused */}
+      {/* Get Clipboard action — active/highlighted */}
       <rect x="14" y="136" width="236" height="52" rx="14" fill="#1c1c1e" stroke="#0a84ff" strokeWidth="0.8" strokeOpacity="0.6" />
-      <rect x="22" y="150" width="22" height="22" rx="6" fill="#ffd60a" />
-      <text x="33" y="165" textAnchor="middle" fontSize="11" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">T</text>
-      {/* Text field with cursor */}
-      <rect x="50" y="148" width="190" height="26" rx="8" fill="#2a2a2e" stroke="#0a84ff" strokeWidth="0.8" />
-      <text x="60" y="164" fontSize="11" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Tap to type…</text>
-      <rect x="163" y="153" width="1.5" height="16" rx="0.7" fill="#0a84ff" />
+      {/* Green clipboard icon */}
+      <rect x="22" y="150" width="22" height="22" rx="6" fill="#30d158" />
+      <rect x="27" y="154" width="12" height="14" rx="2" fill="#fff" fillOpacity="0.9" />
+      <rect x="29" y="152" width="8" height="5" rx="2" fill="#30d158" />
+      <rect x="30" y="151" width="4" height="4" rx="1" fill="#fff" fillOpacity="0.9" />
+      <text x="52" y="159" fontSize="13" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Clipboard</text>
+      <text x="52" y="175" fontSize="10" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">reads whatever you just Copied</text>
 
-      {/* Swipe hint arrow */}
-      <text x="132" y="208" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">swipe left on the row above keyboard</text>
-      <text x="132" y="220" textAnchor="middle" fontSize="9" fill="#3a3a3e" fontFamily="-apple-system,system-ui,sans-serif">↓</text>
+      {/* Hint */}
+      <text x="132" y="218" textAnchor="middle" fontSize="9.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Tap + Add Action, search "clipboard"</text>
+      <text x="132" y="232" textAnchor="middle" fontSize="9.5" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">and select Get Clipboard</text>
 
-      {/* Variable row above keyboard */}
-      <rect x="11" y="300" width="242" height="38" fill="#1a1a1e" />
-      <rect x="11" y="300" width="242" height="0.5" fill="#2e2e32" />
-      {/* Shortcut Input chip — highlighted */}
-      <rect x="14" y="309" width="96" height="22" rx="11" fill="#0a84ff" />
-      <text x="62" y="323" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Shortcut Input</text>
-      {/* Other chips — faded */}
-      <rect x="116" y="309" width="52" height="22" rx="11" fill="#2a2a2e" />
-      <text x="142" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Clipboard</text>
-      <rect x="174" y="309" width="40" height="22" rx="11" fill="#2a2a2e" />
-      <text x="194" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Date</text>
-      <rect x="220" y="309" width="30" height="22" rx="11" fill="#2a2a2e" />
-      <text x="235" y="323" textAnchor="middle" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">…</text>
+      {/* Search UI hint */}
+      <rect x="14" y="248" width="236" height="32" rx="10" fill="#1c1c1e" stroke="#2e2e32" strokeWidth="0.6" />
+      <rect x="22" y="258" width="16" height="12" rx="3" fill="#30d158" />
+      <rect x="25" y="261" width="10" height="6" rx="1" fill="#fff" fillOpacity="0.9" />
+      <rect x="26" y="260" width="8" height="3" rx="1" fill="#30d158" />
+      <text x="46" y="268" fontSize="11" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Get Clipboard</text>
+      <rect x="220" y="255" width="22" height="20" rx="6" fill="#0a84ff" fillOpacity="0.85" />
+      <text x="231" y="269" textAnchor="middle" fontSize="9" fontWeight="700" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">+</text>
 
-      {/* Keyboard */}
-      <rect x="11" y="338" width="242" height="121" fill="#1c1c1e" />
-      {/* Key rows — simplified */}
-      {[0,1,2,3,4,5,6,7,8,9].map((i) => (
-        <rect key={i} x={16 + i * 23} y="346" width="19" height="22" rx="5" fill="#2c2c2e" />
-      ))}
-      {[0,1,2,3,4,5,6,7,8].map((i) => (
-        <rect key={i} x={18 + i * 25} y="374" width="21" height="22" rx="5" fill="#2c2c2e" />
-      ))}
-      {[0,1,2,3,4,5,6].map((i) => (
-        <rect key={i} x={30 + i * 27} y="402" width="23" height="22" rx="5" fill="#2c2c2e" />
-      ))}
-      <rect x="16" y="430" width="50" height="22" rx="5" fill="#2c2c2e" />
-      <rect x="72" y="430" width="120" height="22" rx="5" fill="#2c2c2e" />
-      <rect x="198" y="430" width="50" height="22" rx="5" fill="#2c2c2e" />
+      {/* + Add Action button */}
+      <rect x="68" y="300" width="128" height="30" rx="15" fill="#1c1c1e" stroke="#2a2a2e" strokeWidth="0.8" opacity="0.5" />
+      <text x="132" y="320" textAnchor="middle" fontSize="11.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">+ Add Action</text>
     </Phone>
   );
 }
@@ -248,10 +238,10 @@ function Mockup5() {
       <rect x="14" y="96" width="236" height="26" rx="8" fill="#1c1c1e" opacity="0.4" />
       <text x="28" y="113" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
 
-      {/* Text — faded */}
+      {/* Get Clipboard — faded */}
       <rect x="14" y="128" width="236" height="26" rx="8" fill="#1c1c1e" opacity="0.4" />
-      <rect x="22" y="136" width="16" height="14" rx="4" fill="#ffd60a" opacity="0.5" />
-      <text x="44" y="146" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Text · Shortcut Input</text>
+      <rect x="22" y="136" width="16" height="14" rx="4" fill="#30d158" opacity="0.5" />
+      <text x="44" y="146" fontSize="9.5" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Get Clipboard</text>
 
       {/* Get Contents of URL — main */}
       <rect x="14" y="162" width="236" height="174" rx="14" fill="#1c1c1e" />
@@ -282,9 +272,9 @@ function Mockup5() {
       <rect x="14" y="271" width="236" height="0.5" fill="#2e2e32" />
       <rect x="18" y="277" width="76" height="20" rx="7" fill="#2a2a2e" />
       <text x="56" y="291" textAnchor="middle" fontSize="10" fontWeight="500" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">transaction</text>
-      {/* Value: Text variable chip (yellow = Text action variable) */}
-      <rect x="100" y="277" width="60" height="20" rx="10" fill="#ffd60a" />
-      <text x="130" y="291" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">Text</text>
+      {/* Value: Clipboard chip (green = Get Clipboard output) */}
+      <rect x="100" y="277" width="74" height="20" rx="10" fill="#30d158" />
+      <text x="137" y="291" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#000" fontFamily="-apple-system,system-ui,sans-serif">Clipboard</text>
 
       {/* Add field */}
       <rect x="14" y="299" width="236" height="0.5" fill="#2e2e32" />
@@ -306,10 +296,10 @@ function Mockup6() {
       <rect x="14" y="96" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
       <text x="28" y="112" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Receive Text from Share Sheet</text>
 
-      {/* Text — faded */}
+      {/* Get Clipboard — faded */}
       <rect x="14" y="126" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
-      <rect x="20" y="133" width="13" height="11" rx="3" fill="#ffd60a" opacity="0.5" />
-      <text x="38" y="142" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Text · Shortcut Input</text>
+      <rect x="20" y="133" width="13" height="11" rx="3" fill="#30d158" opacity="0.5" />
+      <text x="38" y="142" fontSize="9" fill="#636368" fontFamily="-apple-system,system-ui,sans-serif">Get Clipboard</text>
 
       {/* Get Contents — faded */}
       <rect x="14" y="156" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
