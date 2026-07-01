@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { t } from "@/lib/i18n";
 import {
   useListGoals,
@@ -17,8 +17,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Check, X, History,
   ChevronDown, ChevronRight, Target, Users, Lock, ArrowUpRight,
-  Bell, CheckCircle2, Clock,
+  Bell, CheckCircle2, Clock, ShieldCheck, Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getListGoalContributionsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -713,11 +715,43 @@ export default function GoalsPage() {
   const queryClient = useQueryClient();
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
+  const { toast } = useToast();
 
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
     fetchRates().then(setRates);
   }, []);
+
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [lastCleanResult, setLastCleanResult] = useState<number | null>(null);
+
+  const handleCleanup = useCallback(async () => {
+    setIsCleaningUp(true);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/goal-contributions/cleanup`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const { removed } = await res.json();
+      setLastCleanResult(removed);
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      toast({
+        title: removed === 0
+          ? "All clean — no orphaned data found"
+          : `Fixed: removed ${removed} orphaned contribution${removed === 1 ? "" : "s"}`,
+        description: removed > 0
+          ? "Goal progress bars have been recalculated."
+          : "Your goal data is already consistent.",
+      });
+    } catch {
+      toast({ title: "Cleanup failed", description: "Try again in a moment.", variant: "destructive" });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  }, [queryClient, toast]);
 
   const [addOpen,     setAddOpen]     = useState(false);
   const [editGoal,    setEditGoal]    = useState<any | null>(null);
@@ -1427,6 +1461,39 @@ export default function GoalsPage() {
           )}
         </div>
       )}
+
+      {/* ── Data integrity ── */}
+      <section className="pt-2 pb-1">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-muted-foreground">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Fix goal data</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {lastCleanResult === null
+                    ? "Remove contributions from deleted transactions"
+                    : lastCleanResult === 0
+                      ? "Everything looks good"
+                      : `${lastCleanResult} orphaned record${lastCleanResult === 1 ? "" : "s"} removed`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleCleanup}
+              disabled={isCleaningUp}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold border border-border bg-muted text-foreground transition active:scale-95 disabled:opacity-40"
+            >
+              {isCleaningUp
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <ShieldCheck className="w-3.5 h-3.5" />}
+              {isCleaningUp ? "Scanning…" : "Run check"}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Edit dialog */}
       {editGoal && (
