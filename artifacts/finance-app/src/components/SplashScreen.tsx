@@ -3,34 +3,54 @@ import { useGetMe } from "@workspace/api-client-react";
 import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
-/**
- * Three animation phases:
- *   showing  — logo pulses gently, overlay fully opaque
- *   moving   — pulse stops, logo glides + scales to its destination (visible motion)
- *   fading   — overlay fades out while logo is still in motion (overlap feels fluid)
- */
+const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
+
 type Phase = "showing" | "moving" | "fading";
 type Dest  = "home" | "login" | null;
 
-// Layout measurements (from actual component code):
-//   Header  → h-14 (56px), px-5 (20px left pad), BadgerLogo size={28}
-//             logo center x = 20 + 14 = 34px from left
-//             logo center y = 28px from top
-//   Login   → logo (88px) inside a justify-center column with lang row + gaps above it
-//             visually sits ~16vh above screen center
-const TRANSFORMS: Record<"home" | "login", string> = {
-  home:  "translate(calc(-50vw + 34px), calc(-50vh + 28px)) scale(0.233)",
-  login: "translateY(-16vh) scale(0.733)",
-};
+/**
+ * Computes exact translate(tx, ty) scale(s) so the 120-px splash logo
+ * lands pixel-perfect on the destination logo element in the live DOM.
+ *
+ * Maths: the splash logo centre starts at (window.innerWidth/2, window.innerHeight/2).
+ * After  transform: translate(tx, ty) scale(s), the visual centre moves to
+ *   (cx + tx, cy + ty)  — scaling around the element's own centre leaves cx/cy unchanged.
+ * So:  tx = targetCX - cx,  ty = targetCY - cy,  s = targetSize / SPLASH_SIZE
+ */
+function computeTransform(dest: "home" | "login"): string {
+  const selector = dest === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]";
+  const el = document.querySelector(selector);
+  if (!el) {
+    // Fallback to hard-coded estimates if the element isn't in the DOM yet
+    return dest === "home"
+      ? "translate(calc(-50vw + 34px), calc(-50vh + 28px)) scale(0.233)"
+      : "translateY(-16vh) scale(0.733)";
+  }
+
+  const rect    = el.getBoundingClientRect();
+  const targetCX = rect.left + rect.width  / 2;
+  const targetCY = rect.top  + rect.height / 2;
+
+  // Splash logo is centred in a fixed full-screen overlay
+  const splashCX = window.innerWidth  / 2;
+  const splashCY = window.innerHeight / 2;
+
+  const tx    = targetCX - splashCX;
+  const ty    = targetCY - splashCY;
+  const scale = rect.width / SPLASH_SIZE;
+
+  return `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<Phase>("showing");
-  const [dest,  setDest]  = useState<Dest>(null);
-  const [minDone, setMinDone] = useState(false);
+  const [phase,     setPhase]     = useState<Phase>("showing");
+  const [dest,      setDest]      = useState<Dest>(null);
+  const [transform, setTransform] = useState<string>("none");
+  const [minDone,   setMinDone]   = useState(false);
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
-  // ── Minimum display time ──────────────────────────────────────────────────
+  // ── Minimum display time (logo stays on screen ~1.6 s) ───────────────────
   useEffect(() => {
     const id = setTimeout(() => setMinDone(true), 1600);
     return () => clearTimeout(id);
@@ -41,24 +61,26 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     if (!minDone || isLoading || resolvedRef.current) return;
     resolvedRef.current = true;
 
-    const prefs = loadPrefs();
-    const goHome = user != null && (prefs.staySignedIn || hasActiveSession());
-    const target: Dest = goHome ? "home" : "login";
+    const prefs  = loadPrefs();
+    const target: "home" | "login" =
+      user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
+
+    // Measure live DOM positions now — the destination screen is rendered underneath
+    const exactTransform = computeTransform(target);
 
     setDest(target);
-    setPhase("moving");                         // t=0  : logo starts moving (opacity stays 1)
+    setTransform(exactTransform);
+    setPhase("moving");                         // logo glides at full opacity → motion visible
 
-    setTimeout(() => setPhase("fading"), 280);  // t=280ms: start fading while logo still moves
-    setTimeout(onDone, 680);                    // t=680ms: remove component after fade done
+    setTimeout(() => setPhase("fading"), 300);  // 300 ms of pure motion, then start fade
+    setTimeout(onDone,                   680);  // remove after fade (~380 ms) completes
   }, [minDone, isLoading, user, onDone]);
 
-  // ── Derive styles per phase ───────────────────────────────────────────────
-  const isMoving     = phase === "moving" || phase === "fading";
-  const isFading     = phase === "fading";
-  const logoTransform = (isMoving && dest) ? TRANSFORMS[dest] : "none";
+  const isMoving = phase === "moving" || phase === "fading";
+  const isFading = phase === "fading";
 
   return (
-    // Layer 1 — full-screen gradient overlay; only this fades
+    /* Layer 1 — full-screen gradient overlay; only this carries the opacity fade */
     <div
       style={{
         position: "fixed",
@@ -70,25 +92,25 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         alignItems: "center",
         justifyContent: "center",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.38s cubic-bezier(0.4, 0, 1, 1)" : "none",
+        transition: isFading ? "opacity 0.36s cubic-bezier(0.4, 0, 1, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
       {/* Layer 2 — handles translate + scale; independent of opacity */}
       <div
         style={{
-          transform: logoTransform,
-          // Longer duration so motion is clearly visible even as the overlay fades
+          transform: isMoving ? transform : "none",
           transition: isMoving
             ? "transform 0.62s cubic-bezier(0.4, 0, 0.2, 1)"
             : "none",
           willChange: "transform",
           transformOrigin: "center center",
+          lineHeight: 0, // prevent inline element gaps affecting centering
         }}
       >
-        {/* Layer 3 — pulse animation only during "showing"; class removed on exit */}
+        {/* Layer 3 — pulse animation only while showing; class removed on exit */}
         <div className={phase === "showing" ? "splash-pulse" : ""}>
-          <BadgerLogo size={120} />
+          <BadgerLogo size={SPLASH_SIZE} />
         </div>
       </div>
     </div>

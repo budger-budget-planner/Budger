@@ -188,7 +188,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-14
                          bg-background/90 backdrop-blur border-b border-border">
         <Link href="/" className="flex items-center gap-2.5">
-          <BadgerLogo size={28} />
+          <span data-splash-logo-home>
+            <BadgerLogo size={28} />
+          </span>
           <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
         </Link>
         <button

@@ -251,7 +251,9 @@ export default function LoginPage() {
 
             {/* Logo + name */}
             <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
-              <BadgerLogo size={88} />
+              <span data-splash-logo-login>
+                <BadgerLogo size={88} />
+              </span>
               <div className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
                 <p className="text-sm text-muted-foreground mt-1">{t("login.tagline")}</p>
