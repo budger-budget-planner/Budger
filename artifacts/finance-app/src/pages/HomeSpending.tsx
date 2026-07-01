@@ -831,11 +831,6 @@ export default function HomeSpending() {
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
-  const [shouldShowHint] = useState(() => {
-    const ts = localStorage.getItem("budger_swipe_hint_ts");
-    if (!ts) return true;
-    return Date.now() - parseInt(ts, 10) > 14 * 24 * 60 * 60 * 1000;
-  });
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -843,6 +838,14 @@ export default function HomeSpending() {
   const updateMerchantRule = useUpdateMerchantCategoryRule();
   const { data: me } = useGetMe();
   const myUserId = (me as any)?.id;
+
+  // Per-user hint key so switching accounts never suppresses another user's hint
+  const hintKey = myUserId ? `budger_swipe_hint_ts_${myUserId}` : null;
+  const shouldShowHint = hintKey ? (() => {
+    const ts = localStorage.getItem(hintKey);
+    if (!ts) return true;
+    return Date.now() - parseInt(ts, 10) > 14 * 24 * 60 * 60 * 1000;
+  })() : false;
   const isInHousehold = !!(me as any)?.householdId;
   const { data: householdMembers } = useListHouseholdMembers({ query: { enabled: isInHousehold } as any });
 
@@ -1060,11 +1063,11 @@ export default function HomeSpending() {
 
   // Save hint timestamp once transactions load so repeat visits within 2 weeks skip it
   useEffect(() => {
-    if (shouldShowHint && topTxId != null) {
-      localStorage.setItem("budger_swipe_hint_ts", String(Date.now()));
+    if (shouldShowHint && topTxId != null && hintKey) {
+      localStorage.setItem(hintKey, String(Date.now()));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topTxId != null]);
+  }, [topTxId != null, hintKey]);
 
   return (
     <div className="flex flex-col min-h-full">
