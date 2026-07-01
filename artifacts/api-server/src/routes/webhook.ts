@@ -200,9 +200,10 @@ function parseTransactionPayload(
       merchant = candidateLines[1];
     } else if (candidateLines.length === 1) {
       merchant = candidateLines[0];
-    } else {
-      merchant = raw.slice(0, 80).trim();
     }
+    // If candidateLines is empty the only content was the amount itself
+    // (e.g. "€120.00") — leave merchant null so it falls through to
+    // the "Unknown, Captured Online" fallback below.
   }
 
   if (amount === null) {
