@@ -205,14 +205,19 @@ function parseTransactionPayload(
     }
   }
 
-  if (amount === null || !merchant) {
+  if (amount === null) {
     return {
       amount,
       currency,
       merchant,
       path,
-      error: "Could not extract amount or merchant from payload",
+      error: "Could not extract amount from payload",
     };
+  }
+
+  // If we have an amount but no merchant, fall back to a generic name
+  if (!merchant) {
+    merchant = "Unknown, Captured Online";
   }
 
   // At this point path is always "structured" or "raw_text" — "unknown" only

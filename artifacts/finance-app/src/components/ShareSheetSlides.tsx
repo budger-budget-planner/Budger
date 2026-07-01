@@ -76,11 +76,11 @@ function Mockup1() {
       <rect x="11" y="285" width="242" height="174" fill="#1c1c1e" />
       <rect x="96" y="291" width="72" height="4" rx="2" fill="#3a3a3e" />
       <text x="132" y="311" textAnchor="middle" fontSize="10" fill="#8e8e93" fontFamily="-apple-system,system-ui,sans-serif">Share via Shortcuts</text>
-      {/* Send To Budger row — highlighted */}
+      {/* Feed the Budger row — highlighted */}
       <rect x="14" y="318" width="236" height="44" rx="10" fill="#0a84ff" fillOpacity="0.13" stroke="#0a84ff" strokeWidth="0.7" />
       <rect x="24" y="329" width="24" height="22" rx="7" fill="#30d158" />
       <text x="36" y="344" textAnchor="middle" fontSize="10" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">⚡</text>
-      <text x="56" y="344" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Send To Budger</text>
+      <text x="56" y="344" fontSize="12" fontWeight="600" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">Feed the Budger</text>
       <rect x="11" y="364" width="242" height="0.5" fill="#2e2e32" />
       <text x="24" y="382" fontSize="12" fill="#ebebf0" fontFamily="-apple-system,system-ui,sans-serif">Copy</text>
       <rect x="11" y="392" width="242" height="0.5" fill="#2e2e32" />
@@ -300,7 +300,7 @@ function Mockup5() {
 function Mockup6() {
   return (
     <Phone id="ss6">
-      <NavBar title="Send To Budger" back="Shortcuts" rightLabel="Done" />
+      <NavBar title="Feed the Budger" back="Shortcuts" rightLabel="Done" />
 
       {/* Receive — faded */}
       <rect x="14" y="96" width="236" height="24" rx="7" fill="#1c1c1e" opacity="0.35" />
@@ -328,8 +328,8 @@ function Mockup6() {
       {/* Notification body field */}
       <rect x="14" y="222" width="236" height="0.5" fill="#2e2e32" />
       <rect x="18" y="228" width="228" height="52" rx="9" fill="#2a2a2e" />
-      <text x="30" y="248" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">🦡 Captured and Saved</text>
-      <text x="30" y="264" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">to Budger 🦡</text>
+      <text x="30" y="248" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">🦡 Przechwycone i Zapisane</text>
+      <text x="30" y="264" fontSize="10.5" fill="#fff" fontFamily="-apple-system,system-ui,sans-serif">w Budgerze 🦡</text>
 
       {/* Done / Done label */}
       <rect x="14" y="300" width="236" height="0.5" fill="#2a2a2e" />

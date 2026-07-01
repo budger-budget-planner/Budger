@@ -628,8 +628,8 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Zaznacz cenę, udostępnij — Budger ją zapisze",
   },
   "ss.s1_desc": {
-    en: "Highlight any price or amount on a webpage. Tap Share → Send To Budger. The transaction appears in Budger instantly — no typing needed.",
-    pl: "Zaznacz dowolną kwotę na stronie. Dotknij Udostępnij → Send To Budger. Transakcja pojawi się w Budger natychmiast.",
+    en: "Go to Shortcuts, tap + to create a new shortcut, and rename it to 'Feed the Budger'. Then: highlight any price on a webpage, tap Share → Feed the Budger, and the transaction appears in Budger instantly.",
+    pl: "Otwórz Skróty, dotknij + aby dodać nowy skrót i zmień jego nazwę na 'Nakarm Budgera'. Następnie: zaznacz dowolną kwotę na stronie, dotknij Udostępnij → Nakarm Budgera — transakcja pojawi się w Budger natychmiast.",
   },
   "ss.s2_title": {
     en: "Add a Text action → tap ⓘ → Show in Share Sheet",
@@ -668,8 +668,8 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Dodaj Pokaż powiadomienie → wpisz wiadomość → dotknij Gotowe",
   },
   "ss.s6_desc": {
-    en: "Add one more action: Show Notification. Type 🦡 Captured and Saved to Budger 🦡 as the message. Tap Done to save the shortcut. Copy the URL below and paste it into the URL field of the Get Contents action.",
-    pl: "Dodaj jeszcze jedną akcję: Pokaż powiadomienie. Wpisz 🦡 Captured and Saved to Budger 🦡 jako wiadomość. Dotknij Gotowe, aby zapisać skrót. Skopiuj URL poniżej i wklej go w pole URL akcji Pobierz zawartość.",
+    en: "Add one more action: Show Notification. Type 🦡 Przechwycone i Zapisane w Budgerze 🦡 as the message. Tap Done to save the shortcut. Copy the URL below and paste it into the URL field of the Get Contents action.",
+    pl: "Dodaj jeszcze jedną akcję: Pokaż powiadomienie. Wpisz 🦡 Przechwycone i Zapisane w Budgerze 🦡 jako wiadomość. Dotknij Gotowe, aby zapisać skrót. Skopiuj URL poniżej i wklej go w pole URL akcji Pobierz zawartość.",
   },
 
   // ── Dashboard additional ──
