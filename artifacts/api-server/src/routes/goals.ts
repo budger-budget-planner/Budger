@@ -844,8 +844,57 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  // Fetch the contribution before deletion so we can check threshold rollback
+  const [contrib] = await db.select().from(goalContributionsTable).where(eq(goalContributionsTable.id, id));
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.id, id));
   res.sendStatus(204);
+
+  // After response: if deletion causes goal to drop below a completion threshold,
+  // delete the completion activity rows so the idempotency gate resets and a future
+  // re-completion will fire a fresh notification.
+  if (!contrib) return;
+  try {
+    const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
+    if (!goal) return;
+
+    const remaining = await db.select().from(goalContributionsTable)
+      .where(eq(goalContributionsTable.goalId, goal.id));
+    const totalNow = remaining.reduce((s, c) => s + parseFloat(c.amount), 0);
+    const budget = parseFloat(goal.budget);
+
+    // If goal is no longer fully funded, clear total-completion rows so re-completion re-notifies
+    if (totalNow < budget) {
+      await db.delete(goalActivityTable).where(and(
+        eq(goalActivityTable.goalId, goal.id),
+        eq(goalActivityTable.type, "goal_completed_total"),
+      ));
+    }
+
+    // If the deleted contribution's month no longer meets the monthly target, clear that month's rows
+    if (goal.divideByMonths && contrib.month) {
+      const monthContribs = remaining.filter(c => c.month === contrib.month);
+      const monthTotal = monthContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
+      const now = new Date();
+      const deadlineDate = new Date(goal.deadline);
+      const monthsLeft = Math.max(
+        1,
+        (deadlineDate.getFullYear() - now.getFullYear()) * 12 +
+        (deadlineDate.getMonth() - now.getMonth()) + 1
+      );
+      const preDeletionTotal = totalNow + parseFloat(contrib.amount);
+      const remainingBudget = Math.max(0, budget - (preDeletionTotal - parseFloat(contrib.amount)));
+      const monthlyTarget = remainingBudget / monthsLeft;
+
+      if (monthlyTarget > 0 && monthTotal < monthlyTarget) {
+        await db.delete(goalActivityTable).where(and(
+          eq(goalActivityTable.goalId, goal.id),
+          eq(goalActivityTable.type, "goal_completed_monthly"),
+          eq(goalActivityTable.activityMonth, contrib.month),
+        ));
+      }
+    }
+  } catch { /* non-critical */ }
 });
 
 // Per-goal member breakdown — all members' contributions for a specific household goal

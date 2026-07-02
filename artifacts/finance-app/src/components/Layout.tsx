@@ -49,13 +49,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   });
 
   const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; createdAt: string }>>({
-    queryKey: ["goal-activity-badge"],
+    // Share the same cache entry as Goals.tsx so only one network request is made
+    queryKey: ["goal-activity"],
     queryFn: async () => {
       const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
   });
 
   // Scope NC store to this user as soon as we know who they are
@@ -80,8 +81,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(`goals_seen_at_${(user as any)?.id ?? "x"}`, String(now)); } catch { /* ignore */ }
   }
 
-  // Badge-worthy activity types — goal_changed is informational only, no badge
-  const BADGE_TYPES = ["goal_completed_total", "goal_completed_monthly", "share_approved", "share_declined", "edit_approved", "edit_declined", "goal_created"];
+  // Badge-worthy activity types for the Goals tab icon.
+  // goal_completed_* go to Notification Center only — NOT the Goals tab badge.
+  const BADGE_TYPES = ["share_approved", "share_declined", "edit_approved", "edit_declined", "goal_created"];
 
   const hasNewBadgeActivity = (goalActivityBadge ?? []).some(
     (a) => BADGE_TYPES.includes(a.type) && new Date(a.createdAt).getTime() > goalsSeenAt,
