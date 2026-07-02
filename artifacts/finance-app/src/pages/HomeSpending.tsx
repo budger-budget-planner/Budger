@@ -81,13 +81,14 @@ type TxFormState = {
   goalAmount: string;
 };
 
-function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
+function TxForm({ initial, categories, goals, onSubmit, onCancel, loading, fundedGoalToggle }: {
   initial: TxFormState;
   categories: any[];
   goals: any[];
   onSubmit: (d: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
+  fundedGoalToggle?: React.ReactNode;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set<K extends keyof TxFormState>(k: K, v: TxFormState[K]) {
@@ -158,6 +159,8 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
           </SelectContent>
         </Select>
       </div>
+
+      {fundedGoalToggle}
 
       {/* Goal toggle */}
       {goals.length > 0 && (
@@ -588,7 +591,7 @@ function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
   }
 
   return (
-    <div className="pb-4 mb-1 border-b border-border flex items-center justify-between gap-3">
+    <div className="rounded-xl border border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
       <div>
         <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
@@ -1446,7 +1449,7 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                   {isRealizedGoal && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-emerald-500/60 bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-teal-400/60 bg-teal-400/10 text-[10px] font-medium text-teal-300">
                                       <CheckCircle className="w-2 h-2 flex-shrink-0" />
                                       {t("tx.realized_goal_badge")}
                                     </span>
@@ -1474,7 +1477,7 @@ export default function HomeSpending() {
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
                                   {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
-                                  {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                                  {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}
                                   {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"       />}
                                   {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"    />}
                                 </div>
@@ -1642,7 +1645,6 @@ export default function HomeSpending() {
           <DialogHeader><DialogTitle>{t("home.edit_tx_title")}</DialogTitle></DialogHeader>
           {editTx && (
             <>
-              <FoundedWithRealizedGoalToggle tx={editTx} />
               <TxForm
                 initial={buildEditInitial(editTx)}
                 categories={categories ?? []}
@@ -1650,6 +1652,7 @@ export default function HomeSpending() {
                 onSubmit={handleUpdate}
                 onCancel={() => setEditTx(null)}
                 loading={update.isPending}
+                fundedGoalToggle={<FoundedWithRealizedGoalToggle tx={editTx} />}
               />
             </>
           )}
