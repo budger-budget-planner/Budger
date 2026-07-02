@@ -1391,7 +1391,7 @@ export default function HomeSpending() {
                                   {t("tx.name_it")}
                                 </button>
                               )}
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
+                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasSplit && (
                                     <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
@@ -1431,13 +1431,13 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
+                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  {hasSplit   && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
-                                  {hasGoal    && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                                  {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                                  {hasReceipt && <span className="w-1.5 h-1.5 rounded-full bg-white"      />}
-                                  {hasLocked  && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"   />}
+                                  {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
+                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                                  {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                                  {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"       />}
+                                  {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"    />}
                                 </div>
                               )}
                             </div>

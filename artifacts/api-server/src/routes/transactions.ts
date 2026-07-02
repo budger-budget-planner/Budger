@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
   CreateTransactionBody,
@@ -128,6 +128,10 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   const parsed = UpdateTransactionBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  // Verify ownership before patching
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
   const updateData: any = { ...parsed.data };
   if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
 
@@ -138,7 +142,7 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
 
   const [tx] = await db.update(transactionsTable)
     .set(updateData)
-    .where(eq(transactionsTable.id, params.data.id))
+    .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)))
     .returning();
 
   if (!tx) { res.status(404).json({ error: "Not found" }); return; }
