@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, categoriesTable, usersTable } from "@workspace/db";
+import { db, categoriesTable, usersTable, transactionsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import {
   CreateCategoryBody,
@@ -11,11 +11,12 @@ import {
 
 const router: IRouter = Router();
 
-function formatCategory(c: any) {
+function formatCategory(c: any, spent?: number) {
   return {
     ...c,
     budget: c.budget ? parseFloat(c.budget) : null,
     createdAt: c.createdAt.toISOString(),
+    spent: spent ?? 0,
   };
 }
 
@@ -34,7 +35,21 @@ router.get("/categories", async (req, res): Promise<void> => {
         .where(eq(categoriesTable.userId, userId))
         .orderBy(categoriesTable.createdAt);
 
-  res.json(categories.map(formatCategory));
+  // Compute current-month spending per category, excluding founded-with-realized-goal
+  const now = new Date();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+
+  const spentMap = new Map<number, number>();
+  for (const tx of txs) {
+    if (!tx.categoryId) continue;
+    if (!tx.date.startsWith(monthPrefix)) continue;
+    if (tx.currencyLocked || (tx as any).currencyUnavailable) continue;
+    if (tx.foundedWithRealizedGoal) continue;
+    spentMap.set(tx.categoryId, (spentMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
+  }
+
+  res.json(categories.map(c => formatCategory(c, spentMap.get(c.id))));
 });
 
 router.post("/categories", async (req, res): Promise<void> => {
