@@ -72,8 +72,11 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     setTransform(exactTransform);
     setPhase("moving");                         // logo glides at full opacity → motion visible
 
-    setTimeout(() => setPhase("fading"), 600);  // 600 ms of pure motion, then start fade (doubled)
-    setTimeout(onDone,                  1360);  // remove after fade completes (doubled)
+    // Let the glide run almost to completion before the background starts to fade —
+    // fading too early made the destination screen "flash" into view while the logo
+    // was still clearly mid-flight, which read as clunky/jarring.
+    setTimeout(() => setPhase("fading"), 950);   // fade starts near the end of the glide
+    setTimeout(onDone,                  1400);   // remove shortly after the fade completes
   }, [minDone, isLoading, user, onDone]);
 
   const isMoving = phase === "moving" || phase === "fading";
@@ -92,7 +95,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         alignItems: "center",
         justifyContent: "center",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.72s cubic-bezier(0.4, 0, 1, 1)" : "none",
+        transition: isFading ? "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >

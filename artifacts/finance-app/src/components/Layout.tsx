@@ -441,11 +441,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
-              className="flex items-center gap-3 w-full px-1 py-2 text-destructive
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl
+                         bg-destructive/10 text-sm font-medium text-destructive
                          transition active:opacity-70 disabled:opacity-40"
             >
               <LogOut className="w-4 h-4" />
-              <span className="font-medium">
+              <span>
                 {logout.isPending ? t("profile.signing_out") : t("profile.sign_out")}
               </span>
             </button>
