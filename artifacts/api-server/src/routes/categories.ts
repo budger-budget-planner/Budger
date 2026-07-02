@@ -11,12 +11,13 @@ import {
 
 const router: IRouter = Router();
 
-function formatCategory(c: any, spent?: number) {
+function formatCategory(c: any, spent?: number, excluded?: number) {
   return {
     ...c,
     budget: c.budget ? parseFloat(c.budget) : null,
     createdAt: c.createdAt.toISOString(),
     spent: spent ?? 0,
+    excluded: excluded ?? 0,
   };
 }
 
@@ -40,16 +41,20 @@ router.get("/categories", async (req, res): Promise<void> => {
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
 
-  const spentMap = new Map<number, number>();
+  const spentMap    = new Map<number, number>();
+  const excludedMap = new Map<number, number>();
   for (const tx of txs) {
     if (!tx.categoryId) continue;
     if (!tx.date.startsWith(monthPrefix)) continue;
-    if (tx.currencyLocked || (tx as any).currencyUnavailable) continue;
-    if (tx.foundedWithRealizedGoal) continue;
-    spentMap.set(tx.categoryId, (spentMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
+    if (tx.currencyLocked || tx.currencyUnavailable) continue;
+    if (tx.foundedWithRealizedGoal) {
+      excludedMap.set(tx.categoryId, (excludedMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
+    } else {
+      spentMap.set(tx.categoryId, (spentMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
+    }
   }
 
-  res.json(categories.map(c => formatCategory(c, spentMap.get(c.id))));
+  res.json(categories.map(c => formatCategory(c, spentMap.get(c.id), excludedMap.get(c.id))));
 });
 
 router.post("/categories", async (req, res): Promise<void> => {

@@ -195,6 +195,11 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
             <p className="text-xs text-muted-foreground">
               {fmtAmt(Number(category.spent ?? 0), currency)} of {fmtAmt(Number(category.budget), currency)}
             </p>
+            {(category as any).excluded > 0 && (
+              <p className="text-xs text-teal-400">
+                +{fmtAmt(Number((category as any).excluded), currency)} {t("home.realized_goal_excluded")}
+              </p>
+            )}
           </div>
         )}
 

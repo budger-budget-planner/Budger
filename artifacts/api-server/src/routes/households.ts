@@ -204,7 +204,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const categories = await db.select().from(categoriesTable);
   const catMap = new Map(categories.map(c => [c.id, c]));
 
-  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked);
+  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal);
 
   const grouped = new Map<string, { total: number; count: number; category: any }>();
   for (const tx of filtered) {
