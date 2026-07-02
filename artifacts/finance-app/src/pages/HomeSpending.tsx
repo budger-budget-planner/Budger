@@ -703,7 +703,7 @@ function SwipeableTxRow({
     setOffset(to);
     snappedRef.current = side;
     currentOffset.current = to;
-    requestAnimationFrame(() => setTimeout(() => setAnimating(false), 320));
+    setTimeout(() => setAnimating(false), 340);
   }
 
   function resetRow() { snapTo(0, null); }
@@ -876,7 +876,7 @@ function SwipeableTxRow({
           )}
           {/* Delete section — always red, expands to fill during extension */}
           <div
-            className="flex flex-col items-center justify-center gap-1.5 text-white bg-red-700 overflow-hidden cursor-pointer active:brightness-75"
+            className="flex flex-col items-center justify-center gap-1.5 text-destructive-foreground bg-destructive overflow-hidden cursor-pointer active:brightness-75"
             style={{ width: deleteSectionW, minWidth: deleteSnapW }}
             onClick={() => { onDelete(); resetRow(); }}
           >
@@ -891,7 +891,7 @@ function SwipeableTxRow({
         className="relative z-10 bg-card"
         style={{
           transform: `translateX(${offset}px)`,
-          transition: animating ? "transform 0.15s cubic-bezier(0.4,0,0.2,1)" : "none",
+          transition: animating ? "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
           touchAction: "pan-y",
           willChange: "transform",
         }}
