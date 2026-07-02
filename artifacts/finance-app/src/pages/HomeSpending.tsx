@@ -323,7 +323,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
               <span className="font-medium text-foreground">
                 {fmtAmt(Number(tx.amount), tx.transactionCurrency ?? loadPrefs().currency)}
               </span>
-              {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
+              {" "}· {tx.categoryName ?? (!(tx as any).categoryId && (tx as any).recurringPaymentId ? t("tx.recurring_payment") : t("common.uncategorized"))} · {tx.date}
             </div>
             {localImage ? (
               <>
@@ -1031,12 +1031,16 @@ export default function HomeSpending() {
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
   const remaining   = totalBudget ? totalBudget - total : null;
 
-  const blank: TxFormState = {
-    amount: "", description: "", categoryId: "none",
-    date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
-    goalMode: "off", goalId: "none", goalAmount: "",
-    foundedWithRealizedGoal: false,
-  };
+  // Always recompute "today" at call time so the date field stays current even if the
+  // page has been open for a long time or across a midnight boundary.
+  function getBlank(): TxFormState {
+    return {
+      amount: "", description: "", categoryId: "none",
+      date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
+      goalMode: "off", goalId: "none", goalAmount: "",
+      foundedWithRealizedGoal: false,
+    };
+  }
 
   function handleCreate(form: TxFormState) {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
@@ -1389,8 +1393,9 @@ export default function HomeSpending() {
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
                 {grouped[date].map(tx => {
                   const contrib    = contribByTxId.get(tx.id);
-                  const dotColor   = tx.categoryColor ?? "#666";
-                  const catLabel   = tx.categoryName ?? t("common.uncategorized");
+                  const isRP       = !tx.categoryId && !!(tx as any).recurringPaymentId;
+                  const dotColor   = tx.categoryColor ?? (tx as any).recurringPaymentColor ?? "#666";
+                  const catLabel   = tx.categoryName ?? (isRP ? t("tx.recurring_payment") : t("common.uncategorized"));
                   const isExpanded = actionTx === tx.id;
 
                   // Badge presence flags
@@ -1691,7 +1696,7 @@ export default function HomeSpending() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("home.new_tx")}</DialogTitle></DialogHeader>
           <TxForm
-            initial={blank}
+            initial={getBlank()}
             categories={categories ?? []}
             goals={goals ?? []}
             onSubmit={handleCreate}
