@@ -119,6 +119,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.realized_goal_badge":             { en: "Realized Goal",              pl: "Zrealizowany cel" },
   "goals.realized_moves_in":            { en: "Realized · moves to Past Goals in {hours}h", pl: "Zrealizowany · przeniesiony do Przeszłych Celów za {hours}h" },
   "goals.realized_moves_soon":          { en: "Realized · moving to Past Goals soon", pl: "Zrealizowany · przenoszenie do Przeszłych Celów wkrótce" },
+  "goals.realized_fully_funded":        { en: "🎉 Goal fully funded!", pl: "🎉 Cel w pełni sfinansowany!" },
 
   // ── Categories ──
   "cat.title":         { en: "Categories",                pl: "Kategorie"                    },

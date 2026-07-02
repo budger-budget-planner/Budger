@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from "react";
+import { useState, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
@@ -51,7 +51,6 @@ function TxForm({
   onSubmit,
   onCancel,
   loading,
-  extraContent,
 }: {
   initial: TxFormState;
   categories: any[];
@@ -59,7 +58,6 @@ function TxForm({
   onSubmit: (data: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
-  extraContent?: ReactNode;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
@@ -129,7 +127,6 @@ function TxForm({
           </Select>
         </div>
       </div>
-      {extraContent}
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button type="submit" className="flex-1" disabled={loading} data-testid="button-save-transaction">
@@ -285,7 +282,7 @@ function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
   }
 
   return (
-    <div className="border-t border-border pt-4 mt-2 flex items-center justify-between gap-3">
+    <div className="mb-1 pb-4 border-b border-border flex items-center justify-between gap-3">
       <div>
         <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
@@ -853,6 +850,7 @@ export default function TransactionsPage() {
               : existingContrib ? `goal_${existingContrib.goalId}` : "none";
             return (
               <>
+                <FoundedWithRealizedGoalToggle tx={editTx} />
                 <TxForm
                   initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: initCategoryId, date: editTx.date, paymentMethod: editTx.paymentMethod }}
                   categories={categories ?? []}
@@ -860,7 +858,6 @@ export default function TransactionsPage() {
                   onSubmit={handleUpdate}
                   onCancel={() => setEditTx(null)}
                   loading={isSaving}
-                  extraContent={<FoundedWithRealizedGoalToggle tx={editTx} />}
                 />
                 <DedicateToGoalSection tx={editTx} goals={goals ?? []} />
               </>

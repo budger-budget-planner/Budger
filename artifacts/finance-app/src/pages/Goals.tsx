@@ -262,18 +262,20 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
           </div>
         )}
 
-        {/* Realized banner — shown while goal is still in active (within 24h window) */}
-        {goal.realizedAt && (() => {
-          const moveAtMs = new Date(goal.realizedAt).getTime() + 24 * 60 * 60 * 1000;
-          const hoursLeft = Math.ceil((moveAtMs - Date.now()) / (60 * 60 * 1000));
+        {/* Realized banner — shown for any fully-funded goal still in active list */}
+        {pct >= 100 && (() => {
+          const realizedBannerText = (() => {
+            if (!goal.realizedAt) return t("goals.realized_fully_funded");
+            const moveAtMs = new Date(goal.realizedAt).getTime() + 24 * 60 * 60 * 1000;
+            const hoursLeft = Math.ceil((moveAtMs - Date.now()) / (60 * 60 * 1000));
+            return hoursLeft > 0
+              ? t("goals.realized_moves_in", { hours: String(hoursLeft) })
+              : t("goals.realized_moves_soon");
+          })();
           return (
             <div className="mt-1 mb-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-              <p className="text-xs text-emerald-400">
-                {hoursLeft > 0
-                  ? t("goals.realized_moves_in", { hours: String(hoursLeft) })
-                  : t("goals.realized_moves_soon")}
-              </p>
+              <p className="text-xs text-emerald-400">{realizedBannerText}</p>
             </div>
           );
         })()}
