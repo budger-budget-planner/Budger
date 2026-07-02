@@ -94,6 +94,8 @@ type EditProposal = {
   goalColor: string | null;
   currentBudget: number | null;
   currentCurrency: string | null;
+  currentDeadline: string | null;
+  currentDivideByMonths: boolean;
   proposerName: string | null;
   declineReason: string | null;
   proposed: {
@@ -397,9 +399,9 @@ function GoalFormFields({
           <button
             type="button"
             onClick={() => { setDateTbd(!dateTbd); if (!dateTbd) setDeadline(""); }}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+            className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${dateTbd ? "text-foreground" : "text-foreground/70"}`}
           >
-            <span className={`w-7 h-4 rounded-full relative transition-colors ${dateTbd ? "bg-foreground" : "bg-muted border border-border"}`}>
+            <span className={`w-7 h-4 rounded-full relative transition-colors ${dateTbd ? "bg-foreground" : "bg-foreground/25"}`}>
               <span className="absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all"
                 style={{ left: dateTbd ? "calc(100% - 0.875rem)" : "0.125rem" }} />
             </span>
@@ -498,7 +500,7 @@ function EditGoalDialog({
   }
 
   async function handleProposeEdit() {
-    if (!name.trim() || !budget || !deadline) return;
+    if (!name.trim() || !budget || (!deadline && !dateTbd)) return;
     setEditProposeState("pending");
     const budgetNum = parseFloat(budget);
     const canonicalBudget = goalCurrency !== userCurrency
@@ -509,7 +511,7 @@ function EditGoalDialog({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), color, budget: canonicalBudget, currency: goalCurrency, deadline, divideByMonths }),
+        body: JSON.stringify({ name: name.trim(), color, budget: canonicalBudget, currency: goalCurrency, deadline: dateTbd ? "TBD" : deadline, divideByMonths: dateTbd ? false : divideByMonths }),
       });
       if (r.ok) {
         onProposalsChange();
@@ -1057,6 +1059,11 @@ export default function GoalsPage() {
               const newBudget = propCur !== prefs.currency
                 ? convertAmount(ep.proposed.budget, propCur, prefs.currency, rates)
                 : ep.proposed.budget;
+              const nameChanged = ep.goalName !== ep.proposed.name;
+              const colorChanged = ep.goalColor !== ep.proposed.color;
+              const budgetChanged = oldBudget != null && Math.abs(oldBudget - newBudget) > 0.005;
+              const deadlineChanged = ep.currentDeadline !== ep.proposed.deadline;
+              const divideChanged = ep.currentDivideByMonths !== ep.proposed.divideByMonths;
               return (
                 <div key={ep.id} className="px-4 py-3">
                   <div className="flex items-start gap-3 mb-2">
@@ -1067,18 +1074,43 @@ export default function GoalsPage() {
                       <Target className="w-3.5 h-3.5" style={{ color: ep.proposed.color ?? ep.goalColor ?? "#818cf8" }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {ep.goalName !== ep.proposed.name ? (
+                      <p className="text-xs text-muted-foreground mb-1">{t("goals.edit_proposed_by", { name: ep.proposerName ?? "" })}</p>
+                      {nameChanged && (
+                        <p className="text-xs mt-0.5">
+                          <span className="text-muted-foreground">{t("goals.goal_name")}: </span>
                           <span className="line-through text-muted-foreground mr-1">{ep.goalName}</span>
-                        ) : null}
-                        {ep.proposed.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{t("goals.edit_proposed_by", { name: ep.proposerName ?? "" })}</p>
-                      {oldBudget != null && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {fmtAmtRound(oldBudget, prefs.currency)}
-                          {" → "}
-                          <span className="text-foreground font-medium">{fmtAmtRound(newBudget, prefs.currency)}</span>
+                          <span className="text-foreground font-medium">→ {ep.proposed.name}</span>
+                        </p>
+                      )}
+                      {!nameChanged && (
+                        <p className="text-sm font-medium truncate">{ep.proposed.name}</p>
+                      )}
+                      {colorChanged && (
+                        <p className="text-xs mt-0.5 flex items-center gap-1.5">
+                          <span className="text-muted-foreground">{t("cat.color_label")}: </span>
+                          <span className="w-3 h-3 rounded-full inline-block border border-border/50" style={{ backgroundColor: ep.goalColor ?? "#818cf8" }} />
+                          <span className="text-muted-foreground">→</span>
+                          <span className="w-3 h-3 rounded-full inline-block border border-border/50" style={{ backgroundColor: ep.proposed.color }} />
+                        </p>
+                      )}
+                      {budgetChanged && (
+                        <p className="text-xs mt-0.5">
+                          <span className="text-muted-foreground">{t("goals.target_amt")}: </span>
+                          <span className="line-through text-muted-foreground mr-1">{fmtAmtRound(oldBudget!, prefs.currency)}</span>
+                          <span className="text-foreground font-medium">→ {fmtAmtRound(newBudget, prefs.currency)}</span>
+                        </p>
+                      )}
+                      {deadlineChanged && (
+                        <p className="text-xs mt-0.5">
+                          <span className="text-muted-foreground">{t("goals.deadline")}: </span>
+                          <span className="line-through text-muted-foreground mr-1">{ep.currentDeadline ?? "—"}</span>
+                          <span className="text-foreground font-medium">→ {ep.proposed.deadline === "TBD" ? t("goals.date_tbd") : ep.proposed.deadline}</span>
+                        </p>
+                      )}
+                      {divideChanged && (
+                        <p className="text-xs mt-0.5">
+                          <span className="text-muted-foreground">{t("goals.divide_mo")}: </span>
+                          <span className="text-foreground font-medium">{ep.proposed.divideByMonths ? t("common.on") : t("common.off")}</span>
                         </p>
                       )}
                     </div>

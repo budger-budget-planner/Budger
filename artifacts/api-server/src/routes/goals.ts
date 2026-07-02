@@ -318,6 +318,8 @@ router.get("/goals/edit-proposals", async (req, res): Promise<void> => {
       goalColor: goal?.color ?? null,
       currentBudget: goal?.budget ? parseFloat(goal.budget) : null,
       currentCurrency: goal?.currency ?? null,
+      currentDeadline: goal?.deadline ?? null,
+      currentDivideByMonths: goal?.divideByMonths ?? false,
       proposerName: proposerMap.get(p.proposerId)?.name ?? null,
       proposed: {
         name: p.name,
@@ -519,7 +521,7 @@ router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
   if (isHead(role)) { res.status(400).json({ error: "Head should use PATCH to edit directly" }); return; }
 
   const { name, color, budget, currency, deadline, divideByMonths } = req.body;
-  if (!name || !color || !budget || !deadline) {
+  if (!name || !color || !budget || (deadline !== "TBD" && !deadline)) {
     res.status(400).json({ error: "name, color, budget, deadline required" }); return;
   }
 

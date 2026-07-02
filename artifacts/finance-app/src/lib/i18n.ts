@@ -23,6 +23,8 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },
+  "common.on":          { en: "On",         pl: "Włączone"   },
+  "common.off":         { en: "Off",        pl: "Wyłączone"  },
   "common.cancel":      { en: "Cancel",     pl: "Anuluj"     },
   "common.save":        { en: "Save",       pl: "Zapisz"     },
   "common.saving":      { en: "Saving…",    pl: "Zapisywanie…"},
