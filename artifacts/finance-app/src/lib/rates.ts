@@ -49,7 +49,10 @@ function loadAnyCache(): Record<string, number> | null {
 export async function fetchRates(): Promise<Record<string, number>> {
   const cached = loadCached();
   if (cached) return cached.rates;
+  return forceFetchRates();
+}
 
+export async function forceFetchRates(): Promise<Record<string, number>> {
   try {
     const res = await fetch(
       "https://api.frankfurter.app/latest?base=USD&symbols=EUR,GBP,PLN",
@@ -63,6 +66,42 @@ export async function fetchRates(): Promise<Record<string, number>> {
   } catch {
     return loadAnyCache() ?? FALLBACK_RATES;
   }
+}
+
+/** Milliseconds until the next 12:00 AM or 12:00 PM local time. */
+function msUntilNextHalfDay(): number {
+  const now = new Date();
+  const next = new Date(now);
+  const h = now.getHours();
+  if (h < 12) {
+    next.setHours(12, 0, 0, 0);
+  } else {
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+  }
+  return next.getTime() - now.getTime();
+}
+
+let _schedulerStarted = false;
+
+/**
+ * Start background rate refresh scheduler (idempotent).
+ * - Immediately force-fetches fresh rates.
+ * - Then re-fetches at every 12:00 AM and 12:00 PM local time.
+ */
+export function scheduleRateRefreshes(): void {
+  if (_schedulerStarted) return;
+  _schedulerStarted = true;
+
+  forceFetchRates().catch(() => {});
+
+  function scheduleNext() {
+    setTimeout(() => {
+      forceFetchRates().catch(() => {});
+      scheduleNext();
+    }, msUntilNextHalfDay());
+  }
+  scheduleNext();
 }
 
 export function getConversionRate(

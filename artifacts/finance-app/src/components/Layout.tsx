@@ -355,11 +355,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   {CURRENCIES.map(c => {
                     const isSelected = c.code === prefs.currency;
                     const rate = rates ? getConversionRate(prefs.currency, c.code, rates) : null;
-                    const rateStr = rate != null
-                      ? rate < 0.01 ? rate.toFixed(4)
-                      : rate < 0.1  ? rate.toFixed(3)
-                      : rate.toFixed(2)
-                      : null;
+                    const rateStr = rate != null ? rate.toFixed(4) : null;
                     return (
                       <button
                         key={c.code}
