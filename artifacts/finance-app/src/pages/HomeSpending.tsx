@@ -33,7 +33,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
@@ -76,7 +75,7 @@ type TxFormState = {
   categoryId: string;
   date: string;
   paymentMethod: string;
-  isGoalExpense: boolean;
+  goalMode: "off" | "all" | "part";
   goalId: string;
   goalAmount: string;
 };
@@ -96,11 +95,11 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
 
   const txAmount = parseFloat(form.amount) || 0;
   const goalAmountNum = parseFloat(form.goalAmount) || 0;
-  const goalAmountError = form.isGoalExpense && form.goalAmount && goalAmountNum > txAmount;
+  const goalAmountError = form.goalMode === "part" && !!form.goalAmount && goalAmountNum > txAmount;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.isGoalExpense && (!form.goalId || form.goalId === "none")) return;
+    if (form.goalMode !== "off" && (!form.goalId || form.goalId === "none")) return;
     if (goalAmountError) return;
     onSubmit(form);
   }
@@ -162,22 +161,41 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
       {/* Goal toggle */}
       {goals.length > 0 && (
         <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">{t("home.partially_goal")}</p>
-              <p className="text-xs text-muted-foreground">{t("home.count_toward_goal")}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">{t("home.dedicate_to_goal")}</p>
+            {/* 3-position pill: Off / All / Part */}
+            <div className="flex rounded-lg border border-border overflow-hidden text-xs flex-shrink-0">
+              {(["off", "all", "part"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    set("goalMode", mode);
+                    if (mode === "off") { set("goalId", "none"); set("goalAmount", ""); }
+                  }}
+                  className={`px-3 py-1.5 font-medium transition-colors ${
+                    form.goalMode === mode
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t(`home.goal_mode_${mode}` as any)}
+                </button>
+              ))}
             </div>
-            <Switch
-              checked={form.isGoalExpense}
-              onCheckedChange={v => set("isGoalExpense", v)}
-            />
           </div>
 
-          {form.isGoalExpense && (
+          {form.goalMode !== "off" && (
             <div className="space-y-3 pt-1 border-t border-border/60">
+              {form.goalMode === "all" && (
+                <p className="text-xs text-muted-foreground">{t("home.goal_all_desc")}</p>
+              )}
+              {form.goalMode === "part" && (
+                <p className="text-xs text-muted-foreground">{t("home.goal_part_desc")}</p>
+              )}
               <div className="space-y-1.5">
                 <Label>{t("home.goal")}</Label>
-                <Select value={form.goalId} onValueChange={v => set("goalId", v)} required={form.isGoalExpense}>
+                <Select value={form.goalId} onValueChange={v => set("goalId", v)} required>
                   <SelectTrigger>
                     <SelectValue placeholder={t("home.select_goal")} />
                   </SelectTrigger>
@@ -194,27 +212,29 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("home.amount_toward_goal")}</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
-                  value={form.goalAmount}
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
-                  }}
-                  onBlur={() => {
-                    const n = parseFloat(form.goalAmount);
-                    if (!isNaN(n)) set("goalAmount", n.toFixed(2));
-                  }}
-                  required={form.isGoalExpense}
-                />
-                {goalAmountError && (
-                  <p className="text-xs text-destructive">{t("home.cannot_exceed")}</p>
-                )}
-              </div>
+              {form.goalMode === "part" && (
+                <div className="space-y-1.5">
+                  <Label>{t("home.amount_toward_goal")}</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
+                    value={form.goalAmount}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
+                    }}
+                    onBlur={() => {
+                      const n = parseFloat(form.goalAmount);
+                      if (!isNaN(n)) set("goalAmount", n.toFixed(2));
+                    }}
+                    required={form.goalMode === "part"}
+                  />
+                  {goalAmountError && (
+                    <p className="text-xs text-destructive">{t("home.cannot_exceed")}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -234,7 +254,7 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
         <Button
           type="submit"
           className="flex-1 bg-zinc-500/10 border border-zinc-500/40 text-foreground hover:bg-zinc-500/20"
-          disabled={loading || !!goalAmountError || (form.isGoalExpense && (!form.goalId || form.goalId === "none"))}
+          disabled={loading || !!goalAmountError || (form.goalMode !== "off" && (!form.goalId || form.goalId === "none")) || (form.goalMode === "part" && !form.goalAmount)}
           data-testid="button-save-transaction"
         >
           {loading ? t("common.saving") : t("common.save")}
@@ -969,11 +989,13 @@ export default function HomeSpending() {
   const blank: TxFormState = {
     amount: "", description: "", categoryId: "none",
     date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
-    isGoalExpense: false, goalId: "none", goalAmount: "",
+    goalMode: "off", goalId: "none", goalAmount: "",
   };
 
   function handleCreate(form: TxFormState) {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
+    const isGoalExpense = form.goalMode !== "off";
+    const effectiveGoalAmount = form.goalMode === "all" ? form.amount : form.goalAmount;
     create.mutate(
       { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
       {
@@ -983,9 +1005,9 @@ export default function HomeSpending() {
           await syncGoalContribution({
             txId: tx.id,
             txDate: form.date,
-            isGoalExpense: form.isGoalExpense,
+            isGoalExpense,
             goalId: form.goalId,
-            goalAmount: form.goalAmount,
+            goalAmount: effectiveGoalAmount,
             existingContribId: null,
             queryClient,
             viewMonth,
@@ -1001,6 +1023,8 @@ export default function HomeSpending() {
     if (!editTx) return;
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const existingContrib = contribByTxId.get(editTx.id) ?? null;
+    const isGoalExpense = form.goalMode !== "off";
+    const effectiveGoalAmount = form.goalMode === "all" ? form.amount : form.goalAmount;
 
     // Was this an auto-assigned category that the user is now overriding?
     const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
@@ -1028,9 +1052,9 @@ export default function HomeSpending() {
           await syncGoalContribution({
             txId: editTx.id,
             txDate: form.date,
-            isGoalExpense: form.isGoalExpense,
+            isGoalExpense,
             goalId: form.goalId,
-            goalAmount: form.goalAmount,
+            goalAmount: effectiveGoalAmount,
             existingContribId: existingContrib?.id ?? null,
             queryClient,
             viewMonth,
@@ -1059,16 +1083,21 @@ export default function HomeSpending() {
 
   function buildEditInitial(tx: any): TxFormState {
     const contrib = contribByTxId.get(tx.id);
+    const contribInUser = contrib ? contribAmountInUserCurrency(contrib) : 0;
     const goalAmtDisplay = contrib
-      ? String(Math.round(contribAmountInUserCurrency(contrib) * 100) / 100)
+      ? String(Math.round(contribInUser * 100) / 100)
       : "";
+    let goalMode: "off" | "all" | "part" = "off";
+    if (contrib) {
+      goalMode = Math.abs(contribInUser - Number(tx.amount)) < 0.005 ? "all" : "part";
+    }
     return {
       amount: String(tx.amount),
       description: tx.description,
       categoryId: tx.categoryId ? String(tx.categoryId) : "none",
       date: tx.date,
       paymentMethod: tx.paymentMethod,
-      isGoalExpense: !!contrib,
+      goalMode,
       goalId: contrib ? String(contrib.goalId) : "none",
       goalAmount: goalAmtDisplay,
     };
