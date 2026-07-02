@@ -13,6 +13,7 @@ import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
+import { useLiveActivity } from "@/hooks/useLiveActivity";
 
 const CHART_COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -73,6 +74,19 @@ export default function DashboardPage() {
   const totalGoalContributions = (goalsSummary ?? []).reduce((s, g) =>
     s + toUserCurrency(g.contributed, (g as any).goalCurrency), 0);
   const activeGoalsWithContribs = (goalsSummary ?? []).filter(g => g.contributed > 0);
+
+  // Live Activity — auto-starts/updates the iOS Dynamic Island widget when running in Capacitor
+  const topCategory = spending?.[0];
+  useLiveActivity(spending ? {
+    totalSpent: totalSpending,
+    totalBudget,
+    currencySymbol: prefs.currency,
+    topCategoryName: topCategory?.categoryName ?? "Uncategorized",
+    topCategoryColor: (topCategory as any)?.color ?? "#6366f1",
+    transactionCount: txCount,
+    householdName: "Budger",
+    isCurrentMonth,
+  } : null);
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">

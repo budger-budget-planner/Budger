@@ -12,6 +12,7 @@ import currenciesRouter from "./currencies";
 import webhookRouter from "./webhook";
 import merchantCategoriesRouter from "./merchant-categories";
 import splitsRouter from "./splits";
+import liveActivityRouter from "./live-activity";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(notificationsRouter);
 router.use(summaryRouter);
 router.use(goalsRouter);
 router.use(currenciesRouter);
+router.use(liveActivityRouter);
 
 export default router;
