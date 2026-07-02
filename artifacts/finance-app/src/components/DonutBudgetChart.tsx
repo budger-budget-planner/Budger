@@ -54,6 +54,7 @@ type Seg = {
   catKey: string;
   d: string;
   fill: string;
+  groupColor: string; // original category color (before darkening), used for the segment border
   isOverBudget: boolean;
   midDeg: number;
 };
@@ -185,6 +186,7 @@ function buildChart(
         catKey: g.catKey,
         d: arc(cx, cy, ri, outerR, startDeg, endDeg),
         fill: part.fill,
+        groupColor: g.color,
         isOverBudget: part.isOverBudget,
         midDeg,
       });
@@ -261,7 +263,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={seg.id}
                 d={seg.d}
                 fill={seg.fill}
-                stroke={seg.isOverBudget ? "#ef4444" : seg.fill + "70"}
+                stroke={seg.isOverBudget ? "#ef4444" : seg.groupColor + "55"}
                 strokeWidth={seg.isOverBudget ? 1.5 : 0.8}
                 paintOrder="stroke"
                 style={{

@@ -175,14 +175,10 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
     },
   });
 
-  const isOverBudget = category.budget != null && category.budget > 0 && (category.spent ?? 0) > category.budget;
-  const borderColor = isOverBudget ? "#f87171" : category.color + "50";
-
   return (
     <div
       data-testid={`card-category-${category.id}`}
-      className="bg-card rounded-2xl overflow-hidden"
-      style={{ border: `1.5px solid ${borderColor}` }}
+      className="bg-card border border-border rounded-2xl overflow-hidden"
     >
       <div className="h-1.5" style={{ backgroundColor: category.color }} />
       <div className="p-4">
