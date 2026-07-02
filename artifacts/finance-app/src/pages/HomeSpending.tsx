@@ -79,16 +79,16 @@ type TxFormState = {
   goalMode: "off" | "all" | "part";
   goalId: string;
   goalAmount: string;
+  foundedWithRealizedGoal: boolean;
 };
 
-function TxForm({ initial, categories, goals, onSubmit, onCancel, loading, fundedGoalToggle }: {
+function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
   initial: TxFormState;
   categories: any[];
   goals: any[];
   onSubmit: (d: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
-  fundedGoalToggle?: React.ReactNode;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set<K extends keyof TxFormState>(k: K, v: TxFormState[K]) {
@@ -160,7 +160,16 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading, funde
         </Select>
       </div>
 
-      {fundedGoalToggle}
+      <div className="rounded-xl border border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
+        </div>
+        <Switch
+          checked={form.foundedWithRealizedGoal}
+          onCheckedChange={v => set("foundedWithRealizedGoal", v)}
+        />
+      </div>
 
       {/* Goal toggle */}
       {goals.length > 0 && (
@@ -561,44 +570,6 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
   qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
-}
-
-function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
-  const queryClient = useQueryClient();
-  const [checked, setChecked] = useState(!!tx.foundedWithRealizedGoal);
-  const [saving, setSaving] = useState(false);
-
-  async function toggle(next: boolean) {
-    setChecked(next);
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/transactions/${tx.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foundedWithRealizedGoal: next }),
-      });
-      if (res.ok) {
-        invalidateAll(queryClient);
-      } else {
-        setChecked(!next);
-      }
-    } catch {
-      setChecked(!next);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
-      <div>
-        <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={toggle} disabled={saving} />
-    </div>
-  );
 }
 
 function dateToMonth(dateStr: string): string {
@@ -1036,6 +1007,7 @@ export default function HomeSpending() {
     amount: "", description: "", categoryId: "none",
     date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
     goalMode: "off", goalId: "none", goalAmount: "",
+    foundedWithRealizedGoal: false,
   };
 
   function handleCreate(form: TxFormState) {
@@ -1043,7 +1015,7 @@ export default function HomeSpending() {
     const isGoalExpense = form.goalMode !== "off";
     const effectiveGoalAmount = form.goalMode === "all" ? form.amount : form.goalAmount;
     create.mutate(
-      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
+      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod, foundedWithRealizedGoal: form.foundedWithRealizedGoal } },
       {
         onSuccess: async (tx: any) => {
           invalidateAll(queryClient);
@@ -1086,6 +1058,7 @@ export default function HomeSpending() {
           categoryId,
           date: form.date,
           paymentMethod: form.paymentMethod,
+          foundedWithRealizedGoal: form.foundedWithRealizedGoal,
         },
       },
       {
@@ -1146,6 +1119,7 @@ export default function HomeSpending() {
       goalMode,
       goalId: contrib ? String(contrib.goalId) : "none",
       goalAmount: goalAmtDisplay,
+      foundedWithRealizedGoal: !!tx.foundedWithRealizedGoal,
     };
   }
 
@@ -1658,17 +1632,14 @@ export default function HomeSpending() {
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("home.edit_tx_title")}</DialogTitle></DialogHeader>
           {editTx && (
-            <>
-              <TxForm
-                initial={buildEditInitial(editTx)}
-                categories={categories ?? []}
-                goals={goals ?? []}
-                onSubmit={handleUpdate}
-                onCancel={() => setEditTx(null)}
-                loading={update.isPending}
-                fundedGoalToggle={<FoundedWithRealizedGoalToggle tx={editTx} />}
-              />
-            </>
+            <TxForm
+              initial={buildEditInitial(editTx)}
+              categories={categories ?? []}
+              goals={goals ?? []}
+              onSubmit={handleUpdate}
+              onCancel={() => setEditTx(null)}
+              loading={update.isPending}
+            />
           )}
         </DialogContent>
       </Dialog>
