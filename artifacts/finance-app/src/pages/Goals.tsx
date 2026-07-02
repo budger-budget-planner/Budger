@@ -399,9 +399,9 @@ function GoalFormFields({
           <button
             type="button"
             onClick={() => { setDateTbd(!dateTbd); if (!dateTbd) setDeadline(""); }}
-            className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${dateTbd ? "text-foreground" : "text-foreground/70"}`}
+            className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${dateTbd ? "text-foreground" : "text-foreground"}`}
           >
-            <span className={`w-7 h-4 rounded-full relative transition-colors ${dateTbd ? "bg-foreground" : "bg-foreground/25"}`}>
+            <span className={`w-7 h-4 rounded-full relative transition-colors ${dateTbd ? "bg-foreground" : "bg-muted-foreground/50 border border-border"}`}>
               <span className="absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all"
                 style={{ left: dateTbd ? "calc(100% - 0.875rem)" : "0.125rem" }} />
             </span>
