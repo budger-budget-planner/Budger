@@ -1014,6 +1014,10 @@ export default function HomeSpending() {
     .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency) && !(tx as any).foundedWithRealizedGoal)
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
+  const realizedGoalExcluded = sorted
+    .filter(tx => !!(tx as any).foundedWithRealizedGoal && !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency))
+    .reduce((s, tx) => s + Number(tx.amount), 0);
+
   // Group locked-foreign amounts by their original currency for the separate display
   const lockedByCurrency: Record<string, number> = {};
   for (const tx of sorted) {
@@ -1234,6 +1238,11 @@ export default function HomeSpending() {
                       +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
                     </p>
                   )}
+                  {realizedGoalExcluded > 0 && (
+                    <p className="text-xs text-teal-400 mt-0.5">
+                      +{fmtAmt(realizedGoalExcluded, prefs.currency)} {t("home.realized_goal_excluded")}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
@@ -1266,6 +1275,11 @@ export default function HomeSpending() {
                   {lockedEntries.length > 0 && (
                     <p className="text-xs text-zinc-500 mt-0.5">
                       +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
+                    </p>
+                  )}
+                  {realizedGoalExcluded > 0 && (
+                    <p className="text-xs text-teal-400 mt-0.5">
+                      +{fmtAmt(realizedGoalExcluded, prefs.currency)} {t("home.realized_goal_excluded")}
                     </p>
                   )}
                 </div>
