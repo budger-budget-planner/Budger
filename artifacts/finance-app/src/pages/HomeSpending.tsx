@@ -574,6 +574,8 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
   qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
+  // Recurring payments: re-evaluate appliedThisMonth after any tx change
+  qc.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
 }
 
 function dateToMonth(dateStr: string): string {
@@ -970,9 +972,9 @@ export default function HomeSpending() {
   const applyRP = useApplyRecurringPayment({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
         invalidateAll(queryClient);
         setRpExpanded(null);
+        setRpSheetOpen(false);
       },
     },
   });
