@@ -174,7 +174,10 @@ function parseTransactionPayload(
 
     // 2. Amount followed by ISO code or PLN variants: "251,99 PLN" / "251,99 zł" / "251,99 zl"
     //    Overrides currency from symbol path if present; also fills amount if not yet found.
-    const suffixMatch = raw.match(/\b(\d[\d\s]*[\.,]\d{2})\s+([A-Z]{3}|zł|zl)\b/i);
+    // NOTE: \b cannot be used at the end here because 'ł' is a non-ASCII char and JS regex
+    //       treats it as a non-word character, so \b after "zł" never matches.
+    //       Use (?!\w) (negative lookahead for word char) instead.
+    const suffixMatch = raw.match(/\b(\d[\d\s]*[\.,]\d{2})\s+([A-Z]{3}|zł|zl)(?!\w)/i);
     if (suffixMatch) {
       const code = suffixMatch[2].toLowerCase();
       currency = (code === "zł" || code === "zl") ? "PLN" : suffixMatch[2].toUpperCase();
