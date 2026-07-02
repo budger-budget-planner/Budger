@@ -309,24 +309,17 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
           <ChevronLeft className="w-4 h-4 text-muted-foreground flex-shrink-0 rotate-180" />
         </button>
 
-        {/* URL quick-access */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-sm font-semibold">{t("nc.setup_guide")}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("nc.setup_guide_desc")}</p>
+        {/* Setup Guide button — open after reading the manuals above */}
+        <button onClick={() => window.open(WEBHOOK_GUIDE, "_blank")}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-foreground text-background transition active:scale-95 text-left">
+          <div className="w-10 h-10 rounded-xl bg-background/15 flex items-center justify-center flex-shrink-0">
+            <ExternalLink className="w-5 h-5" />
           </div>
-          <div className="flex gap-2 px-4 py-3">
-            <button onClick={() => window.open(WEBHOOK_GUIDE, "_blank")}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted border border-border text-sm font-semibold transition active:scale-95">
-              <ExternalLink className="w-4 h-4" />
-              {t("nc.open_url")}
-            </button>
-            <button onClick={copyUrl}
-              className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold transition active:scale-95">
-              {t("nc.copy_url")}
-            </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold leading-snug">{t("nc.setup_guide")}</p>
+            <p className="text-xs opacity-70 mt-0.5 truncate">budger.app/docs/ios-shortcut</p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -384,26 +377,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-5 -mx-1 px-1">
-        {/* Sound & Haptics */}
+        {/* Sound & Haptics — first, so user can preview before configuring alerts */}
         <section>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("notif.sound_section")}</p>
           <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
-            {/* Sound preview row */}
-            <div className="flex items-center justify-between px-4 py-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-muted-foreground">
-                  <Bell className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{t("notif.badger_sniff")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.sniff_pattern")}</p>
-                </div>
-              </div>
-              <button onClick={handlePreview} disabled={previewing}
-                className={`px-4 py-1.5 rounded-xl text-sm font-semibold border transition active:scale-95 ${previewing ? "border-foreground/20 text-muted-foreground" : "border-border text-foreground bg-muted"}`}>
-                {previewing ? "▶︎" : t("notif.preview_btn")}
-              </button>
-            </div>
             {/* Haptic row */}
             <div className="flex items-start justify-between gap-3 px-4 py-4">
               <div className="flex items-start gap-3">
@@ -422,6 +399,22 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
               <Switch checked={hapticEnabled && canHaptic()} disabled={!canHaptic()} onCheckedChange={toggleHaptic} />
+            </div>
+            {/* Sound preview row */}
+            <div className="flex items-center justify-between px-4 py-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-muted-foreground">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{t("notif.badger_sniff")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.sniff_pattern")}</p>
+                </div>
+              </div>
+              <button onClick={handlePreview} disabled={previewing}
+                className={`px-4 py-1.5 rounded-xl text-sm font-semibold border transition active:scale-95 ${previewing ? "border-foreground/20 text-muted-foreground" : "border-border text-foreground bg-muted"}`}>
+                {previewing ? "▶︎" : t("notif.preview_btn")}
+              </button>
             </div>
           </div>
         </section>

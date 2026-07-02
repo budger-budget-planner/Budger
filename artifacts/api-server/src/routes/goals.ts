@@ -58,6 +58,7 @@ async function fanOutActivity(
   goalName: string,
   goalColor: string,
   actorName: string | null,
+  activityMonth?: string,
 ) {
   const members = await db.select().from(householdMembersTable)
     .where(eq(householdMembersTable.householdId, householdId));
@@ -70,7 +71,8 @@ async function fanOutActivity(
     goalName,
     goalColor,
     actorName,
-  })));
+    activityMonth: activityMonth ?? null,
+  }))).onConflictDoNothing();
 }
 
 async function fanOutActivityToUser(
@@ -699,6 +701,20 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   const contribMonth = month ?? currentMonth;
 
   const user = await userScope(userId);
+
+  // Authorization: caller must own the goal (personal) or belong to its household
+  const [targetGoal] = await db.select().from(goalsTable).where(eq(goalsTable.id, parseInt(goalId)));
+  if (!targetGoal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (targetGoal.householdId) {
+    if (!user?.householdId || user.householdId !== targetGoal.householdId) {
+      res.status(403).json({ error: "Not a member of this goal's household" }); return;
+    }
+  } else {
+    if (targetGoal.userId !== userId) {
+      res.status(403).json({ error: "Not authorized to contribute to this goal" }); return;
+    }
+  }
+
   const [contrib] = await db.insert(goalContributionsTable).values({
     goalId: parseInt(goalId),
     transactionId: transactionId ? parseInt(transactionId) : null,
@@ -714,8 +730,8 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
   res.status(201).json(formatContribution(contrib, goal));
 
-  // After response: check completion thresholds and fan-out activity
-  if (goal?.householdId) {
+  // After response: check completion thresholds and create activity notifications
+  if (goal) {
     try {
       // Total contributions for this goal across all time
       const allContribs = await db.select().from(goalContributionsTable)
@@ -724,16 +740,41 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
       const goalBudget = parseFloat(goal.budget);
 
       if (totalContributed >= goalBudget) {
-        const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-        await fanOutActivity(
-          goal.householdId,
-          [],
-          "goal_completed_total",
-          goal.id,
-          goal.name,
-          goal.color,
-          actor?.name ?? null,
-        );
+        // Idempotency: only emit once per goal (any prior completion row blocks re-emit)
+        const [existingTotal] = await db.select({ id: goalActivityTable.id })
+          .from(goalActivityTable)
+          .where(and(
+            eq(goalActivityTable.goalId, goal.id),
+            eq(goalActivityTable.type, "goal_completed_total"),
+          ))
+          .limit(1);
+
+        if (!existingTotal) {
+          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+          if (goal.householdId) {
+            // Household goal: fan out to all members
+            await fanOutActivity(
+              goal.householdId,
+              [],
+              "goal_completed_total",
+              goal.id,
+              goal.name,
+              goal.color,
+              actor?.name ?? null,
+            );
+          } else {
+            // Personal goal: notify the goal owner (may differ from the contributing actor)
+            const recipientId = goal.userId ?? userId;
+            await db.insert(goalActivityTable).values({
+              userId: recipientId,
+              type: "goal_completed_total",
+              goalId: goal.id,
+              goalName: goal.name,
+              goalColor: goal.color,
+              actorName: actor?.name ?? null,
+            }).onConflictDoNothing();
+          }
+        }
       } else if (goal.divideByMonths) {
         // Check monthly threshold
         const monthContribs = allContribs.filter(c => c.month === contribMonth);
@@ -750,16 +791,46 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
         const monthlyTarget = remaining / monthsLeft;
 
         if (monthlyTarget > 0 && monthTotal >= monthlyTarget) {
-          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-          await fanOutActivity(
-            goal.householdId,
-            [],
-            "goal_completed_monthly",
-            goal.id,
-            goal.name,
-            goal.color,
-            actor?.name ?? null,
-          );
+          // Idempotency: only emit once per goal per contribution month.
+          // Use activityMonth (YYYY-MM string) — not createdAt — so backdated
+          // contributions correctly dedupe against previously emitted events.
+          const [existingMonthly] = await db.select({ id: goalActivityTable.id })
+            .from(goalActivityTable)
+            .where(and(
+              eq(goalActivityTable.goalId, goal.id),
+              eq(goalActivityTable.type, "goal_completed_monthly"),
+              eq(goalActivityTable.activityMonth, contribMonth),
+            ))
+            .limit(1);
+
+          if (!existingMonthly) {
+            const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+            if (goal.householdId) {
+              // Household goal: fan out to all members
+              await fanOutActivity(
+                goal.householdId,
+                [],
+                "goal_completed_monthly",
+                goal.id,
+                goal.name,
+                goal.color,
+                actor?.name ?? null,
+                contribMonth,
+              );
+            } else {
+              // Personal goal: notify the goal owner (may differ from the contributing actor)
+              const recipientId = goal.userId ?? userId;
+              await db.insert(goalActivityTable).values({
+                userId: recipientId,
+                type: "goal_completed_monthly",
+                goalId: goal.id,
+                goalName: goal.name,
+                goalColor: goal.color,
+                actorName: actor?.name ?? null,
+                activityMonth: contribMonth,
+              }).onConflictDoNothing();
+            }
+          }
         }
       }
     } catch {
