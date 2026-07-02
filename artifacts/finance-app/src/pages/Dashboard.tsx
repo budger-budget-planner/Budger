@@ -5,6 +5,7 @@ import {
   useGetSpendingSummary,
   useGetMonthlySummary,
   useGetGoalsSummary,
+  useListRecurringPayments,
 } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
@@ -51,7 +52,24 @@ export default function DashboardPage() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
 
-  const { data: spending, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
+  const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
+  const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
+
+  // Merge recurring payments into spending as virtual budget segments
+  const spending = (() => {
+    const base = spendingRaw ?? [];
+    if (!recurringPayments?.length) return base.length ? base : undefined;
+    const rpItems = recurringPayments.map(rp => ({
+      categoryId: null as null,
+      categoryName: rp.name,
+      categoryColor: rp.color,
+      total: rp.appliedThisMonth ? rp.amount : 0,
+      budget: rp.amount,
+      count: rp.appliedThisMonth ? 1 : 0,
+      _catKey: `rp-${rp.id}`,
+    }));
+    return [...base, ...rpItems];
+  })();
   const { data: monthly }    = useGetMonthlySummary({ currency: prefs.currency } as any);
   const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
 
@@ -196,7 +214,7 @@ export default function DashboardPage() {
                       innerRadius={38} outerRadius={64} paddingAngle={2}
                       style={{ outline: "none" }}>
                       {spending.map((entry, i) => (
-                        <Cell key={entry.categoryId ?? "unc"}
+                        <Cell key={(entry as any)._catKey ?? entry.categoryId ?? `unc-${i}`}
                           fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Pie>
@@ -205,7 +223,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1 space-y-2 min-w-0">
                 {spending.slice(0, 6).map((item, i) => (
-                  <div key={item.categoryId ?? "unc"} className="space-y-0.5">
+                  <div key={(item as any)._catKey ?? item.categoryId ?? `unc-${i}`} className="space-y-0.5">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0"

@@ -424,6 +424,72 @@ export interface PushSubscriptionInput {
   auth: string;
 }
 
+export type RecurringPaymentType =
+  (typeof RecurringPaymentType)[keyof typeof RecurringPaymentType];
+
+export const RecurringPaymentType = {
+  manual: "manual",
+  scheduled: "scheduled",
+} as const;
+
+export interface RecurringPayment {
+  id: number;
+  userId: number;
+  /** @nullable */
+  householdId: number | null;
+  name: string;
+  color: string;
+  type: RecurringPaymentType;
+  amount: number;
+  /** @nullable */
+  dayOfMonth: number | null;
+  appliedThisMonth: boolean;
+  /** @nullable */
+  transactionId: number | null;
+  createdAt: string;
+}
+
+export type RecurringPaymentInputType =
+  (typeof RecurringPaymentInputType)[keyof typeof RecurringPaymentInputType];
+
+export const RecurringPaymentInputType = {
+  manual: "manual",
+  scheduled: "scheduled",
+} as const;
+
+export interface RecurringPaymentInput {
+  /** @minLength 1 */
+  name: string;
+  color: string;
+  type: RecurringPaymentInputType;
+  /** @minimum 0.01 */
+  amount: number;
+  /**
+   * @minimum 1
+   * @maximum 31
+   * @nullable
+   */
+  dayOfMonth?: number | null;
+}
+
+export type RecurringPaymentUpdateType =
+  (typeof RecurringPaymentUpdateType)[keyof typeof RecurringPaymentUpdateType];
+
+export const RecurringPaymentUpdateType = {
+  manual: "manual",
+  scheduled: "scheduled",
+} as const;
+
+export interface RecurringPaymentUpdate {
+  name?: string;
+  color?: string;
+  type?: RecurringPaymentUpdateType;
+  /** @minimum 0.01 */
+  amount?: number;
+  /** @nullable */
+  dayOfMonth?: number | null;
+}
+
 export type ListTransactionsParams = {
   categoryId?: number;
   startDate?: string;

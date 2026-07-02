@@ -280,21 +280,34 @@ function MemberSheet({
                   <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
                 </div>
                 <div className="space-y-3">
-                  {data.map(row => (
-                    <div key={row.categoryId ?? "uncategorized"} className="space-y-1.5">
+                  {data.map(row => {
+                    const isRP = (row as any).isRecurringPayment === true;
+                    const rowKey = isRP
+                      ? `rp-${(row as any).recurringPaymentId}`
+                      : (row.categoryId ?? "uncategorized");
+                    // For recurring payments: show 100% bar if applied, 0% if not
+                    const barPct = isRP
+                      ? (row.total > 0 ? 100 : 0)
+                      : row.percentage;
+                    return (
+                    <div key={rowKey} className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
                         <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
+                        {isRP && (
+                          <span className="text-[10px] text-white/30 font-medium">↺</span>
+                        )}
                         <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
                         <div
                           className="h-full rounded-full transition-all"
-                          style={{ width: `${row.percentage}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
+                          style={{ width: `${barPct}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
                         />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   <div className="pt-3 border-t border-white/10 flex items-center justify-between">
                     <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
                     <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + r.total, 0))}</span>

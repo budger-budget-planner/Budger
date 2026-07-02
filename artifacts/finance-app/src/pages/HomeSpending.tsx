@@ -25,6 +25,9 @@ import {
   useGetMe,
   useListHouseholdMembers,
   getListGoalsQueryKey,
+  useListRecurringPayments,
+  useApplyRecurringPayment,
+  getListRecurringPaymentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle } from "lucide-react";
@@ -928,6 +931,8 @@ export default function HomeSpending() {
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [renameTx,    setRenameTx]    = useState<any | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [rpSheetOpen,  setRpSheetOpen]  = useState(false);
+  const [rpExpanded,   setRpExpanded]   = useState<number | null>(null);
   // Occurrence rule for the swipe hint wiggle: only due on first login after onboarding,
   // or after a week of inactivity — computed once when this page first mounts.
   const [swipeHintDue] = useState(() => checkSwipeHintDue());
@@ -959,6 +964,19 @@ export default function HomeSpending() {
     { query: { queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) } }
   );
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
+  const { data: recurringPayments } = useListRecurringPayments({
+    query: { enabled: isCurrentMonth } as any,
+  });
+  const applyRP = useApplyRecurringPayment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+        invalidateAll(queryClient);
+        setRpExpanded(null);
+      },
+    },
+  });
+  const manualRPs = (recurringPayments ?? []).filter(rp => rp.type === "manual");
 
   // Map transactionId → contribution (for display + edit pre-fill)
   const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null; accountAmount: number | null; accountCurrency: string | null }>();
@@ -1559,6 +1577,18 @@ export default function HomeSpending() {
         )}
       </div>
 
+      {/* ── Recurring payments button (only on current month when any manual RPs exist) ── */}
+      {isCurrentMonth && (
+        <button
+          onClick={() => { setRpSheetOpen(true); setRpExpanded(null); }}
+          className="fixed bottom-36 right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
+                     shadow-xl flex items-center justify-center transition active:scale-90"
+          title={t("rp.open_sheet")}
+        >
+          <RefreshCw className="w-6 h-6" />
+        </button>
+      )}
+
       {/* ── Floating add button ── */}
       <button
         onClick={() => setAddOpen(true)}
@@ -1568,6 +1598,91 @@ export default function HomeSpending() {
       >
         <Plus className="w-6 h-6" />
       </button>
+
+      {/* ── Recurring Payments sheet ── */}
+      {rpSheetOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setRpSheetOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[70vh] flex flex-col"
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-white/50" />
+                <p className="font-semibold text-sm">{t("rp.open_sheet")}</p>
+              </div>
+              <button onClick={() => setRpSheetOpen(false)} className="text-white/40 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4">
+              {manualRPs.length === 0 ? (
+                <div className="text-center py-8 text-white/40 text-sm">{t("rp.no_manual")}</div>
+              ) : (
+                <div className="space-y-3">
+                  {manualRPs.map(rp => {
+                    const isApplied = rp.appliedThisMonth;
+                    const isExpanded = rpExpanded === rp.id;
+                    return (
+                      <div key={rp.id}
+                        className={`rounded-2xl border transition-all ${
+                          isApplied
+                            ? "bg-white/5 border-white/5 opacity-50"
+                            : "bg-white/5 border-white/10"
+                        }`}
+                      >
+                        <button
+                          className="w-full flex items-center gap-3 p-4 text-left disabled:cursor-default"
+                          disabled={isApplied}
+                          onClick={() => !isApplied && setRpExpanded(isExpanded ? null : rp.id)}
+                        >
+                          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+                            style={{ backgroundColor: rp.color + "33" }}>
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: rp.color }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{rp.name}</p>
+                            <p className="text-xs text-white/40">{fmtAmt(rp.amount, prefs.currency)}</p>
+                          </div>
+                          {isApplied ? (
+                            <span className="text-xs text-white/30">{t("rp.applied_badge")}</span>
+                          ) : (
+                            <CheckCircle className={`w-4 h-4 flex-shrink-0 transition-colors ${isExpanded ? "text-white/60" : "text-white/20"}`} />
+                          )}
+                        </button>
+
+                        {isExpanded && !isApplied && (
+                          <div className="px-4 pb-4 pt-0 border-t border-white/10">
+                            <p className="text-sm text-white/60 mt-3 mb-3">{t("rp.add_question")}</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setRpExpanded(null)}
+                                className="flex-1 py-2 rounded-xl bg-white/10 text-xs font-medium text-white/60 transition active:opacity-70"
+                              >
+                                No
+                              </button>
+                              <button
+                                onClick={() => applyRP.mutate({ id: rp.id })}
+                                disabled={applyRP.isPending}
+                                className="flex-1 py-2 rounded-xl text-xs font-semibold transition active:opacity-70 disabled:opacity-40"
+                                style={{ backgroundColor: rp.color, color: "white" }}
+                              >
+                                {applyRP.isPending ? t("common.saving") : "Yes"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Add dialog ── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

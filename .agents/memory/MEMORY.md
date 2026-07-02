@@ -4,3 +4,4 @@
 - [NC store pattern](nc-store-pattern.md) — per-user localStorage scoping, createdAt watermark for goal events, badge mark-all-on-close pattern
 - [SVG glow filter bleed](svg-glow-filter-bleed.md) — wide blur filters on adjacent chart segments can visually merge, hiding per-segment state even when logic is correct
 - [Budger scoping & budget cap](budger-scoping-and-budget-cap.md) — scope category summary queries by user/household; validate budget sums against remaining cap, not total
+- [Recurring payments feature](recurring-payments.md) — full DB/API/frontend architecture for manual+scheduled recurring payments with auto-apply and idempotency guarantees

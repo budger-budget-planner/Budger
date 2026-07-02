@@ -11,6 +11,8 @@ export type SpendingItem = {
   budget: number | null;
   categoryColor: string | null;
   count: number;
+  /** Optional override for the catKey used in the donut chart (e.g. for recurring payments) */
+  _catKey?: string;
 };
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ function buildChart(
   const groups: Group[] = [];
 
   for (const s of budgeted) {
-    const catKey = `cat-${s.categoryId ?? "null"}`;
+    const catKey = s._catKey ?? `cat-${s.categoryId ?? "null"}`;
     const color = s.categoryColor ?? "#818cf8";
     const spent = s.total;
     const budget = s.budget!;

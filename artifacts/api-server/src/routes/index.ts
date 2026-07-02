@@ -13,6 +13,7 @@ import webhookRouter from "./webhook";
 import merchantCategoriesRouter from "./merchant-categories";
 import splitsRouter from "./splits";
 import liveActivityRouter from "./live-activity";
+import recurringPaymentsRouter from "./recurring-payments";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(summaryRouter);
 router.use(goalsRouter);
 router.use(currenciesRouter);
 router.use(liveActivityRouter);
+router.use(recurringPaymentsRouter);
 
 export default router;

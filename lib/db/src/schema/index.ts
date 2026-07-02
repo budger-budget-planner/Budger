@@ -13,3 +13,5 @@ export * from "./goal_edit_proposals";
 export * from "./goal_activity";
 export * from "./push_subscriptions";
 export * from "./live_activity_tokens";
+export * from "./recurring_payments";
+export * from "./recurring_payment_logs";

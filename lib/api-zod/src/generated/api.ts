@@ -1066,6 +1066,105 @@ export const GetRecentActivityResponse = zod.array(
 );
 
 /**
+ * @summary List all recurring payments for the current user (auto-applies scheduled ones due today)
+ */
+export const ListRecurringPaymentsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  name: zod.string(),
+  color: zod.string(),
+  type: zod.enum(["manual", "scheduled"]),
+  amount: zod.number(),
+  dayOfMonth: zod.number().nullable(),
+  appliedThisMonth: zod.boolean(),
+  transactionId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+export const ListRecurringPaymentsResponse = zod.array(
+  ListRecurringPaymentsResponseItem,
+);
+
+/**
+ * @summary Create a new recurring payment
+ */
+
+export const createRecurringPaymentBodyAmountMin = 0.01;
+
+export const createRecurringPaymentBodyDayOfMonthMax = 31;
+
+export const CreateRecurringPaymentBody = zod.object({
+  name: zod.string().min(1),
+  color: zod.string(),
+  type: zod.enum(["manual", "scheduled"]),
+  amount: zod.number().min(createRecurringPaymentBodyAmountMin),
+  dayOfMonth: zod
+    .number()
+    .min(1)
+    .max(createRecurringPaymentBodyDayOfMonthMax)
+    .nullish(),
+});
+
+/**
+ * @summary Update a recurring payment
+ */
+export const UpdateRecurringPaymentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const updateRecurringPaymentBodyAmountMin = 0.01;
+
+export const UpdateRecurringPaymentBody = zod.object({
+  name: zod.string().optional(),
+  color: zod.string().optional(),
+  type: zod.enum(["manual", "scheduled"]).optional(),
+  amount: zod.number().min(updateRecurringPaymentBodyAmountMin).optional(),
+  dayOfMonth: zod.number().nullish(),
+});
+
+export const UpdateRecurringPaymentResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  name: zod.string(),
+  color: zod.string(),
+  type: zod.enum(["manual", "scheduled"]),
+  amount: zod.number(),
+  dayOfMonth: zod.number().nullable(),
+  appliedThisMonth: zod.boolean(),
+  transactionId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a recurring payment
+ */
+export const DeleteRecurringPaymentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Apply a manual recurring payment for the current month (creates a transaction)
+ */
+export const ApplyRecurringPaymentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ApplyRecurringPaymentResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  householdId: zod.number().nullable(),
+  name: zod.string(),
+  color: zod.string(),
+  type: zod.enum(["manual", "scheduled"]),
+  amount: zod.number(),
+  dayOfMonth: zod.number().nullable(),
+  appliedThisMonth: zod.boolean(),
+  transactionId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary List all merchant auto-categorization rules for the current user
  */
 export const ListMerchantCategoryRulesResponseItem = zod.object({

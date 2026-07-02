@@ -6,9 +6,14 @@ import {
   useUpdateCategory,
   useDeleteCategory,
   getListCategoriesQueryKey,
+  useListRecurringPayments,
+  useCreateRecurringPayment,
+  useUpdateRecurringPayment,
+  useDeleteRecurringPayment,
+  getListRecurringPaymentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -330,29 +335,241 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
   );
 }
 
+// ─── Recurring Payment Card ────────────────────────────────────────────────────
+
+function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () => void; currency: string }) {
+  const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const remove = useDeleteRecurringPayment({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() }),
+    },
+  });
+
+  const typeLabel = rp.type === "scheduled"
+    ? t("rp.scheduled_on").replace("{day}", rp.dayOfMonth)
+    : t("rp.manual_badge");
+
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="h-1.5" style={{ backgroundColor: rp.color }} />
+      <div className="p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: rp.color + "33" }}>
+            <RefreshCw className="w-4 h-4" style={{ color: rp.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground truncate">{rp.name}</p>
+            <p className="text-xs text-muted-foreground">{fmtAmtRound(rp.amount, currency)}/mo · {typeLabel}</p>
+          </div>
+        </div>
+
+        {confirmDelete ? (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => remove.mutate({ id: rp.id })}
+              disabled={remove.isPending}
+              className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40"
+            >
+              {remove.isPending ? t("common.deleting") : t("common.delete")}
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={onEdit}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+            >
+              <Pencil className="w-3.5 h-3.5" /> {t("common.edit")}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Recurring Payment Dialog ────────────────────────────────────────────
+
+function EditRPDialog({ rp, open, onClose, sym }: {
+  rp: any; open: boolean; onClose: () => void; sym: string;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(rp.name);
+  const [color, setColor] = useState(rp.color);
+  const [amount, setAmount] = useState(String(rp.amount));
+  const [schedType, setSchedType] = useState<"manual" | "scheduled">(rp.type);
+  const [dayOfMonth, setDayOfMonth] = useState(rp.dayOfMonth != null ? String(rp.dayOfMonth) : "");
+
+  const update = useUpdateRecurringPayment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+        onClose();
+      },
+    },
+  });
+
+  const dayNum = parseInt(dayOfMonth);
+  const dayError = dayOfMonth !== "" && (isNaN(dayNum) || dayNum < 1 || dayNum > 31);
+  const dayWarning = !dayError && dayOfMonth !== "" && dayNum >= 29;
+
+  function handleSave() {
+    const amt = parseFloat(amount);
+    if (!name.trim() || isNaN(amt) || amt <= 0) return;
+    if (schedType === "scheduled" && dayError) return;
+    update.mutate({
+      id: rp.id,
+      data: {
+        name: name.trim(),
+        color,
+        type: schedType,
+        amount: amt,
+        dayOfMonth: schedType === "scheduled" && dayOfMonth !== "" ? dayNum : null,
+      },
+    });
+  }
+
+  const canSave = name.trim() && parseFloat(amount) > 0 && !dayError &&
+    (schedType !== "scheduled" || dayOfMonth !== "");
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>{t("rp.edit")}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+              style={{ backgroundColor: color }}>
+              <RefreshCw className="w-5 h-5 text-white" />
+            </div>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("rp.new")} autoFocus />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
+            <ColorPicker value={color} onChange={setColor} />
+          </div>
+
+          {/* Amount */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t("rp.amount_label")}</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+              <Input
+                type="number" min="0.01" step="0.01" placeholder="0.00"
+                value={amount} onChange={e => setAmount(e.target.value)}
+                className="pl-7"
+              />
+            </div>
+          </div>
+
+          {/* Schedule type toggle */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">{t("rp.schedule_manual")} / {t("rp.schedule_scheduled")}</Label>
+            <div className="flex rounded-lg overflow-hidden border border-border w-fit">
+              {(["manual", "scheduled"] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSchedType(s)}
+                  className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                    schedType === s ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s === "manual" ? t("rp.schedule_manual") : t("rp.schedule_scheduled")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {schedType === "scheduled" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("rp.day_of_month")}</Label>
+              <Input
+                type="number" min="1" max="31" placeholder={t("rp.day_placeholder")}
+                value={dayOfMonth} onChange={e => setDayOfMonth(e.target.value)}
+              />
+              {dayError && <p className="text-xs text-red-400">{t("rp.day_error")}</p>}
+              {dayWarning && !dayError && <p className="text-xs text-amber-400">{t("rp.day_warning")}</p>}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" className="flex-1" onClick={onClose}>
+              <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
+            </Button>
+            <Button className="flex-1" onClick={handleSave} disabled={update.isPending || !canSave}>
+              <Check className="w-3.5 h-3.5 mr-1" />
+              {update.isPending ? t("common.saving") : t("common.save")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const prefs       = loadPrefs();
   const sym         = currencySymbol(prefs.currency);
   const totalBudget = prefs.totalBudget;
 
-  const [addOpen,       setAddOpen]       = useState(false);
+  // ── Dialog type toggle ──
+  const [addOpen, setAddOpen] = useState(false);
+  const [dialogType, setDialogType] = useState<"category" | "recurring">("category");
+
+  // ── Category state ──
   const [editCat,       setEditCat]       = useState<any | null>(null);
   const [newName,       setNewName]       = useState("");
   const [newColor,      setNewColor]      = useState("#818cf8");
   const [newBudgetMode, setNewBudgetMode] = useState<"amount" | "percent">("amount");
   const [newBudget,     setNewBudget]     = useState("");
 
+  // ── Recurring payment state ──
+  const [editRP,        setEditRP]        = useState<any | null>(null);
+  const [rpName,        setRpName]        = useState("");
+  const [rpColor,       setRpColor]       = useState("#818cf8");
+  const [rpAmount,      setRpAmount]      = useState("");
+  const [rpSchedType,   setRpSchedType]   = useState<"manual" | "scheduled">("manual");
+  const [rpDayOfMonth,  setRpDayOfMonth]  = useState("");
+
   const { data: categories, isLoading } = useListCategories();
+  const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
+
   const create = useCreateCategory({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
-        setAddOpen(false);
-        setNewName("");
-        setNewColor("#818cf8");
-        setNewBudget("");
-        setNewBudgetMode("amount");
+        resetAndClose();
+      },
+    },
+  });
+
+  const createRP = useCreateRecurringPayment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+        resetAndClose();
       },
     },
   });
@@ -361,12 +578,42 @@ export default function CategoriesPage() {
   const catBudgetExceeds = totalBudget != null && catBudgetSum > totalBudget;
   const newCatOverCap = budgetExceedsCap(newBudget, newBudgetMode, totalBudget, catBudgetSum);
 
-  function handleCreate(e: React.FormEvent) {
+  const rpDayNum = parseInt(rpDayOfMonth);
+  const rpDayError = rpDayOfMonth !== "" && (isNaN(rpDayNum) || rpDayNum < 1 || rpDayNum > 31);
+  const rpDayWarning = !rpDayError && rpDayOfMonth !== "" && rpDayNum >= 29;
+
+  function resetAndClose() {
+    setAddOpen(false);
+    setDialogType("category");
+    setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewBudgetMode("amount");
+    setRpName(""); setRpColor("#818cf8"); setRpAmount(""); setRpSchedType("manual"); setRpDayOfMonth("");
+  }
+
+  function handleCreateCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || newCatOverCap) return;
     const dollars = resolveBudgetDollars(newBudget, newBudgetMode, totalBudget);
     create.mutate({ data: { name: newName.trim(), color: newColor, icon: "tag", budget: dollars } });
   }
+
+  function handleCreateRP(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(rpAmount);
+    if (!rpName.trim() || isNaN(amt) || amt <= 0 || rpDayError) return;
+    if (rpSchedType === "scheduled" && rpDayOfMonth === "") return;
+    createRP.mutate({
+      data: {
+        name: rpName.trim(),
+        color: rpColor,
+        type: rpSchedType,
+        amount: amt,
+        dayOfMonth: rpSchedType === "scheduled" ? rpDayNum : null,
+      },
+    });
+  }
+
+  const rpCanSave = rpName.trim() !== "" && parseFloat(rpAmount) > 0 && !rpDayError &&
+    (rpSchedType !== "scheduled" || rpDayOfMonth !== "");
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
@@ -406,8 +653,9 @@ export default function CategoriesPage() {
         </div>
       )}
 
+      {/* ── Categories section ── */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-12">
           <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
       ) : categories && categories.length > 0 ? (
@@ -417,19 +665,47 @@ export default function CategoriesPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 flex flex-col items-center gap-3">
+        <div className="text-center py-12 flex flex-col items-center gap-3">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
             <Plus className="w-6 h-6 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground text-sm">{t("cat.no_categories")}</p>
-          <button onClick={() => setAddOpen(true)}
+          <button onClick={() => { setDialogType("category"); setAddOpen(true); }}
             className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
             {t("cat.create_first")}
           </button>
         </div>
       )}
 
-      {/* Edit dialog */}
+      {/* ── Recurring Payments section ── */}
+      <div className="mt-6 mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">{t("rp.section_title")}</p>
+        </div>
+      </div>
+
+      {rpLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      ) : recurringPayments && recurringPayments.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {recurringPayments.map(rp => (
+            <RecurringPaymentCard key={rp.id} rp={rp} onEdit={() => setEditRP(rp)} currency={prefs.currency} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 flex flex-col items-center gap-2">
+          <p className="text-muted-foreground text-sm">{t("rp.no_items_yet")}</p>
+          <button onClick={() => { setDialogType("recurring"); setAddOpen(true); }}
+            className="text-xs text-primary underline-offset-2 hover:underline">
+            {t("rp.create_first")}
+          </button>
+        </div>
+      )}
+
+      {/* ── Edit Category dialog ── */}
       {editCat && (
         <EditDialog
           category={editCat}
@@ -441,48 +717,162 @@ export default function CategoriesPage() {
         />
       )}
 
-      {/* Add dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      {/* ── Edit Recurring Payment dialog ── */}
+      {editRP && (
+        <EditRPDialog
+          rp={editRP}
+          open={!!editRP}
+          onClose={() => setEditRP(null)}
+          sym={sym}
+        />
+      )}
+
+      {/* ── Add dialog ── */}
+      <Dialog open={addOpen} onOpenChange={resetAndClose}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t("cat.new")}</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("cat.name_label")}</Label>
-              <Input
-                data-testid="input-new-category-name"
-                placeholder={t("cat.placeholder")}
-                value={newName} onChange={e => setNewName(e.target.value)}
-                required autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("cat.color_label")}</Label>
-              <ColorPicker value={newColor} onChange={setNewColor} />
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-6 h-6 rounded-lg" style={{ backgroundColor: newColor }} />
-                <span className="text-xs font-mono text-muted-foreground">{newColor}</span>
+          <DialogHeader>
+            <DialogTitle>{dialogType === "category" ? t("cat.new") : t("rp.new")}</DialogTitle>
+          </DialogHeader>
+
+          {/* Type toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-border w-full mb-1">
+            <button
+              type="button"
+              onClick={() => setDialogType("category")}
+              className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                dialogType === "category" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t("rp.type_category")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialogType("recurring")}
+              className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                dialogType === "recurring" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <RefreshCw className="w-3 h-3" /> {t("rp.type_recurring")}
+            </button>
+          </div>
+
+          {/* ── Category form ── */}
+          {dialogType === "category" && (
+            <form onSubmit={handleCreateCategory} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>{t("cat.name_label")}</Label>
+                <Input
+                  data-testid="input-new-category-name"
+                  placeholder={t("cat.placeholder")}
+                  value={newName} onChange={e => setNewName(e.target.value)}
+                  required autoFocus
+                />
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("cat.monthly_budget_opt")}</Label>
-              <BudgetInput
-                rawValue={newBudget}
-                onRawChange={setNewBudget}
-                mode={newBudgetMode}
-                onModeChange={setNewBudgetMode}
-                totalBudget={totalBudget}
-                otherCategoriesTotal={catBudgetSum}
-                sym={sym}
-              />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
-              <Button type="submit" className="flex-1" disabled={create.isPending || newCatOverCap}
-                data-testid="button-save-new-category">
-                {create.isPending ? t("common.saving") : t("cat.create_btn")}
-              </Button>
-            </div>
-          </form>
+              <div className="space-y-2">
+                <Label>{t("cat.color_label")}</Label>
+                <ColorPicker value={newColor} onChange={setNewColor} />
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-6 h-6 rounded-lg" style={{ backgroundColor: newColor }} />
+                  <span className="text-xs font-mono text-muted-foreground">{newColor}</span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("cat.monthly_budget_opt")}</Label>
+                <BudgetInput
+                  rawValue={newBudget}
+                  onRawChange={setNewBudget}
+                  mode={newBudgetMode}
+                  onModeChange={setNewBudgetMode}
+                  totalBudget={totalBudget}
+                  otherCategoriesTotal={catBudgetSum}
+                  sym={sym}
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>
+                <Button type="submit" className="flex-1" disabled={create.isPending || newCatOverCap}
+                  data-testid="button-save-new-category">
+                  {create.isPending ? t("common.saving") : t("cat.create_btn")}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* ── Recurring Payment form ── */}
+          {dialogType === "recurring" && (
+            <form onSubmit={handleCreateRP} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: rpColor }}>
+                  <RefreshCw className="w-5 h-5 text-white" />
+                </div>
+                <Input
+                  placeholder={t("rp.new")}
+                  value={rpName} onChange={e => setRpName(e.target.value)}
+                  required autoFocus
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
+                <ColorPicker value={rpColor} onChange={setRpColor} />
+              </div>
+
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{t("rp.amount_label")}</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+                  <Input
+                    type="number" min="0.01" step="0.01" placeholder="0.00"
+                    value={rpAmount} onChange={e => setRpAmount(e.target.value)}
+                    className="pl-7" required
+                  />
+                </div>
+              </div>
+
+              {/* Schedule type toggle */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">{t("rp.schedule_manual")} / {t("rp.schedule_scheduled")}</Label>
+                <div className="flex rounded-lg overflow-hidden border border-border w-fit">
+                  {(["manual", "scheduled"] as const).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRpSchedType(s)}
+                      className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                        rpSchedType === s ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {s === "manual" ? t("rp.schedule_manual") : t("rp.schedule_scheduled")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Day of month (scheduled only) */}
+              {rpSchedType === "scheduled" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("rp.day_of_month")}</Label>
+                  <Input
+                    type="number" min="1" max="31" placeholder={t("rp.day_placeholder")}
+                    value={rpDayOfMonth} onChange={e => setRpDayOfMonth(e.target.value)}
+                    required
+                  />
+                  {rpDayError && <p className="text-xs text-red-400">{t("rp.day_error")}</p>}
+                  {rpDayWarning && !rpDayError && <p className="text-xs text-amber-400">{t("rp.day_warning")}</p>}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>
+                <Button type="submit" className="flex-1"
+                  disabled={createRP.isPending || !rpCanSave}>
+                  {createRP.isPending ? t("common.saving") : t("rp.create_btn")}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

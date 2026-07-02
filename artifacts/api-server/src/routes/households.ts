@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable } from "@workspace/db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   CreateHouseholdBody,
@@ -218,6 +218,29 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
 
+  // Fetch recurring payments for this member and merge them in
+  const memberRPs = await db.select().from(recurringPaymentsTable)
+    .where(eq(recurringPaymentsTable.userId, targetUserId));
+  const rpLogs = await db.select().from(recurringPaymentLogsTable)
+    .where(and(
+      eq(recurringPaymentLogsTable.userId, targetUserId),
+      eq(recurringPaymentLogsTable.monthKey, monthPrefix),
+    ));
+  const appliedRPIds = new Set(rpLogs.map(l => l.recurringPaymentId));
+
+  const rpItems = memberRPs.map(rp => ({
+    categoryId: null as null,
+    categoryName: rp.name,
+    categoryColor: rp.color,
+    categoryIcon: "repeat",
+    budget: parseFloat(rp.amount),
+    total: appliedRPIds.has(rp.id) ? parseFloat(rp.amount) : 0,
+    count: appliedRPIds.has(rp.id) ? 1 : 0,
+    percentage: 0,
+    isRecurringPayment: true,
+    recurringPaymentId: rp.id,
+  }));
+
   const result = Array.from(grouped.entries()).map(([key, entry]) => ({
     categoryId: key === "uncategorized" ? null : parseInt(key),
     categoryName: entry.category?.name ?? "Uncategorized",
@@ -227,9 +250,11 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     total: Math.round(entry.total * 100) / 100,
     count: entry.count,
     percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
+    isRecurringPayment: false,
+    recurringPaymentId: null as null,
   })).sort((a, b) => b.total - a.total);
 
-  res.json(result);
+  res.json([...result, ...rpItems]);
 });
 
 // Update a member's role — head only

@@ -27,6 +27,8 @@ tags:
     description: Financial goals
   - name: merchantCategories
     description: Merchant auto-categorization rules
+  - name: recurringPayments
+    description: Recurring payment management
 
 paths:
   /healthz:
@@ -977,6 +979,97 @@ paths:
                 items:
                   $ref: "#/components/schemas/Transaction"
 
+  /recurring-payments:
+    get:
+      operationId: listRecurringPayments
+      tags: [recurringPayments]
+      summary: List all recurring payments for the current user (auto-applies scheduled ones due today)
+      responses:
+        "200":
+          description: List of recurring payments with applied-this-month status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecurringPayment"
+    post:
+      operationId: createRecurringPayment
+      tags: [recurringPayments]
+      summary: Create a new recurring payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecurringPaymentInput"
+      responses:
+        "201":
+          description: Created recurring payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurringPayment"
+
+  /recurring-payments/{id}:
+    patch:
+      operationId: updateRecurringPayment
+      tags: [recurringPayments]
+      summary: Update a recurring payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecurringPaymentUpdate"
+      responses:
+        "200":
+          description: Updated recurring payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurringPayment"
+    delete:
+      operationId: deleteRecurringPayment
+      tags: [recurringPayments]
+      summary: Delete a recurring payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /recurring-payments/{id}/apply:
+    post:
+      operationId: applyRecurringPayment
+      tags: [recurringPayments]
+      summary: Apply a manual recurring payment for the current month (creates a transaction)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated recurring payment with applied status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurringPayment"
+        "409":
+          description: Already applied this month
+
   /merchant-categories:
     get:
       operationId: listMerchantCategoryRules
@@ -1817,3 +1910,78 @@ components:
         - endpoint
         - p256dh
         - auth
+
+    RecurringPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        householdId:
+          type: ["integer", "null"]
+        name:
+          type: string
+        color:
+          type: string
+        type:
+          type: string
+          enum: [manual, scheduled]
+        amount:
+          type: number
+        dayOfMonth:
+          type: ["integer", "null"]
+        appliedThisMonth:
+          type: boolean
+        transactionId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - householdId
+        - name
+        - color
+        - type
+        - amount
+        - dayOfMonth
+        - appliedThisMonth
+        - transactionId
+        - createdAt
+
+    RecurringPaymentInput:
+      type: object
+      required: [name, color, type, amount]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+        type:
+          type: string
+          enum: [manual, scheduled]
+        amount:
+          type: number
+          minimum: 0.01
+        dayOfMonth:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 31
+
+    RecurringPaymentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        type:
+          type: string
+          enum: [manual, scheduled]
+        amount:
+          type: number
+          minimum: 0.01
+        dayOfMonth:
+          type: ["integer", "null"]

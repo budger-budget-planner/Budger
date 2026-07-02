@@ -51,6 +51,9 @@ import type {
   PushSubscriptionInput,
   ReceiptInput,
   RecordMerchantCategoryInput,
+  RecurringPayment,
+  RecurringPaymentInput,
+  RecurringPaymentUpdate,
   RegisterInput,
   SavePushSubscription200,
   Transaction,
@@ -4407,6 +4410,424 @@ export function useGetRecentActivity<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all recurring payments for the current user (auto-applies scheduled ones due today)
+ */
+export const getListRecurringPaymentsUrl = () => {
+  return `/api/recurring-payments`;
+};
+
+export const listRecurringPayments = async (
+  options?: RequestInit,
+): Promise<RecurringPayment[]> => {
+  return customFetch<RecurringPayment[]>(getListRecurringPaymentsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRecurringPaymentsQueryKey = () => {
+  return [`/api/recurring-payments`] as const;
+};
+
+export const getListRecurringPaymentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRecurringPayments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRecurringPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRecurringPaymentsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRecurringPayments>>
+  > = ({ signal }) => listRecurringPayments({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRecurringPayments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRecurringPaymentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRecurringPayments>>
+>;
+export type ListRecurringPaymentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all recurring payments for the current user (auto-applies scheduled ones due today)
+ */
+
+export function useListRecurringPayments<
+  TData = Awaited<ReturnType<typeof listRecurringPayments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRecurringPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRecurringPaymentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new recurring payment
+ */
+export const getCreateRecurringPaymentUrl = () => {
+  return `/api/recurring-payments`;
+};
+
+export const createRecurringPayment = async (
+  recurringPaymentInput: RecurringPaymentInput,
+  options?: RequestInit,
+): Promise<RecurringPayment> => {
+  return customFetch<RecurringPayment>(getCreateRecurringPaymentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(recurringPaymentInput),
+  });
+};
+
+export const getCreateRecurringPaymentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRecurringPayment>>,
+    TError,
+    { data: BodyType<RecurringPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRecurringPayment>>,
+  TError,
+  { data: BodyType<RecurringPaymentInput> },
+  TContext
+> => {
+  const mutationKey = ["createRecurringPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRecurringPayment>>,
+    { data: BodyType<RecurringPaymentInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRecurringPayment(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRecurringPaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRecurringPayment>>
+>;
+export type CreateRecurringPaymentMutationBody =
+  BodyType<RecurringPaymentInput>;
+export type CreateRecurringPaymentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new recurring payment
+ */
+export const useCreateRecurringPayment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRecurringPayment>>,
+    TError,
+    { data: BodyType<RecurringPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRecurringPayment>>,
+  TError,
+  { data: BodyType<RecurringPaymentInput> },
+  TContext
+> => {
+  return useMutation(getCreateRecurringPaymentMutationOptions(options));
+};
+
+/**
+ * @summary Update a recurring payment
+ */
+export const getUpdateRecurringPaymentUrl = (id: number) => {
+  return `/api/recurring-payments/${id}`;
+};
+
+export const updateRecurringPayment = async (
+  id: number,
+  recurringPaymentUpdate: RecurringPaymentUpdate,
+  options?: RequestInit,
+): Promise<RecurringPayment> => {
+  return customFetch<RecurringPayment>(getUpdateRecurringPaymentUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(recurringPaymentUpdate),
+  });
+};
+
+export const getUpdateRecurringPaymentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecurringPayment>>,
+    TError,
+    { id: number; data: BodyType<RecurringPaymentUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRecurringPayment>>,
+  TError,
+  { id: number; data: BodyType<RecurringPaymentUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateRecurringPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRecurringPayment>>,
+    { id: number; data: BodyType<RecurringPaymentUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRecurringPayment(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRecurringPaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRecurringPayment>>
+>;
+export type UpdateRecurringPaymentMutationBody =
+  BodyType<RecurringPaymentUpdate>;
+export type UpdateRecurringPaymentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a recurring payment
+ */
+export const useUpdateRecurringPayment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecurringPayment>>,
+    TError,
+    { id: number; data: BodyType<RecurringPaymentUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRecurringPayment>>,
+  TError,
+  { id: number; data: BodyType<RecurringPaymentUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateRecurringPaymentMutationOptions(options));
+};
+
+/**
+ * @summary Delete a recurring payment
+ */
+export const getDeleteRecurringPaymentUrl = (id: number) => {
+  return `/api/recurring-payments/${id}`;
+};
+
+export const deleteRecurringPayment = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRecurringPaymentUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRecurringPaymentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRecurringPayment>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRecurringPayment>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteRecurringPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRecurringPayment>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRecurringPayment(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRecurringPaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRecurringPayment>>
+>;
+
+export type DeleteRecurringPaymentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a recurring payment
+ */
+export const useDeleteRecurringPayment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRecurringPayment>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRecurringPayment>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteRecurringPaymentMutationOptions(options));
+};
+
+/**
+ * @summary Apply a manual recurring payment for the current month (creates a transaction)
+ */
+export const getApplyRecurringPaymentUrl = (id: number) => {
+  return `/api/recurring-payments/${id}/apply`;
+};
+
+export const applyRecurringPayment = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RecurringPayment> => {
+  return customFetch<RecurringPayment>(getApplyRecurringPaymentUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getApplyRecurringPaymentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof applyRecurringPayment>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof applyRecurringPayment>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["applyRecurringPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof applyRecurringPayment>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return applyRecurringPayment(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApplyRecurringPaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof applyRecurringPayment>>
+>;
+
+export type ApplyRecurringPaymentMutationError = ErrorType<void>;
+
+/**
+ * @summary Apply a manual recurring payment for the current month (creates a transaction)
+ */
+export const useApplyRecurringPayment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof applyRecurringPayment>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof applyRecurringPayment>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getApplyRecurringPaymentMutationOptions(options));
+};
 
 /**
  * @summary List all merchant auto-categorization rules for the current user
