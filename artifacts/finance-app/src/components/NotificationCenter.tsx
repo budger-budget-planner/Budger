@@ -61,6 +61,7 @@ function ncIcon(type: NCNotifType) {
     case "goal_overall":      return <Target className="w-4 h-4" />;
     case "goal_completed_total":   return <CheckCircle className="w-4 h-4" />;
     case "goal_completed_monthly": return <CheckCircle className="w-4 h-4" />;
+    case "goal_realized":          return <CheckCircle className="w-4 h-4" />;
     case "share_approved":    return <CheckCircle className="w-4 h-4" />;
     case "edit_approved":     return <CheckCircle className="w-4 h-4" />;
     case "share_declined":    return <AlertTriangle className="w-4 h-4" />;
@@ -79,6 +80,7 @@ function ncIconBg(type: NCNotifType) {
     case "budget_75_total":  return "bg-yellow-500/15 text-yellow-400";
     case "goal_completed_total":
     case "goal_completed_monthly":
+    case "goal_realized":
     case "share_approved":
     case "edit_approved":    return "bg-emerald-500/15 text-emerald-400";
     case "share_declined":

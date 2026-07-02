@@ -122,6 +122,8 @@ export interface Transaction {
   currencyLocked: boolean;
   /** True when the category was assigned automatically by the merchant-rule engine */
   categoryAutoAssigned: boolean;
+  /** True when this expense was paid from a realized goal's savings; excluded from monthly spend totals */
+  foundedWithRealizedGoal: boolean;
 }
 
 export interface TransactionInput {
@@ -135,6 +137,7 @@ export interface TransactionInput {
   receiptImage?: string | null;
   /** @nullable */
   transactionCurrency?: string | null;
+  foundedWithRealizedGoal?: boolean;
 }
 
 export interface TransactionUpdate {
@@ -149,6 +152,7 @@ export interface TransactionUpdate {
   /** @nullable */
   transactionCurrency?: string | null;
   currencyLocked?: boolean;
+  foundedWithRealizedGoal?: boolean;
 }
 
 export interface CurrencyConvertInput {
@@ -300,6 +304,11 @@ export interface Goal {
   userId: number | null;
   /** @nullable */
   householdId: number | null;
+  /**
+   * Timestamp when the goal's contributions first reached its budget
+   * @nullable
+   */
+  realizedAt: string | null;
   createdAt: string;
 }
 

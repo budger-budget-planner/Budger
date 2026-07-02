@@ -12,6 +12,9 @@ export const goalsTable = pgTable("goals", {
   divideByMonths: boolean("divide_by_months").notNull().default(false),
   userId: integer("user_id"),
   householdId: integer("household_id"),
+  /** Set the first time the goal's total contributions reach its budget.
+   *  A realized goal automatically moves to Past Goals 24h after this is set. */
+  realizedAt: timestamp("realized_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -30,6 +30,10 @@ export const transactionsTable = pgTable("transactions", {
   /** True when the transaction was captured in a currency the app does not support.
    *  These rows appear in the list but are excluded from all totals and summaries. */
   currencyUnavailable: boolean("currency_unavailable").notNull().default(false),
+  /** True when this expense was paid for using money already withdrawn from a
+   *  realized (fully-funded) goal. Excluded from monthly spend totals since it
+   *  represents savings being spent, not new budgeted spending. */
+  foundedWithRealizedGoal: boolean("founded_with_realized_goal").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

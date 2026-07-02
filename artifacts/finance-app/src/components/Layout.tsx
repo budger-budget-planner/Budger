@@ -99,6 +99,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       "share_approved", "share_declined",
       "edit_approved", "edit_declined",
       "goal_created", "goal_changed",
+      "goal_realized",
     ];
 
     // Use the highest createdAt we have previously seen as the watermark —
@@ -187,6 +188,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel zaktualizowany",
           bodyEn: actor ? `"${gName}" was updated by ${actor}.` : `"${gName}" was updated.`,
           bodyPl: actor ? `„${gName}" został zaktualizowany przez ${actor}.` : `„${gName}" został zaktualizowany.`,
+        });
+      } else if (item.type === "goal_realized") {
+        addNCNotification({
+          type: "goal_realized",
+          titleEn: "Goal Realized",
+          titlePl: "Cel zrealizowany",
+          bodyEn: `${gName} is fully funded! It will move to Past Goals within 24 hours.`,
+          bodyPl: `${gName} jest w pełni sfinansowany! Zostanie przeniesiony do Poprzednich celów w ciągu 24 godzin.`,
         });
       }
     }

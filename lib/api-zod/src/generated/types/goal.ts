@@ -19,5 +19,10 @@ export interface Goal {
   userId: number | null;
   /** @nullable */
   householdId: number | null;
+  /**
+   * Timestamp when the goal's contributions first reached its budget
+   * @nullable
+   */
+  realizedAt: string | null;
   createdAt: string;
 }

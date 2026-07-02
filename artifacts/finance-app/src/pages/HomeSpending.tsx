@@ -27,7 +27,7 @@ import {
   getListGoalsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1335,6 +1335,7 @@ export default function HomeSpending() {
                   // Badge presence flags
                   const hasSplit       = !!(tx as any).splitRole;
                   const hasGoal        = !!contrib;
+                  const isRealizedGoal = !!(tx as any).foundedWithRealizedGoal;
                   const hasReceipt     = !!tx.receiptImage;
                   const hasLocked      = !!(tx.currencyLocked && tx.transactionCurrency);
                   const hasUnavailable = !!(tx as any).currencyUnavailable;
@@ -1400,9 +1401,15 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                   {hasGoal && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-purple-500/60 bg-purple-500/10 text-[10px] font-medium text-purple-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-emerald-500/60 bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
                                       <Target className="w-2 h-2 flex-shrink-0" />
                                       {contrib!.name} {fmtAmt(contribAmountInUserCurrency(contrib!), prefs.currency)}
+                                    </span>
+                                  )}
+                                  {isRealizedGoal && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-emerald-500/60 bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
+                                      <CheckCircle className="w-2 h-2 flex-shrink-0" />
+                                      {t("tx.realized_goal_badge")}
                                     </span>
                                   )}
                                   {hasReceipt && (
@@ -1427,7 +1434,8 @@ export default function HomeSpending() {
                               {(hasSplit || hasGoal || hasReceipt || hasLocked) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasSplit   && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"   />}
-                                  {hasGoal    && <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                                  {hasGoal    && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                                  {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                                   {hasReceipt && <span className="w-1.5 h-1.5 rounded-full bg-white"      />}
                                   {hasLocked  && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"   />}
                                 </div>

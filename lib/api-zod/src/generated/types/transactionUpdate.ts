@@ -18,4 +18,5 @@ export interface TransactionUpdate {
   /** @nullable */
   transactionCurrency?: string | null;
   currencyLocked?: boolean;
+  foundedWithRealizedGoal?: boolean;
 }

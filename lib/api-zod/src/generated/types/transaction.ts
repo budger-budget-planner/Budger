@@ -37,4 +37,6 @@ export interface Transaction {
   currencyLocked: boolean;
   /** True when the category was assigned automatically by the merchant-rule engine */
   categoryAutoAssigned: boolean;
+  /** True when this expense was paid from a realized goal's savings; excluded from monthly spend totals */
+  foundedWithRealizedGoal: boolean;
 }

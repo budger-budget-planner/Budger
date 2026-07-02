@@ -1199,6 +1199,9 @@ components:
         categoryAutoAssigned:
           type: boolean
           description: True when the category was assigned automatically by the merchant-rule engine
+        foundedWithRealizedGoal:
+          type: boolean
+          description: True when this expense was paid from a realized goal's savings; excluded from monthly spend totals
       required:
         - id
         - amount
@@ -1217,6 +1220,7 @@ components:
         - transactionCurrency
         - currencyLocked
         - categoryAutoAssigned
+        - foundedWithRealizedGoal
 
     TransactionInput:
       type: object
@@ -1240,6 +1244,8 @@ components:
           type: ["string", "null"]
         transactionCurrency:
           type: ["string", "null"]
+        foundedWithRealizedGoal:
+          type: boolean
 
     TransactionUpdate:
       type: object
@@ -1259,6 +1265,8 @@ components:
         transactionCurrency:
           type: ["string", "null"]
         currencyLocked:
+          type: boolean
+        foundedWithRealizedGoal:
           type: boolean
 
     CurrencyConvertInput:
@@ -1523,6 +1531,9 @@ components:
           type: ["integer", "null"]
         householdId:
           type: ["integer", "null"]
+        realizedAt:
+          type: ["string", "null"]
+          description: Timestamp when the goal's contributions first reached its budget
         createdAt:
           type: string
       required:
@@ -1535,6 +1546,7 @@ components:
         - divideByMonths
         - userId
         - householdId
+        - realizedAt
         - createdAt
 
     GoalInput:

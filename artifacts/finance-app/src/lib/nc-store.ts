@@ -9,7 +9,8 @@ export type NCNotifType =
   | "goal_completed_total" | "goal_completed_monthly"
   | "share_approved" | "share_declined"
   | "edit_approved" | "edit_declined"
-  | "goal_created" | "goal_changed";
+  | "goal_created" | "goal_changed"
+  | "goal_realized";
 
 export type NCNotification = {
   id: string;

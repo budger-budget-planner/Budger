@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable } from "@workspace/db";
-import { eq, or, and, lt, gte, inArray, sql } from "drizzle-orm";
+import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -9,6 +9,17 @@ function isHead(role: string) { return role === "head" || role === "owner"; }
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// A realized (fully-funded) goal stays visible as active for 24h after
+// realization, then automatically moves to Past Goals.
+const notYetMovedToPast = or(
+  isNull(goalsTable.realizedAt),
+  sql`${goalsTable.realizedAt} > now() - interval '24 hours'`,
+);
+const realizedPastCutoff = and(
+  isNotNull(goalsTable.realizedAt),
+  sql`${goalsTable.realizedAt} <= now() - interval '24 hours'`,
+);
 
 function formatGoal(g: any) {
   return {
@@ -106,11 +117,12 @@ router.get("/goals", async (req, res): Promise<void> => {
     ? await db.select().from(goalsTable)
         .where(and(
           or(eq(goalsTable.userId, userId), eq(goalsTable.householdId, user.householdId)),
-          gte(goalsTable.deadline, t)
+          gte(goalsTable.deadline, t),
+          notYetMovedToPast,
         ))
         .orderBy(goalsTable.deadline)
     : await db.select().from(goalsTable)
-        .where(and(eq(goalsTable.userId, userId), gte(goalsTable.deadline, t)))
+        .where(and(eq(goalsTable.userId, userId), gte(goalsTable.deadline, t), notYetMovedToPast))
         .orderBy(goalsTable.deadline);
 
   res.json(goals.map(formatGoal));
@@ -127,11 +139,11 @@ router.get("/goals/past", async (req, res): Promise<void> => {
     ? await db.select().from(goalsTable)
         .where(and(
           or(eq(goalsTable.userId, userId), eq(goalsTable.householdId, user.householdId)),
-          lt(goalsTable.deadline, t)
+          or(lt(goalsTable.deadline, t), realizedPastCutoff),
         ))
         .orderBy(goalsTable.deadline)
     : await db.select().from(goalsTable)
-        .where(and(eq(goalsTable.userId, userId), lt(goalsTable.deadline, t)))
+        .where(and(eq(goalsTable.userId, userId), or(lt(goalsTable.deadline, t), realizedPastCutoff)))
         .orderBy(goalsTable.deadline);
 
   res.json(goals.map(formatGoal));
@@ -770,6 +782,34 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
             await db.insert(goalActivityTable).values({
               userId: recipientId,
               type: "goal_completed_total",
+              goalId: goal.id,
+              goalName: goal.name,
+              goalColor: goal.color,
+              actorName: actor?.name ?? null,
+            }).onConflictDoNothing();
+          }
+        }
+
+        // Mark the goal as realized (once) and notify that it will move to
+        // Past Goals within 24 hours.
+        if (!goal.realizedAt) {
+          await db.update(goalsTable).set({ realizedAt: new Date() }).where(eq(goalsTable.id, goal.id));
+          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+          if (goal.householdId) {
+            await fanOutActivity(
+              goal.householdId,
+              [],
+              "goal_realized",
+              goal.id,
+              goal.name,
+              goal.color,
+              actor?.name ?? null,
+            );
+          } else {
+            const recipientId = goal.userId ?? userId;
+            await db.insert(goalActivityTable).values({
+              userId: recipientId,
+              type: "goal_realized",
               goalId: goal.id,
               goalName: goal.name,
               goalColor: goal.color,

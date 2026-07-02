@@ -35,6 +35,7 @@ function enrichTransaction(tx: any, category: any, user: any) {
     splitRole: tx.splitRole ?? null,
     preSplitAmount: tx.preSplitAmount != null ? parseFloat(tx.preSplitAmount) : null,
     currencyUnavailable: tx.currencyUnavailable ?? false,
+    foundedWithRealizedGoal: tx.foundedWithRealizedGoal ?? false,
   };
 }
 

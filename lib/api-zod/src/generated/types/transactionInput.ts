@@ -17,4 +17,5 @@ export interface TransactionInput {
   receiptImage?: string | null;
   /** @nullable */
   transactionCurrency?: string | null;
+  foundedWithRealizedGoal?: boolean;
 }

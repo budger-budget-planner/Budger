@@ -218,6 +218,11 @@ export const ListTransactionsResponseItem = zod.object({
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
     ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
+    ),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
 
@@ -232,6 +237,7 @@ export const CreateTransactionBody = zod.object({
   paymentMethod: zod.string(),
   receiptImage: zod.string().nullish(),
   transactionCurrency: zod.string().nullish(),
+  foundedWithRealizedGoal: zod.boolean().optional(),
 });
 
 /**
@@ -272,6 +278,11 @@ export const GetTransactionResponse = zod.object({
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
     ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
+    ),
 });
 
 /**
@@ -290,6 +301,7 @@ export const UpdateTransactionBody = zod.object({
   receiptImage: zod.string().nullish(),
   transactionCurrency: zod.string().nullish(),
   currencyLocked: zod.boolean().optional(),
+  foundedWithRealizedGoal: zod.boolean().optional(),
 });
 
 export const UpdateTransactionResponse = zod.object({
@@ -322,6 +334,11 @@ export const UpdateTransactionResponse = zod.object({
     .boolean()
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
+    ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
 });
 
@@ -378,6 +395,11 @@ export const ConvertTransactionCurrencyResponse = zod.object({
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
     ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
+    ),
 });
 
 /**
@@ -417,6 +439,11 @@ export const LockTransactionCurrencyResponse = zod.object({
     .boolean()
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
+    ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
 });
 
@@ -462,6 +489,11 @@ export const UploadReceiptResponse = zod.object({
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
     ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
+    ),
 });
 
 /**
@@ -501,6 +533,11 @@ export const DeleteReceiptResponse = zod.object({
     .boolean()
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
+    ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
 });
 
@@ -744,6 +781,12 @@ export const ListGoalsResponseItem = zod.object({
   divideByMonths: zod.boolean(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
+  realizedAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "Timestamp when the goal's contributions first reached its budget",
+    ),
   createdAt: zod.string(),
 });
 export const ListGoalsResponse = zod.array(ListGoalsResponseItem);
@@ -774,6 +817,12 @@ export const ListPastGoalsResponseItem = zod.object({
   divideByMonths: zod.boolean(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
+  realizedAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "Timestamp when the goal's contributions first reached its budget",
+    ),
   createdAt: zod.string(),
 });
 export const ListPastGoalsResponse = zod.array(ListPastGoalsResponseItem);
@@ -803,6 +852,12 @@ export const UpdateGoalResponse = zod.object({
   divideByMonths: zod.boolean(),
   userId: zod.number().nullable(),
   householdId: zod.number().nullable(),
+  realizedAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "Timestamp when the goal's contributions first reached its budget",
+    ),
   createdAt: zod.string(),
 });
 
@@ -979,6 +1034,11 @@ export const GetRecentActivityResponseItem = zod.object({
     .boolean()
     .describe(
       "True when the category was assigned automatically by the merchant-rule engine",
+    ),
+  foundedWithRealizedGoal: zod
+    .boolean()
+    .describe(
+      "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
 });
 export const GetRecentActivityResponse = zod.array(
