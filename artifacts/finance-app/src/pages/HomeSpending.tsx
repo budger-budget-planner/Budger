@@ -930,10 +930,7 @@ export default function HomeSpending() {
   const [renameValue, setRenameValue] = useState("");
   // Occurrence rule for the swipe hint wiggle: only due on first login after onboarding,
   // or after a week of inactivity — computed once when this page first mounts.
-  // TEMP DEBUG BYPASS: force the wiggle to always play so it can be previewed on demand.
-  // Set this back to `false` (or remove it) to restore the real occurrence rule.
-  const BYPASS_SWIPE_HINT_RULE = true;
-  const [swipeHintDue] = useState(() => BYPASS_SWIPE_HINT_RULE || checkSwipeHintDue());
+  const [swipeHintDue] = useState(() => checkSwipeHintDue());
   // Don't let the wiggle start until the splash screen has fully finished — otherwise
   // it plays underneath the splash overlay before the user can even see the row.
   const appReady = useAppReady();

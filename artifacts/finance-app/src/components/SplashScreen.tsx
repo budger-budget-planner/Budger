@@ -17,14 +17,23 @@ type Dest  = "home" | "login" | null;
  *   (cx + tx, cy + ty)  — scaling around the element's own centre leaves cx/cy unchanged.
  * So:  tx = targetCX - cx,  ty = targetCY - cy,  s = targetSize / SPLASH_SIZE
  */
-function computeTransform(dest: "home" | "login"): string {
+type LogoTransform = { translate: string; scale: number };
+
+// Translate and scale are kept as two *separate* transforms (applied on nested
+// elements, each with its own transition) rather than combined into one
+// `translate(...) scale(...)` string. When both are animated together as a
+// single `transform`, the browser interpolates the combined matrix rather than
+// each component linearly — which visibly warps the resize (the logo appears
+// to swell/shrink unevenly instead of scaling smoothly as it glides). Splitting
+// them keeps both animations perfectly linear and in sync.
+function computeTransform(dest: "home" | "login"): LogoTransform {
   const selector = dest === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]";
   const el = document.querySelector(selector);
   if (!el) {
     // Fallback to hard-coded estimates if the element isn't in the DOM yet
     return dest === "home"
-      ? "translate(calc(-50vw + 34px), calc(-50vh + 28px)) scale(0.233)"
-      : "translateY(-16vh) scale(0.733)";
+      ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.233 }
+      : { translate: "translateY(-16vh)", scale: 0.733 };
   }
 
   const rect    = el.getBoundingClientRect();
@@ -39,13 +48,14 @@ function computeTransform(dest: "home" | "login"): string {
   const ty    = targetCY - splashCY;
   const scale = rect.width / SPLASH_SIZE;
 
-  return `translate(${tx}px, ${ty}px) scale(${scale})`;
+  return { translate: `translate(${tx}px, ${ty}px)`, scale };
 }
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const [phase,     setPhase]     = useState<Phase>("showing");
   const [dest,      setDest]      = useState<Dest>(null);
-  const [transform, setTransform] = useState<string>("none");
+  const [translate, setTranslate] = useState<string>("none");
+  const [scale,     setScale]     = useState<number>(1);
   const [minDone,   setMinDone]   = useState(false);
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
@@ -66,10 +76,11 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
 
     // Measure live DOM positions now — the destination screen is rendered underneath
-    const exactTransform = computeTransform(target);
+    const { translate: exactTranslate, scale: exactScale } = computeTransform(target);
 
     setDest(target);
-    setTransform(exactTransform);
+    setTranslate(exactTranslate);
+    setScale(exactScale);
     setPhase("moving");                         // logo glides at full opacity → motion visible
 
     // Let the glide run almost to completion before the background starts to fade —
@@ -99,21 +110,34 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
-      {/* Layer 2 — handles translate + scale; independent of opacity */}
+      {/* Layer 2 — handles translate only; independent of scale and opacity so the
+          browser interpolates each transform linearly instead of one combined matrix */}
       <div
         style={{
-          transform: isMoving ? transform : "none",
+          transform: isMoving ? translate : "none",
           transition: isMoving
             ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)"
             : "none",
           willChange: "transform",
-          transformOrigin: "center center",
           lineHeight: 0, // prevent inline element gaps affecting centering
         }}
       >
-        {/* Layer 3 — pulse animation only while showing; class removed on exit */}
-        <div className={phase === "showing" ? "splash-pulse" : ""}>
-          <BadgerLogo size={SPLASH_SIZE} />
+        {/* Layer 2b — handles scale only, nested inside the translate layer */}
+        <div
+          style={{
+            transform: isMoving ? `scale(${scale})` : "none",
+            transition: isMoving
+              ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)"
+              : "none",
+            willChange: "transform",
+            transformOrigin: "center center",
+            lineHeight: 0,
+          }}
+        >
+          {/* Layer 3 — pulse animation only while showing; class removed on exit */}
+          <div className={phase === "showing" ? "splash-pulse" : ""}>
+            <BadgerLogo size={SPLASH_SIZE} />
+          </div>
         </div>
       </div>
     </div>
