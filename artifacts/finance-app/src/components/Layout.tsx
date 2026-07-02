@@ -48,7 +48,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     refetchInterval: 30_000,
   });
 
-  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; createdAt: string }>>({
+  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; actorName?: string; createdAt: string }>>({
     // Share the same cache entry as Goals.tsx so only one network request is made
     queryKey: ["goal-activity"],
     queryFn: async () => {
@@ -81,26 +81,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(`goals_seen_at_${(user as any)?.id ?? "x"}`, String(now)); } catch { /* ignore */ }
   }
 
-  // Badge-worthy activity types for the Goals tab icon.
-  // goal_completed_* go to Notification Center only — NOT the Goals tab badge.
-  const BADGE_TYPES = ["share_approved", "share_declined", "edit_approved", "edit_declined", "goal_created"];
-
-  const hasNewBadgeActivity = (goalActivityBadge ?? []).some(
-    (a) => BADGE_TYPES.includes(a.type) && new Date(a.createdAt).getTime() > goalsSeenAt,
-  );
+  // Goals tab badge only lights up when the household head has pending approvals to action.
   const hasNewProposals = (proposalsData ?? []).some(
     (p) => p.status === "pending" && new Date(p.createdAt).getTime() > goalsSeenAt,
   );
   const hasNewEditProposals = (editProposalsBadge ?? []).some(
     (p) => new Date(p.createdAt).getTime() > goalsSeenAt,
   );
-  const showGoalsBadge = hasNewBadgeActivity || hasNewProposals || hasNewEditProposals;
+  const showGoalsBadge = hasNewProposals || hasNewEditProposals;
 
-  // ── Detect goal_completed_total/monthly → log to Notification Center ─────
+  // ── Detect activity feed events → log to Notification Center ────────────
   const processedNcIds = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!goalActivityBadge || !user?.id) return;
-    const NC_TYPES = ["goal_completed_total", "goal_completed_monthly"];
+    const NC_TYPES = [
+      "goal_completed_total", "goal_completed_monthly",
+      "share_approved", "share_declined",
+      "edit_approved", "edit_declined",
+      "goal_created", "goal_changed",
+    ];
 
     // Use the highest createdAt we have previously seen as the watermark —
     // avoids skipping late-arriving backend events that createdAt < Date.now().
@@ -115,7 +114,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       const itemTs = new Date(item.createdAt).getTime();
       if (itemTs <= watermark) {
-        // Already processed in a prior session — mark as seen so we don't reprocess
         processedNcIds.current.add(item.id);
         continue;
       }
@@ -124,6 +122,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       maxTs = Math.max(maxTs, itemTs);
 
       const gName = item.goalName ?? "goal";
+      const actor = item.actorName ?? "";
 
       if (item.type === "goal_completed_total") {
         addNCNotification({
@@ -140,6 +139,54 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel miesięczny osiągnięty",
           bodyEn: `${gName} hit its monthly savings target this month.`,
           bodyPl: `${gName} osiągnął miesięczny cel oszczędnościowy w tym miesiącu.`,
+        });
+      } else if (item.type === "share_approved") {
+        addNCNotification({
+          type: "share_approved",
+          titleEn: "Goal Proposal Approved",
+          titlePl: "Propozycja celu zatwierdzona",
+          bodyEn: `Your proposed goal "${gName}" was approved and added to the household!`,
+          bodyPl: `Twój proponowany cel „${gName}" został zaakceptowany i dodany do gospodarstwa!`,
+        });
+      } else if (item.type === "share_declined") {
+        addNCNotification({
+          type: "share_declined",
+          titleEn: "Goal Proposal Declined",
+          titlePl: "Propozycja celu odrzucona",
+          bodyEn: `Your proposal for "${gName}" was declined.`,
+          bodyPl: `Twoja propozycja dla „${gName}" została odrzucona.`,
+        });
+      } else if (item.type === "edit_approved") {
+        addNCNotification({
+          type: "edit_approved",
+          titleEn: "Edit Proposal Approved",
+          titlePl: "Propozycja edycji zatwierdzona",
+          bodyEn: `Your edits to "${gName}" were approved!`,
+          bodyPl: `Twoje zmiany w „${gName}" zostały zaakceptowane!`,
+        });
+      } else if (item.type === "edit_declined") {
+        addNCNotification({
+          type: "edit_declined",
+          titleEn: "Edit Proposal Declined",
+          titlePl: "Propozycja edycji odrzucona",
+          bodyEn: `Your edits to "${gName}" were declined.`,
+          bodyPl: `Twoje zmiany w „${gName}" zostały odrzucone.`,
+        });
+      } else if (item.type === "goal_created") {
+        addNCNotification({
+          type: "goal_created",
+          titleEn: "New Household Goal",
+          titlePl: "Nowy cel gospodarstwa",
+          bodyEn: `A new goal "${gName}" has been added to the household.`,
+          bodyPl: `Nowy cel „${gName}" został dodany do gospodarstwa.`,
+        });
+      } else if (item.type === "goal_changed") {
+        addNCNotification({
+          type: "goal_changed",
+          titleEn: "Goal Updated",
+          titlePl: "Cel zaktualizowany",
+          bodyEn: actor ? `"${gName}" was updated by ${actor}.` : `"${gName}" was updated.`,
+          bodyPl: actor ? `„${gName}" został zaktualizowany przez ${actor}.` : `„${gName}" został zaktualizowany.`,
         });
       }
     }

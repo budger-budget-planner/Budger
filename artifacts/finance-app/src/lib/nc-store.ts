@@ -6,7 +6,10 @@ export type NCNotifType =
   | "budget_75_cat" | "budget_90_cat"
   | "budget_75_total" | "budget_90_total"
   | "goal_checkin_multi" | "goal_monthly" | "goal_overall"
-  | "goal_completed_total" | "goal_completed_monthly";
+  | "goal_completed_total" | "goal_completed_monthly"
+  | "share_approved" | "share_declined"
+  | "edit_approved" | "edit_declined"
+  | "goal_created" | "goal_changed";
 
 export type NCNotification = {
   id: string;

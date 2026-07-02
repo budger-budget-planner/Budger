@@ -57,16 +57,6 @@ type MyShareProposal = {
   createdAt: string;
 };
 
-type GoalActivity = {
-  id: number;
-  type: string;
-  goalId: number;
-  goalName: string;
-  goalColor: string;
-  actorName: string | null;
-  createdAt: string;
-};
-
 type MemberBreakdownRow = {
   userId: number;
   name: string;
@@ -820,18 +810,6 @@ export default function GoalsPage() {
     refetchInterval: 20_000,
   });
 
-  const { data: activityFeed, refetch: refetchActivity } = useQuery<GoalActivity[]>({
-    queryKey: ["goal-activity"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    // Fetch for all authenticated users — personal goals also generate completion events
-    enabled: !!me?.id,
-    // Poll frequently so NC bell lights up within seconds of goal completion
-    refetchInterval: 5_000,
-  });
 
   // Load dismissed proposals from localStorage when user loads
   useEffect(() => {
@@ -868,20 +846,6 @@ export default function GoalsPage() {
     next.add(key);
     setDismissedProposals(next);
     saveDismissed(me?.id, next);
-  }
-
-  async function dismissActivityItem(id: number) {
-    await fetch(`${import.meta.env.BASE_URL}api/goals/activity/${id}/dismiss`, {
-      method: "POST", credentials: "include",
-    });
-    refetchActivity();
-  }
-
-  async function dismissAllActivity() {
-    await fetch(`${import.meta.env.BASE_URL}api/goals/activity/dismiss-all`, {
-      method: "POST", credentials: "include",
-    });
-    refetchActivity();
   }
 
   const visibleShareProposals = (myShareProposals ?? [])
@@ -1271,95 +1235,6 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Household Activity Feed — completion types go to NC only, not shown here */}
-      {(() => {
-        const NC_ONLY = ["goal_completed_total", "goal_completed_monthly"];
-        const inTabFeed = (activityFeed ?? []).filter(a => !NC_ONLY.includes(a.type));
-        if (!isInHousehold || inTabFeed.length === 0) return null;
-        return (
-        <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-            <Bell className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-semibold">{t("goals.activity_feed")}</p>
-            <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
-              {inTabFeed.length}
-            </span>
-            <button
-              onClick={dismissAllActivity}
-              className="text-xs text-muted-foreground hover:text-foreground transition active:opacity-70 ml-1"
-            >
-              {t("goals.dismiss_all")}
-            </button>
-          </div>
-          <div className="divide-y divide-border">
-            {inTabFeed.map(a => (
-              <div key={a.id} className="px-4 py-3 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
-                  style={{ backgroundColor: (a.goalColor ?? "#818cf8") + "33" }}>
-                  {(a.type === "goal_completed_total" || a.type === "goal_completed_monthly" || a.type === "share_approved" || a.type === "edit_approved")
-                    ? <CheckCircle2 className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
-                    : <Target className="w-3.5 h-3.5" style={{ color: a.goalColor ?? "#818cf8" }} />
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{a.goalName}</p>
-                  {a.type === "goal_changed" && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("goals.goal_changed_notif", { name: a.actorName ?? "" })}
-                    </p>
-                  )}
-                  {a.type === "goal_completed_total" && (
-                    <p className="text-xs text-green-400 font-medium mt-0.5">
-                      {t("goals.goal_completed_total_notif")}
-                    </p>
-                  )}
-                  {a.type === "goal_completed_monthly" && (
-                    <p className="text-xs text-green-400 font-medium mt-0.5">
-                      {t("goals.goal_completed_monthly_notif", { name: a.goalName })}
-                    </p>
-                  )}
-                  {a.type === "share_approved" && (
-                    <p className="text-xs text-green-400 font-medium mt-0.5">
-                      {t("goals.share_approved_notif")}
-                    </p>
-                  )}
-                  {a.type === "share_declined" && (
-                    <p className="text-xs text-destructive font-medium mt-0.5">
-                      {t("goals.share_declined_notif")}
-                    </p>
-                  )}
-                  {a.type === "edit_approved" && (
-                    <p className="text-xs text-green-400 font-medium mt-0.5">
-                      {t("goals.edit_approved_notif")}
-                    </p>
-                  )}
-                  {a.type === "edit_declined" && (
-                    <p className="text-xs text-destructive font-medium mt-0.5">
-                      {t("goals.edit_declined_notif")}
-                    </p>
-                  )}
-                  {a.type === "goal_created" && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("goals.goal_created_notif")}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground/60 mt-0.5">
-                    {new Date(a.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <button
-                  onClick={() => dismissActivityItem(a.id)}
-                  className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition active:opacity-70 mt-0.5"
-                  aria-label={t("goals.dismiss")}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-        );
-      })()}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
