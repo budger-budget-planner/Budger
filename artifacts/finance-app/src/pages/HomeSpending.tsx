@@ -874,14 +874,15 @@ function SwipeableTxRow({
               <span className="text-[10px] font-semibold whitespace-nowrap">{t("split.btn")}</span>
             </div>
           )}
-          {/* Delete section — always red, expands to fill during extension */}
+          {/* Delete section — matches expanded-row delete button style exactly */}
           <div
-            className="flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75"
-            style={{ width: deleteSectionW, minWidth: deleteSnapW, backgroundColor: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
+            className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75 bg-card text-destructive"
+            style={{ width: deleteSectionW, minWidth: deleteSnapW }}
             onClick={() => { onDelete(); resetRow(); }}
           >
-            <Trash2 className="w-4 h-4 flex-shrink-0" />
-            <span className="text-[10px] font-semibold whitespace-nowrap">{t("common.delete")}</span>
+            <div className="absolute inset-0 bg-destructive/10 pointer-events-none" />
+            <Trash2 className="w-4 h-4 flex-shrink-0 relative z-10" />
+            <span className="text-[10px] font-semibold whitespace-nowrap relative z-10">{t("common.delete")}</span>
           </div>
         </div>
       )}
