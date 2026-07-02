@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull } from "drizzle-orm";
+import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,11 @@ async function getMemberRole(userId: number, householdId: number): Promise<strin
   const [m] = await db.select().from(householdMembersTable)
     .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   return m?.role ?? "child";
+}
+
+async function getHouseholdHeadIds(householdId: number): Promise<number[]> {
+  const members = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
+  return members.filter(m => isHead(m.role)).map(m => m.userId);
 }
 
 async function fanOutActivity(
@@ -212,6 +218,12 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
 
   // Notify proposer their goal was approved
   await fanOutActivityToUser(proposal.proposerId, "share_approved", proposal.goalId, gName, gColor, aName);
+  sendPushToUser(proposal.proposerId, {
+    title: "Goal Proposal Approved ✓",
+    body: `"${gName}" has been approved and is now a household goal.`,
+    url: "/?sheet=goals",
+    tag: `proposal-approved-${proposal.goalId}`,
+  }).catch(() => {});
 
   // Notify all ward/child members that a new household goal was created
   const allMembers = await db.select().from(householdMembersTable)
@@ -259,6 +271,12 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
     declineGoal?.color ?? "#818cf8",
     declineActor?.name ?? null,
   );
+  sendPushToUser(proposal.proposerId, {
+    title: "Goal Proposal Declined",
+    body: `"${declineGoal?.name ?? "Your goal"}" proposal was not approved.`,
+    url: "/?sheet=goals",
+    tag: `proposal-declined-${proposal.goalId}`,
+  }).catch(() => {});
 
   res.json({ ok: true });
 });
@@ -382,6 +400,12 @@ router.post("/goals/edit-proposals/:id/approve", async (req, res): Promise<void>
     proposal.color,
     editActor?.name ?? null,
   );
+  sendPushToUser(proposal.proposerId, {
+    title: "Goal Edit Approved ✓",
+    body: `Your changes to "${proposal.name}" have been approved.`,
+    url: "/?sheet=goals",
+    tag: `edit-approved-${proposal.goalId}`,
+  }).catch(() => {});
   // Fan-out goal_changed to all other members (not head, not proposer)
   await fanOutActivity(
     user.householdId,
@@ -424,6 +448,12 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
     proposal.color,
     editDeclineActor?.name ?? null,
   );
+  sendPushToUser(proposal.proposerId, {
+    title: "Goal Edit Declined",
+    body: `Your proposed changes to "${proposal.name}" were not approved.`,
+    url: "/?sheet=goals",
+    tag: `edit-declined-${proposal.goalId}`,
+  }).catch(() => {});
 
   res.json({ ok: true });
 });
@@ -511,6 +541,17 @@ router.post("/goals/:id/propose", async (req, res): Promise<void> => {
     householdId: user.householdId,
     status: "pending",
   }).returning();
+
+  // Push heads so they know there's a proposal awaiting review
+  const [proposer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const headIds = await getHouseholdHeadIds(user.householdId);
+  sendPushToUsers(headIds.filter(hid => hid !== userId), {
+    title: "Budger — Goal Proposal",
+    body: `${proposer?.name ?? "A member"} wants to share "${goal.name}" with the household.`,
+    url: "/?sheet=goals",
+    tag: `new-proposal-${goal.id}`,
+  }).catch(() => {});
+
   res.status(201).json(proposal);
 });
 
@@ -546,7 +587,7 @@ router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
       eq(goalEditProposalsTable.status, "pending")
     ));
 
-  const [proposal] = await db.insert(goalEditProposalsTable).values({
+  const [editProposal] = await db.insert(goalEditProposalsTable).values({
     goalId: id,
     proposerId: userId,
     householdId: user.householdId,
@@ -559,7 +600,17 @@ router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
     status: "pending",
   }).returning();
 
-  res.status(201).json({ pending: true, proposalId: proposal.id });
+  // Push heads so they know there's an edit proposal awaiting review
+  const [editProposer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const editHeadIds = await getHouseholdHeadIds(user.householdId);
+  sendPushToUsers(editHeadIds.filter(hid => hid !== userId), {
+    title: "Budger — Goal Edit Request",
+    body: `${editProposer?.name ?? "A member"} proposed changes to "${goal.name}".`,
+    url: "/?sheet=goals",
+    tag: `new-edit-proposal-${goal.id}`,
+  }).catch(() => {});
+
+  res.status(201).json({ pending: true, proposalId: editProposal.id });
 });
 
 router.patch("/goals/:id", async (req, res): Promise<void> => {

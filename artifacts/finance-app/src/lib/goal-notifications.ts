@@ -1,4 +1,5 @@
 import { addNCNotification } from "@/lib/nc-store";
+import { showNotification } from "@/lib/show-notification";
 
 const GOAL_NOTIF_KEY = "budger_goal_notifs_v1";
 
@@ -63,14 +64,8 @@ export function checkGoalNotifications(
     const bodyEn = `You have ${goals.length} active savings goals. ${days} day${days !== 1 ? "s" : ""} left this month — open Budger to see if you're on track!`;
     const bodyPl = `Masz ${goals.length} aktywne cele oszczędnościowe. Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu — sprawdź swój postęp!`;
 
-    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
-    addNCNotification({
-      type: "goal_checkin_multi",
-      titleEn,
-      titlePl,
-      bodyEn,
-      bodyPl,
-    });
+    showNotification(titleEn, { body: bodyEn, url: "/", tag: "goal-checkin" });
+    addNCNotification({ type: "goal_checkin_multi", titleEn, titlePl, bodyEn, bodyPl });
     return;
   }
 
@@ -92,14 +87,8 @@ export function checkGoalNotifications(
     const bodyEn = `${days} day${days !== 1 ? "s" : ""} left this month. You've saved ${sym}${goal.contributed.toFixed(2)} of your ${sym}${goal.monthlyTarget.toFixed(2)} monthly target (${monthlyPct}%). ${reachedStr}`;
     const bodyPl = `Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu. Zaoszczędzono ${sym}${goal.contributed.toFixed(2)} z ${sym}${goal.monthlyTarget.toFixed(2)} miesięcznego celu (${monthlyPct}%). ${reachedStrPl}`;
 
-    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
-    addNCNotification({
-      type: "goal_monthly",
-      titleEn,
-      titlePl,
-      bodyEn,
-      bodyPl,
-    });
+    showNotification(titleEn, { body: bodyEn, url: "/", tag: `goal-monthly-${goal.goalId}` });
+    addNCNotification({ type: "goal_monthly", titleEn, titlePl, bodyEn, bodyPl });
   } else {
     const deadline = new Date(goal.deadline);
     const monthsLeft = Math.max(
@@ -115,13 +104,7 @@ export function checkGoalNotifications(
     const bodyEn = `You're ${totalPct}% of the way to your goal (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). ${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} remaining — ${sym}${remaining.toFixed(2)} to go!`;
     const bodyPl = `Jesteś w ${totalPct}% drogi do celu (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). Pozostało ${monthsLeft} ${monthsLeft === 1 ? "miesiąc" : "miesięcy"} — jeszcze ${sym}${remaining.toFixed(2)}!`;
 
-    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
-    addNCNotification({
-      type: "goal_overall",
-      titleEn,
-      titlePl,
-      bodyEn,
-      bodyPl,
-    });
+    showNotification(titleEn, { body: bodyEn, url: "/", tag: `goal-overall-${goal.goalId}` });
+    addNCNotification({ type: "goal_overall", titleEn, titlePl, bodyEn, bodyPl });
   }
 }

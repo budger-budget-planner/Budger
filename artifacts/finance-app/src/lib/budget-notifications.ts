@@ -1,4 +1,5 @@
 import { addNCNotification } from "@/lib/nc-store";
+import { showNotification } from "@/lib/show-notification";
 
 const STORAGE_KEY_PREFIX = "budger_budget_notifs_v1";
 
@@ -49,9 +50,10 @@ export function checkBudgetThresholdNotifications(
     if (!state[key]["75"]) {
       state[key]["75"] = true;
       changed = true;
-      new Notification(`Budget Heads-up — ${catName}`, {
+      showNotification(`Budget Heads-up — ${catName}`, {
         body: `You've used ${Math.round(pct)}% of your ${catName} budget. ${sym}${remaining} remaining this month.`,
-        icon: "/favicon.ico",
+        url: "/",
+        tag: `budget-75-${key}`,
       });
       addNCNotification({
         type: "budget_75_cat",
@@ -68,9 +70,10 @@ export function checkBudgetThresholdNotifications(
     if (!state[key]["90"]) {
       state[key]["90"] = true;
       changed = true;
-      new Notification(`Budget Warning — ${catName}`, {
+      showNotification(`Budget Warning — ${catName}`, {
         body: `You've used ${Math.round(pct)}% of your ${catName} budget. Only ${sym}${remaining} left — slow down!`,
-        icon: "/favicon.ico",
+        url: "/",
+        tag: `budget-90-${key}`,
       });
       addNCNotification({
         type: "budget_90_cat",
@@ -106,9 +109,10 @@ export function checkBudgetThresholdNotifications(
       if (!state["total"]["90"]) {
         state["total"]["90"] = true;
         changed = true;
-        new Notification("Monthly Budget Warning", {
+        showNotification("Monthly Budget Warning", {
           body: `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
-          icon: "/favicon.ico",
+          url: "/",
+          tag: "budget-90-total",
         });
         addNCNotification({
           type: "budget_90_total",
@@ -123,9 +127,10 @@ export function checkBudgetThresholdNotifications(
       if (!state["total"]["75"]) {
         state["total"]["75"] = true;
         changed = true;
-        new Notification("Monthly Budget Reminder", {
+        showNotification("Monthly Budget Reminder", {
           body: `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
-          icon: "/favicon.ico",
+          url: "/",
+          tag: "budget-75-total",
         });
         addNCNotification({
           type: "budget_75_total",

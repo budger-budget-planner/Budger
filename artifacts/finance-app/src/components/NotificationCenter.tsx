@@ -23,6 +23,7 @@ import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, getNCSeenAt, setNCSeenAt, type NCNotification, type NCNotifType } from "@/lib/nc-store";
 import { loadPrefs } from "@/lib/prefs";
+import { showNotification } from "@/lib/show-notification";
 
 // ─── Alert (alarm) types ──────────────────────────────────────────────────────
 type Alert = { id: string; time: string; days: string[]; enabled: boolean };
@@ -171,9 +172,13 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
         const next = new Date();
         next.setHours(h, m, 0, 0);
         if (next <= now) next.setDate(next.getDate() + 1);
-        const id = setTimeout(() => {
+        const id = setTimeout(async () => {
           if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(t("notif.budger_reminder"), { body: t("notif.dont_forget"), icon: "/favicon.ico" });
+            await showNotification(t("notif.budger_reminder"), {
+              body: t("notif.dont_forget"),
+              url: "/?sheet=alerts",
+              tag: "daily-reminder",
+            });
             addNCNotification({
               type: "daily_reminder",
               titleEn: "Budger Reminder",

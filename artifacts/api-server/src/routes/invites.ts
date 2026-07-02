@@ -9,6 +9,7 @@ import {
   GetInviteParams,
   CancelInviteParams,
 } from "@workspace/api-zod";
+import { sendPushToUser } from "../lib/push-sender";
 
 const router: IRouter = Router();
 
@@ -70,6 +71,14 @@ router.post("/invites", async (req, res): Promise<void> => {
   }).returning();
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+
+  // Push notification to invited user
+  sendPushToUser(invitedUser.id, {
+    title: "Budger — Household Invitation",
+    body: `${user.name ?? "Someone"} invited you to join "${household?.name ?? "a household"}" on Budger.`,
+    url: "/?sheet=household",
+    tag: "household-invite",
+  }).catch(() => {});
 
   res.status(201).json(enrichInvite(invite, household));
 });
