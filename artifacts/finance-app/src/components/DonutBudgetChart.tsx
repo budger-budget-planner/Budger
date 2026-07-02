@@ -54,9 +54,17 @@ type Seg = {
   catKey: string;
   d: string;
   fill: string;
-  groupColor: string; // original category color (before darkening), used for the segment border
   isOverBudget: boolean;
   midDeg: number;
+};
+
+// Covers the full group arc (spent + remaining combined) — used only for the border ring.
+type GroupBorder = {
+  catKey: string;
+  d: string;
+  groupColor: string;
+  isOverBudget: boolean;
+  midDeg: number; // midpoint of the whole group, for selection translate
 };
 
 type LegendItem = {
@@ -77,7 +85,7 @@ function buildChart(
   ri: number,
   ro: number,
   selectedCat: string | null,
-): { segs: Seg[]; legend: LegendItem[] } {
+): { segs: Seg[]; groupBorders: GroupBorder[]; legend: LegendItem[] } {
   const CAT_GAP = 2.5; // degrees gap between different categories
   const EXPAND = 5;    // extra outer-radius px for selected segment
 
@@ -167,13 +175,19 @@ function buildChart(
   const drawDeg = 360 - totalGapDeg;
 
   const segs: Seg[] = [];
+  const groupBorders: GroupBorder[] = [];
   let cursor = 0; // degrees from 12 o'clock
 
   for (const g of groups) {
     const groupDeg = g.parts.reduce((a, p) => a + p.fraction * drawDeg, 0);
     const isSelected = selectedCat === g.catKey;
     const outerR = isSelected ? ro + EXPAND : ro;
+    const groupStartDeg = cursor;
+    const groupEndDeg = cursor + groupDeg;
+    const groupMidDeg = (groupStartDeg + groupEndDeg) / 2;
 
+    // Fill paths — no stroke, so the shared edge between spent / remaining
+    // sub-segments is never stroked (only the outer group border will be).
     let partCursor = cursor;
     for (const part of g.parts) {
       const partDeg = part.fraction * drawDeg;
@@ -186,13 +200,21 @@ function buildChart(
         catKey: g.catKey,
         d: arc(cx, cy, ri, outerR, startDeg, endDeg),
         fill: part.fill,
-        groupColor: g.color,
         isOverBudget: part.isOverBudget,
         midDeg,
       });
 
       partCursor = endDeg;
     }
+
+    // One border arc covering the full group extent — rendered on top later.
+    groupBorders.push({
+      catKey: g.catKey,
+      d: arc(cx, cy, ri, outerR, groupStartDeg, groupEndDeg),
+      groupColor: g.color,
+      isOverBudget: g.spent > g.budget && g.budget > 0,
+      midDeg: groupMidDeg,
+    });
 
     cursor += groupDeg + CAT_GAP;
   }
@@ -208,7 +230,7 @@ function buildChart(
       isOverBudget: g.spent > g.budget && g.budget > 0,
     }));
 
-  return { segs, legend };
+  return { segs, groupBorders, legend };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -223,7 +245,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
   const cx = 100, cy = 100, ri = 46, ro = 80;
-  const { segs, legend } = buildChart(spending, totalBudget, currency, cx, cy, ri, ro, selectedCat);
+  const { segs, groupBorders, legend } = buildChart(spending, totalBudget, currency, cx, cy, ri, ro, selectedCat);
 
   function handleClick(catKey: string) {
     setSelectedCat(prev => (prev === catKey ? null : catKey));
@@ -253,6 +275,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
             </filter>
           </defs>
 
+          {/* Fill paths — no stroke so the internal spent/remaining dividing line is invisible */}
           {segs.map(seg => {
             const isSelected = selectedCat === seg.catKey;
             const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
@@ -263,17 +286,39 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={seg.id}
                 d={seg.d}
                 fill={seg.fill}
-                stroke={seg.isOverBudget ? "#ef4444" : seg.groupColor + "55"}
-                strokeWidth={seg.isOverBudget ? 1.5 : 0.8}
-                paintOrder="stroke"
+                stroke="none"
                 style={{
                   transform: `translate(${tx}px, ${ty}px)`,
-                  transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1), filter 0.22s ease",
+                  transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
                   filter: seg.isOverBudget ? "url(#redGlow)" : "none",
                   cursor: "pointer",
                   outline: "none",
                 }}
                 onClick={() => handleClick(seg.catKey)}
+              />
+            );
+          })}
+
+          {/* Group border paths — one per category, rendered on top so the stroke
+              wraps the entire group (inner + outer radius + both angular edges)
+              without drawing the internal dividing line between sub-segments */}
+          {groupBorders.map(gb => {
+            const isSelected = selectedCat === gb.catKey;
+            const midRad = ((gb.midDeg - 90) * Math.PI) / 180;
+            const tx = isSelected ? 8 * Math.cos(midRad) : 0;
+            const ty = isSelected ? 8 * Math.sin(midRad) : 0;
+            return (
+              <path
+                key={`border-${gb.catKey}`}
+                d={gb.d}
+                fill="none"
+                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "60"}
+                strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                style={{
+                  transform: `translate(${tx}px, ${ty}px)`,
+                  transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                  pointerEvents: "none", // clicks pass through to fill paths
+                }}
               />
             );
           })}
