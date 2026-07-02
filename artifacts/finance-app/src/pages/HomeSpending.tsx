@@ -876,8 +876,8 @@ function SwipeableTxRow({
           )}
           {/* Delete section — always red, expands to fill during extension */}
           <div
-            className="flex flex-col items-center justify-center gap-1.5 text-destructive-foreground bg-destructive overflow-hidden cursor-pointer active:brightness-75"
-            style={{ width: deleteSectionW, minWidth: deleteSnapW }}
+            className="flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75"
+            style={{ width: deleteSectionW, minWidth: deleteSnapW, backgroundColor: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
             onClick={() => { onDelete(); resetRow(); }}
           >
             <Trash2 className="w-4 h-4 flex-shrink-0" />
