@@ -16,11 +16,15 @@ function isNativeCurrency(tx: any, userCurrency?: string): boolean {
   return false;
 }
 
-async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean, userCurrency?: string) {
+async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean, userCurrency?: string, includeAllCategories = false) {
   const txs = await db.select().from(transactionsTable)
     .where(eq(transactionsTable.userId, userId));
 
-  const categories = await db.select().from(categoriesTable);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const categories = user?.householdId
+    ? await db.select().from(categoriesTable)
+        .where(or(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)))
+    : await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   const catMap = new Map(categories.map(c => [c.id, c]));
 
   const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && isNativeCurrency(tx, userCurrency));
@@ -34,6 +38,14 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
     const entry = grouped.get(key)!;
     entry.total += parseFloat(tx.amount);
     entry.count += 1;
+  }
+
+  // Ensure every one of the user's categories appears (even with zero spending so far this period)
+  if (includeAllCategories) {
+    for (const category of categories) {
+      const key = String(category.id);
+      if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
+    }
   }
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
@@ -62,7 +74,7 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const monthPrefix = (query.data as any).month ?? currentMonth;
 
-  const result = await getSpendingGrouped(userId, t => t.date.startsWith(monthPrefix), userCurrency);
+  const result = await getSpendingGrouped(userId, t => t.date.startsWith(monthPrefix), userCurrency, true);
   res.json(result);
 });
 

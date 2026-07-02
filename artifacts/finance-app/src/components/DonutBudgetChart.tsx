@@ -121,13 +121,15 @@ function buildChart(
       const remainFrac = (budget - spent) / totalBudget;
       const parts = [];
       if (spentFrac > 0.001) parts.push({ id: `${catKey}-spent`, fraction: spentFrac, fill: color, isOverBudget: false });
-      if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.48), isOverBudget: false });
+      if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.68), isOverBudget: false });
       groups.push({ catKey, color, name, spent, budget, parts });
     }
   }
 
-  // Uncategorised group
-  if (uncatBudget > 0 || uncatSpent > 0) {
+  // Uncategorised group — only shown when the categories' budgets don't already
+  // add up to (or exceed) the total budget. If they do, the user has intentionally
+  // allocated everything and there's nothing meaningful left to call "uncategorised".
+  if (sumBudgets < totalBudget && (uncatBudget > 0 || uncatSpent > 0)) {
     const catKey = "cat-uncat";
     const parts = [];
     const over = uncatSpent > uncatBudget;
@@ -229,8 +231,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
       <div className="flex-shrink-0 relative" style={{ width: 160, height: 160 }}>
         <svg width="160" height="160" viewBox="0 0 160 160" style={{ overflow: "visible" }}>
           <defs>
-            <filter id="redGlow" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            {/* stdDeviation kept small and filter region tight so glows on adjacent
+                over-budget segments don't visually bleed into one another */}
+            <filter id="redGlow" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
               <feColorMatrix in="blur" type="matrix"
                 values="1.5 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.2 0"
                 result="redBlur" />
@@ -251,6 +255,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={seg.id}
                 d={seg.d}
                 fill={seg.fill}
+                stroke={seg.isOverBudget ? "#ef4444" : "none"}
+                strokeWidth={seg.isOverBudget ? 1.5 : 0}
+                paintOrder="stroke"
                 style={{
                   transform: `translate(${tx}px, ${ty}px)`,
                   transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1), filter 0.22s ease",

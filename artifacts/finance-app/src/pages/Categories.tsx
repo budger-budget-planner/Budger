@@ -54,6 +54,7 @@ function BudgetInput({
   mode,
   onModeChange,
   totalBudget,
+  otherCategoriesTotal,
   sym,
 }: {
   rawValue: string;
@@ -61,11 +62,13 @@ function BudgetInput({
   mode: "amount" | "percent";
   onModeChange: (m: "amount" | "percent") => void;
   totalBudget: number | null;
+  otherCategoriesTotal: number;
   sym: string;
 }) {
   const numVal       = parseFloat(rawValue) || 0;
   const dollarVal    = mode === "percent" ? (totalBudget ? (numVal / 100) * totalBudget : null) : numVal;
-  const exceedsTotal = totalBudget != null && dollarVal != null && dollarVal > totalBudget && rawValue !== "";
+  const availableCap = totalBudget != null ? Math.max(0, totalBudget - otherCategoriesTotal) : null;
+  const exceedsTotal = availableCap != null && dollarVal != null && dollarVal > availableCap + 0.005 && rawValue !== "";
   const noTotalForPct = mode === "percent" && totalBudget == null;
 
   return (
@@ -126,13 +129,22 @@ function BudgetInput({
       )}
 
       {/* Validation */}
-      {exceedsTotal && totalBudget != null && (
+      {exceedsTotal && totalBudget != null && availableCap != null && (
         <p className="text-xs text-red-400 font-medium">
-          ⚠ Exceeds total monthly budget ({fmtAmtRound(totalBudget, loadPrefs().currency)}) — please enter a lower amount.
+          ⚠ That would put your categories' budgets over your total monthly budget ({fmtAmtRound(totalBudget, loadPrefs().currency)}).
+          You have {fmtAmtRound(availableCap, loadPrefs().currency)} left to allocate — please enter a lower amount.
         </p>
       )}
     </div>
   );
+}
+
+function budgetExceedsCap(rawValue: string, mode: "amount" | "percent", totalBudget: number | null, otherCategoriesTotal: number): boolean {
+  if (totalBudget == null || rawValue === "") return false;
+  const dollars = resolveBudgetDollars(rawValue, mode, totalBudget);
+  if (dollars == null) return false;
+  const cap = Math.max(0, totalBudget - otherCategoriesTotal);
+  return dollars > cap + 0.005;
 }
 
 function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", totalBudget: number | null): number | null {
@@ -244,9 +256,9 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
   );
 }
 
-function EditDialog({ category, open, onClose, totalBudget, sym }: {
+function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym }: {
   category: any; open: boolean; onClose: () => void;
-  totalBudget: number | null; sym: string;
+  totalBudget: number | null; otherCategoriesTotal: number; sym: string;
 }) {
   const queryClient = useQueryClient();
   const [name,       setName]       = useState(category.name);
@@ -263,7 +275,10 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
     },
   });
 
+  const overCap = budgetExceedsCap(budget, budgetMode, totalBudget, otherCategoriesTotal);
+
   function handleSave() {
+    if (overCap) return;
     const dollars = resolveBudgetDollars(budget, budgetMode, totalBudget);
     update.mutate({ id: category.id, data: { name, color, budget: dollars } });
   }
@@ -295,6 +310,7 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
               mode={budgetMode}
               onModeChange={setBudgetMode}
               totalBudget={totalBudget}
+              otherCategoriesTotal={otherCategoriesTotal}
               sym={sym}
             />
           </div>
@@ -302,7 +318,7 @@ function EditDialog({ category, open, onClose, totalBudget, sym }: {
             <Button variant="outline" className="flex-1" onClick={onClose}>
               <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={update.isPending}
+            <Button className="flex-1" onClick={handleSave} disabled={update.isPending || overCap}
               data-testid={`button-save-category-${category.id}`}>
               <Check className="w-3.5 h-3.5 mr-1" />
               {update.isPending ? t("common.saving") : t("common.save")}
@@ -341,15 +357,16 @@ export default function CategoriesPage() {
     },
   });
 
+  const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
+  const catBudgetExceeds = totalBudget != null && catBudgetSum > totalBudget;
+  const newCatOverCap = budgetExceedsCap(newBudget, newBudgetMode, totalBudget, catBudgetSum);
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || newCatOverCap) return;
     const dollars = resolveBudgetDollars(newBudget, newBudgetMode, totalBudget);
     create.mutate({ data: { name: newName.trim(), color: newColor, icon: "tag", budget: dollars } });
   }
-
-  const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
-  const catBudgetExceeds = totalBudget != null && catBudgetSum > totalBudget;
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
@@ -419,6 +436,7 @@ export default function CategoriesPage() {
           open={!!editCat}
           onClose={() => setEditCat(null)}
           totalBudget={totalBudget}
+          otherCategoriesTotal={catBudgetSum - (editCat.budget != null ? Number(editCat.budget) : 0)}
           sym={sym}
         />
       )}
@@ -453,12 +471,13 @@ export default function CategoriesPage() {
                 mode={newBudgetMode}
                 onModeChange={setNewBudgetMode}
                 totalBudget={totalBudget}
+                otherCategoriesTotal={catBudgetSum}
                 sym={sym}
               />
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
-              <Button type="submit" className="flex-1" disabled={create.isPending}
+              <Button type="submit" className="flex-1" disabled={create.isPending || newCatOverCap}
                 data-testid="button-save-new-category">
                 {create.isPending ? t("common.saving") : t("cat.create_btn")}
               </Button>
