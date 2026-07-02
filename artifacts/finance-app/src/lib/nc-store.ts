@@ -50,6 +50,8 @@ export function addNCNotification(notif: Omit<NCNotification, "id" | "timestamp"
   const updated = [newItem, ...items].slice(0, NC_MAX);
   try {
     localStorage.setItem(ncStoreKey(), JSON.stringify(updated));
+    // Signal NC component to re-render immediately (same tab)
+    window.dispatchEvent(new CustomEvent("nc-updated"));
   } catch { /* ignore */ }
 }
 

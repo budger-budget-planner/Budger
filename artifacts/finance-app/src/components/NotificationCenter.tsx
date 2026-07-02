@@ -511,10 +511,13 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
     if (open) setNotifications(loadNCNotifications());
   }, [open]);
 
-  // Refresh every 30s to pick up new NC items fired by background hooks
+  // Refresh instantly when addNCNotification signals a write (same tab)
   useEffect(() => {
-    const id = setInterval(() => setNotifications(loadNCNotifications()), 30_000);
-    return () => clearInterval(id);
+    const handler = () => setNotifications(loadNCNotifications());
+    window.addEventListener("nc-updated", handler);
+    // Short fallback interval catches any missed signals (e.g. cross-tab writes)
+    const id = setInterval(handler, 5_000);
+    return () => { window.removeEventListener("nc-updated", handler); clearInterval(id); };
   }, []);
 
   function handleOpen() {
