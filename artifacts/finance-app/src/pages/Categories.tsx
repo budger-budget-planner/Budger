@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { t } from "@/lib/i18n";
 import {
   useListCategories,
@@ -530,6 +531,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const prefs       = loadPrefs();
   const sym         = currencySymbol(prefs.currency);
   const totalBudget = prefs.totalBudget;
@@ -567,9 +569,12 @@ export default function CategoriesPage() {
 
   const createRP = useCreateRecurringPayment({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (rp) => {
         queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
         resetAndClose();
+        if (rp.type === "manual") {
+          navigate("/");
+        }
       },
     },
   });
