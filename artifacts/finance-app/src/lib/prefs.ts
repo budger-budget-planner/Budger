@@ -114,6 +114,37 @@ export function takePendingOnboarding(): boolean {
   return false;
 }
 
+const SWIPE_HINT_KEY_BASE = "budger_swipe_hint_v1";
+const SWIPE_HINT_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function swipeHintKey(): string {
+  const uid = getActiveUserId();
+  return uid != null ? `${SWIPE_HINT_KEY_BASE}_${uid}` : SWIPE_HINT_KEY_BASE;
+}
+
+/**
+ * Decides whether the swipe-to-reveal-actions hint animation should play right now,
+ * and records this as the latest "seen" timestamp so it isn't repeated on every visit.
+ *
+ * Rules:
+ *  - First time ever called for this user (e.g. right after onboarding) → show it.
+ *  - Otherwise, only show it again if at least a week has passed since it was last shown.
+ */
+export function checkSwipeHintDue(): boolean {
+  const key = swipeHintKey();
+  const now = Date.now();
+  const raw = localStorage.getItem(key);
+  let due: boolean;
+  if (raw == null) {
+    due = true;
+  } else {
+    const lastSeen = parseInt(raw, 10);
+    due = isNaN(lastSeen) || (now - lastSeen) >= SWIPE_HINT_WEEK_MS;
+  }
+  localStorage.setItem(key, String(now));
+  return due;
+}
+
 export function currencySymbol(currency: string): string {
   const map: Record<string, string> = {
     USD: "$", EUR: "€", GBP: "£", PLN: "zł",

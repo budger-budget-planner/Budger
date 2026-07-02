@@ -36,7 +36,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
-import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
@@ -670,14 +670,14 @@ function SwipeableTxRow({
       timers.push(id);
     };
     setAnimating(true);
-    go(() => setOffset(-15), 100);          // left ×1 (half)
-    go(() => setOffset(0),   260);          // back
-    go(() => setOffset(-30), 370);          // left ×2 (full)
-    go(() => setOffset(0),   530);          // back
-    go(() => setOffset(19),  660);          // right ×1 (half)
-    go(() => setOffset(0),   820);          // back
-    go(() => setOffset(38),  930);          // right ×2 (full)
-    go(() => setOffset(0),   1090);         // back
+    go(() => setOffset(-7.5), 100);          // left ×1 (half)
+    go(() => setOffset(0),    260);          // back
+    go(() => setOffset(-15),  370);          // left ×2 (full)
+    go(() => setOffset(0),    530);          // back
+    go(() => setOffset(9.5),  660);          // right ×1 (half)
+    go(() => setOffset(0),    820);          // back
+    go(() => setOffset(19),   930);          // right ×2 (full)
+    go(() => setOffset(0),    1090);         // back
     go(() => setAnimating(false), 1200);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
@@ -927,6 +927,9 @@ export default function HomeSpending() {
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [renameTx,    setRenameTx]    = useState<any | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  // Occurrence rule for the swipe hint wiggle: only due on first login after onboarding,
+  // or after a week of inactivity — computed once when this page first mounts.
+  const [swipeHintDue] = useState(() => checkSwipeHintDue());
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -1173,8 +1176,10 @@ export default function HomeSpending() {
   }
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  // Top-most visible transaction ID for the swipe hint wiggle — always shown on mount
-  const topTxId = (!searchQuery && dates.length > 0)
+  // Top-most visible transaction ID for the swipe hint wiggle — only wiggled when the
+  // occurrence rule below decides it's due (first login after onboarding, or after a
+  // week of inactivity), not on every visit to the home tab.
+  const topTxId = (!searchQuery && dates.length > 0 && swipeHintDue)
     ? grouped[dates[0]]?.[0]?.id ?? null
     : null;
 
