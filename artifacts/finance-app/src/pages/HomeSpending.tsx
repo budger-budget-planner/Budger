@@ -1401,7 +1401,7 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                   {hasGoal && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-emerald-500/60 bg-emerald-500/10 text-[10px] font-medium text-emerald-400">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400">
                                       <Target className="w-2 h-2 flex-shrink-0" />
                                       {contrib!.name} {fmtAmt(contribAmountInUserCurrency(contrib!), prefs.currency)}
                                     </span>
@@ -1434,7 +1434,7 @@ export default function HomeSpending() {
                               {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
-                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
                                   {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                                   {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"       />}
                                   {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"    />}

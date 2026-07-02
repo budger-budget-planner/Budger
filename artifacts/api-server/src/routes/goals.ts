@@ -911,6 +911,14 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
         eq(goalActivityTable.goalId, goal.id),
         eq(goalActivityTable.type, "goal_completed_total"),
       ));
+      // If goal was realized (fully funded), revert it back to active — no notification
+      if (goal.realizedAt) {
+        await db.update(goalsTable).set({ realizedAt: null }).where(eq(goalsTable.id, goal.id));
+        await db.delete(goalActivityTable).where(and(
+          eq(goalActivityTable.goalId, goal.id),
+          eq(goalActivityTable.type, "goal_realized"),
+        ));
+      }
     }
 
     // If the deleted contribution's month no longer meets the monthly target, clear that month's rows

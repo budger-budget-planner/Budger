@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
@@ -51,6 +51,7 @@ function TxForm({
   onSubmit,
   onCancel,
   loading,
+  extraContent,
 }: {
   initial: TxFormState;
   categories: any[];
@@ -58,6 +59,7 @@ function TxForm({
   onSubmit: (data: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
+  extraContent?: ReactNode;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
@@ -127,6 +129,7 @@ function TxForm({
           </Select>
         </div>
       </div>
+      {extraContent}
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button type="submit" className="flex-1" disabled={loading} data-testid="button-save-transaction">
@@ -857,8 +860,8 @@ export default function TransactionsPage() {
                   onSubmit={handleUpdate}
                   onCancel={() => setEditTx(null)}
                   loading={isSaving}
+                  extraContent={<FoundedWithRealizedGoalToggle tx={editTx} />}
                 />
-                <FoundedWithRealizedGoalToggle tx={editTx} />
                 <DedicateToGoalSection tx={editTx} goals={goals ?? []} />
               </>
             );
