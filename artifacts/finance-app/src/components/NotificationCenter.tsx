@@ -275,11 +275,28 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
 function ManualsPanel({ onBack }: { onBack: () => void }) {
   const [showApplePay, setShowApplePay] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const WEBHOOK_GUIDE = "https://budger.app/docs/ios-shortcut";
+  // Same webhook URL the "Copy URL" button inside the manuals fetches and copies —
+  // this button is a convenience shortcut to the same action.
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}api/webhook/token`, { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.token) {
+          setWebhookUrl(`${window.location.origin}/api/webhook/apple/${data.token}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function copyUrl() {
-    navigator.clipboard?.writeText(WEBHOOK_GUIDE).catch(() => {});
+    if (!webhookUrl) return;
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
   }
 
   if (showApplePay) return <ApplePaySlides modal onClose={() => setShowApplePay(false)} />;
@@ -326,15 +343,26 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
           <ChevronLeft className="w-4 h-4 text-muted-foreground flex-shrink-0 rotate-180" />
         </button>
 
-        {/* Setup Guide button — open after reading the manuals above */}
-        <button onClick={() => window.open(WEBHOOK_GUIDE, "_blank")}
-          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-foreground text-background transition active:scale-95 text-left">
-          <div className="w-10 h-10 rounded-xl bg-background/15 flex items-center justify-center flex-shrink-0">
-            <ExternalLink className="w-5 h-5" />
+        {/* Copy URL button — same action as the "Copy URL" button inside the manuals above,
+            surfaced here for convenience so it isn't buried in a slide flow. */}
+        <button onClick={copyUrl} disabled={!webhookUrl}
+          className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition active:scale-95 text-left disabled:opacity-50 ${
+            copied ? "bg-green-500/15 border border-green-500/30" : "bg-foreground text-background"
+          }`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            copied ? "bg-green-500/20" : "bg-background/15"
+          }`}>
+            {copied
+              ? <CheckCircle className="w-5 h-5 text-green-400" />
+              : <ExternalLink className="w-5 h-5" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold leading-snug">{t("nc.setup_guide")}</p>
-            <p className="text-xs opacity-70 mt-0.5 truncate">budger.app/docs/ios-shortcut</p>
+            <p className={`text-sm font-bold leading-snug ${copied ? "text-green-400" : ""}`}>
+              {copied ? t("ap.copied") : t("nc.setup_guide")}
+            </p>
+            <p className={`text-xs mt-0.5 leading-snug ${copied ? "text-green-400/70" : "opacity-70"}`}>
+              {t("nc.setup_guide_desc")}
+            </p>
           </div>
         </button>
       </div>

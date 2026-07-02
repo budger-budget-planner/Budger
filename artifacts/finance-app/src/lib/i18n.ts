@@ -579,7 +579,7 @@ const translations: Record<string, Record<Lang, string>> = {
   // ── Apple Pay automation slides ──
   "ap.setup_title":  { en: "Apple Pay Automation",           pl: "Automatyzacja Apple Pay"              },
   "ap.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
-  "ap.copy_link":    { en: "Copy link",                      pl: "Kopiuj link"                         },
+  "ap.copy_link":    { en: "Copy URL",                       pl: "Kopiuj URL"                          },
   "ap.copied":       { en: "Copied!",                        pl: "Skopiowano!"                         },
   "ap.generating":   { en: "Generating your link…",          pl: "Generowanie linku…"                  },
   "ap.tap_hint":     { en: "tap right side to continue",     pl: "dotknij prawej strony, aby kontynuować" },
@@ -780,9 +780,9 @@ const translations: Record<string, Record<Lang, string>> = {
   "nc.unread_one":     { en: "unread notification",     pl: "nieprzeczytane powiadomienie" },
   "nc.unread_many":    { en: "unread notifications",    pl: "nieprzeczytane powiadomienia" },
   "nc.add_alarm":      { en: "Add alarm",               pl: "Dodaj alarm"                  },
-  "nc.setup_guide":    { en: "Setup Guide",             pl: "Przewodnik konfiguracji"      },
-  "nc.setup_guide_desc":{ en: "Direct link to the iOS Shortcut setup documentation.",
-                          pl: "Bezpośredni link do dokumentacji konfiguracji skrótu iOS." },
+  "nc.setup_guide":    { en: "Copy URL",                pl: "Kopiuj URL"                   },
+  "nc.setup_guide_desc":{ en: "Same as the Copy URL button in the manuals above — here for convenience.",
+                          pl: "To samo co przycisk Kopiuj URL w powyższych instrukcjach — dla wygody." },
   "nc.open_url":       { en: "Open Guide",              pl: "Otwórz przewodnik"            },
   "nc.copy_url":       { en: "Copy",                    pl: "Kopiuj"                       },
 
