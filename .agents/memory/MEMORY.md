@@ -1,3 +1,4 @@
 ---
 - [Wouter v3 routing catch-all](wouter-v3-routing.md) — use path="/:rest*" not path="/" as catch-all in Switch; v3 strict-matches "/" only
 - [Split feature architecture](split-feature.md) — split currency, fraction-based issuer adjustment, preSplitAmount column, check-email endpoint details
+- [NC store pattern](nc-store-pattern.md) — per-user localStorage scoping, createdAt watermark for goal events, badge mark-all-on-close pattern

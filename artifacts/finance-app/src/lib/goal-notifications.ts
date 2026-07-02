@@ -1,3 +1,5 @@
+import { addNCNotification } from "@/lib/nc-store";
+
 const GOAL_NOTIF_KEY = "budger_goal_notifs_v1";
 
 function thisMonthKey(): string {
@@ -56,9 +58,18 @@ export function checkGoalNotifications(
   markNotifiedThisMonth();
 
   if (goals.length > 1) {
-    new Notification("🎯 Goal Check-In", {
-      body: `You have ${goals.length} active savings goals. ${days} day${days !== 1 ? "s" : ""} left this month — open Budger to see if you're on track!`,
-      icon: "/favicon.ico",
+    const titleEn = "Goal Check-In";
+    const titlePl = "Sprawdzenie celów";
+    const bodyEn = `You have ${goals.length} active savings goals. ${days} day${days !== 1 ? "s" : ""} left this month — open Budger to see if you're on track!`;
+    const bodyPl = `Masz ${goals.length} aktywne cele oszczędnościowe. Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu — sprawdź swój postęp!`;
+
+    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
+    addNCNotification({
+      type: "goal_checkin_multi",
+      titleEn,
+      titlePl,
+      bodyEn,
+      bodyPl,
     });
     return;
   }
@@ -69,10 +80,25 @@ export function checkGoalNotifications(
   if (goal.divideByMonths && goal.monthlyTarget) {
     const monthlyPct = Math.round((goal.contributed / goal.monthlyTarget) * 100);
     const monthlyRemaining = Math.max(0, goal.monthlyTarget - goal.contributed);
+    const reachedStr = monthlyRemaining > 0
+      ? `${sym}${monthlyRemaining.toFixed(2)} to go!`
+      : "Target reached!";
+    const reachedStrPl = monthlyRemaining > 0
+      ? `Pozostało ${sym}${monthlyRemaining.toFixed(2)}!`
+      : "Cel osiągnięty!";
 
-    new Notification(`🎯 ${goal.goalName} — Monthly Progress`, {
-      body: `${days} day${days !== 1 ? "s" : ""} left this month. You've saved ${sym}${goal.contributed.toFixed(2)} of your ${sym}${goal.monthlyTarget.toFixed(2)} monthly target (${monthlyPct}%). ${monthlyRemaining > 0 ? `${sym}${monthlyRemaining.toFixed(2)} to go!` : "Target reached! 🎉"}`,
-      icon: "/favicon.ico",
+    const titleEn = `${goal.goalName} — Monthly Progress`;
+    const titlePl = `${goal.goalName} — Postęp miesięczny`;
+    const bodyEn = `${days} day${days !== 1 ? "s" : ""} left this month. You've saved ${sym}${goal.contributed.toFixed(2)} of your ${sym}${goal.monthlyTarget.toFixed(2)} monthly target (${monthlyPct}%). ${reachedStr}`;
+    const bodyPl = `Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu. Zaoszczędzono ${sym}${goal.contributed.toFixed(2)} z ${sym}${goal.monthlyTarget.toFixed(2)} miesięcznego celu (${monthlyPct}%). ${reachedStrPl}`;
+
+    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
+    addNCNotification({
+      type: "goal_monthly",
+      titleEn,
+      titlePl,
+      bodyEn,
+      bodyPl,
     });
   } else {
     const deadline = new Date(goal.deadline);
@@ -84,9 +110,18 @@ export function checkGoalNotifications(
     const totalPct = Math.round(goal.percentage);
     const remaining = Math.max(0, goal.budget - goal.contributed);
 
-    new Notification(`🎯 ${goal.goalName} — Progress Update`, {
-      body: `You're ${totalPct}% of the way to your goal (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). ${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} remaining — ${sym}${remaining.toFixed(2)} to go!`,
-      icon: "/favicon.ico",
+    const titleEn = `${goal.goalName} — Progress Update`;
+    const titlePl = `${goal.goalName} — Aktualizacja postępu`;
+    const bodyEn = `You're ${totalPct}% of the way to your goal (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). ${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} remaining — ${sym}${remaining.toFixed(2)} to go!`;
+    const bodyPl = `Jesteś w ${totalPct}% drogi do celu (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). Pozostało ${monthsLeft} ${monthsLeft === 1 ? "miesiąc" : "miesięcy"} — jeszcze ${sym}${remaining.toFixed(2)}!`;
+
+    new Notification(titleEn, { body: bodyEn, icon: "/favicon.ico" });
+    addNCNotification({
+      type: "goal_overall",
+      titleEn,
+      titlePl,
+      bodyEn,
+      bodyPl,
     });
   }
 }

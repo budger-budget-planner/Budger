@@ -1,21 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, LayoutDashboard, Tag, Users, Bell, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
+import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId } from "@/lib/prefs";
 import { fetchRates, getConversionRate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
+import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 
 function navItems() {
   return [
-    { href: "/",              label: t("nav.home"),       icon: Home            },
-    { href: "/dashboard",     label: t("nav.dashboard"),  icon: LayoutDashboard },
-    { href: "/categories",    label: t("nav.categories"), icon: Tag             },
-    { href: "/goals",         label: t("nav.goals"),      icon: Target          },
-    { href: "/household",     label: t("nav.household"),  icon: Users           },
-    { href: "/notifications", label: t("nav.alerts"),     icon: Bell            },
+    { href: "/",          label: t("nav.home"),       icon: Home            },
+    { href: "/dashboard", label: t("nav.dashboard"),  icon: LayoutDashboard },
+    { href: "/categories",label: t("nav.categories"), icon: Tag             },
+    { href: "/goals",     label: t("nav.goals"),      icon: Target          },
+    { href: "/household", label: t("nav.household"),  icon: Users           },
   ];
 }
 
@@ -47,7 +48,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     refetchInterval: 30_000,
   });
 
-  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; createdAt: string }>>({
+  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; createdAt: string }>>({
     queryKey: ["goal-activity-badge"],
     queryFn: async () => {
       const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
@@ -56,6 +57,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
     refetchInterval: 30_000,
   });
+
+  // Scope NC store to this user as soon as we know who they are
+  useEffect(() => {
+    if (user?.id) setNCUserId(user.id);
+  }, [user?.id]);
 
   // localStorage-based last-seen timestamp per user — badge clears on Goals tab click
   const [goalsSeenAt, setGoalsSeenAt] = useState<number>(0);
@@ -88,6 +94,60 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
   const showGoalsBadge = hasNewBadgeActivity || hasNewProposals || hasNewEditProposals;
 
+  // ── Detect goal_completed_total/monthly → log to Notification Center ─────
+  const processedNcIds = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!goalActivityBadge || !user?.id) return;
+    const NC_TYPES = ["goal_completed_total", "goal_completed_monthly"];
+
+    // Use the highest createdAt we have previously seen as the watermark —
+    // avoids skipping late-arriving backend events that createdAt < Date.now().
+    let watermark = 0;
+    try { watermark = parseInt(localStorage.getItem(`nc_goal_watermark_${user.id}`) ?? "0") || 0; } catch { /**/ }
+
+    let maxTs = watermark;
+
+    for (const item of goalActivityBadge) {
+      if (!NC_TYPES.includes(item.type)) continue;
+      if (processedNcIds.current.has(item.id)) continue;
+
+      const itemTs = new Date(item.createdAt).getTime();
+      if (itemTs <= watermark) {
+        // Already processed in a prior session — mark as seen so we don't reprocess
+        processedNcIds.current.add(item.id);
+        continue;
+      }
+
+      processedNcIds.current.add(item.id);
+      maxTs = Math.max(maxTs, itemTs);
+
+      const gName = item.goalName ?? "goal";
+
+      if (item.type === "goal_completed_total") {
+        addNCNotification({
+          type: "goal_completed_total",
+          titleEn: "Goal Completed",
+          titlePl: "Cel osiągnięty",
+          bodyEn: `${gName} has reached 100% of its total target. Well done!`,
+          bodyPl: `${gName} osiągnął 100% całkowitego celu. Brawo!`,
+        });
+      } else if (item.type === "goal_completed_monthly") {
+        addNCNotification({
+          type: "goal_completed_monthly",
+          titleEn: "Monthly Target Reached",
+          titlePl: "Cel miesięczny osiągnięty",
+          bodyEn: `${gName} hit its monthly savings target this month.`,
+          bodyPl: `${gName} osiągnął miesięczny cel oszczędnościowy w tym miesiącu.`,
+        });
+      }
+    }
+
+    // Persist the highest createdAt we've seen so far as the new watermark
+    if (maxTs > watermark) {
+      try { localStorage.setItem(`nc_goal_watermark_${user.id}`, String(maxTs)); } catch { /**/ }
+    }
+  }, [goalActivityBadge, user?.id]);
+
   const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
     queryKey: ["splits-incoming-badge"],
     queryFn: async () => {
@@ -115,7 +175,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
-        // Clear per-user prefs scope so the next user starts with their own settings
         setActiveUserId(null);
         queryClient.clear();
         window.location.href = import.meta.env.BASE_URL + "login";
@@ -162,7 +221,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const next = { ...prefs, language: code };
     savePrefs(next);
     setPrefsState(next);
-    // Persist language to the account server-side so it follows the user across devices
     updateMe.mutate({ data: { language: code } });
     window.location.reload();
   }
@@ -193,15 +251,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </span>
           <span className="text-base font-bold tracking-tight text-foreground">Budger</span>
         </Link>
-        <button
-          onClick={() => setShowProfile(true)}
-          className="w-8 h-8 rounded-full bg-muted border border-border
-                     flex items-center justify-center flex-shrink-0 transition active:scale-95"
-        >
-          <span className="text-xs font-bold text-foreground">
-            {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
-          </span>
-        </button>
+
+        {/* Right side: Notification Center bell + profile avatar */}
+        <div className="flex items-center gap-2">
+          <NotificationCenter userId={(user as any)?.id ?? "guest"} />
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-8 h-8 rounded-full bg-muted border border-border
+                       flex items-center justify-center flex-shrink-0 transition active:scale-95"
+          >
+            <span className="text-xs font-bold text-foreground">
+              {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
+            </span>
+          </button>
+        </div>
       </header>
 
       {/* ── Profile bottom sheet ── */}
@@ -259,17 +322,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
                         } ${converting && !isSelected ? "opacity-40" : ""}`}
                       >
-                        <span className="font-bold text-sm">{c.symbol} {c.code}</span>
-                        {isSelected ? (
-                          <span className={`text-[10px] mt-0.5 ${isSelected ? "opacity-60" : "opacity-50"}`}>
-                            {c.label.replace(/ \(.*\)/, "")}
-                          </span>
-                        ) : rateStr ? (
-                          <span className="text-[10px] mt-0.5 opacity-50 leading-tight">
+                        <span className="text-sm font-bold">{c.symbol} {c.code}</span>
+                        {rateStr && !isSelected && (
+                          <span className="text-[10px] text-muted-foreground mt-0.5">
                             1 {prefs.currency} = {rateStr} {c.code}
                           </span>
-                        ) : (
-                          <span className="text-[10px] mt-0.5 opacity-30">—</span>
                         )}
                       </button>
                     );
@@ -315,7 +372,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <p className="text-sm font-medium text-foreground">{t("profile.stay_signed_in")}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{t("profile.stay_signed_in_desc")}</p>
                 </div>
-                {/* Toggle pill */}
                 <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${
                   prefs.staySignedIn ? "bg-foreground" : "bg-border"
                 }`}>
@@ -348,7 +404,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* ── Bottom navigation ── */}
+      {/* ── Bottom navigation — 5 tabs evenly spaced ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 h-16
                       bg-card/95 backdrop-blur border-t border-border
                       flex items-stretch">

@@ -1,0 +1,30 @@
+1. Browser push notifications (native OS notification, requires permission)
+#	Notification	Trigger	Content
+1	Daily spending reminder	User-scheduled time/days in Notifications settings (setTimeout)	"Budger Reminder — Don't forget to record your spending for today!" (+ badger sniff sound/haptic)
+2	Budget heads-up (75%)	Category spend hits 75% of its budget (checked live via useSmartNotifications)	"📊 Budget Heads-up — [Category]: You've used 75% of your [Category] budget. $[X] remaining this month."
+3	Budget warning (90%)	Category spend hits 90% of its budget	"⚠️ Budget Warning — [Category]: You've used 90%... Only $[X] left — slow down!"
+4	Total monthly budget reminder (75%)	Combined spend across all categories hits 75% of total budget	"📊 Monthly Budget Reminder — You've reached 75% of your total monthly budget..."
+5	Total monthly budget warning (90%)	Combined spend hits 90% of total budget	"⚠️ Monthly Budget Warning — Only $[X] left — watch your spending!"
+6	Multi-goal check-in	Last 7 days of the month, 2+ active goals, not yet notified this month	"🎯 Goal Check-In — You have [N] active savings goals. [D] days left this month..."
+7	Single goal monthly progress	Last 7 days of month, 1 goal, split by monthly targets	"🎯 [Goal] — Monthly Progress: [D] days left... saved $X of $Y monthly target (Z%)."
+8	Single goal overall progress	Last 7 days of month, 1 goal, deadline-based (not monthly split)	"🎯 [Goal] — Progress Update: You're X% of the way ($A / $B)..."
+2. In-app "Activity" notifications (persisted in goal_activity table, household goals)
+#	Notification	Trigger
+9	Share approved	Household head approves your private→shared goal proposal
+10	Share declined	Household head declines your share proposal (with optional reason)
+11	Goal created (for wards/children)	A proposed goal is approved and becomes a household goal — notifies child/member roles other than the proposer
+12	Edit approved	Head approves your proposed edit to a goal
+13	Edit declined	Head declines your proposed edit (with optional reason)
+14	Goal changed	Head directly edits a household goal, or approves someone else's edit — notifies all other members
+15	Goal completed (total)	A contribution pushes a household goal's total to ≥100% of its budget
+16	Goal completed (monthly)	A contribution pushes a household goal's monthly target to ≥100%
+3. Account/household alerts (banner-style, shown on next login)
+#	Notification	Trigger
+17	Removed from household	Household head removes you as a member — persistent banner: "You have been removed from [Household Name]." Also surfaces as a badge indicator in the app shell.
+4. Split-transaction alerts (polled, not push-based)
+#	Notification	Trigger
+18	Incoming split request	Someone splits a transaction with you — shows as a pending item/badge count in Household tab
+19	Split declined	A split you issued was declined by the recipient — shows in your "issued" list
+5. Webhook-based visual confirmation (not a true push notification)
+#	Notification	Trigger
+20	iOS Shortcut result card	Apple Pay transaction captured via the iOS webhook — returns an SVG "✓ Saved" confirmation card with merchant + amount

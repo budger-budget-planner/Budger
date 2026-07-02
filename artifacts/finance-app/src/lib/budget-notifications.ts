@@ -1,3 +1,5 @@
+import { addNCNotification } from "@/lib/nc-store";
+
 const STORAGE_KEY_PREFIX = "budger_budget_notifs_v1";
 
 type ThresholdState = { "75": boolean; "90": boolean };
@@ -42,21 +44,41 @@ export function checkBudgetThresholdNotifications(
   const state = loadState();
   let changed = false;
 
-  function fire75(key: string, title: string, body: string) {
+  function fire75cat(key: string, catName: string, pct: number, remaining: string) {
     if (!state[key]) state[key] = { "75": false, "90": false };
     if (!state[key]["75"]) {
       state[key]["75"] = true;
       changed = true;
-      new Notification(title, { body, icon: "/favicon.ico" });
+      new Notification(`Budget Heads-up — ${catName}`, {
+        body: `You've used ${Math.round(pct)}% of your ${catName} budget. ${sym}${remaining} remaining this month.`,
+        icon: "/favicon.ico",
+      });
+      addNCNotification({
+        type: "budget_75_cat",
+        titleEn: `Budget Heads-up — ${catName}`,
+        titlePl: `Uwaga budżet — ${catName}`,
+        bodyEn: `You've used ${Math.round(pct)}% of your ${catName} budget. ${sym}${remaining} remaining this month.`,
+        bodyPl: `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${catName}. Pozostało ${sym}${remaining} w tym miesiącu.`,
+      });
     }
   }
 
-  function fire90(key: string, title: string, body: string) {
+  function fire90cat(key: string, catName: string, pct: number, remaining: string) {
     if (!state[key]) state[key] = { "75": false, "90": false };
     if (!state[key]["90"]) {
       state[key]["90"] = true;
       changed = true;
-      new Notification(title, { body, icon: "/favicon.ico" });
+      new Notification(`Budget Warning — ${catName}`, {
+        body: `You've used ${Math.round(pct)}% of your ${catName} budget. Only ${sym}${remaining} left — slow down!`,
+        icon: "/favicon.ico",
+      });
+      addNCNotification({
+        type: "budget_90_cat",
+        titleEn: `Budget Warning — ${catName}`,
+        titlePl: `Ostrzeżenie budżet — ${catName}`,
+        bodyEn: `You've used ${Math.round(pct)}% of your ${catName} budget. Only ${sym}${remaining} left — slow down!`,
+        bodyPl: `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${catName}. Pozostało tylko ${sym}${remaining} — zwolnij tempo!`,
+      });
     }
   }
 
@@ -67,17 +89,9 @@ export function checkBudgetThresholdNotifications(
     const key = `cat_${entry.categoryId ?? "uncategorized"}`;
 
     if (pct >= 90) {
-      fire90(
-        key,
-        `⚠️ Budget Warning — ${entry.categoryName}`,
-        `You've used ${Math.round(pct)}% of your ${entry.categoryName} budget. Only ${sym}${remaining} left — slow down!`,
-      );
+      fire90cat(key, entry.categoryName, pct, remaining);
     } else if (pct >= 75) {
-      fire75(
-        key,
-        `📊 Budget Heads-up — ${entry.categoryName}`,
-        `You've used ${Math.round(pct)}% of your ${entry.categoryName} budget. ${sym}${remaining} remaining this month.`,
-      );
+      fire75cat(key, entry.categoryName, pct, remaining);
     }
   }
 
@@ -88,17 +102,39 @@ export function checkBudgetThresholdNotifications(
     const totalRemaining = (totalBudget - totalSpent).toFixed(2);
 
     if (totalPct >= 90) {
-      fire90(
-        "total",
-        "⚠️ Monthly Budget Warning",
-        `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
-      );
+      if (!state["total"]) state["total"] = { "75": false, "90": false };
+      if (!state["total"]["90"]) {
+        state["total"]["90"] = true;
+        changed = true;
+        new Notification("Monthly Budget Warning", {
+          body: `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
+          icon: "/favicon.ico",
+        });
+        addNCNotification({
+          type: "budget_90_total",
+          titleEn: "Monthly Budget Warning",
+          titlePl: "Ostrzeżenie miesięczny budżet",
+          bodyEn: `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
+          bodyPl: `Wykorzystano ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało tylko ${sym}${totalRemaining} — uważaj na wydatki!`,
+        });
+      }
     } else if (totalPct >= 75) {
-      fire75(
-        "total",
-        "📊 Monthly Budget Reminder",
-        `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
-      );
+      if (!state["total"]) state["total"] = { "75": false, "90": false };
+      if (!state["total"]["75"]) {
+        state["total"]["75"] = true;
+        changed = true;
+        new Notification("Monthly Budget Reminder", {
+          body: `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
+          icon: "/favicon.ico",
+        });
+        addNCNotification({
+          type: "budget_75_total",
+          titleEn: "Monthly Budget Reminder",
+          titlePl: "Przypomnienie miesięczny budżet",
+          bodyEn: `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
+          bodyPl: `Osiągnięto ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało ${sym}${totalRemaining}.`,
+        });
+      }
     }
   }
 

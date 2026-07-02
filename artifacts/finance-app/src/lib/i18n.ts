@@ -750,6 +750,21 @@ const translations: Record<string, Record<Lang, string>> = {
   "notif.badger_sniff":      { en: "Badger Sniff",                                    pl: "Niuchanie Borsuka"                                    },
   "notif.sniff_pattern":     { en: "sniff · sniff · sniff — sniff · sniff",           pl: "niuch niuch niuch..."                                 },
 
+  // ── Notification Center ──
+  "nc.title":          { en: "Notification Center",     pl: "Centrum powiadomień"          },
+  "nc.alarm":          { en: "Alarm",                   pl: "Alarm"                        },
+  "nc.manuals":        { en: "Manuals",                 pl: "Instrukcje"                   },
+  "nc.settings":       { en: "Settings",                pl: "Ustawienia"                   },
+  "nc.no_notifications":{ en: "No notifications yet",   pl: "Brak powiadomień"             },
+  "nc.unread_one":     { en: "unread notification",     pl: "nieprzeczytane powiadomienie" },
+  "nc.unread_many":    { en: "unread notifications",    pl: "nieprzeczytane powiadomienia" },
+  "nc.add_alarm":      { en: "Add alarm",               pl: "Dodaj alarm"                  },
+  "nc.setup_guide":    { en: "Setup Guide",             pl: "Przewodnik konfiguracji"      },
+  "nc.setup_guide_desc":{ en: "Direct link to the iOS Shortcut setup documentation.",
+                          pl: "Bezpośredni link do dokumentacji konfiguracji skrótu iOS." },
+  "nc.open_url":       { en: "Open Guide",              pl: "Otwórz przewodnik"            },
+  "nc.copy_url":       { en: "Copy",                    pl: "Kopiuj"                       },
+
   // ── Onboarding — blocked notifications ──
   "ob.notif_blocked_title":  { en: "Notifications are blocked",                       pl: "Powiadomienia są zablokowane"                         },
   "ob.notif_blocked_desc":   { en: "Open your iPhone Settings and follow the path below, then come back — the app will detect it automatically.", pl: "Otwórz Ustawienia iPhone'a i podążaj ścieżką poniżej, a następnie wróć — aplikacja wykryje to automatycznie." },
