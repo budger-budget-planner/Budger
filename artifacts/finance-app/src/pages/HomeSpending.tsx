@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
@@ -557,6 +558,44 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
   qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
+}
+
+function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
+  const queryClient = useQueryClient();
+  const [checked, setChecked] = useState(!!tx.foundedWithRealizedGoal);
+  const [saving, setSaving] = useState(false);
+
+  async function toggle(next: boolean) {
+    setChecked(next);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/transactions/${tx.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ foundedWithRealizedGoal: next }),
+      });
+      if (res.ok) {
+        invalidateAll(queryClient);
+      } else {
+        setChecked(!next);
+      }
+    } catch {
+      setChecked(!next);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="pb-4 mb-1 border-b border-border flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={toggle} disabled={saving} />
+    </div>
+  );
 }
 
 function dateToMonth(dateStr: string): string {
@@ -1599,17 +1638,20 @@ export default function HomeSpending() {
       </Dialog>
 
       <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("home.edit_tx_title")}</DialogTitle></DialogHeader>
           {editTx && (
-            <TxForm
-              initial={buildEditInitial(editTx)}
-              categories={categories ?? []}
-              goals={goals ?? []}
-              onSubmit={handleUpdate}
-              onCancel={() => setEditTx(null)}
-              loading={update.isPending}
-            />
+            <>
+              <FoundedWithRealizedGoalToggle tx={editTx} />
+              <TxForm
+                initial={buildEditInitial(editTx)}
+                categories={categories ?? []}
+                goals={goals ?? []}
+                onSubmit={handleUpdate}
+                onCancel={() => setEditTx(null)}
+                loading={update.isPending}
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>
