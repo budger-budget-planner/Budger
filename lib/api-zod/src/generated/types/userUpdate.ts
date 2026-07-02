@@ -13,6 +13,7 @@ export interface UserUpdate {
   /** @nullable */
   totalBudget?: number | null;
   language?: string;
+  currency?: string;
   firstLoginDone?: boolean;
   /** @nullable */
   pendingHouseholdAlert?: string | null;

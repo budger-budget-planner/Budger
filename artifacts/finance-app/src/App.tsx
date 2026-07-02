@@ -114,6 +114,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       setLang(serverLang as "en" | "pl");
     }
 
+    // Currency: server is source of truth — prevents USD revert when localStorage clears
+    const serverCurrency = (user as any).currency as string | undefined;
+    if (serverCurrency && serverCurrency !== prefs.currency) {
+      updated = { ...updated, currency: serverCurrency };
+    }
+
     if (JSON.stringify(updated) !== JSON.stringify(prefs)) {
       savePrefs(updated);
     }

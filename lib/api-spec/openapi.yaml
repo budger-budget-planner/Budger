@@ -1172,6 +1172,8 @@ components:
           type: boolean
         language:
           type: string
+        currency:
+          type: string
         pendingHouseholdAlert:
           type: ["string", "null"]
         createdAt:
@@ -1186,6 +1188,7 @@ components:
         - householdId
         - dashboardBlocked
         - language
+        - currency
         - pendingHouseholdAlert
         - createdAt
 
@@ -1201,6 +1204,8 @@ components:
         totalBudget:
           type: ["number", "null"]
         language:
+          type: string
+        currency:
           type: string
         firstLoginDone:
           type: boolean

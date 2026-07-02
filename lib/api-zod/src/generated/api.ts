@@ -29,6 +29,7 @@ export const GetMeResponse = zod.object({
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   language: zod.string(),
+  currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
   createdAt: zod.string(),
 });
@@ -42,6 +43,7 @@ export const UpdateMeBody = zod.object({
   dashboardBlocked: zod.boolean().optional(),
   totalBudget: zod.number().nullish(),
   language: zod.string().optional(),
+  currency: zod.string().optional(),
   firstLoginDone: zod.boolean().optional(),
   pendingHouseholdAlert: zod.string().nullish(),
 });
@@ -58,6 +60,7 @@ export const UpdateMeResponse = zod.object({
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   language: zod.string(),
+  currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
   createdAt: zod.string(),
 });
@@ -96,6 +99,7 @@ export const LoginResponse = zod.object({
   householdId: zod.number().nullable(),
   dashboardBlocked: zod.boolean(),
   language: zod.string(),
+  currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
   createdAt: zod.string(),
 });

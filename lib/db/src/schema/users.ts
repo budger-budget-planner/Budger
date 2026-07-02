@@ -15,6 +15,7 @@ export const usersTable = pgTable("users", {
   householdId: integer("household_id"),
   dashboardBlocked: boolean("dashboard_blocked").notNull().default(false),
   language: text("language").notNull().default("en"),
+  currency: text("currency").notNull().default("USD"),
   pendingHouseholdAlert: text("pending_household_alert"),
   pinLength: integer("pin_length"),
   webhookToken: text("webhook_token"),

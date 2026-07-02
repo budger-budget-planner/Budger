@@ -84,6 +84,7 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
       const updateData: Record<string, unknown> = {
         firstLoginDone: true,
         language,
+        currency,
       };
       if (totalBudget !== null) {
         updateData.totalBudget = totalBudget;

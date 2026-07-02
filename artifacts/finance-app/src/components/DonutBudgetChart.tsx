@@ -127,7 +127,7 @@ function buildChart(
       const remainFrac = (budget - spent) / effectiveTotal;
       const parts = [];
       if (spentFrac > 0.001) parts.push({ id: `${catKey}-spent`, fraction: spentFrac, fill: color, isOverBudget: false });
-      if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.68), isOverBudget: false });
+      if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52), isOverBudget: false });
       groups.push({ catKey, color, name, spent, budget, parts });
     }
   }
@@ -220,7 +220,7 @@ type Props = {
 export default function DonutBudgetChart({ spending, totalBudget, currency }: Props) {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
-  const cx = 80, cy = 80, ri = 38, ro = 64;
+  const cx = 100, cy = 100, ri = 46, ro = 80;
   const { segs, legend } = buildChart(spending, totalBudget, currency, cx, cy, ri, ro, selectedCat);
 
   function handleClick(catKey: string) {
@@ -234,8 +234,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   return (
     <div className="flex items-center gap-3">
       {/* SVG Donut */}
-      <div className="flex-shrink-0 relative" style={{ width: 160, height: 160 }}>
-        <svg width="160" height="160" viewBox="0 0 160 160" style={{ overflow: "visible" }}>
+      <div className="flex-shrink-0 relative" style={{ width: 200, height: 200 }}>
+        <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: "visible" }}>
           <defs>
             {/* stdDeviation kept small and filter region tight so glows on adjacent
                 over-budget segments don't visually bleed into one another */}
@@ -261,8 +261,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={seg.id}
                 d={seg.d}
                 fill={seg.fill}
-                stroke={seg.isOverBudget ? "#ef4444" : "none"}
-                strokeWidth={seg.isOverBudget ? 1.5 : 0}
+                stroke={seg.isOverBudget ? "#ef4444" : seg.fill + "70"}
+                strokeWidth={seg.isOverBudget ? 1.5 : 0.8}
                 paintOrder="stroke"
                 style={{
                   transform: `translate(${tx}px, ${ty}px)`,
@@ -280,16 +280,16 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           {budgetUsedPct !== null && (
             <>
               <text
-                x={cx} y={cy - 5}
+                x={cx} y={cx - 6}
                 textAnchor="middle" dominantBaseline="middle"
-                fontSize="15" fontWeight="700" fill="#ffffff"
+                fontSize="18" fontWeight="700" fill="#ffffff"
               >
                 {budgetUsedPct}%
               </text>
               <text
-                x={cx} y={cy + 11}
+                x={cx} y={cx + 13}
                 textAnchor="middle" dominantBaseline="middle"
-                fontSize="8" fill="#6b7280"
+                fontSize="9" fill="#6b7280"
               >
                 of budget
               </text>

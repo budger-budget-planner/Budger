@@ -266,6 +266,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       const next = { ...prefs, currency: code, totalBudget: newBudget };
       savePrefs(next);
       setPrefsState(next);
+      // Persist to server BEFORE reload — fire-and-forget mutate() would be interrupted
+      // by the page reload, so we await mutateAsync to ensure currency is written to DB.
+      await updateMe.mutateAsync({ data: { currency: code, totalBudget: newBudget } });
     } catch {
     } finally {
       setConverting(false);

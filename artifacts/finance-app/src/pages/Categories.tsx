@@ -175,10 +175,14 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
     },
   });
 
+  const isOverBudget = category.budget != null && category.budget > 0 && (category.spent ?? 0) > category.budget;
+  const borderColor = isOverBudget ? "#f87171" : category.color + "50";
+
   return (
     <div
       data-testid={`card-category-${category.id}`}
-      className="bg-card border border-border rounded-2xl overflow-hidden"
+      className="bg-card rounded-2xl overflow-hidden"
+      style={{ border: `1.5px solid ${borderColor}` }}
     >
       <div className="h-1.5" style={{ backgroundColor: category.color }} />
       <div className="p-4">
@@ -665,9 +669,9 @@ export default function CategoriesPage() {
               </p>
               <button
                 onClick={() => setAdjustBudgetOpen(true)}
-                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-white/70 hover:text-white transition underline-offset-2 hover:underline"
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 transition active:opacity-70 hover:bg-red-500/25"
               >
-                <TrendingUp className="w-3.5 h-3.5" />
+                <TrendingUp className="w-3 h-3" />
                 Adjust total budget to match
               </button>
             </>
