@@ -34,6 +34,8 @@ export const transactionsTable = pgTable("transactions", {
    *  realized (fully-funded) goal. Excluded from monthly spend totals since it
    *  represents savings being spent, not new budgeted spending. */
   foundedWithRealizedGoal: boolean("founded_with_realized_goal").notNull().default(false),
+  /** ID of the recurring payment that created this transaction (if any) */
+  recurringPaymentId: integer("recurring_payment_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

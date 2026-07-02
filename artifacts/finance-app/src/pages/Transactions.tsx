@@ -710,8 +710,9 @@ export default function TransactionsPage() {
               const goalContrib = !tx.categoryId
                 ? (allContribs ?? []).find((c: any) => c.transactionId === tx.id)
                 : null;
-              const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (${t("tx.goal")})` : t("common.uncategorized"));
-              const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? "#94a3b8";
+              const isRP = !tx.categoryId && !!tx.recurringPaymentId;
+              const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (${t("tx.goal")})` : isRP ? t("tx.recurring_payment") : t("common.uncategorized"));
+              const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? tx.recurringPaymentColor ?? "#94a3b8";
               return (
                 <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />

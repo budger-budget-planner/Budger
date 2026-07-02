@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and, isNull, or } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
@@ -27,14 +27,29 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
     : await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   const catMap = new Map(categories.map(c => [c.id, c]));
 
+  // Load recurring payments so RP-linked transactions can be grouped by their RP
+  const userRPs = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
+  const rpMap = new Map(userRPs.map(rp => [rp.id, rp]));
+
   const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && isNativeCurrency(tx, userCurrency));
   const filtered = filterFn ? unlocked.filter(filterFn) : unlocked;
 
-  const grouped = new Map<string, { total: number; count: number; category: any }>();
+  const grouped = new Map<string, { total: number; count: number; category: any; rp: any }>();
   for (const tx of filtered) {
-    const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
-    const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
-    if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
+    let key: string;
+    let category: any = null;
+    let rp: any = null;
+    if (tx.categoryId) {
+      key = String(tx.categoryId);
+      category = catMap.get(tx.categoryId) ?? null;
+    } else if ((tx as any).recurringPaymentId) {
+      const rpId = (tx as any).recurringPaymentId as number;
+      key = `rp-${rpId}`;
+      rp = rpMap.get(rpId) ?? null;
+    } else {
+      key = "uncategorized";
+    }
+    if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category, rp });
     const entry = grouped.get(key)!;
     entry.total += parseFloat(tx.amount);
     entry.count += 1;
@@ -44,21 +59,22 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
   if (includeAllCategories) {
     for (const category of categories) {
       const key = String(category.id);
-      if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
+      if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category, rp: null });
     }
   }
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
 
   return Array.from(grouped.entries()).map(([key, entry]) => ({
-    categoryId: key === "uncategorized" ? null : parseInt(key),
-    categoryName: entry.category?.name ?? "Uncategorized",
-    categoryColor: entry.category?.color ?? "#94a3b8",
+    categoryId: key.startsWith("rp-") || key === "uncategorized" ? null : parseInt(key),
+    categoryName: entry.category?.name ?? entry.rp?.name ?? "Uncategorized",
+    categoryColor: entry.category?.color ?? entry.rp?.color ?? "#94a3b8",
     categoryIcon: entry.category?.icon ?? "tag",
-    budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
+    budget: entry.category?.budget ? parseFloat(entry.category.budget) : (entry.rp ? parseFloat(entry.rp.amount) : null),
     total: Math.round(entry.total * 100) / 100,
     count: entry.count,
     percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
+    recurringPaymentId: entry.rp?.id ?? null,
   })).sort((a, b) => b.total - a.total);
 }
 

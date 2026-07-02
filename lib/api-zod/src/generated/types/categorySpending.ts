@@ -20,4 +20,9 @@ export interface CategorySpending {
   total: number;
   count: number;
   percentage: number;
+  /**
+   * Set when this spending group represents an applied recurring payment
+   * @nullable
+   */
+  recurringPaymentId: number | null;
 }

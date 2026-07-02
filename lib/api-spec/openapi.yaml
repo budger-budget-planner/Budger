@@ -1332,6 +1332,15 @@ components:
         foundedWithRealizedGoal:
           type: boolean
           description: True when this expense was paid from a realized goal's savings; excluded from monthly spend totals
+        recurringPaymentId:
+          type: ["integer", "null"]
+          description: ID of the recurring payment that created this transaction (null for regular transactions)
+        recurringPaymentName:
+          type: ["string", "null"]
+          description: Name of the recurring payment (null for regular transactions)
+        recurringPaymentColor:
+          type: ["string", "null"]
+          description: Color of the recurring payment (null for regular transactions)
       required:
         - id
         - amount
@@ -1351,6 +1360,9 @@ components:
         - currencyLocked
         - categoryAutoAssigned
         - foundedWithRealizedGoal
+        - recurringPaymentId
+        - recurringPaymentName
+        - recurringPaymentColor
 
     TransactionInput:
       type: object
@@ -1613,6 +1625,9 @@ components:
           type: integer
         percentage:
           type: number
+        recurringPaymentId:
+          type: ["integer", "null"]
+          description: Set when this spending group represents an applied recurring payment
       required:
         - categoryId
         - categoryName
@@ -1622,6 +1637,7 @@ components:
         - total
         - count
         - percentage
+        - recurringPaymentId
 
     MonthlyTotal:
       type: object

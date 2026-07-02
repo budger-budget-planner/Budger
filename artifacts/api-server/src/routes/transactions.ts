@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-zod";
 const router: IRouter = Router();
 
-function enrichTransaction(tx: any, category: any, user: any) {
+function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
   return {
     id: tx.id,
     amount: parseFloat(tx.amount),
@@ -36,7 +36,16 @@ function enrichTransaction(tx: any, category: any, user: any) {
     preSplitAmount: tx.preSplitAmount != null ? parseFloat(tx.preSplitAmount) : null,
     currencyUnavailable: tx.currencyUnavailable ?? false,
     foundedWithRealizedGoal: tx.foundedWithRealizedGoal ?? false,
+    recurringPaymentId: tx.recurringPaymentId ?? null,
+    recurringPaymentName: rp?.name ?? null,
+    recurringPaymentColor: rp?.color ?? null,
   };
+}
+
+async function loadRPForTx(rpId: number | null | undefined): Promise<any | null> {
+  if (!rpId) return null;
+  const [rp] = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.id, rpId));
+  return rp ?? null;
 }
 
 router.get("/transactions", async (req, res): Promise<void> => {
@@ -52,10 +61,17 @@ router.get("/transactions", async (req, res): Promise<void> => {
 
   const categories = await db.select().from(categoriesTable);
   const users = await db.select().from(usersTable);
+  const rps = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
   const catMap = new Map(categories.map(c => [c.id, c]));
   const userMap = new Map(users.map(u => [u.id, u]));
+  const rpMap = new Map(rps.map(r => [r.id, r]));
 
-  let result = txs.map(tx => enrichTransaction(tx, tx.categoryId ? catMap.get(tx.categoryId) : null, userMap.get(tx.userId)));
+  let result = txs.map(tx => enrichTransaction(
+    tx,
+    tx.categoryId ? catMap.get(tx.categoryId) : null,
+    userMap.get(tx.userId),
+    tx.recurringPaymentId ? rpMap.get(tx.recurringPaymentId) : null,
+  ));
 
   if (query.data.categoryId) result = result.filter(t => t.categoryId === query.data.categoryId);
   if (query.data.startDate) result = result.filter(t => t.date >= query.data.startDate!);
@@ -114,8 +130,9 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
 
-  res.json(enrichTransaction(tx, category, user));
+  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 router.patch("/transactions/:id", async (req, res): Promise<void> => {
@@ -154,8 +171,9 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
 
-  res.json(enrichTransaction(tx, category, user));
+  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 router.delete("/transactions/:id", async (req, res): Promise<void> => {
@@ -202,7 +220,8 @@ router.post("/transactions/:id/convert-currency", async (req, res): Promise<void
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
-  res.json(enrichTransaction(tx, category, user));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
+  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 router.post("/transactions/:id/lock-currency", async (req, res): Promise<void> => {
@@ -222,7 +241,8 @@ router.post("/transactions/:id/lock-currency", async (req, res): Promise<void> =
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
-  res.json(enrichTransaction(tx, category, user));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
+  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
@@ -247,7 +267,8 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
 
-  res.json(enrichTransaction(tx, category, user));
+  const rp2 = await loadRPForTx(tx.recurringPaymentId);
+  res.json(enrichTransaction(tx, category, user, rp2));
 });
 
 router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
@@ -266,8 +287,9 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
 
-  res.json(enrichTransaction(tx, category, user));
+  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 export default router;

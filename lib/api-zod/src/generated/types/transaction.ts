@@ -39,4 +39,19 @@ export interface Transaction {
   categoryAutoAssigned: boolean;
   /** True when this expense was paid from a realized goal's savings; excluded from monthly spend totals */
   foundedWithRealizedGoal: boolean;
+  /**
+   * ID of the recurring payment that created this transaction (null for regular transactions)
+   * @nullable
+   */
+  recurringPaymentId: number | null;
+  /**
+   * Name of the recurring payment (null for regular transactions)
+   * @nullable
+   */
+  recurringPaymentName: string | null;
+  /**
+   * Color of the recurring payment (null for regular transactions)
+   * @nullable
+   */
+  recurringPaymentColor: string | null;
 }

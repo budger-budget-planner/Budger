@@ -79,6 +79,7 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
       description: rp.name,
       date: dateStr,
       paymentMethod: "card",
+      recurringPaymentId: rp.id,
     }).returning();
 
     // Log the application — onConflictDoNothing guards against concurrent duplicate inserts
@@ -282,6 +283,7 @@ router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => 
     description: rp.name,
     date: dateStr,
     paymentMethod: "card",
+    recurringPaymentId: rp.id,
   }).returning();
 
   // onConflictDoNothing guards against race-condition duplicate inserts

@@ -223,6 +223,20 @@ export const ListTransactionsResponseItem = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
 
@@ -283,6 +297,20 @@ export const GetTransactionResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -340,6 +368,20 @@ export const UpdateTransactionResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -400,6 +442,20 @@ export const ConvertTransactionCurrencyResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -445,6 +501,20 @@ export const LockTransactionCurrencyResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -494,6 +564,20 @@ export const UploadReceiptResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -539,6 +623,20 @@ export const DeleteReceiptResponse = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 
 /**
@@ -611,6 +709,12 @@ export const GetMemberSpendingResponseItem = zod.object({
   total: zod.number(),
   count: zod.number(),
   percentage: zod.number(),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "Set when this spending group represents an applied recurring payment",
+    ),
 });
 export const GetMemberSpendingResponse = zod.array(
   GetMemberSpendingResponseItem,
@@ -973,6 +1077,12 @@ export const GetSpendingSummaryResponseItem = zod.object({
   total: zod.number(),
   count: zod.number(),
   percentage: zod.number(),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "Set when this spending group represents an applied recurring payment",
+    ),
 });
 export const GetSpendingSummaryResponse = zod.array(
   GetSpendingSummaryResponseItem,
@@ -1010,6 +1120,12 @@ export const GetSpendingHistoryResponseItem = zod.object({
       total: zod.number(),
       count: zod.number(),
       percentage: zod.number(),
+      recurringPaymentId: zod
+        .number()
+        .nullable()
+        .describe(
+          "Set when this spending group represents an applied recurring payment",
+        ),
     }),
   ),
 });
@@ -1060,6 +1176,20 @@ export const GetRecentActivityResponseItem = zod.object({
     .describe(
       "True when this expense was paid from a realized goal's savings; excluded from monthly spend totals",
     ),
+  recurringPaymentId: zod
+    .number()
+    .nullable()
+    .describe(
+      "ID of the recurring payment that created this transaction (null for regular transactions)",
+    ),
+  recurringPaymentName: zod
+    .string()
+    .nullable()
+    .describe("Name of the recurring payment (null for regular transactions)"),
+  recurringPaymentColor: zod
+    .string()
+    .nullable()
+    .describe("Color of the recurring payment (null for regular transactions)"),
 });
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,

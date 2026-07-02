@@ -114,6 +114,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.choose_goal": { en: "Choose goal…",     pl: "Wybierz cel…"      },
   "tx.grocery_placeholder": { en: "Coffee, groceries...", pl: "Kawa, zakupy..." },
   "tx.goal":            { en: "Goal",                       pl: "Cel"                            },
+  "tx.recurring_payment": { en: "Recurring Payment",       pl: "Płatność cykliczna"              },
   "tx.founded_with_realized_goal":      { en: "Funded with realized goal", pl: "Sfinansowane ze zrealizowanego celu" },
   "home.realized_goal_excluded":        { en: "not counted", pl: "nie wliczone" },
   "tx.founded_with_realized_goal_hint": { en: "Paid from savings — excluded from this month's spending total", pl: "Opłacone z oszczędności — wykluczone z sumy wydatków tego miesiąca" },
