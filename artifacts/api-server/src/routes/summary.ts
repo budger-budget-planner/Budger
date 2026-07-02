@@ -66,6 +66,30 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
   res.json(result);
 });
 
+router.get("/summary/realized-excluded", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthPrefix = typeof req.query.month === "string" ? req.query.month : currentMonth;
+  const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
+
+  const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+
+  const total = txs
+    .filter(tx =>
+      tx.foundedWithRealizedGoal &&
+      tx.date.startsWith(monthPrefix) &&
+      !tx.currencyLocked &&
+      !tx.currencyUnavailable &&
+      isNativeCurrency(tx, userCurrency)
+    )
+    .reduce((s, tx) => s + parseFloat(tx.amount), 0);
+
+  res.json({ total: Math.round(total * 100) / 100 });
+});
+
 router.get("/summary/monthly", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }

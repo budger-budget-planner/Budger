@@ -56,6 +56,14 @@ export default function DashboardPage() {
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
 
+  const [realizedExcluded, setRealizedExcluded] = useState(0);
+  useEffect(() => {
+    fetch(`/api/summary/realized-excluded?month=${viewMonth}&currency=${prefs.currency}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.total === "number") setRealizedExcluded(d.total); })
+      .catch(() => {});
+  }, [viewMonth, prefs.currency]);
+
   // Convert each goal's contribution from its stored currency to the user's display currency
   function toUserCurrency(amount: number, goalCurrency: string | null): number {
     if (!goalCurrency || goalCurrency === prefs.currency || Object.keys(rates).length === 0) return amount;
@@ -101,7 +109,11 @@ export default function DashboardPage() {
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.total_spent")}</p>
           <p className="text-2xl font-bold" data-testid="text-total-spent">{fmtAmt(totalSpending, prefs.currency)}</p>
-          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
+          {realizedExcluded > 0 ? (
+            <p className="text-xs text-teal-400">+{fmtAmt(realizedExcluded, prefs.currency)} {t("home.realized_goal_excluded")}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
+          )}
         </div>
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
