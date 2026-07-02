@@ -828,8 +828,10 @@ export default function GoalsPage() {
       if (!r.ok) return [];
       return r.json();
     },
-    enabled: isInHousehold,
-    refetchInterval: 30_000,
+    // Fetch for all authenticated users — personal goals also generate completion events
+    enabled: !!me?.id,
+    // Poll frequently so NC bell lights up within seconds of goal completion
+    refetchInterval: 5_000,
   });
 
   // Load dismissed proposals from localStorage when user loads
@@ -1319,14 +1321,18 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Household Activity Feed */}
-      {isInHousehold && activityFeed && activityFeed.length > 0 && (
+      {/* Household Activity Feed — completion types go to NC only, not shown here */}
+      {(() => {
+        const NC_ONLY = ["goal_completed_total", "goal_completed_monthly"];
+        const inTabFeed = (activityFeed ?? []).filter(a => !NC_ONLY.includes(a.type));
+        if (!isInHousehold || inTabFeed.length === 0) return null;
+        return (
         <div className="mb-5 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
             <Bell className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-semibold">{t("goals.activity_feed")}</p>
             <span className="ml-auto text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-medium">
-              {activityFeed.length}
+              {inTabFeed.length}
             </span>
             <button
               onClick={dismissAllActivity}
@@ -1336,7 +1342,7 @@ export default function GoalsPage() {
             </button>
           </div>
           <div className="divide-y divide-border">
-            {activityFeed.map(a => (
+            {inTabFeed.map(a => (
               <div key={a.id} className="px-4 py-3 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                   style={{ backgroundColor: (a.goalColor ?? "#818cf8") + "33" }}>
@@ -1402,7 +1408,8 @@ export default function GoalsPage() {
             ))}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
