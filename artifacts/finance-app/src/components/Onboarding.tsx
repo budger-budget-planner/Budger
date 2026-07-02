@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES, loadPrefs } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
-import ApplePaySlides from "@/components/ApplePaySlides";
+import { Zap } from "lucide-react";
 import {
   useUpdateNotificationSettings,
   useUpdateMe,
@@ -229,10 +229,28 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
         </div>
       )}
 
-      {/* ── Wallet — Apple Pay automation slides ── */}
+      {/* ── Wallet — Automation teaser ── */}
       {step === "wallet" && (
-        <div className="flex-1 w-full max-w-sm flex flex-col min-h-0">
-          <ApplePaySlides onDone={next} />
+        <div className="flex flex-col items-center gap-6 flex-1 justify-center w-full max-w-sm">
+          <div className="w-20 h-20 rounded-3xl bg-card border border-border shadow-xl flex items-center justify-center">
+            <Zap className="w-9 h-9 text-foreground" />
+          </div>
+          <div className="text-center space-y-3">
+            <h2 className="text-2xl font-bold text-foreground">{t("ob.automate_title")}</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t("ob.automate_desc")}</p>
+            <div className="bg-card border border-border rounded-2xl px-4 py-4 text-left space-y-2 mt-2">
+              <p className="text-xs font-semibold text-foreground">{t("ob.automate_where_title")}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t("ob.automate_where")}</p>
+              <p className="text-xs text-muted-foreground/60 leading-relaxed">{t("ob.automate_coming")}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 w-full flex-shrink-0">
+            <button onClick={next}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
+                         transition active:scale-95 shadow-sm">
+              {t("ob.continue")}
+            </button>
+          </div>
         </div>
       )}
 
