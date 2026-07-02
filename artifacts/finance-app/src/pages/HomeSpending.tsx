@@ -674,11 +674,11 @@ function SwipeableTxRow({
     go(() => setOffset(0),    260);          // back
     go(() => setOffset(-15),  370);          // left ×2 (full)
     go(() => setOffset(0),    530);          // back
-    go(() => setOffset(9.5),  660);          // right ×1 (half)
-    go(() => setOffset(0),    820);          // back
-    go(() => setOffset(19),   930);          // right ×2 (full)
-    go(() => setOffset(0),    1090);         // back
-    go(() => setAnimating(false), 1200);
+    go(() => setOffset(9.5),  1360);         // right ×1 (half)
+    go(() => setOffset(0),    1520);         // back
+    go(() => setOffset(19),   1630);         // right ×2 (full)
+    go(() => setOffset(0),    1790);         // back
+    go(() => setAnimating(false), 1900);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
