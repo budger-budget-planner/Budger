@@ -14,12 +14,12 @@ import {
   getListRecurringPaymentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Check, X, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -569,21 +569,27 @@ export default function CategoriesPage() {
 
   const createRP = useCreateRecurringPayment({
     mutation: {
-      onSuccess: (rp) => {
+      onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
         resetAndClose();
-        if (rp.type === "manual") {
-          navigate("/");
-        }
       },
     },
   });
+
+  const [adjustBudgetOpen, setAdjustBudgetOpen] = useState(false);
 
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
   const rpBudgetSum  = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
   const combinedBudgetSum = catBudgetSum + rpBudgetSum;
   const catBudgetExceeds = totalBudget != null && combinedBudgetSum > totalBudget;
   const newCatOverCap = budgetExceedsCap(newBudget, newBudgetMode, totalBudget, catBudgetSum);
+
+  function handleAcceptBudgetAdjust() {
+    const current = loadPrefs();
+    savePrefs({ ...current, totalBudget: Math.ceil(combinedBudgetSum) });
+    setAdjustBudgetOpen(false);
+    navigate("/");
+  }
 
   const rpDayNum = parseInt(rpDayOfMonth);
   const rpDayError = rpDayOfMonth !== "" && (isNaN(rpDayNum) || rpDayNum < 1 || rpDayNum > 31);
@@ -653,9 +659,18 @@ export default function CategoriesPage() {
             </span>
           </div>
           {catBudgetExceeds && (
-            <p className="text-xs text-red-400 mt-1">
-              Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - totalBudget, prefs.currency)}.
-            </p>
+            <>
+              <p className="text-xs text-red-400 mt-1">
+                Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - totalBudget, prefs.currency)}.
+              </p>
+              <button
+                onClick={() => setAdjustBudgetOpen(true)}
+                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-white/70 hover:text-white transition underline-offset-2 hover:underline"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                Adjust total budget to match
+              </button>
+            </>
           )}
         </div>
       )}
@@ -711,6 +726,43 @@ export default function CategoriesPage() {
           </button>
         </div>
       )}
+
+      {/* ── Budget adjustment dialog ── */}
+      <Dialog open={adjustBudgetOpen} onOpenChange={setAdjustBudgetOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Adjust Total Budget</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your categories and recurring payments sum to{" "}
+              <span className="font-semibold text-foreground">{fmtAmtRound(combinedBudgetSum, prefs.currency)}/mo</span>,
+              which exceeds your current total budget of{" "}
+              <span className="font-semibold text-foreground">{fmtAmtRound(totalBudget ?? 0, prefs.currency)}</span>.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Adjust your total monthly budget to{" "}
+              <span className="font-semibold text-foreground">{fmtAmtRound(Math.ceil(combinedBudgetSum), prefs.currency)}</span>{" "}
+              to align with your goals?
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setAdjustBudgetOpen(false)}
+              >
+                <X className="w-3.5 h-3.5 mr-1" /> Decline
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleAcceptBudgetAdjust}
+              >
+                <Check className="w-3.5 h-3.5 mr-1" /> Accept
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Edit Category dialog ── */}
       {editCat && (

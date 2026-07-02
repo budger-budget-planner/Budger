@@ -1280,6 +1280,15 @@ export const ApplyRecurringPaymentParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const ApplyRecurringPaymentBody = zod.object({
+  date: zod
+    .string()
+    .optional()
+    .describe(
+      "ISO date string (YYYY-MM-DD) for the transaction; defaults to today (server time) if omitted",
+    ),
+});
+
 export const ApplyRecurringPaymentResponse = zod.object({
   id: zod.number(),
   userId: zod.number(),

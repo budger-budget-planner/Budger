@@ -274,8 +274,22 @@ router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => 
     res.status(409).json({ error: "Already applied this month" }); return;
   }
 
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  // Use the client-supplied date when available (avoids UTC vs local-timezone mismatch).
+  // Validate it is a real calendar date before trusting it; fall back to server UTC date.
+  let dateStr: string;
+  const clientDate = req.body?.date;
+  if (typeof clientDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)) {
+    const parsed = new Date(clientDate + "T00:00:00Z");
+    const isRealDate = !isNaN(parsed.getTime()) &&
+      parsed.toISOString().startsWith(clientDate);
+    dateStr = isRealDate ? clientDate : (() => {
+      const now = new Date();
+      return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+    })();
+  } else {
+    const now = new Date();
+    dateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+  }
 
   const [tx] = await db.insert(transactionsTable).values({
     userId,

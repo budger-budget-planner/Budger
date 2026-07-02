@@ -540,3 +540,8 @@ export type GetSpendingSummaryParams = {
 export type GetRecentActivityParams = {
   limit?: number;
 };
+
+export type ApplyRecurringPaymentBody = {
+  /** ISO date string (YYYY-MM-DD) for the transaction; defaults to today (server time) if omitted */
+  date?: string;
+};

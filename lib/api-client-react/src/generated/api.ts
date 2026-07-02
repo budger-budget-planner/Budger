@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ApplyRecurringPaymentBody,
   Category,
   CategoryInput,
   CategorySpending,
@@ -4754,11 +4755,14 @@ export const getApplyRecurringPaymentUrl = (id: number) => {
 
 export const applyRecurringPayment = async (
   id: number,
+  applyRecurringPaymentBody?: ApplyRecurringPaymentBody,
   options?: RequestInit,
 ): Promise<RecurringPayment> => {
   return customFetch<RecurringPayment>(getApplyRecurringPaymentUrl(id), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(applyRecurringPaymentBody),
   });
 };
 
@@ -4769,14 +4773,14 @@ export const getApplyRecurringPaymentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof applyRecurringPayment>>,
     TError,
-    { id: number },
+    { id: number; data: BodyType<ApplyRecurringPaymentBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof applyRecurringPayment>>,
   TError,
-  { id: number },
+  { id: number; data: BodyType<ApplyRecurringPaymentBody> },
   TContext
 > => {
   const mutationKey = ["applyRecurringPayment"];
@@ -4790,11 +4794,11 @@ export const getApplyRecurringPaymentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof applyRecurringPayment>>,
-    { id: number }
+    { id: number; data: BodyType<ApplyRecurringPaymentBody> }
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, data } = props ?? {};
 
-    return applyRecurringPayment(id, requestOptions);
+    return applyRecurringPayment(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -4803,7 +4807,8 @@ export const getApplyRecurringPaymentMutationOptions = <
 export type ApplyRecurringPaymentMutationResult = NonNullable<
   Awaited<ReturnType<typeof applyRecurringPayment>>
 >;
-
+export type ApplyRecurringPaymentMutationBody =
+  BodyType<ApplyRecurringPaymentBody>;
 export type ApplyRecurringPaymentMutationError = ErrorType<void>;
 
 /**
@@ -4816,14 +4821,14 @@ export const useApplyRecurringPayment = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof applyRecurringPayment>>,
     TError,
-    { id: number },
+    { id: number; data: BodyType<ApplyRecurringPaymentBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof applyRecurringPayment>>,
   TError,
-  { id: number },
+  { id: number; data: BodyType<ApplyRecurringPaymentBody> },
   TContext
 > => {
   return useMutation(getApplyRecurringPaymentMutationOptions(options));

@@ -1671,7 +1671,7 @@ export default function HomeSpending() {
                                 No
                               </button>
                               <button
-                                onClick={() => applyRP.mutate({ id: rp.id })}
+                                onClick={() => applyRP.mutate({ id: rp.id, data: { date: new Date().toLocaleDateString("sv") } })}
                                 disabled={applyRP.isPending}
                                 className="flex-1 py-2 rounded-xl text-xs font-semibold transition active:opacity-70 disabled:opacity-40"
                                 style={{ backgroundColor: rp.color, color: "white" }}
