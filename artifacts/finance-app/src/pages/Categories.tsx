@@ -580,7 +580,9 @@ export default function CategoriesPage() {
   });
 
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
-  const catBudgetExceeds = totalBudget != null && catBudgetSum > totalBudget;
+  const rpBudgetSum  = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
+  const combinedBudgetSum = catBudgetSum + rpBudgetSum;
+  const catBudgetExceeds = totalBudget != null && combinedBudgetSum > totalBudget;
   const newCatOverCap = budgetExceedsCap(newBudget, newBudgetMode, totalBudget, catBudgetSum);
 
   const rpDayNum = parseInt(rpDayOfMonth);
@@ -638,7 +640,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Budget summary banner */}
-      {totalBudget != null && catBudgetSum > 0 && (
+      {totalBudget != null && combinedBudgetSum > 0 && (
         <div className={`mb-4 px-4 py-3 rounded-xl border text-sm ${
           catBudgetExceeds
             ? "border-red-500/30 bg-red-500/10"
@@ -647,12 +649,12 @@ export default function CategoriesPage() {
           <div className="flex items-center justify-between">
             <span className="text-white/60">{t("cat.budgets_total")}</span>
             <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
-              {fmtAmtRound(catBudgetSum, prefs.currency)} / {fmtAmtRound(totalBudget, prefs.currency)}
+              {fmtAmtRound(combinedBudgetSum, prefs.currency)} / {fmtAmtRound(totalBudget, prefs.currency)}
             </span>
           </div>
           {catBudgetExceeds && (
             <p className="text-xs text-red-400 mt-1">
-              Category budgets exceed your total monthly budget by {fmtAmtRound(catBudgetSum - totalBudget, prefs.currency)}.
+              Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - totalBudget, prefs.currency)}.
             </p>
           )}
         </div>

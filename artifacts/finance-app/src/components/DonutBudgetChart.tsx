@@ -89,6 +89,10 @@ function buildChart(
   const uncatSpent = unbudgeted.reduce((a, s) => a + s.total, 0);
   const uncatRemain = Math.max(0, uncatBudget - uncatSpent);
 
+  // If category/RP budgets exceed the total budget, normalize fractions to the
+  // actual sum so they always fit within 360° without overlapping.
+  const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
+
   type Group = {
     catKey: string;
     color: string;
@@ -116,11 +120,11 @@ function buildChart(
       // Single over-budget segment (full budget allocation)
       groups.push({
         catKey, color, name, spent, budget,
-        parts: [{ id: `${catKey}-over`, fraction: budget / totalBudget, fill: color, isOverBudget: true }],
+        parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }],
       });
     } else {
-      const spentFrac = spent / totalBudget;
-      const remainFrac = (budget - spent) / totalBudget;
+      const spentFrac = spent / effectiveTotal;
+      const remainFrac = (budget - spent) / effectiveTotal;
       const parts = [];
       if (spentFrac > 0.001) parts.push({ id: `${catKey}-spent`, fraction: spentFrac, fill: color, isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.68), isOverBudget: false });
@@ -137,11 +141,11 @@ function buildChart(
     const over = uncatSpent > uncatBudget;
     if (over || uncatBudget === 0) {
       // treat like over-budget but using grey
-      const frac = uncatBudget > 0 ? uncatBudget / totalBudget : uncatSpent / totalBudget;
+      const frac = uncatBudget > 0 ? uncatBudget / effectiveTotal : uncatSpent / effectiveTotal;
       parts.push({ id: "uncat-over", fraction: frac, fill: UNCAT_SPENT_COLOR, isOverBudget: uncatBudget > 0 && over });
     } else {
-      const spentFrac = uncatSpent / totalBudget;
-      const remainFrac = uncatRemain / totalBudget;
+      const spentFrac = uncatSpent / effectiveTotal;
+      const remainFrac = uncatRemain / effectiveTotal;
       if (spentFrac > 0.001) parts.push({ id: "uncat-spent", fraction: spentFrac, fill: UNCAT_SPENT_COLOR, isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: "uncat-remain", fraction: remainFrac, fill: UNCAT_REMAIN_COLOR, isOverBudget: false });
     }
