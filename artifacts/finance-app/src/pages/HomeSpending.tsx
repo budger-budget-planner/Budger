@@ -1011,7 +1011,7 @@ export default function HomeSpending() {
     && !tx.currencyUnavailable;
 
   const total = sorted
-    .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency))
+    .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency) && !(tx as any).foundedWithRealizedGoal)
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
   // Group locked-foreign amounts by their original currency for the separate display

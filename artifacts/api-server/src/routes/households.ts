@@ -131,7 +131,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
     const txs = await db.select().from(transactionsTable)
       .where(eq(transactionsTable.userId, m.userId));
     const monthlySpent = txs
-      .filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked)
+      .filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal)
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     return {
