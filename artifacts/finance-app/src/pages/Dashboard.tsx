@@ -7,8 +7,10 @@ import {
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
+  PieChart, Pie, Cell,
 } from "recharts";
+import DonutBudgetChart from "@/components/DonutBudgetChart";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
@@ -171,14 +173,21 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="space-y-4 mb-5">
-        {/* Spending by Category */}
+        {/* Spending by Category — budget-based donut */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">{t("dashboard.by_category")}</p>
           {spendingLoading ? (
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
+          ) : spending && spending.length > 0 && totalBudget > 0 ? (
+            <DonutBudgetChart
+              spending={spending as any}
+              totalBudget={totalBudget}
+              currency={prefs.currency}
+            />
           ) : spending && spending.length > 0 ? (
+            /* Fallback: no total budget set — show spending-proportional donut */
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
                 <ResponsiveContainer width={140} height={140}>
@@ -188,7 +197,7 @@ export default function DashboardPage() {
                       style={{ outline: "none" }}>
                       {spending.map((entry, i) => (
                         <Cell key={entry.categoryId ?? "unc"}
-                          fill={entry.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
+                          fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Pie>
                   </PieChart>
@@ -200,8 +209,10 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: item.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-muted-foreground truncate">{(!item.categoryName || item.categoryName === "Uncategorized") ? t("common.uncategorized") : item.categoryName}</span>
+                          style={{ backgroundColor: (item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="text-muted-foreground truncate">
+                          {(!item.categoryName || item.categoryName === "Uncategorized") ? t("common.uncategorized") : item.categoryName}
+                        </span>
                         {item.budget != null && item.total > item.budget && (
                           <span className="text-destructive font-medium flex-shrink-0">!</span>
                         )}
@@ -210,7 +221,7 @@ export default function DashboardPage() {
                     </div>
                     {item.budget != null && (
                       <BudgetBar spent={item.total} budget={item.budget}
-                        color={item.categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
+                        color={(item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                     )}
                   </div>
                 ))}
