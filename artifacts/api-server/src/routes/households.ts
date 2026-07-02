@@ -218,15 +218,29 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
 
-  // Fetch recurring payments for this member and merge them in
+  // Fetch recurring payments for this member and merge them in.
+  // INNER JOIN with transactions: only consider logs whose transaction still exists,
+  // so a deleted transaction doesn't permanently mark the RP as "applied".
   const memberRPs = await db.select().from(recurringPaymentsTable)
     .where(eq(recurringPaymentsTable.userId, targetUserId));
-  const rpLogs = await db.select().from(recurringPaymentLogsTable)
+  const validRpLogs = await db
+    .select({
+      recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
+      transactionId: recurringPaymentLogsTable.transactionId,
+    })
+    .from(recurringPaymentLogsTable)
+    .innerJoin(
+      transactionsTable,
+      eq(transactionsTable.id, recurringPaymentLogsTable.transactionId),
+    )
     .where(and(
       eq(recurringPaymentLogsTable.userId, targetUserId),
       eq(recurringPaymentLogsTable.monthKey, monthPrefix),
     ));
-  const appliedRPIds = new Set(rpLogs.map(l => l.recurringPaymentId));
+  const appliedRPIds  = new Set(validRpLogs.map(l => l.recurringPaymentId));
+  // Exclude RP-linked transactions from the regular category grouping so they are
+  // only accounted for via the RP rows (prevents double-counting).
+  const rpTxIds = new Set(validRpLogs.map(l => l.transactionId).filter(Boolean) as number[]);
 
   const rpItems = memberRPs.map(rp => ({
     categoryId: null as null,
@@ -241,7 +255,21 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     recurringPaymentId: rp.id,
   }));
 
-  const result = Array.from(grouped.entries()).map(([key, entry]) => ({
+  // Re-group excluding RP transactions (they are represented by rpItems)
+  const groupedFiltered = new Map<string, { total: number; count: number; category: any }>();
+  for (const tx of filtered) {
+    if (rpTxIds.has(tx.id)) continue; // skip — already accounted for in rpItems
+    const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
+    const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
+    if (!groupedFiltered.has(key)) groupedFiltered.set(key, { total: 0, count: 0, category });
+    const entry = groupedFiltered.get(key)!;
+    entry.total += parseFloat(tx.amount);
+    entry.count += 1;
+  }
+
+  const grandTotalFiltered = Array.from(groupedFiltered.values()).reduce((s, e) => s + e.total, 0);
+
+  const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => ({
     categoryId: key === "uncategorized" ? null : parseInt(key),
     categoryName: entry.category?.name ?? "Uncategorized",
     categoryColor: entry.category?.color ?? "#94a3b8",
@@ -249,7 +277,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
     total: Math.round(entry.total * 100) / 100,
     count: entry.count,
-    percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
+    percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
     isRecurringPayment: false,
     recurringPaymentId: null as null,
   })).sort((a, b) => b.total - a.total);

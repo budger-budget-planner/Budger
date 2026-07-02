@@ -19,7 +19,19 @@ function actualDayForMonth(dayOfMonth: number, year: number, month: number): num
 }
 
 async function getAppliedMap(userId: number, monthKey: string): Promise<Map<number, number | null>> {
-  const logs = await db.select().from(recurringPaymentLogsTable)
+  // INNER JOIN with transactions ensures orphaned logs (where the transaction was deleted
+  // without the log being cleaned up) never appear as "applied". This is a safety net
+  // on top of the delete-log-on-delete-tx handler.
+  const logs = await db
+    .select({
+      recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
+      transactionId: recurringPaymentLogsTable.transactionId,
+    })
+    .from(recurringPaymentLogsTable)
+    .innerJoin(
+      transactionsTable,
+      eq(transactionsTable.id, recurringPaymentLogsTable.transactionId),
+    )
     .where(and(
       eq(recurringPaymentLogsTable.userId, userId),
       eq(recurringPaymentLogsTable.monthKey, monthKey),

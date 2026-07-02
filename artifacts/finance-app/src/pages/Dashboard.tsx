@@ -55,20 +55,24 @@ export default function DashboardPage() {
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
 
-  // Merge recurring payments into spending as virtual budget segments
+  // Merge ONLY un-applied recurring payments into spending as virtual budget segments.
+  // Applied ones already exist as real transactions in the spending summary — adding them
+  // again would double-count both the total and the donut segment.
   const spending = (() => {
     const base = spendingRaw ?? [];
-    if (!recurringPayments?.length) return base.length ? base : undefined;
-    const rpItems = recurringPayments.map(rp => ({
+    const unapplied = (recurringPayments ?? []).filter(rp => !rp.appliedThisMonth);
+    if (!unapplied.length) return base.length ? base : undefined;
+    const rpItems = unapplied.map(rp => ({
       categoryId: null as null,
       categoryName: rp.name,
       categoryColor: rp.color,
-      total: rp.appliedThisMonth ? rp.amount : 0,
+      total: 0,        // Not yet spent; real tx when applied is in category data
       budget: rp.amount,
-      count: rp.appliedThisMonth ? 1 : 0,
+      count: 0,
       _catKey: `rp-${rp.id}`,
     }));
-    return [...base, ...rpItems];
+    const merged = [...base, ...rpItems];
+    return merged.length ? merged : undefined;
   })();
   const { data: monthly }    = useGetMonthlySummary({ currency: prefs.currency } as any);
   const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
