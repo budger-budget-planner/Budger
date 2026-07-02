@@ -50,9 +50,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
-  // ── Minimum display time (logo stays on screen ~1.6 s) ───────────────────
+  // ── Minimum display time (logo stays on screen ~3.2 s — doubled) ─────────
   useEffect(() => {
-    const id = setTimeout(() => setMinDone(true), 1600);
+    const id = setTimeout(() => setMinDone(true), 3200);
     return () => clearTimeout(id);
   }, []);
 
@@ -72,8 +72,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     setTransform(exactTransform);
     setPhase("moving");                         // logo glides at full opacity → motion visible
 
-    setTimeout(() => setPhase("fading"), 300);  // 300 ms of pure motion, then start fade
-    setTimeout(onDone,                   680);  // remove after fade (~380 ms) completes
+    setTimeout(() => setPhase("fading"), 600);  // 600 ms of pure motion, then start fade (doubled)
+    setTimeout(onDone,                  1360);  // remove after fade completes (doubled)
   }, [minDone, isLoading, user, onDone]);
 
   const isMoving = phase === "moving" || phase === "fading";
@@ -92,7 +92,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         alignItems: "center",
         justifyContent: "center",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.36s cubic-bezier(0.4, 0, 1, 1)" : "none",
+        transition: isFading ? "opacity 0.72s cubic-bezier(0.4, 0, 1, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
@@ -101,7 +101,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         style={{
           transform: isMoving ? transform : "none",
           transition: isMoving
-            ? "transform 0.62s cubic-bezier(0.4, 0, 0.2, 1)"
+            ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)"
             : "none",
           willChange: "transform",
           transformOrigin: "center center",

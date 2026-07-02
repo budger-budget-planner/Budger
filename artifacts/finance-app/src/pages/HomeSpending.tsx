@@ -37,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { compressImage } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
+import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
@@ -933,6 +934,9 @@ export default function HomeSpending() {
   // Set this back to `false` (or remove it) to restore the real occurrence rule.
   const BYPASS_SWIPE_HINT_RULE = true;
   const [swipeHintDue] = useState(() => BYPASS_SWIPE_HINT_RULE || checkSwipeHintDue());
+  // Don't let the wiggle start until the splash screen has fully finished — otherwise
+  // it plays underneath the splash overlay before the user can even see the row.
+  const appReady = useAppReady();
 
   useEffect(() => {
     fetchRates().then(setRates).catch(() => {});
@@ -1181,8 +1185,9 @@ export default function HomeSpending() {
 
   // Top-most visible transaction ID for the swipe hint wiggle — only wiggled when the
   // occurrence rule below decides it's due (first login after onboarding, or after a
-  // week of inactivity), not on every visit to the home tab.
-  const topTxId = (!searchQuery && dates.length > 0 && swipeHintDue)
+  // week of inactivity), not on every visit to the home tab, and only once the splash
+  // screen has fully finished so it never plays hidden underneath it.
+  const topTxId = (!searchQuery && dates.length > 0 && swipeHintDue && appReady)
     ? grouped[dates[0]]?.[0]?.id ?? null
     : null;
 

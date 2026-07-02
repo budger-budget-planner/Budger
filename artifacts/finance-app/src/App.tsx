@@ -30,6 +30,7 @@ import {
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
+import { AppReadyContext } from "@/lib/appReady";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
@@ -175,10 +176,10 @@ function AppRoutes() {
 function AppWithSplash() {
   const [splashDone, setSplashDone] = useState(false);
   return (
-    <>
+    <AppReadyContext.Provider value={splashDone}>
       <AppRoutes />
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-    </>
+    </AppReadyContext.Provider>
   );
 }
 
