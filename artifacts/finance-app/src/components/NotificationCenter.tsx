@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
@@ -561,8 +562,8 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
         )}
       </button>
 
-      {/* ── Drawer ── */}
-      {open && (
+      {/* ── Drawer (portalled to document.body so header stacking context doesn't clip it) ── */}
+      {open && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -632,7 +633,8 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
               {panel === "settings" && <SettingsPanel onBack={() => setPanel(null)} />}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </>
   );

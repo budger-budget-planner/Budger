@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import {
   useListGoals,
@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
+import { addNCNotification } from "@/lib/nc-store";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -837,6 +838,56 @@ export default function GoalsPage() {
       setDismissedProposals(loadDismissed(me.id));
     }
   }, [me?.id]);
+
+  // ── Immediately log goal_completed_* items to NC as soon as activityFeed arrives
+  // (before user can dismiss them from this page, which removes them from the backend)
+  const processedGoalNcIds = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!activityFeed || !me?.id) return;
+    const NC_TYPES = ["goal_completed_total", "goal_completed_monthly"];
+
+    let watermark = 0;
+    try { watermark = parseInt(localStorage.getItem(`nc_goal_watermark_${me.id}`) ?? "0") || 0; } catch { /**/ }
+
+    let maxTs = watermark;
+
+    for (const item of activityFeed) {
+      if (!NC_TYPES.includes(item.type)) continue;
+      if (processedGoalNcIds.current.has(item.id)) continue;
+
+      const itemTs = new Date(item.createdAt).getTime();
+      if (itemTs <= watermark) {
+        processedGoalNcIds.current.add(item.id);
+        continue;
+      }
+
+      processedGoalNcIds.current.add(item.id);
+      maxTs = Math.max(maxTs, itemTs);
+
+      const gName = item.goalName ?? "goal";
+      if (item.type === "goal_completed_total") {
+        addNCNotification({
+          type: "goal_completed_total",
+          titleEn: "Goal Completed",
+          titlePl: "Cel osiągnięty",
+          bodyEn: `${gName} has reached 100% of its total target. Well done!`,
+          bodyPl: `${gName} osiągnął 100% całkowitego celu. Brawo!`,
+        });
+      } else if (item.type === "goal_completed_monthly") {
+        addNCNotification({
+          type: "goal_completed_monthly",
+          titleEn: "Monthly Target Reached",
+          titlePl: "Cel miesięczny osiągnięty",
+          bodyEn: `${gName} hit its monthly savings target this month.`,
+          bodyPl: `${gName} osiągnął miesięczny cel oszczędnościowy w tym miesiącu.`,
+        });
+      }
+    }
+
+    if (maxTs > watermark) {
+      try { localStorage.setItem(`nc_goal_watermark_${me.id}`, String(maxTs)); } catch { /**/ }
+    }
+  }, [activityFeed, me?.id]);
 
   const summaryMap = new Map((summary ?? []).map(s => [s.goalId, s]));
 
