@@ -312,7 +312,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={`border-${gb.catKey}`}
                 d={gb.d}
                 fill="none"
-                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "60"}
+                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "30"}
                 strokeWidth={gb.isOverBudget ? 1.5 : 1}
                 style={{
                   transform: `translate(${tx}px, ${ty}px)`,
