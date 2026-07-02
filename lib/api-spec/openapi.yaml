@@ -701,6 +701,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationSettings"
 
+  /notifications/vapid-public-key:
+    get:
+      operationId: getVapidPublicKey
+      tags: [notifications]
+      summary: Get the VAPID public key for Web Push subscription
+      responses:
+        "200":
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapidPublicKey"
+
+  /notifications/push-subscribe:
+    post:
+      operationId: savePushSubscription
+      tags: [notifications]
+      summary: Save a Web Push subscription for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionInput"
+      responses:
+        "200":
+          description: Subscription saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+
   /goals:
     get:
       operationId: listGoals
@@ -1758,3 +1795,25 @@ components:
         - total
         - count
         - categories
+
+    VapidPublicKey:
+      type: object
+      properties:
+        publicKey:
+          type: string
+      required:
+        - publicKey
+
+    PushSubscriptionInput:
+      type: object
+      properties:
+        endpoint:
+          type: string
+        p256dh:
+          type: string
+        auth:
+          type: string
+      required:
+        - endpoint
+        - p256dh
+        - auth

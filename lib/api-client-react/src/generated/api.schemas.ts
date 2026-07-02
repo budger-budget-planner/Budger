@@ -414,12 +414,26 @@ export interface MonthHistory {
   categories: CategorySpending[];
 }
 
+export interface VapidPublicKey {
+  publicKey: string;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 export type ListTransactionsParams = {
   categoryId?: number;
   startDate?: string;
   endDate?: string;
   limit?: number;
   offset?: number;
+};
+
+export type SavePushSubscription200 = {
+  ok: boolean;
 };
 
 export type ListGoalContributionsParams = {

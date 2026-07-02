@@ -74,3 +74,10 @@ externalPort = 3000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BMMcMPzhMmuNaItVLl8_jzoS37-aYJH4RB26YYUIpRhkYLwgsTVaNG2bs6BuLFd_jS8JJqzaQt9s9bG2Cg5msEA"
+VAPID_PRIVATE_KEY = "bqq1JV1PwHSgdrV3uHowjuLTKME6s5etidRZzNxfcPU"
+VAPID_SUBJECT = "mailto:admin@budger.app"

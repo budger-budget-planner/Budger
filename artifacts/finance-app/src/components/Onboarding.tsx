@@ -9,6 +9,7 @@ import {
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifications";
 
 // ── iOS notification settings path ───────────────────────────────────────────
 
@@ -118,13 +119,18 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   async function requestNotifications() {
     setNotifStatus("loading");
     if (!("Notification" in window)) { setNotifStatus("denied"); return; }
-    if (Notification.permission === "granted") { setNotifStatus("granted"); return; }
+    if (Notification.permission === "granted") {
+      setNotifStatus("granted");
+      if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+      return;
+    }
     if (Notification.permission === "denied")  { setNotifStatus("denied");  return; }
     try {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         setNotifStatus("granted");
         updateNotif.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       } else {
         setNotifStatus("denied");
       }

@@ -48,15 +48,18 @@ import type {
   MonthlyTotal,
   NotificationSettings,
   NotificationSettingsInput,
+  PushSubscriptionInput,
   ReceiptInput,
   RecordMerchantCategoryInput,
   RegisterInput,
+  SavePushSubscription200,
   Transaction,
   TransactionInput,
   TransactionUpdate,
   UpdateMerchantCategoryRuleInput,
   User,
   UserUpdate,
+  VapidPublicKey,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -3138,6 +3141,167 @@ export const useUpdateNotificationSettings = <
   TContext
 > => {
   return useMutation(getUpdateNotificationSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Get the VAPID public key for Web Push subscription
+ */
+export const getGetVapidPublicKeyUrl = () => {
+  return `/api/notifications/vapid-public-key`;
+};
+
+export const getVapidPublicKey = async (
+  options?: RequestInit,
+): Promise<VapidPublicKey> => {
+  return customFetch<VapidPublicKey>(getGetVapidPublicKeyUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetVapidPublicKeyQueryKey = () => {
+  return [`/api/notifications/vapid-public-key`] as const;
+};
+
+export const getGetVapidPublicKeyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getVapidPublicKey>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getVapidPublicKey>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetVapidPublicKeyQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getVapidPublicKey>>
+  > = ({ signal }) => getVapidPublicKey({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getVapidPublicKey>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetVapidPublicKeyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getVapidPublicKey>>
+>;
+export type GetVapidPublicKeyQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the VAPID public key for Web Push subscription
+ */
+
+export function useGetVapidPublicKey<
+  TData = Awaited<ReturnType<typeof getVapidPublicKey>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getVapidPublicKey>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetVapidPublicKeyQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save a Web Push subscription for the current user
+ */
+export const getSavePushSubscriptionUrl = () => {
+  return `/api/notifications/push-subscribe`;
+};
+
+export const savePushSubscription = async (
+  pushSubscriptionInput: PushSubscriptionInput,
+  options?: RequestInit,
+): Promise<SavePushSubscription200> => {
+  return customFetch<SavePushSubscription200>(getSavePushSubscriptionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(pushSubscriptionInput),
+  });
+};
+
+export const getSavePushSubscriptionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof savePushSubscription>>,
+    TError,
+    { data: BodyType<PushSubscriptionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof savePushSubscription>>,
+  TError,
+  { data: BodyType<PushSubscriptionInput> },
+  TContext
+> => {
+  const mutationKey = ["savePushSubscription"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof savePushSubscription>>,
+    { data: BodyType<PushSubscriptionInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return savePushSubscription(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SavePushSubscriptionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof savePushSubscription>>
+>;
+export type SavePushSubscriptionMutationBody = BodyType<PushSubscriptionInput>;
+export type SavePushSubscriptionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save a Web Push subscription for the current user
+ */
+export const useSavePushSubscription = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof savePushSubscription>>,
+    TError,
+    { data: BodyType<PushSubscriptionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof savePushSubscription>>,
+  TError,
+  { data: BodyType<PushSubscriptionInput> },
+  TContext
+> => {
+  return useMutation(getSavePushSubscriptionMutationOptions(options));
 };
 
 /**

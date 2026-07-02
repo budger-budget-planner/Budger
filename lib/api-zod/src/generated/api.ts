@@ -769,6 +769,26 @@ export const UpdateNotificationSettingsResponse = zod.object({
 });
 
 /**
+ * @summary Get the VAPID public key for Web Push subscription
+ */
+export const GetVapidPublicKeyResponse = zod.object({
+  publicKey: zod.string(),
+});
+
+/**
+ * @summary Save a Web Push subscription for the current user
+ */
+export const SavePushSubscriptionBody = zod.object({
+  endpoint: zod.string(),
+  p256dh: zod.string(),
+  auth: zod.string(),
+});
+
+export const SavePushSubscriptionResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary List active goals for the current user/household
  */
 export const ListGoalsResponseItem = zod.object({
