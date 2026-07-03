@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, householdsTable, usersTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -44,6 +44,14 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
         .set({ budget: newBudget })
         .where(eq(categoriesTable.id, cat.id));
     }
+  }
+
+  const rps = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
+  for (const rp of rps) {
+    const newAmount = (parseFloat(rp.amount) * rate).toFixed(2);
+    await db.update(recurringPaymentsTable)
+      .set({ amount: newAmount })
+      .where(eq(recurringPaymentsTable.id, rp.id));
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
