@@ -396,10 +396,13 @@ const translations: Record<string, Record<Lang, string>> = {
                                pl: "Cześć {name}, witaj w Budger! Dotknij przycisku poniżej, aby potwierdzić e-mail i kontynuować zakładanie konta." },
   "login.sim_email_fallback_name": { en: "there", pl: "tam" },
   "login.sim_email_link":   { en: "Verify email address", pl: "Potwierdź adres e-mail" },
-  "login.verifying":        { en: "Verifying…",         pl: "Weryfikowanie…"       },
-  "login.verify_failed":    { en: "Couldn't verify your email. Please try again.", pl: "Nie udało się potwierdzić e-maila. Spróbuj ponownie." },
-  "login.verify_link_invalid": { en: "This link is invalid or has expired. Please sign up again.",
-                               pl: "Ten link jest nieprawidłowy lub wygasł. Zarejestruj się ponownie." },
+  "login.verifying":            { en: "Verifying…",         pl: "Weryfikowanie…"       },
+  "login.verifying_sub":        { en: "Confirming your email address…", pl: "Potwierdzanie adresu e-mail…" },
+  "login.verify_failed":        { en: "Couldn't verify your email. Please try again.", pl: "Nie udało się potwierdzić e-maila. Spróbuj ponownie." },
+  "login.verify_failed_title":  { en: "Verification failed", pl: "Weryfikacja nie powiodła się" },
+  "login.verify_link_invalid":  { en: "This link is invalid or has expired. Please sign up again.",
+                                 pl: "Ten link jest nieprawidłowy lub wygasł. Zarejestruj się ponownie." },
+  "login.start_over":           { en: "Start over", pl: "Zacznij od nowa" },
 
   // ── Onboarding ──
   "ob.welcome":              { en: "Welcome to Budger!",              pl: "Witaj w Budger!"                   },

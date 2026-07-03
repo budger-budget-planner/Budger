@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useLogin, useRegister, useRegisterStart, useVerifyEmail } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
@@ -12,16 +12,18 @@ import { t, setLang } from "@/lib/i18n";
 import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
 
 type Screen =
-  | "start"          // email + language, login default / sign-up link
-  | "login-pin"      // existing user: PIN entry
-  | "signup-info"    // new user: first/last name + email
-  | "signup-check-email" // new user: confirm the (simulated) verification email
-  | "signup-pin"     // new user: set PIN
-  | "signup-confirm";// new user: confirm PIN
+  | "start"               // email + language, login default / sign-up link
+  | "login-pin"           // existing user: PIN entry
+  | "signup-info"         // new user: first/last name + email
+  | "signup-check-email"  // new user: confirm the (simulated) verification email
+  | "signup-verifying"    // new user: auto-verifying token from real email link
+  | "signup-pin"          // new user: set PIN
+  | "signup-confirm";     // new user: confirm PIN
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const search = useSearch();
 
   const prefs = loadPrefs();
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
@@ -62,6 +64,22 @@ export default function LoginPage() {
     vv.addEventListener("resize", onResize);
     return () => vv.removeEventListener("resize", onResize);
   }, []);
+
+  // Auto-verify when landing on /verify-email?token=xxx from the real email link.
+  // Gated to the /verify-email pathname so a stray ?token= on /login never consumes a token.
+  const autoVerifiedRef = useRef(false);
+  useEffect(() => {
+    if (autoVerifiedRef.current) return;
+    if (location !== "/verify-email") return;
+    const params = new URLSearchParams(search);
+    const token = params.get("token");
+    if (!token) return;
+    autoVerifiedRef.current = true;
+    setScreen("signup-verifying");
+    setVerifyError("");
+    verifyEmail.mutate({ data: { token } });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, search]);
 
   function changeLang(code: string) {
     setLangState(code);
@@ -527,6 +545,38 @@ export default function LoginPage() {
               <p className="text-sm text-destructive text-center">{verifyError}</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Sign-up: verifying token from real email link ── */}
+      {screen === "signup-verifying" && (
+        <div key="signup-verifying" className="min-h-screen flex flex-col items-center justify-center px-6 pb-10 gap-6">
+          {verifyEmail.isPending && (
+            <>
+              <div className="w-16 h-16 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-foreground">{t("login.verifying")}</h2>
+                <p className="text-sm text-muted-foreground mt-1">{t("login.verifying_sub")}</p>
+              </div>
+            </>
+          )}
+          {!verifyEmail.isPending && verifyError && (
+            <>
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <span className="text-2xl">✕</span>
+              </div>
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-bold text-foreground">{t("login.verify_failed_title")}</h2>
+                <p className="text-sm text-muted-foreground">{verifyError}</p>
+              </div>
+              <Button
+                onClick={() => { setVerifyError(""); setScreen("signup-info"); }}
+                className="w-full max-w-xs h-13 rounded-2xl text-base font-semibold"
+              >
+                {t("login.start_over")}
+              </Button>
+            </>
+          )}
         </div>
       )}
 
