@@ -287,14 +287,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     savePrefs(next);
     setPrefsState(next);
     updateMe.mutate({ data: { language: code } });
-    // Let React paint the newly-selected button highlight before the reload
-    // tears the page down — otherwise the state change and reload race and
-    // the user never sees the selection register.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.location.reload();
-      });
-    });
+    // Give the browser a real timeslice to paint the newly-selected button
+    // highlight before the reload tears the page down. requestAnimationFrame
+    // is not reliable enough for this across mobile webviews — a short
+    // setTimeout guarantees the paint has happened first.
+    setTimeout(() => {
+      window.location.reload();
+    }, 200);
   }
 
   async function handleRefreshRates() {
