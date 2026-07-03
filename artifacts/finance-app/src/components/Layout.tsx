@@ -287,7 +287,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     savePrefs(next);
     setPrefsState(next);
     updateMe.mutate({ data: { language: code } });
-    window.location.reload();
+    // Let React paint the newly-selected button highlight before the reload
+    // tears the page down — otherwise the state change and reload race and
+    // the user never sees the selection register.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.location.reload();
+      });
+    });
   }
 
   async function handleRefreshRates() {
