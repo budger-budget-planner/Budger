@@ -474,7 +474,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 <text x={CX} y={CY + 16}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="18" fill="#6b7280">
-                  of budget
+                  {t("donut.of_budget")}
                 </text>
               </>
             )}
@@ -510,13 +510,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                   <text x={CX} y={CY + 18}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
-                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% of budget
+                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_budget")}
                   </text>
                 )}
                 <text x={CX} y={CY + 36}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="9" fill="#4b5563">
-                  tap again to close
+                  {t("donut.tap_to_close")}
                 </text>
               </>
             ) : (
@@ -531,7 +531,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                     <text x={CX} y={CY + 16}
                       textAnchor="middle" dominantBaseline="middle"
                       fontSize="11" fill="#6b7280">
-                      of budget used
+                      {t("donut.of_budget_used")}
                     </text>
                     <text x={CX} y={CY + 32}
                       textAnchor="middle" dominantBaseline="middle"
@@ -543,7 +543,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 <text x={CX} y={CY + 50}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="8" fill="#374151">
-                  ×× to exit
+                  {t("donut.xx_to_exit")}
                 </text>
               </>
             )}
@@ -555,7 +555,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
             cx={CX} cy={CY} r={RI - 2}
             fill="transparent"
             role="button"
-            aria-label={expanded ? "Double-tap to collapse chart" : "Double-tap to expand chart"}
+            aria-label={expanded ? t("donut.collapse_label") : t("donut.expand_label")}
             style={{ cursor: "pointer" }}
             onClick={handleCenterTap}
           />

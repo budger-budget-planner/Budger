@@ -44,6 +44,14 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.email":       { en: "Email address", pl: "Adres e-mail"},
   "common.date":        { en: "Date",       pl: "Data"       },
 
+  // ── Donut chart ──
+  "donut.of_budget":        { en: "of budget",              pl: "budżetu"                  },
+  "donut.of_budget_used":   { en: "of budget used",         pl: "budżetu wykorzystano"     },
+  "donut.tap_to_close":     { en: "tap again to close",     pl: "dotknij ponownie, by zamknąć" },
+  "donut.xx_to_exit":       { en: "×× to exit",             pl: "×× aby wyjść"             },
+  "donut.collapse_label":   { en: "Double-tap to collapse chart", pl: "Podwójne dotknięcie, aby zwinąć" },
+  "donut.expand_label":     { en: "Double-tap to expand chart",   pl: "Podwójne dotknięcie, aby rozwinąć" },
+
   // ── Dashboard ──
   "dashboard.title":          { en: "Dashboard",           pl: "Pulpit"                       },
   "dashboard.this_month":     { en: "this month",          pl: "ten miesiąc"                  },
