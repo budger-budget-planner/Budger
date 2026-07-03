@@ -216,6 +216,10 @@ export default function DashboardPage() {
               spending={spending as any}
               totalBudget={totalBudget}
               currency={prefs.currency}
+              hasData={
+                spending.some(s => s.count > 0) ||
+                (recurringPayments?.length ?? 0) > 0
+              }
             />
           ) : spending && spending.length > 0 ? (
             /* Fallback: no total budget set — show spending-proportional donut */

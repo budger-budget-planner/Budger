@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { fmtAmt } from "@/lib/prefs";
+import { fmtAmt, checkDonutWiggleDue } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
 // ─── Inject hint-pulse keyframes once ────────────────────────────────────────
@@ -243,9 +243,16 @@ const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type Props = { spending: SpendingItem[]; totalBudget: number; currency: string };
+type Props = {
+  spending: SpendingItem[];
+  totalBudget: number;
+  currency: string;
+  /** Pass true once the user has ≥1 recorded category or recurring payment.
+   *  The segment-wiggle hint won't fire until this is true. */
+  hasData?: boolean;
+};
 
-export default function DonutBudgetChart({ spending, totalBudget, currency }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -260,15 +267,26 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const containerRef     = useRef<HTMLDivElement>(null);
   // Random radii for the two circles in each hint firing (r1 < r2, both ≥ 65 % of hole)
   const hintRadiiRef = useRef<{ r1: number; r2: number }>({ r1: RI - 2, r2: RI - 2 });
-  // Ref to the <g> wrapping the first group (fills + border) for the wiggle animation
-  const wiggleGroupRef    = useRef<SVGGElement>(null);
-  // Tracks the first segment midDeg across renders so the effect can read it at fire time
-  const firstSegMidDegRef = useRef<number>(0);
+  // Refs for the two <g> elements that receive the sequential wiggle animation
+  const wiggleGroupRef  = useRef<SVGGElement>(null); // first group (clockwise)
+  const wiggleGroup2Ref = useRef<SVGGElement>(null); // 4th group (or 3rd / 2nd fallback)
+  // midDeg of each wiggle group — updated every render so effect reads fresh values at fire time
+  const firstSegMidDegRef  = useRef<number>(0);
+  const secondSegMidDegRef = useRef<number>(0);
+  // Latest hasData value — updated every render, read inside the timer closure
+  const hasDataRef = useRef<boolean>(false);
 
   const { segs, groupBorders, legend } = buildChart(spending, totalBudget, selectedCat);
 
-  // Keep midDeg current so the wiggle effect can read it when it fires
-  firstSegMidDegRef.current = segs[0]?.midDeg ?? 0;
+  // Keep refs current every render so timer callbacks read the latest values at fire time.
+  // wiggle1 = first group; wiggle2 = 4th group clockwise (fallback: 3rd, 2nd, none if <2 groups)
+  const _wiggle2Border = groupBorders.length >= 2
+    ? (groupBorders[3] ?? groupBorders[2] ?? groupBorders[1])
+    : undefined;
+  firstSegMidDegRef.current  = groupBorders[0]?.midDeg ?? 0;
+  secondSegMidDegRef.current = _wiggle2Border?.midDeg ?? 0;
+  const wiggleCatKey2        = _wiggle2Border?.catKey ?? null;
+  hasDataRef.current         = hasData;
 
   const totalSpent    = spending.reduce((a, s) => a + s.total, 0);
   const budgetUsedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : null;
@@ -306,24 +324,31 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // ── First-segment wiggle: fires once, 4 s after mount ────────────────────
-  // Uses the Web Animations API so the translate direction can be computed from
-  // the segment's actual midDeg at fire time — CSS keyframes can't do dynamic
-  // values.  Two-beat "detach" pattern mirrors the transaction-swipe wiggle:
+  // ── Two-segment sequential wiggle: fires 4 s after mount ─────────────────
+  // Uses the Web Animations API so translate directions are computed from each
+  // group's actual midDeg at fire time — CSS keyframes can't do dynamic values.
+  //
+  // Two-beat "detach" per group (mirrors the transaction-swipe wiggle):
   //   beat 1 → 65 % of the click-expand distance, snap back
   //   beat 2 → 38 % of the click-expand distance, settle to 0
+  //
+  // Occurrence rules (same cadence as swipe hint):
+  //   • Only fires when hasData is true (≥1 category or recurring payment).
+  //   • First time ever for this user → fires.
+  //   • Otherwise only fires again after ≥ 1 week.
+  //
+  // Sequence: group1 wiggles first (700 ms), then group2 wiggles 200 ms later.
+  // If there is no group2 (only one segment in the chart), skip the animation entirely.
   useEffect(() => {
-    const onTimer = setTimeout(() => {
-      const el = wiggleGroupRef.current;
-      if (!el) return;
-      const midRad = ((firstSegMidDegRef.current - 90) * Math.PI) / 180;
+    function wiggleEl(el: SVGGElement, midDeg: number) {
+      const midRad = ((midDeg - 90) * Math.PI) / 180;
       const px1 = EXPAND * 0.65 * Math.cos(midRad);
       const py1 = EXPAND * 0.65 * Math.sin(midRad);
       const px2 = EXPAND * 0.38 * Math.cos(midRad);
       const py2 = EXPAND * 0.38 * Math.sin(midRad);
       el.animate(
         [
-          { transform: "translate(0px, 0px)",                      easing: "cubic-bezier(0.34,1.56,0.64,1)" },
+          { transform: "translate(0px, 0px)",                         easing: "cubic-bezier(0.34,1.56,0.64,1)" },
           { transform: `translate(${px1}px, ${py1}px)`, offset: 0.28, easing: "cubic-bezier(0.4,0,0.2,1)" },
           { transform: "translate(0px, 0px)",            offset: 0.50, easing: "cubic-bezier(0.34,1.56,0.64,1)" },
           { transform: `translate(${px2}px, ${py2}px)`, offset: 0.72, easing: "cubic-bezier(0.4,0,0.2,1)" },
@@ -331,8 +356,27 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
         ],
         { duration: 700, fill: "none" },
       );
+    }
+
+    let t2: ReturnType<typeof setTimeout> | null = null;
+    const t1 = setTimeout(() => {
+      // Guard: need data and a second group to animate; consume the weekly slot only when firing.
+      if (!hasDataRef.current) return;
+      if (!wiggleGroup2Ref.current) return; // only 1 group → skip entirely
+      if (!checkDonutWiggleDue()) return;
+
+      const el1 = wiggleGroupRef.current;
+      const el2 = wiggleGroup2Ref.current;
+      if (el1) wiggleEl(el1, firstSegMidDegRef.current);
+      t2 = setTimeout(() => {
+        if (el2) wiggleEl(el2, secondSegMidDegRef.current);
+      }, 900); // 700 ms group1 duration + 200 ms gap
     }, 4_000);
-    return () => clearTimeout(onTimer);
+
+    return () => {
+      clearTimeout(t1);
+      if (t2 !== null) clearTimeout(t2);
+    };
   }, []);
 
   // ── Interaction handlers ──────────────────────────────────────────────────
@@ -459,23 +503,32 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
               );
             }
 
-            const firstFills   = segs.filter(s => s.catKey === wiggleCatKey).map(fillPath);
-            const restFills    = segs.filter(s => s.catKey !== wiggleCatKey).map(fillPath);
-            const firstBorder  = groupBorders.find(gb => gb.catKey === wiggleCatKey);
-            const restBorders  = groupBorders.filter(gb => gb.catKey !== wiggleCatKey).map(borderPath);
+            // Three buckets: wiggle1 (first group), wiggle2 (4th/3rd/2nd fallback), rest
+            const group1Fills  = segs.filter(s => s.catKey === wiggleCatKey).map(fillPath);
+            const group1Border = groupBorders.find(gb => gb.catKey === wiggleCatKey);
+            const group2Fills  = wiggleCatKey2 ? segs.filter(s => s.catKey === wiggleCatKey2).map(fillPath) : [];
+            const group2Border = wiggleCatKey2 ? groupBorders.find(gb => gb.catKey === wiggleCatKey2) : undefined;
+            const restFills    = segs.filter(s => s.catKey !== wiggleCatKey && s.catKey !== wiggleCatKey2).map(fillPath);
+            const restBorders  = groupBorders.filter(gb => gb.catKey !== wiggleCatKey && gb.catKey !== wiggleCatKey2).map(borderPath);
 
             return (
               <>
-                {/* First group: fills + border in one wiggle wrapper */}
+                {/* Wiggle group 1: first clockwise group */}
                 {wiggleCatKey !== null && (
                   <g ref={wiggleGroupRef}>
-                    {firstFills}
-                    {firstBorder && borderPath(firstBorder)}
+                    {group1Fills}
+                    {group1Border && borderPath(group1Border)}
                   </g>
                 )}
-                {/* Remaining fills */}
+                {/* Wiggle group 2: 4th clockwise group (or 3rd / 2nd fallback) */}
+                {wiggleCatKey2 !== null && (
+                  <g ref={wiggleGroup2Ref}>
+                    {group2Fills}
+                    {group2Border && borderPath(group2Border)}
+                  </g>
+                )}
+                {/* Remaining groups */}
                 {restFills}
-                {/* Remaining borders */}
                 {restBorders}
               </>
             );

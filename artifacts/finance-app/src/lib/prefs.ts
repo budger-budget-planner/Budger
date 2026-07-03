@@ -145,6 +145,42 @@ export function checkSwipeHintDue(): boolean {
   return due;
 }
 
+// ─── Donut chart segment-wiggle hint ─────────────────────────────────────────
+
+const DONUT_WIGGLE_KEY_BASE = "budger_donut_wiggle_v1";
+
+function donutWiggleKey(): string {
+  const uid = getActiveUserId();
+  return uid != null ? `${DONUT_WIGGLE_KEY_BASE}_${uid}` : DONUT_WIGGLE_KEY_BASE;
+}
+
+/**
+ * Decides whether the donut-chart segment wiggle hint should play right now.
+ * Only fires when the user already has data (≥1 recorded category or recurring
+ * payment) — the caller must guard on that condition before calling this.
+ *
+ * Rules (mirror the swipe hint):
+ *  - First time ever for this user → show it.
+ *  - Otherwise only show again if at least a week has passed since last shown.
+ *
+ * Calling this function marks the current timestamp as "seen", so call it only
+ * when you are about to play the animation.
+ */
+export function checkDonutWiggleDue(): boolean {
+  const key = donutWiggleKey();
+  const now = Date.now();
+  const raw = localStorage.getItem(key);
+  let due: boolean;
+  if (raw == null) {
+    due = true;
+  } else {
+    const lastSeen = parseInt(raw, 10);
+    due = isNaN(lastSeen) || (now - lastSeen) >= SWIPE_HINT_WEEK_MS;
+  }
+  if (due) localStorage.setItem(key, String(now));
+  return due;
+}
+
 export function currencySymbol(currency: string): string {
   const map: Record<string, string> = {
     USD: "$", EUR: "€", GBP: "£", PLN: "zł",
