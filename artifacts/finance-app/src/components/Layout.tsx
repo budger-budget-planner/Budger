@@ -285,13 +285,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   function changeLanguage(code: string) {
     const next = { ...prefs, language: code };
     savePrefs(next);
-    updateMe.mutate({ data: { language: code } });
-    // The app reloads right after switching language anyway (the splash
-    // screen covers the transition), so there's no need to re-render the
-    // UI in the new language first — that just causes a flash/race with
-    // the reload. Just save the pref and reload; the app will come back
-    // up already in the selected language.
-    window.location.reload();
+    // Reloading before the server has actually persisted the new language
+    // is a race: App.tsx re-fetches the user on boot and treats the server
+    // value as the source of truth, so if the PATCH request gets cancelled
+    // mid-flight by the reload, it comes back with the OLD language and
+    // stomps the local pref we just saved — this is why the fix felt flaky.
+    // Waiting for the mutation to settle (success or failure) before
+    // reloading guarantees the server agrees with localStorage every time.
+    updateMe.mutate(
+      { data: { language: code } },
+      { onSettled: () => window.location.reload() }
+    );
   }
 
   async function handleRefreshRates() {
