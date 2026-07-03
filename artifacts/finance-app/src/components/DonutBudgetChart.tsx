@@ -4,20 +4,49 @@ import { t } from "@/lib/i18n";
 
 // ─── Inject hint-pulse keyframes once ────────────────────────────────────────
 
+// Three pulse animations with a brightness crescendo across the three scheduled
+// hint firings.  Within each animation:
+//   • Rise / fall are symmetric at 7 % of 1.6 s = 112 ms each.
+//   • The gap between blink-1 and blink-2 is 5 % = 80 ms — tight enough to
+//     read clearly as a double-tap hint without feeling hurried.
+//   • blink-2 peak > blink-1 peak (the "lub-DUB" heartbeat shape).
+//   • The blink-1 peak of each next animation equals the blink-2 peak of the
+//     previous one — so brightness picks up exactly where it left off:
+//       Pulse 1: 0.14 → 0.22
+//       Pulse 2: 0.22 → 0.30
+//       Pulse 3: 0.30 → 0.37
+//   Max opacity 0.37 stays well in the "subtle glow" range.
 const HINT_KF_ID = "donut-hint-kf";
 if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
   const s = document.createElement("style");
   s.id = HINT_KF_ID;
-  // Two quick brightens: fade up → fade down → fade up → fade down
-  // Exactly two brightness peaks separated by a clear dip.
   s.textContent = `
-    @keyframes donutHintPulse {
-      0%   { opacity: 0; }
-      14%  { opacity: 0.22; }
-      28%  { opacity: 0; }
-      42%  { opacity: 0.22; }
-      60%  { opacity: 0; }
-      100% { opacity: 0; }
+    @keyframes donutHintPulse1 {
+      0%   { opacity: 0;    }
+      7%   { opacity: 0.14; }
+      14%  { opacity: 0;    }
+      19%  { opacity: 0;    }
+      26%  { opacity: 0.22; }
+      33%  { opacity: 0;    }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutHintPulse2 {
+      0%   { opacity: 0;    }
+      7%   { opacity: 0.22; }
+      14%  { opacity: 0;    }
+      19%  { opacity: 0;    }
+      26%  { opacity: 0.30; }
+      33%  { opacity: 0;    }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutHintPulse3 {
+      0%   { opacity: 0;    }
+      7%   { opacity: 0.30; }
+      14%  { opacity: 0;    }
+      19%  { opacity: 0;    }
+      26%  { opacity: 0.37; }
+      33%  { opacity: 0;    }
+      100% { opacity: 0;    }
     }
   `;
   document.head.appendChild(s);
@@ -386,7 +415,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
               cx={CX} cy={CY} r={RI - 2}
               fill={`url(#${idHintGrad})`}
               style={{
-                animation:     "donutHintPulse 1.6s ease forwards",
+                animation:     `donutHintPulse${hintKey} 1.6s ease forwards`,
                 pointerEvents: "none",
               }}
             />
