@@ -703,6 +703,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationSettings"
 
+  /notifications/items:
+    get:
+      operationId: getNotificationItems
+      tags: [notifications]
+      summary: List notification-center feed items for the current user
+      responses:
+        "200":
+          description: Notification items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationItem"
+    post:
+      operationId: createNotificationItem
+      tags: [notifications]
+      summary: Create a notification-center feed item for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationItemInput"
+      responses:
+        "200":
+          description: Created notification item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationItem"
+
+  /notifications/items/mark-all-read:
+    patch:
+      operationId: markAllNotificationItemsRead
+      tags: [notifications]
+      summary: Mark all of the current user's notification items as read
+      responses:
+        "200":
+          description: Updated items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+
+  /notifications/items/{id}:
+    delete:
+      operationId: dismissNotificationItem
+      tags: [notifications]
+      summary: Dismiss (delete) a notification item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Dismissed
+
   /notifications/vapid-public-key:
     get:
       operationId: getVapidPublicKey
@@ -1620,6 +1685,58 @@ components:
           type: array
           items:
             type: string
+
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        type:
+          type: string
+        titleEn:
+          type: string
+        titlePl:
+          type: string
+        bodyEn:
+          type: string
+        bodyPl:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - type
+        - titleEn
+        - titlePl
+        - bodyEn
+        - bodyPl
+        - read
+        - createdAt
+
+    NotificationItemInput:
+      type: object
+      required:
+        - type
+        - titleEn
+        - titlePl
+        - bodyEn
+        - bodyPl
+      properties:
+        type:
+          type: string
+        titleEn:
+          type: string
+        titlePl:
+          type: string
+        bodyEn:
+          type: string
+        bodyPl:
+          type: string
 
     CategorySpending:
       type: object

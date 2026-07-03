@@ -21,7 +21,7 @@ import {
 } from "@/hooks/useSmartNotifications";
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
-import { addNCNotification, loadNCNotifications, getNCSeenAt, setNCSeenAt, type NCNotification, type NCNotifType } from "@/lib/nc-store";
+import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, type NCNotification, type NCNotifType } from "@/lib/nc-store";
 import { loadPrefs } from "@/lib/prefs";
 import { showNotification } from "@/lib/show-notification";
 
@@ -496,7 +496,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 // ─── Notification Feed ────────────────────────────────────────────────────────
-function NotifFeed({ notifications, seenAt }: { notifications: NCNotification[]; seenAt: number }) {
+function NotifFeed({ notifications, onDismiss }: { notifications: NCNotification[]; onDismiss: (id: string) => void }) {
   const lang = loadPrefs().language as "en" | "pl";
 
   if (notifications.length === 0) {
@@ -511,7 +511,7 @@ function NotifFeed({ notifications, seenAt }: { notifications: NCNotification[];
   return (
     <div className="space-y-2">
       {notifications.map(n => {
-        const isUnread = n.timestamp > seenAt;
+        const isUnread = !n.read;
         const title = lang === "pl" ? n.titlePl : n.titleEn;
         const body = lang === "pl" ? n.bodyPl : n.bodyEn;
         return (
@@ -528,6 +528,13 @@ function NotifFeed({ notifications, seenAt }: { notifications: NCNotification[];
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{body}</p>
               <p className="text-[10px] text-muted-foreground/50 mt-1">{relTime(n.timestamp)}</p>
             </div>
+            <button
+              onClick={() => onDismiss(n.id)}
+              aria-label={t("nc.dismiss")}
+              className="w-6 h-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5 transition active:scale-90 hover:bg-muted/70"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
           </div>
         );
       })}
@@ -542,36 +549,40 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const [notifications, setNotifications] = useState<NCNotification[]>([]);
-  const [seenAt, setSeenAt] = useState<number>(0);
 
-  // Load seen-at on mount and when userId changes
+  async function refresh() {
+    setNotifications(await loadNCNotifications());
+  }
+
+  // Load notifications on mount and when userId changes
   useEffect(() => {
     if (!userId) return;
-    setSeenAt(getNCSeenAt(userId));
-    setNotifications(loadNCNotifications());
+    refresh();
   }, [userId]);
 
   // Refresh notifications list when drawer opens
   useEffect(() => {
-    if (open) setNotifications(loadNCNotifications());
+    if (open) refresh();
   }, [open]);
 
-  // Refresh instantly when addNCNotification signals a write (same tab)
+  // Refresh instantly when a notification is added/dismissed (same tab)
   useEffect(() => {
-    const handler = () => setNotifications(loadNCNotifications());
+    const handler = () => refresh();
     window.addEventListener("nc-updated", handler);
     // Short fallback interval catches any missed signals (e.g. cross-tab writes)
     const id = setInterval(handler, 5_000);
     return () => { window.removeEventListener("nc-updated", handler); clearInterval(id); };
   }, []);
 
-  function handleOpen() {
-    setNotifications(loadNCNotifications());
-    if (userId) {
-      const now = setNCSeenAt(userId);
-      setSeenAt(now);
-    }
+  async function handleOpen() {
+    await refresh();
     setOpen(true);
+    if (userId) {
+      // Mark everything currently unread as read once the user has opened the
+      // center — this is persisted server-side so it stays read permanently.
+      await markAllNCRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
   }
 
   function handleClose() {
@@ -579,7 +590,12 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
     setPanel(null);
   }
 
-  const unreadCount = notifications.filter(n => n.timestamp > seenAt).length;
+  async function handleDismiss(id: string) {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await dismissNCNotification(id);
+  }
+
+  const unreadCount = notifications.filter(n => !n.read).length;
   const hasBadge = unreadCount > 0;
 
   const ACTION_BTNS: { id: Panel & string; labelKey: string; icon: React.ReactNode }[] = [
@@ -663,7 +679,7 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
                         {unreadCount} {unreadCount === 1 ? t("nc.unread_one") : t("nc.unread_many")}
                       </p>
                     )}
-                    <NotifFeed notifications={notifications} seenAt={seenAt} />
+                    <NotifFeed notifications={notifications} onDismiss={handleDismiss} />
                   </div>
                 </>
               )}

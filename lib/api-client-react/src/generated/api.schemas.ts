@@ -285,6 +285,26 @@ export interface NotificationSettingsInput {
   days: string[];
 }
 
+export interface NotificationItem {
+  id: number;
+  userId: number;
+  type: string;
+  titleEn: string;
+  titlePl: string;
+  bodyEn: string;
+  bodyPl: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationItemInput {
+  type: string;
+  titleEn: string;
+  titlePl: string;
+  bodyEn: string;
+  bodyPl: string;
+}
+
 export interface CategorySpending {
   /** @nullable */
   categoryId: number | null;
@@ -518,6 +538,10 @@ export type ListTransactionsParams = {
   endDate?: string;
   limit?: number;
   offset?: number;
+};
+
+export type MarkAllNotificationItemsRead200 = {
+  ok: boolean;
 };
 
 export type SavePushSubscription200 = {

@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import webpush from "web-push";
-import { db, notificationSettingsTable, pushSubscriptionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
-import { UpdateNotificationSettingsBody, SavePushSubscriptionBody } from "@workspace/api-zod";
+import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
+import { UpdateNotificationSettingsBody, SavePushSubscriptionBody, CreateNotificationItemBody } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -75,6 +75,87 @@ router.put("/notifications", async (req, res): Promise<void> => {
   }
 
   res.json(formatSettings(settings));
+});
+
+// ── Notification-center feed items ──────────────────────────────────────────────
+// Persisted server-side (per user) so read/dismissed state survives reloads,
+// new devices, and project remixes instead of living only in localStorage.
+
+function formatItem(n: any) {
+  return {
+    id: n.id,
+    userId: n.userId,
+    type: n.type,
+    titleEn: n.titleEn,
+    titlePl: n.titlePl,
+    bodyEn: n.bodyEn,
+    bodyPl: n.bodyPl,
+    read: n.read,
+    createdAt: n.createdAt.toISOString(),
+  };
+}
+
+const NOTIFICATION_ITEMS_MAX = 50;
+
+router.get("/notifications/items", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const items = await db.select().from(notificationItemsTable)
+    .where(eq(notificationItemsTable.userId, userId))
+    .orderBy(desc(notificationItemsTable.createdAt))
+    .limit(NOTIFICATION_ITEMS_MAX);
+
+  res.json(items.map(formatItem));
+});
+
+router.post("/notifications/items", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const parsed = CreateNotificationItemBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [item] = await db.insert(notificationItemsTable).values({
+    userId,
+    ...parsed.data,
+  }).returning();
+
+  const excess = await db.select({ id: notificationItemsTable.id }).from(notificationItemsTable)
+    .where(eq(notificationItemsTable.userId, userId))
+    .orderBy(desc(notificationItemsTable.createdAt))
+    .offset(NOTIFICATION_ITEMS_MAX);
+  if (excess.length > 0) {
+    for (const row of excess) {
+      await db.delete(notificationItemsTable).where(eq(notificationItemsTable.id, row.id));
+    }
+  }
+
+  res.json(formatItem(item));
+});
+
+router.patch("/notifications/items/mark-all-read", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  await db.update(notificationItemsTable)
+    .set({ read: true })
+    .where(and(eq(notificationItemsTable.userId, userId), eq(notificationItemsTable.read, false)));
+
+  res.json({ ok: true });
+});
+
+router.delete("/notifications/items/:id", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db.delete(notificationItemsTable)
+    .where(and(eq(notificationItemsTable.id, id), eq(notificationItemsTable.userId, userId)));
+
+  res.status(204).send();
 });
 
 // ── Web Push routes ────────────────────────────────────────────────────────────

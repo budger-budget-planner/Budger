@@ -1,7 +1,8 @@
 ---
 - [Wouter v3 routing catch-all](wouter-v3-routing.md) — use path="/:rest*" not path="/" as catch-all in Switch; v3 strict-matches "/" only
 - [Split feature architecture](split-feature.md) — split currency, fraction-based issuer adjustment, preSplitAmount column, check-email endpoint details
-- [NC store pattern](nc-store-pattern.md) — per-user localStorage scoping, createdAt watermark for goal events, badge mark-all-on-close pattern
+- [NC store pattern](nc-store-pattern.md) — notification items/read-state are DB-backed per user (not localStorage, which resets on remix)
 - [SVG glow filter bleed](svg-glow-filter-bleed.md) — wide blur filters on adjacent chart segments can visually merge, hiding per-segment state even when logic is correct
 - [Budger scoping & budget cap](budger-scoping-and-budget-cap.md) — scope category summary queries by user/household; validate budget sums against remaining cap, not total
 - [Recurring payments feature](recurring-payments.md) — full DB/API/frontend architecture for manual+scheduled recurring payments with auto-apply and idempotency guarantees
+- [Duplicate workflow port conflicts](duplicate-workflow-port-conflicts.md) — legacy .replit workflows can coexist with artifact-managed ones on the same port, causing EADDRINUSE; check listWorkflows() for dupes

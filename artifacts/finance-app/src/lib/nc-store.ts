@@ -1,5 +1,8 @@
-// Notification Center persistent store (localStorage, scoped per user)
-// Holds types 1-8 (push), 15-16 (goal completed)
+// Notification Center feed store — backed by the database (per user) so
+// read/dismissed state survives reloads, new devices, and project remixes.
+// Holds types 1-8 (push), 15-16 (goal completed), share/edit approvals, etc.
+
+import { customFetch } from "@workspace/api-client-react";
 
 export type NCNotifType =
   | "daily_reminder"
@@ -20,53 +23,61 @@ export type NCNotification = {
   bodyEn: string;
   bodyPl: string;
   timestamp: number;
+  read: boolean;
 };
 
-const NC_MAX = 50;
+function fromApi(item: any): NCNotification {
+  return {
+    id: String(item.id),
+    type: item.type,
+    titleEn: item.titleEn,
+    titlePl: item.titlePl,
+    bodyEn: item.bodyEn,
+    bodyPl: item.bodyPl,
+    timestamp: new Date(item.createdAt).getTime(),
+    read: item.read,
+  };
+}
 
 // Module-level userId — set at login, cleared at logout.
-// Prevents cross-user notification leakage on shared devices.
+// Kept for compatibility with call sites that scope the store per user.
 let _currentUserId: string | number = "guest";
 
 export function setNCUserId(userId: string | number) {
   _currentUserId = userId;
 }
 
-function ncStoreKey(): string {
-  return `budger_nc_v1_${_currentUserId}`;
+export async function loadNCNotifications(): Promise<NCNotification[]> {
+  if (_currentUserId === "guest") return [];
+  try {
+    const items = await customFetch<any[]>("/api/notifications/items", { method: "GET" });
+    return items.map(fromApi);
+  } catch {
+    return [];
+  }
 }
 
-export function loadNCNotifications(): NCNotification[] {
+export async function addNCNotification(notif: Omit<NCNotification, "id" | "timestamp" | "read">) {
+  if (_currentUserId === "guest") return;
   try {
-    const raw = localStorage.getItem(ncStoreKey());
-    if (raw) return JSON.parse(raw) as NCNotification[];
-  } catch { /* ignore */ }
-  return [];
-}
-
-export function addNCNotification(notif: Omit<NCNotification, "id" | "timestamp">) {
-  const items = loadNCNotifications();
-  const newItem: NCNotification = {
-    ...notif,
-    id: Math.random().toString(36).slice(2, 10),
-    timestamp: Date.now(),
-  };
-  const updated = [newItem, ...items].slice(0, NC_MAX);
-  try {
-    localStorage.setItem(ncStoreKey(), JSON.stringify(updated));
-    // Signal NC component to re-render immediately (same tab)
+    await customFetch("/api/notifications/items", {
+      method: "POST",
+      body: JSON.stringify(notif),
+    });
     window.dispatchEvent(new CustomEvent("nc-updated"));
   } catch { /* ignore */ }
 }
 
-export function getNCSeenAt(userId: number | string): number {
+export async function markAllNCRead() {
+  if (_currentUserId === "guest") return;
   try {
-    return parseInt(localStorage.getItem(`notif_center_seen_at_${userId}`) ?? "0") || 0;
-  } catch { return 0; }
+    await customFetch("/api/notifications/items/mark-all-read", { method: "PATCH" });
+  } catch { /* ignore */ }
 }
 
-export function setNCSeenAt(userId: number | string): number {
-  const now = Date.now();
-  try { localStorage.setItem(`notif_center_seen_at_${userId}`, String(now)); } catch { /* ignore */ }
-  return now;
+export async function dismissNCNotification(id: string) {
+  try {
+    await customFetch(`/api/notifications/items/${id}`, { method: "DELETE" });
+    window.dispatchEvent(new CustomEvent("nc-updated"));
+  } catch { /* ignore */ }
 }

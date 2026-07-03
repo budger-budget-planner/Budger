@@ -810,6 +810,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "nc.manuals":        { en: "Manuals",                 pl: "Instrukcje"                   },
   "nc.settings":       { en: "Settings",                pl: "Ustawienia"                   },
   "nc.no_notifications":{ en: "No notifications yet",   pl: "Brak powiadomień"             },
+  "nc.dismiss":        { en: "Dismiss",                 pl: "Odrzuć"                       },
   "nc.unread_one":     { en: "unread notification",     pl: "nieprzeczytane powiadomienie" },
   "nc.unread_many":    { en: "unread notifications",    pl: "nieprzeczytane powiadomienia" },
   "nc.add_alarm":      { en: "Add alarm",               pl: "Dodaj alarm"                  },

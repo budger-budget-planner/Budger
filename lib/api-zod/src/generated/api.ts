@@ -877,6 +877,61 @@ export const UpdateNotificationSettingsResponse = zod.object({
 });
 
 /**
+ * @summary List notification-center feed items for the current user
+ */
+export const GetNotificationItemsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  type: zod.string(),
+  titleEn: zod.string(),
+  titlePl: zod.string(),
+  bodyEn: zod.string(),
+  bodyPl: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const GetNotificationItemsResponse = zod.array(
+  GetNotificationItemsResponseItem,
+);
+
+/**
+ * @summary Create a notification-center feed item for the current user
+ */
+export const CreateNotificationItemBody = zod.object({
+  type: zod.string(),
+  titleEn: zod.string(),
+  titlePl: zod.string(),
+  bodyEn: zod.string(),
+  bodyPl: zod.string(),
+});
+
+export const CreateNotificationItemResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  type: zod.string(),
+  titleEn: zod.string(),
+  titlePl: zod.string(),
+  bodyEn: zod.string(),
+  bodyPl: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Mark all of the current user's notification items as read
+ */
+export const MarkAllNotificationItemsReadResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Dismiss (delete) a notification item
+ */
+export const DismissNotificationItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary Get the VAPID public key for Web Push subscription
  */
 export const GetVapidPublicKeyResponse = zod.object({
