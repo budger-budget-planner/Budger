@@ -24,6 +24,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "profile.updating_rates":    { en: "Updating…",                             pl: "Aktualizowanie…"                         },
   "profile.last_updated":      { en: "Last updated {ts}",                     pl: "Ostatnia aktualizacja {ts}"              },
   "profile.never_updated":     { en: "Rates not fetched yet",                 pl: "Kursy jeszcze nie pobrane"                },
+  "profile.rates_refreshed":   { en: "Rates have been updated",              pl: "Kursy zostały zaktualizowane"            },
+  "profile.rates_refresh_failed": { en: "Failed to update rates",            pl: "Nie udało się zaktualizować kursów"      },
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },
