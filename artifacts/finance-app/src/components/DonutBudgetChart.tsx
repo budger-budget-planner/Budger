@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { fmtAmt } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
@@ -9,14 +9,15 @@ if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
   const s = document.createElement("style");
   s.id = HINT_KF_ID;
   // Two quick brightens: fade up → fade down → fade up → fade down
+  // Exactly two brightness peaks separated by a clear dip.
   s.textContent = `
     @keyframes donutHintPulse {
-      0%          { opacity: 0; }
-      12%, 28%    { opacity: 0.32; }
-      20%         { opacity: 0.06; }
-      40%, 55%    { opacity: 0.32; }
-      47%         { opacity: 0.06; }
-      68%, 100%   { opacity: 0; }
+      0%   { opacity: 0; }
+      14%  { opacity: 0.22; }
+      28%  { opacity: 0; }
+      42%  { opacity: 0.22; }
+      60%  { opacity: 0; }
+      100% { opacity: 0; }
     }
   `;
   document.head.appendChild(s);
@@ -220,6 +221,10 @@ const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.
 type Props = { spending: SpendingItem[]; totalBudget: number; currency: string };
 
 export default function DonutBudgetChart({ spending, totalBudget, currency }: Props) {
+  const uid = useId().replace(/:/g, "");
+  const idRedGlow  = `redGlow-${uid}`;
+  const idHintGrad = `hintGrad-${uid}`;
+
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [mode,        setMode]        = useState<"compact" | "expanded">("compact");
   // Bump triggers hint re-mount → CSS animation restarts
@@ -267,8 +272,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
       style={{
         display:    "flex",
         alignItems: expanded ? "flex-start" : "center",
-        // Gap is only meaningful in compact mode; CSS can't transition to/from
-        // "no gap" cleanly so we animate margin-left on the legend instead.
+        width:      "100%",
+        // width:100% gives the SVG wrapper a stable 100% target to animate
+        // toward — without it the target changes as the legend collapses,
+        // causing the donut to grow from the wrong position.
       }}
     >
       {/* ── SVG wrapper ─────────────────────────────────────────────────────
@@ -291,7 +298,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           aria-label={expanded ? "Spending donut — expanded" : "Spending donut"}
         >
           <defs>
-            <filter id="redGlow" x="-25%" y="-25%" width="150%" height="150%">
+            <filter id={idRedGlow} x="-25%" y="-25%" width="150%" height="150%">
               <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
               <feColorMatrix in="blur" type="matrix"
                 values="1.5 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.2 0"
@@ -301,6 +308,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            {/* Hint pulse gradient: warm-dark centre fading to near-black edge */}
+            <radialGradient id={idHintGrad} cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stopColor="#4b5563" />
+              <stop offset="60%"  stopColor="#374151" />
+              <stop offset="100%" stopColor="#1f2937" />
+            </radialGradient>
           </defs>
 
           {/* Fill paths */}
@@ -318,7 +331,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 style={{
                   transform:  `translate(${tx}px, ${ty}px)`,
                   transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                  filter:     seg.isOverBudget ? "url(#redGlow)" : "none",
+                  filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
                   cursor:     "pointer",
                 }}
                 onClick={() => handleSegmentClick(seg.catKey)}
@@ -356,9 +369,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
             <circle
               key={`hint-${hintKey}`}
               cx={CX} cy={CY} r={RI - 2}
-              fill="#9ca3af"
+              fill={`url(#${idHintGrad})`}
               style={{
-                animation:     "donutHintPulse 1.5s ease forwards",
+                animation:     "donutHintPulse 1.6s ease forwards",
                 pointerEvents: "none",
               }}
             />
