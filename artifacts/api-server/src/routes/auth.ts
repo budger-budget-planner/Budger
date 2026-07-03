@@ -158,11 +158,21 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
     }).returning();
   }
 
-  // No real mail service is configured — simulate sending the email by handing the
-  // frontend the link it would have contained. The link resolves within the app itself.
-  const verifyUrl = `/verify-email?token=${verificationToken}`;
-  req.log.info({ email: normalizedEmail }, "Simulated verification email queued");
-  res.json(RegisterStartResponse.parse({ email: normalizedEmail, verifyUrl }));
+  // Build a fully-qualified link so it also works when clicked from a real inbox.
+  const relativeVerifyPath = `/verify-email?token=${verificationToken}`;
+  const domain = (process.env.REPLIT_DOMAINS ?? "").split(",")[0].trim();
+  const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
+  const absoluteVerifyUrl = `${origin}${relativeVerifyPath}`;
+
+  const sent = await sendVerificationEmail({ to: normalizedEmail, firstName, verifyUrl: absoluteVerifyUrl });
+  if (sent) {
+    req.log.info({ email: normalizedEmail }, "Verification email sent via Resend");
+  } else {
+    req.log.info({ email: normalizedEmail }, "Simulated verification email queued (Resend not sent)");
+  }
+  // Always also hand the frontend the relative link so it can show/simulate it in-app,
+  // even when the real email was sent successfully.
+  res.json(RegisterStartResponse.parse({ email: normalizedEmail, verifyUrl: relativeVerifyPath }));
 });
 
 // POST /auth/verify-email — confirm the token from the (simulated) verification email
