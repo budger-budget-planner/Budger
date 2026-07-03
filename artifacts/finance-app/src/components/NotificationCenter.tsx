@@ -631,7 +631,7 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
           {/* Sheet */}
           <div className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-border
                           rounded-t-3xl flex flex-col"
-               style={{ maxHeight: "90vh" }}>
+               style={{ height: "90vh" }}>
 
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">

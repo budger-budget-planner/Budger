@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId } from "@/lib/prefs";
-import { fetchRates, getConversionRate } from "@/lib/rates";
+import { fetchRates, forceFetchRates, getConversionRate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
+import { useToast } from "@/hooks/use-toast";
 
 function navItems() {
   return [
@@ -229,6 +230,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
+  const [refreshingRates, setRefreshingRates] = useState(false);
+  const { toast } = useToast();
 
   const logout = useLogout({
     mutation: {
@@ -284,6 +287,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setPrefsState(next);
     updateMe.mutate({ data: { language: code } });
     window.location.reload();
+  }
+
+  async function handleRefreshRates() {
+    if (refreshingRates) return;
+    setRefreshingRates(true);
+    try {
+      const fresh = await forceFetchRates();
+      setRates(fresh);
+      toast({ title: t("profile.rates_refreshed") });
+    } catch {
+      toast({ title: t("profile.rates_refresh_failed"), variant: "destructive" });
+    } finally {
+      setRefreshingRates(false);
+    }
   }
 
   function toggleStaySignedIn() {
