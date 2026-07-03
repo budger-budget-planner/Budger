@@ -288,7 +288,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
         style={{
           width:      expanded ? "100%" : 180,
           flexShrink: 0,
-          transition: `width ${TRANS}`,
+          // 1→2: delay matches the 0.3 s lead that SVG gets in the 2→1 direction,
+          // making the two animations exact time-reverses of each other.
+          transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
         }}
       >
         <svg
