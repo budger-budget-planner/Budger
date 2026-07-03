@@ -22,6 +22,10 @@ export const usersTable = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   verificationToken: text("verification_token"),
   verificationTokenExpiresAt: timestamp("verification_token_expires_at", { withTimezone: true }),
+  // Full sign-up (email -> verify -> PIN) must complete before this timestamp, or the
+  // still-pending (no passwordHash) row is purged. Reset whenever /auth/register-start
+  // is (re)submitted for this row. Ignored once passwordHash is set.
+  signupExpiresAt: timestamp("signup_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

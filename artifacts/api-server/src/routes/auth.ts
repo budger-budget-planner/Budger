@@ -2,8 +2,9 @@ import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable } from "@workspace/db";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, isNull, lt } from "drizzle-orm";
 import { sendVerificationEmail } from "../lib/email-sender";
+import { logger } from "../lib/logger";
 import {
   LoginBody,
   LoginResponse,
@@ -20,7 +21,32 @@ import {
 // Verification links expire after 30 minutes.
 const VERIFICATION_TOKEN_TTL_MS = 30 * 60 * 1000;
 
+// The entire sign-up process (email submitted -> verified -> PIN set) must complete
+// within this window, or the still-pending account row is deleted outright.
+const SIGNUP_COMPLETION_TTL_MS = 15 * 60 * 1000;
+
 const router: IRouter = Router();
+
+// Deletes any pending (no passwordHash) account whose signup window has elapsed.
+// Called lazily on the routes that touch pending accounts, plus on a periodic sweep
+// below, so expired rows never linger even if nobody hits those routes again.
+async function purgeExpiredPendingAccounts(): Promise<number> {
+  const deleted = await db.delete(usersTable)
+    .where(and(
+      isNull(usersTable.passwordHash),
+      lt(usersTable.signupExpiresAt, new Date()),
+    ))
+    .returning({ id: usersTable.id });
+  if (deleted.length > 0) {
+    logger.info({ count: deleted.length, ids: deleted.map(d => d.id) }, "auth: purged expired unfinished sign-ups");
+  }
+  return deleted.length;
+}
+
+// Periodic sweep so abandoned sign-ups are cleaned up even without further requests.
+setInterval(() => {
+  purgeExpiredPendingAccounts().catch(err => logger.warn({ err }, "auth: periodic purge failed"));
+}, 60 * 1000);
 
 function isChild(role: string) { return role === "child" || role === "member"; }
 
@@ -121,6 +147,10 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   const { firstName, lastName, email } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
 
+  // Clear out any other abandoned sign-ups before checking for a conflict, so a stale
+  // row from a previous attempt never blocks this email from being reused.
+  await purgeExpiredPendingAccounts();
+
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
   if (existing && existing.passwordHash) {
     // Fully-registered account already owns this email
@@ -131,13 +161,15 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   const name = `${firstName} ${lastName}`;
   const verificationToken = crypto.randomBytes(24).toString("hex");
   const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
+  // Starts (or restarts) the 15-minute clock for completing the whole sign-up flow.
+  const signupExpiresAt = new Date(Date.now() + SIGNUP_COMPLETION_TTL_MS);
 
   let user;
   if (existing) {
     // Re-submitting the sign-up form for a still-pending (unverified) account —
     // refresh their details and issue a new token instead of erroring out.
     [user] = await db.update(usersTable)
-      .set({ name, firstName, lastName, emailVerified: false, verificationToken, verificationTokenExpiresAt })
+      .set({ name, firstName, lastName, emailVerified: false, verificationToken, verificationTokenExpiresAt, signupExpiresAt })
       .where(eq(usersTable.id, existing.id))
       .returning();
   } else {
@@ -155,6 +187,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
       emailVerified: false,
       verificationToken,
       verificationTokenExpiresAt,
+      signupExpiresAt,
     }).returning();
   }
 
@@ -187,6 +220,12 @@ router.post("/auth/verify-email", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.verificationToken, token));
   if (!user || !user.verificationTokenExpiresAt || user.verificationTokenExpiresAt.getTime() < Date.now()) {
     res.status(400).json({ error: "This verification link is invalid or has expired" });
+    return;
+  }
+  if (!user.passwordHash && user.signupExpiresAt && user.signupExpiresAt.getTime() < Date.now()) {
+    // The 15-minute sign-up window elapsed — remove the row and make the user start over.
+    await db.delete(usersTable).where(eq(usersTable.id, user.id));
+    res.status(410).json({ error: "Sign-up took too long and has expired. Please start again." });
     return;
   }
 
@@ -223,6 +262,12 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
   if (!user.emailVerified) {
     res.status(403).json({ error: "Please verify your email before setting a PIN" });
+    return;
+  }
+  if (user.signupExpiresAt && user.signupExpiresAt.getTime() < Date.now()) {
+    // The 15-minute sign-up window elapsed — remove the row and make the user start over.
+    await db.delete(usersTable).where(eq(usersTable.id, user.id));
+    res.status(410).json({ error: "Sign-up took too long and has expired. Please start again." });
     return;
   }
 

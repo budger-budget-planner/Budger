@@ -117,6 +117,8 @@ export default function LoginPage() {
         const msg = err?.response?.data?.error ?? err?.message ?? "";
         if (msg.includes("409") || msg.includes("already")) {
           setSignupError(t("login.email_taken"));
+        } else if (msg.includes("expired") || msg.includes("410")) {
+          setSignupError(t("login.verify_link_invalid"));
         } else {
           setSignupError(t("login.register_failed"));
         }
