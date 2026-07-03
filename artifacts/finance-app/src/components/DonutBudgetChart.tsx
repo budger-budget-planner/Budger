@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { fmtAmt } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
@@ -85,9 +85,9 @@ function buildChart(
   ri: number,
   ro: number,
   selectedCat: string | null,
+  expandPx: number,
 ): { segs: Seg[]; groupBorders: GroupBorder[]; legend: LegendItem[] } {
   const CAT_GAP = 2.5; // degrees gap between different categories
-  const EXPAND = 5;    // extra outer-radius px for selected segment
 
   // Split spending into budgeted categories vs unbudgeted
   const budgeted = spending.filter(s => s.budget != null && s.budget > 0);
@@ -142,14 +142,12 @@ function buildChart(
   }
 
   // Uncategorised group — only shown when the categories' budgets don't already
-  // add up to (or exceed) the total budget. If they do, the user has intentionally
-  // allocated everything and there's nothing meaningful left to call "uncategorised".
+  // add up to (or exceed) the total budget.
   if (sumBudgets < totalBudget && (uncatBudget > 0 || uncatSpent > 0)) {
     const catKey = "cat-uncat";
     const parts = [];
     const over = uncatSpent > uncatBudget;
     if (over || uncatBudget === 0) {
-      // treat like over-budget but using grey
       const frac = uncatBudget > 0 ? uncatBudget / effectiveTotal : uncatSpent / effectiveTotal;
       parts.push({ id: "uncat-over", fraction: frac, fill: UNCAT_SPENT_COLOR, isOverBudget: uncatBudget > 0 && over });
     } else {
@@ -176,18 +174,16 @@ function buildChart(
 
   const segs: Seg[] = [];
   const groupBorders: GroupBorder[] = [];
-  let cursor = 0; // degrees from 12 o'clock
+  let cursor = 0;
 
   for (const g of groups) {
     const groupDeg = g.parts.reduce((a, p) => a + p.fraction * drawDeg, 0);
     const isSelected = selectedCat === g.catKey;
-    const outerR = isSelected ? ro + EXPAND : ro;
+    const outerR = isSelected ? ro + expandPx : ro;
     const groupStartDeg = cursor;
     const groupEndDeg = cursor + groupDeg;
     const groupMidDeg = (groupStartDeg + groupEndDeg) / 2;
 
-    // Fill paths — no stroke, so the shared edge between spent / remaining
-    // sub-segments is never stroked (only the outer group border will be).
     let partCursor = cursor;
     for (const part of g.parts) {
       const partDeg = part.fraction * drawDeg;
@@ -207,7 +203,6 @@ function buildChart(
       partCursor = endDeg;
     }
 
-    // One border arc covering the full group extent — rendered on top later.
     groupBorders.push({
       catKey: g.catKey,
       d: arc(cx, cy, ri, outerR, groupStartDeg, groupEndDeg),
@@ -241,108 +236,241 @@ type Props = {
   currency: string;
 };
 
+// Mode 1 (compact): 180×180 donut + side legend
+const M1 = { cx: 90, cy: 90, ri: 42, ro: 72, size: 180, expand: 8 };
+// Mode 2 (expanded): large donut, legend in center
+const M2 = { cx: 160, cy: 160, ri: 78, ro: 152, size: 320, expand: 10 };
+
 export default function DonutBudgetChart({ spending, totalBudget, currency }: Props) {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  const [mode, setMode] = useState<"compact" | "expanded">("compact");
 
-  const cx = 90, cy = 90, ri = 42, ro = 72;
-  const { segs, groupBorders, legend } = buildChart(spending, totalBudget, currency, cx, cy, ri, ro, selectedCat);
+  // Double-tap detection for center circle
+  const lastCenterTapRef = useRef<number>(0);
 
-  function handleClick(catKey: string) {
+  const dims = mode === "compact" ? M1 : M2;
+  const { cx, cy, ri, ro, size, expand } = dims;
+
+  const { segs, groupBorders, legend } = buildChart(
+    spending, totalBudget, currency, cx, cy, ri, ro, selectedCat, expand,
+  );
+
+  function handleSegmentClick(catKey: string) {
     setSelectedCat(prev => (prev === catKey ? null : catKey));
   }
 
-  const budgetUsedPct = totalBudget > 0
-    ? Math.round((spending.reduce((a, s) => a + s.total, 0) / totalBudget) * 100)
-    : null;
+  function handleCenterTap() {
+    const now = Date.now();
+    if (now - lastCenterTapRef.current < 350) {
+      // Double tap — toggle mode, clear selection
+      setMode(m => (m === "compact" ? "expanded" : "compact"));
+      setSelectedCat(null);
+      lastCenterTapRef.current = 0;
+    } else {
+      lastCenterTapRef.current = now;
+    }
+  }
+
+  const totalSpent = spending.reduce((a, s) => a + s.total, 0);
+  const budgetUsedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : null;
+
+  // Info to show in center (mode 2 selected, or default %)
+  const selectedLegend = legend.find(l => l.catKey === selectedCat) ?? null;
+
+  // ── Shared SVG ──────────────────────────────────────────────────────────────
+
+  function renderSvg() {
+    return (
+      <svg
+        width={mode === "compact" ? size : "100%"}
+        height={mode === "compact" ? size : undefined}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ overflow: "visible", display: mode === "expanded" ? "block" : undefined }}
+      >
+        <defs>
+          <filter id="redGlow" x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+            <feColorMatrix in="blur" type="matrix"
+              values="1.5 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.2 0"
+              result="redBlur" />
+            <feMerge>
+              <feMergeNode in="redBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Fill paths */}
+        {segs.map(seg => {
+          const isSelected = selectedCat === seg.catKey;
+          const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
+          const tx = isSelected ? expand * Math.cos(midRad) : 0;
+          const ty = isSelected ? expand * Math.sin(midRad) : 0;
+          return (
+            <path
+              key={seg.id}
+              d={seg.d}
+              fill={seg.fill}
+              stroke="none"
+              style={{
+                transform: `translate(${tx}px, ${ty}px)`,
+                transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                filter: seg.isOverBudget ? "url(#redGlow)" : "none",
+                cursor: "pointer",
+                outline: "none",
+              }}
+              onClick={() => handleSegmentClick(seg.catKey)}
+            />
+          );
+        })}
+
+        {/* Group border paths */}
+        {groupBorders.map(gb => {
+          const isSelected = selectedCat === gb.catKey;
+          const midRad = ((gb.midDeg - 90) * Math.PI) / 180;
+          const tx = isSelected ? expand * Math.cos(midRad) : 0;
+          const ty = isSelected ? expand * Math.sin(midRad) : 0;
+          return (
+            <path
+              key={`border-${gb.catKey}`}
+              d={gb.d}
+              fill="none"
+              stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
+              strokeWidth={gb.isOverBudget ? 1.5 : 1}
+              style={{
+                transform: `translate(${tx}px, ${ty}px)`,
+                transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        })}
+
+        {/* Centre label — mode 1: just %, mode 2: selected info or overall % */}
+        {mode === "compact" && budgetUsedPct !== null && (
+          <>
+            <text x={cx} y={cy - 6}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize="18" fontWeight="700" fill="#ffffff"
+              style={{ pointerEvents: "none" }}>
+              {budgetUsedPct}%
+            </text>
+            <text x={cx} y={cy + 13}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize="9" fill="#6b7280"
+              style={{ pointerEvents: "none" }}>
+              of budget
+            </text>
+          </>
+        )}
+
+        {mode === "expanded" && (
+          <>
+            {selectedLegend ? (
+              // Selected category info
+              <>
+                <circle cx={cx} cy={cy} r={ri - 4} fill={selectedLegend.color + "18"} style={{ pointerEvents: "none" }} />
+                {/* Category name — wrap at ~ri*1.5 chars */}
+                <text x={cx} y={cy - 24}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize="13" fontWeight="600" fill="#ffffff"
+                  style={{ pointerEvents: "none" }}>
+                  {selectedLegend.name.length > 12
+                    ? selectedLegend.name.slice(0, 12) + "…"
+                    : selectedLegend.name}
+                </text>
+                <text x={cx} y={cy - 4}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize="16" fontWeight="700" fill="#ffffff"
+                  style={{ pointerEvents: "none" }}>
+                  {fmtAmt(selectedLegend.spent, currency)}
+                </text>
+                {selectedLegend.budget > 0 && (
+                  <text x={cx} y={cy + 17}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}
+                    style={{ pointerEvents: "none" }}>
+                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% of budget
+                  </text>
+                )}
+                <text x={cx} y={cy + 34}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize="9" fill="#4b5563"
+                  style={{ pointerEvents: "none" }}>
+                  tap again to close
+                </text>
+              </>
+            ) : (
+              // Overall budget usage
+              <>
+                {budgetUsedPct !== null && (
+                  <>
+                    <text x={cx} y={cy - 10}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="28" fontWeight="700" fill="#ffffff"
+                      style={{ pointerEvents: "none" }}>
+                      {budgetUsedPct}%
+                    </text>
+                    <text x={cx} y={cy + 16}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="11" fill="#6b7280"
+                      style={{ pointerEvents: "none" }}>
+                      of budget used
+                    </text>
+                    <text x={cx} y={cy + 32}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="9" fill="#374151"
+                      style={{ pointerEvents: "none" }}>
+                      {fmtAmt(totalSpent, currency)} / {fmtAmt(totalBudget, currency)}
+                    </text>
+                  </>
+                )}
+                <text x={cx} y={cy + 50}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize="8" fill="#374151"
+                  style={{ pointerEvents: "none" }}>
+                  ×× to exit
+                </text>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Invisible tap target over the center hole — rendered LAST so it sits
+            on top of all other SVG elements and reliably receives pointer events.
+            Double-tap to toggle between compact and expanded modes. */}
+        <circle
+          cx={cx} cy={cy} r={ri - 2}
+          fill="transparent"
+          role="button"
+          aria-label={mode === "compact" ? "Double-tap to expand chart" : "Double-tap to collapse chart"}
+          style={{ cursor: "pointer" }}
+          onClick={handleCenterTap}
+        />
+      </svg>
+    );
+  }
+
+  // ── Mode 2: full-width donut, no side legend ─────────────────────────────────
+
+  if (mode === "expanded") {
+    return (
+      <div
+        className="w-full transition-all duration-300"
+        style={{ aspectRatio: "1 / 1" }}
+      >
+        {renderSvg()}
+      </div>
+    );
+  }
+
+  // ── Mode 1: compact donut + side legend ─────────────────────────────────────
 
   return (
     <div className="flex items-center gap-3">
       {/* SVG Donut */}
       <div className="flex-shrink-0 relative" style={{ width: 180, height: 180 }}>
-        <svg width="180" height="180" viewBox="0 0 180 180" style={{ overflow: "visible" }}>
-          <defs>
-            {/* stdDeviation kept small and filter region tight so glows on adjacent
-                over-budget segments don't visually bleed into one another */}
-            <filter id="redGlow" x="-25%" y="-25%" width="150%" height="150%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
-              <feColorMatrix in="blur" type="matrix"
-                values="1.5 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.2 0"
-                result="redBlur" />
-              <feMerge>
-                <feMergeNode in="redBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* Fill paths — no stroke so the internal spent/remaining dividing line is invisible */}
-          {segs.map(seg => {
-            const isSelected = selectedCat === seg.catKey;
-            const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
-            const tx = isSelected ? 8 * Math.cos(midRad) : 0;
-            const ty = isSelected ? 8 * Math.sin(midRad) : 0;
-            return (
-              <path
-                key={seg.id}
-                d={seg.d}
-                fill={seg.fill}
-                stroke="none"
-                style={{
-                  transform: `translate(${tx}px, ${ty}px)`,
-                  transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                  filter: seg.isOverBudget ? "url(#redGlow)" : "none",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
-                onClick={() => handleClick(seg.catKey)}
-              />
-            );
-          })}
-
-          {/* Group border paths — one per category, rendered on top so the stroke
-              wraps the entire group (inner + outer radius + both angular edges)
-              without drawing the internal dividing line between sub-segments */}
-          {groupBorders.map(gb => {
-            const isSelected = selectedCat === gb.catKey;
-            const midRad = ((gb.midDeg - 90) * Math.PI) / 180;
-            const tx = isSelected ? 8 * Math.cos(midRad) : 0;
-            const ty = isSelected ? 8 * Math.sin(midRad) : 0;
-            return (
-              <path
-                key={`border-${gb.catKey}`}
-                d={gb.d}
-                fill="none"
-                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
-                strokeWidth={gb.isOverBudget ? 1.5 : 1}
-                style={{
-                  transform: `translate(${tx}px, ${ty}px)`,
-                  transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                  pointerEvents: "none", // clicks pass through to fill paths
-                }}
-              />
-            );
-          })}
-
-          {/* Centre label */}
-          {budgetUsedPct !== null && (
-            <>
-              <text
-                x={cx} y={cx - 6}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize="18" fontWeight="700" fill="#ffffff"
-              >
-                {budgetUsedPct}%
-              </text>
-              <text
-                x={cx} y={cx + 13}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize="9" fill="#6b7280"
-              >
-                of budget
-              </text>
-            </>
-          )}
-        </svg>
+        {renderSvg()}
       </div>
 
       {/* Legend */}
@@ -361,7 +489,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 opacity: dimmed ? 0.25 : 1,
                 transition: "opacity 0.2s ease",
               }}
-              onClick={() => handleClick(item.catKey)}
+              onClick={() => handleSegmentClick(item.catKey)}
             >
               <div className="flex items-center gap-1.5">
                 <span
