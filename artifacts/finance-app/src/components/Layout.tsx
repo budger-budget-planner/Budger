@@ -285,15 +285,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   function changeLanguage(code: string) {
     const next = { ...prefs, language: code };
     savePrefs(next);
-    setPrefsState(next);
     updateMe.mutate({ data: { language: code } });
-    // Give the browser a real timeslice to paint the newly-selected button
-    // highlight before the reload tears the page down. requestAnimationFrame
-    // is not reliable enough for this across mobile webviews — a short
-    // setTimeout guarantees the paint has happened first.
-    setTimeout(() => {
-      window.location.reload();
-    }, 200);
+    // The app reloads right after switching language anyway (the splash
+    // screen covers the transition), so there's no need to re-render the
+    // UI in the new language first — that just causes a flash/race with
+    // the reload. Just save the pref and reload; the app will come back
+    // up already in the selected language.
+    window.location.reload();
   }
 
   async function handleRefreshRates() {
