@@ -22,14 +22,15 @@ function navItems() {
 }
 
 /**
- * Full-screen splash shown the instant a language is picked. It has no timer
- * of its own — it just covers the screen (hiding the highlight flip and any
- * text re-translating underneath) until the page actually reloads. On reload,
- * App.tsx's own SplashScreen takes over with the same look, so the two read
- * as one continuous "long" splash rather than two separate ones, and the
- * user lands directly on the translated home tab when it's done.
+ * Full-screen splash shown the instant a language or currency is picked. It
+ * has no timer of its own — it just covers the screen (hiding the highlight
+ * flip and any values re-rendering underneath) until the page actually
+ * reloads. On reload, App.tsx's own SplashScreen takes over with the same
+ * look, so the two read as one continuous "long" splash rather than two
+ * separate ones, and the user lands directly on the updated home tab when
+ * it's done.
  */
-function LanguageSwitchSplash() {
+function PrefsSwitchSplash() {
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center"
@@ -256,9 +257,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
   const [refreshingRates, setRefreshingRates] = useState(false);
   const [ratesUpdatedAt, setRatesUpdatedAt]   = useState<number | null>(() => getLastRatesUpdate());
-  // Pending language the user just picked — highlight flips to it instantly,
-  // but the actual translation/reload is deferred until the splash finishes.
+  // Pending language/currency the user just picked — highlight flips to it
+  // instantly, but the actual update is hidden behind the splash until reload.
   const [langSwitchTarget, setLangSwitchTarget] = useState<string | null>(null);
+  const [currSwitchTarget, setCurrSwitchTarget] = useState<string | null>(null);
   const { toast } = useToast();
 
   const logout = useLogout({
@@ -277,7 +279,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   async function changeCurrency(code: string) {
-    if (code === prefs.currency || converting) return;
+    if (code === prefs.currency || converting || currSwitchTarget) return;
+    // Cover the screen immediately, same as language switching — the highlight
+    // flip and the actual conversion both happen underneath this splash, so
+    // the user only ever sees one continuous splash from click to landing
+    // back on the home tab with the new currency applied.
+    setCurrSwitchTarget(code);
     setConverting(true);
     try {
       const rates = await fetchRates();
@@ -425,14 +432,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {CURRENCIES.map(c => {
-                    const isSelected = c.code === prefs.currency;
+                    // Reflect the just-clicked currency immediately, even though
+                    // the real conversion doesn't happen until the splash finishes.
+                    const isSelected = c.code === (currSwitchTarget ?? prefs.currency);
                     const rate = rates ? getConversionRate(prefs.currency, c.code, rates) : null;
                     const rateStr = rate != null ? rate.toFixed(4) : null;
                     return (
                       <button
                         key={c.code}
                         onClick={() => changeCurrency(c.code)}
-                        disabled={converting || isSelected}
+                        disabled={converting || isSelected || !!currSwitchTarget}
                         className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition active:scale-95 disabled:cursor-default ${
                           isSelected
                             ? "border-foreground bg-foreground text-background"
@@ -571,11 +580,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      {/* ── Language switch splash — covers the highlight flip and the
-          translation/reload underneath, so it reads as one continuous
-          splash from click to landing on the translated home tab. ── */}
-      {langSwitchTarget && (
-        <LanguageSwitchSplash />
+      {/* ── Language/currency switch splash — covers the highlight flip and
+          the update/reload underneath, so it reads as one continuous splash
+          from click to landing back on the home tab. ── */}
+      {(langSwitchTarget || currSwitchTarget) && (
+        <PrefsSwitchSplash />
       )}
     </div>
   );
