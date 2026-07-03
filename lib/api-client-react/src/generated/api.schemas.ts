@@ -53,13 +53,35 @@ export interface LoginInput {
 
 export interface RegisterInput {
   /** @minLength 1 */
+  email: string;
+  /** @minLength 4 */
+  password: string;
+}
+
+export interface RegisterStartInput {
+  /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */
   lastName: string;
   /** @minLength 1 */
   email: string;
-  /** @minLength 4 */
-  password: string;
+}
+
+export interface RegisterStartOutput {
+  email: string;
+  /** Dev-simulated verification link (would be emailed in production) */
+  verifyUrl: string;
+}
+
+export interface VerifyEmailInput {
+  /** @minLength 1 */
+  token: string;
+}
+
+export interface VerifyEmailOutput {
+  email: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface Category {

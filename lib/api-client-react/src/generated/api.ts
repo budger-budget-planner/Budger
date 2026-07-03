@@ -59,6 +59,8 @@ import type {
   RecurringPaymentInput,
   RecurringPaymentUpdate,
   RegisterInput,
+  RegisterStartInput,
+  RegisterStartOutput,
   SavePushSubscription200,
   Transaction,
   TransactionInput,
@@ -67,6 +69,8 @@ import type {
   User,
   UserUpdate,
   VapidPublicKey,
+  VerifyEmailInput,
+  VerifyEmailOutput,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -303,7 +307,179 @@ export const useUpdateMe = <
 };
 
 /**
- * @summary Register a new user account
+ * @summary Begin account creation — stores pending details and sends a verification email
+ */
+export const getRegisterStartUrl = () => {
+  return `/api/auth/register-start`;
+};
+
+export const registerStart = async (
+  registerStartInput: RegisterStartInput,
+  options?: RequestInit,
+): Promise<RegisterStartOutput> => {
+  return customFetch<RegisterStartOutput>(getRegisterStartUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerStartInput),
+  });
+};
+
+export const getRegisterStartMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerStart>>,
+    TError,
+    { data: BodyType<RegisterStartInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerStart>>,
+  TError,
+  { data: BodyType<RegisterStartInput> },
+  TContext
+> => {
+  const mutationKey = ["registerStart"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerStart>>,
+    { data: BodyType<RegisterStartInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerStart(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterStartMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerStart>>
+>;
+export type RegisterStartMutationBody = BodyType<RegisterStartInput>;
+export type RegisterStartMutationError = ErrorType<void>;
+
+/**
+ * @summary Begin account creation — stores pending details and sends a verification email
+ */
+export const useRegisterStart = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerStart>>,
+    TError,
+    { data: BodyType<RegisterStartInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerStart>>,
+  TError,
+  { data: BodyType<RegisterStartInput> },
+  TContext
+> => {
+  return useMutation(getRegisterStartMutationOptions(options));
+};
+
+/**
+ * @summary Confirm a pending account's email address via its verification token
+ */
+export const getVerifyEmailUrl = () => {
+  return `/api/auth/verify-email`;
+};
+
+export const verifyEmail = async (
+  verifyEmailInput: VerifyEmailInput,
+  options?: RequestInit,
+): Promise<VerifyEmailOutput> => {
+  return customFetch<VerifyEmailOutput>(getVerifyEmailUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(verifyEmailInput),
+  });
+};
+
+export const getVerifyEmailMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyEmail>>,
+    TError,
+    { data: BodyType<VerifyEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyEmail>>,
+  TError,
+  { data: BodyType<VerifyEmailInput> },
+  TContext
+> => {
+  const mutationKey = ["verifyEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyEmail>>,
+    { data: BodyType<VerifyEmailInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return verifyEmail(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyEmail>>
+>;
+export type VerifyEmailMutationBody = BodyType<VerifyEmailInput>;
+export type VerifyEmailMutationError = ErrorType<void>;
+
+/**
+ * @summary Confirm a pending account's email address via its verification token
+ */
+export const useVerifyEmail = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyEmail>>,
+    TError,
+    { data: BodyType<VerifyEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyEmail>>,
+  TError,
+  { data: BodyType<VerifyEmailInput> },
+  TContext
+> => {
+  return useMutation(getVerifyEmailMutationOptions(options));
+};
+
+/**
+ * @summary Finish account creation by setting a PIN, once the email is verified
  */
 export const getRegisterUrl = () => {
   return `/api/auth/register`;
@@ -366,7 +542,7 @@ export type RegisterMutationBody = BodyType<RegisterInput>;
 export type RegisterMutationError = ErrorType<void>;
 
 /**
- * @summary Register a new user account
+ * @summary Finish account creation by setting a PIN, once the email is verified
  */
 export const useRegister = <
   TError = ErrorType<void>,

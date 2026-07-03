@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useLogin, useRegister } from "@workspace/api-client-react";
+import { useLogin, useRegister, useRegisterStart, useVerifyEmail } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ type Screen =
   | "start"          // email + language, login default / sign-up link
   | "login-pin"      // existing user: PIN entry
   | "signup-info"    // new user: first/last name + email
+  | "signup-check-email" // new user: confirm the (simulated) verification email
   | "signup-pin"     // new user: set PIN
   | "signup-confirm";// new user: confirm PIN
 
@@ -40,6 +42,11 @@ export default function LoginPage() {
   const [signupPin, setSignupPin]     = useState("");
   const [confirmPin, setConfirmPin]   = useState("");
   const [signupError, setSignupError] = useState("");
+  // Dev-simulated verification email — no real mail service is wired up, so the
+  // "inbox" is rendered right here with a button standing in for the emailed link.
+  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
+  const [emailOpened, setEmailOpened] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [loginChecking, setLoginChecking] = useState(false);
@@ -120,6 +127,40 @@ export default function LoginPage() {
     },
   });
 
+  const registerStart = useRegisterStart({
+    mutation: {
+      onSuccess: (data) => {
+        setVerifyUrl(data.verifyUrl);
+        setEmailOpened(false);
+        setVerifyError("");
+        setScreen("signup-check-email");
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.error ?? err?.message ?? "";
+        if (msg.includes("409") || msg.includes("already")) {
+          setSignupError(t("login.email_taken"));
+        } else {
+          setSignupError(t("login.register_failed"));
+        }
+      },
+    },
+  });
+
+  const verifyEmail = useVerifyEmail({
+    mutation: {
+      onSuccess: () => {
+        setVerifyError("");
+        setSignupPin("");
+        setConfirmPin("");
+        setScreen("signup-pin");
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.error ?? err?.message ?? "";
+        setVerifyError(msg.includes("expired") || msg.includes("invalid") ? t("login.verify_link_invalid") : t("login.verify_failed"));
+      },
+    },
+  });
+
   // ── Login flow ──────────────────────────────────────────────────────────────
 
   async function handleLoginContinue(e: React.FormEvent) {
@@ -175,9 +216,25 @@ export default function LoginPage() {
     e.preventDefault();
     setSignupError("");
     if (!firstName.trim() || !lastName.trim() || !signupEmail.trim()) return;
-    setSignupPin("");
-    setConfirmPin("");
-    setScreen("signup-pin");
+    registerStart.mutate({
+      data: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: signupEmail.trim(),
+      },
+    });
+  }
+
+  function handleOpenSimulatedEmail() {
+    setEmailOpened(true);
+  }
+
+  function handleConfirmEmailLink() {
+    if (!verifyUrl) return;
+    const token = new URL(verifyUrl, window.location.origin).searchParams.get("token");
+    if (!token) return;
+    setVerifyError("");
+    verifyEmail.mutate({ data: { token } });
   }
 
   function handleSignupPin(pin: string) {
@@ -198,8 +255,6 @@ export default function LoginPage() {
         if (pin === signupPin) {
           register.mutate({
             data: {
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
               email: signupEmail.trim(),
               password: pin,
             },
@@ -396,11 +451,80 @@ export default function LoginPage() {
             )}
             <Button
               type="submit"
+              disabled={registerStart.isPending}
               className="w-full h-14 rounded-2xl text-base font-semibold mt-2"
             >
-              {t("login.next")}
+              {registerStart.isPending ? t("login.sending_email") : t("login.next")}
             </Button>
           </form>
+        </div>
+      )}
+
+      {/* ── Sign-up: check email screen ── */}
+      {screen === "signup-check-email" && (
+        <div key="signup-check-email" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+          <button
+            onClick={() => { setVerifyError(""); setScreen("signup-info"); }}
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
+          >
+            ← {t("common.back")}
+          </button>
+
+          <div className="login-enter login-enter-d2 flex flex-col items-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Mail className="w-7 h-7 text-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">{t("login.check_email_title")}</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {t("login.check_email_sub").replace("{email}", signupEmail.trim())}
+            </p>
+          </div>
+
+          {/* Dev simulation: no real mail service is wired up, so we render the
+              "inbox" here — tapping it reveals an email whose button behaves exactly
+              like the link a real inbox would deliver. */}
+          <div className="login-enter login-enter-d3 w-full max-w-sm space-y-3">
+            {!emailOpened ? (
+              <button
+                onClick={handleOpenSimulatedEmail}
+                className="w-full rounded-2xl border border-border bg-muted/40 hover:bg-muted transition p-4 text-left flex items-start gap-3"
+              >
+                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Mail className="w-4 h-4 text-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{t("login.sim_email_subject")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t("login.sim_email_preview")}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">{t("login.sim_email_tag")}</p>
+                </div>
+              </button>
+            ) : (
+              <div className="w-full rounded-2xl border border-border bg-muted/40 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{t("login.sim_email_subject")}</p>
+                    <p className="text-[10px] text-muted-foreground/60">{t("login.sim_email_tag")}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t("login.sim_email_body").replace("{name}", firstName.trim() || t("login.sim_email_fallback_name"))}
+                </p>
+                <Button
+                  onClick={handleConfirmEmailLink}
+                  disabled={verifyEmail.isPending}
+                  className="w-full h-12 rounded-xl text-sm font-semibold"
+                >
+                  {verifyEmail.isPending ? t("login.verifying") : t("login.sim_email_link")}
+                </Button>
+              </div>
+            )}
+            {verifyError && (
+              <p className="text-sm text-destructive text-center">{verifyError}</p>
+            )}
+          </div>
         </div>
       )}
 

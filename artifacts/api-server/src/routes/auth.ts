@@ -1,15 +1,23 @@
 import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
+import crypto from "crypto";
 import { db, usersTable, householdMembersTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import {
   LoginBody,
   LoginResponse,
   RegisterBody,
+  RegisterStartBody,
+  RegisterStartResponse,
+  VerifyEmailBody,
+  VerifyEmailResponse,
   GetMeResponse,
   UpdateMeBody,
   UpdateMeResponse,
 } from "@workspace/api-zod";
+
+// Verification links expire after 30 minutes.
+const VERIFICATION_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 const router: IRouter = Router();
 
@@ -100,43 +108,121 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   res.json(UpdateMeResponse.parse(serializeUser(user)));
 });
 
-// POST /auth/register — create a new account
+// POST /auth/register-start — collect account details and "send" a verification email.
+// No password/PIN is set yet and no session is created — the account only becomes
+// usable once the email link is confirmed and a PIN is chosen via /auth/register.
+router.post("/auth/register-start", async (req, res): Promise<void> => {
+  const parsed = RegisterStartBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { firstName, lastName, email } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
+  if (existing && existing.passwordHash) {
+    // Fully-registered account already owns this email
+    res.status(409).json({ error: "Email already in use" });
+    return;
+  }
+
+  const name = `${firstName} ${lastName}`;
+  const verificationToken = crypto.randomBytes(24).toString("hex");
+  const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
+
+  let user;
+  if (existing) {
+    // Re-submitting the sign-up form for a still-pending (unverified) account —
+    // refresh their details and issue a new token instead of erroring out.
+    [user] = await db.update(usersTable)
+      .set({ name, firstName, lastName, emailVerified: false, verificationToken, verificationTokenExpiresAt })
+      .where(eq(usersTable.id, existing.id))
+      .returning();
+  } else {
+    // Determine golden/normal status at the moment the row is first created
+    const [{ total }] = await db.select({ total: count() }).from(usersTable);
+    const status = total < 100 ? "golden" : "normal";
+
+    [user] = await db.insert(usersTable).values({
+      name,
+      firstName,
+      lastName,
+      email: normalizedEmail,
+      status,
+      firstLoginDone: false,
+      emailVerified: false,
+      verificationToken,
+      verificationTokenExpiresAt,
+    }).returning();
+  }
+
+  // No real mail service is configured — simulate sending the email by handing the
+  // frontend the link it would have contained. The link resolves within the app itself.
+  const verifyUrl = `/verify-email?token=${verificationToken}`;
+  req.log.info({ email: normalizedEmail }, "Simulated verification email queued");
+  res.json(RegisterStartResponse.parse({ email: normalizedEmail, verifyUrl }));
+});
+
+// POST /auth/verify-email — confirm the token from the (simulated) verification email
+router.post("/auth/verify-email", async (req, res): Promise<void> => {
+  const parsed = VerifyEmailBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { token } = parsed.data;
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.verificationToken, token));
+  if (!user || !user.verificationTokenExpiresAt || user.verificationTokenExpiresAt.getTime() < Date.now()) {
+    res.status(400).json({ error: "This verification link is invalid or has expired" });
+    return;
+  }
+
+  const [updated] = await db.update(usersTable)
+    .set({ emailVerified: true, verificationToken: null, verificationTokenExpiresAt: null })
+    .where(eq(usersTable.id, user.id))
+    .returning();
+
+  res.json(VerifyEmailResponse.parse({
+    email: updated.email,
+    firstName: updated.firstName ?? "",
+    lastName: updated.lastName ?? "",
+  }));
+});
+
+// POST /auth/register — finish account creation by setting a PIN, once the email is verified
 router.post("/auth/register", async (req, res): Promise<void> => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { firstName, lastName, email, password } = parsed.data;
+  const { email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
 
-  // Check if email already taken
-  const [existing] = await db.select({ id: usersTable.id })
-    .from(usersTable).where(eq(usersTable.email, email));
-  if (existing) {
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
+  if (!user) {
+    res.status(404).json({ error: "No pending account found for this email" });
+    return;
+  }
+  if (user.passwordHash) {
     res.status(409).json({ error: "Email already in use" });
     return;
   }
-
-  // Determine golden/normal status
-  const [{ total }] = await db.select({ total: count() }).from(usersTable);
-  const status = total < 100 ? "golden" : "normal";
+  if (!user.emailVerified) {
+    res.status(403).json({ error: "Please verify your email before setting a PIN" });
+    return;
+  }
 
   const passwordHash = await bcryptjs.hash(password, 10);
-  const name = `${firstName} ${lastName}`;
+  const [updated] = await db.update(usersTable)
+    .set({ passwordHash, pinLength: password.length })
+    .where(eq(usersTable.id, user.id))
+    .returning();
 
-  const [user] = await db.insert(usersTable).values({
-    name,
-    firstName,
-    lastName,
-    email,
-    passwordHash,
-    pinLength: password.length,
-    status,
-    firstLoginDone: false,
-  }).returning();
-
-  (req.session as any).userId = user.id;
-  res.status(201).json(LoginResponse.parse(serializeUser(user)));
+  (req.session as any).userId = updated.id;
+  res.status(201).json(LoginResponse.parse(serializeUser(updated)));
 });
 
 // POST /auth/login — authenticate with email + password

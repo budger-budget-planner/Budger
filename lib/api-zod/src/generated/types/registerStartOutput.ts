@@ -6,9 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RegisterInput {
-  /** @minLength 1 */
+export interface RegisterStartOutput {
   email: string;
-  /** @minLength 4 */
-  password: string;
+  /** Dev-simulated verification link (would be emailed in production) */
+  verifyUrl: string;
 }

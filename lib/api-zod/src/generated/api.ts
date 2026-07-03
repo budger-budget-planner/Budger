@@ -66,14 +66,45 @@ export const UpdateMeResponse = zod.object({
 });
 
 /**
- * @summary Register a new user account
+ * @summary Begin account creation — stores pending details and sends a verification email
+ */
+
+export const RegisterStartBody = zod.object({
+  firstName: zod.string().min(1),
+  lastName: zod.string().min(1),
+  email: zod.string().min(1),
+});
+
+export const RegisterStartResponse = zod.object({
+  email: zod.string(),
+  verifyUrl: zod
+    .string()
+    .describe(
+      "Dev-simulated verification link (would be emailed in production)",
+    ),
+});
+
+/**
+ * @summary Confirm a pending account's email address via its verification token
+ */
+
+export const VerifyEmailBody = zod.object({
+  token: zod.string().min(1),
+});
+
+export const VerifyEmailResponse = zod.object({
+  email: zod.string(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+});
+
+/**
+ * @summary Finish account creation by setting a PIN, once the email is verified
  */
 
 export const registerBodyPasswordMin = 4;
 
 export const RegisterBody = zod.object({
-  firstName: zod.string().min(1),
-  lastName: zod.string().min(1),
   email: zod.string().min(1),
   password: zod.string().min(registerBodyPasswordMin),
 });

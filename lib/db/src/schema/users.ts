@@ -19,6 +19,9 @@ export const usersTable = pgTable("users", {
   pendingHouseholdAlert: text("pending_household_alert"),
   pinLength: integer("pin_length"),
   webhookToken: text("webhook_token"),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationToken: text("verification_token"),
+  verificationTokenExpiresAt: timestamp("verification_token_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
