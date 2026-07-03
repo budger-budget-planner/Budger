@@ -4,53 +4,48 @@ import { t } from "@/lib/i18n";
 
 // ─── Inject hint-pulse keyframes once ────────────────────────────────────────
 
-// Three pulse animations with a brightness crescendo across the three scheduled
-// hint firings.  Within each animation:
-//   • Rise / fall are symmetric at 7 % of 1.6 s = 112 ms each.
-//   • The gap between blink-1 and blink-2 is 5 % = 80 ms — tight enough to
-//     read clearly as a double-tap hint without feeling hurried.
-//   • blink-2 peak > blink-1 peak (the "lub-DUB" heartbeat shape).
-//   • The blink-1 peak of each next animation equals the blink-2 peak of the
-//     previous one — so brightness picks up exactly where it left off:
-//       Pulse 1: 0.14 → 0.22
-//       Pulse 2: 0.22 → 0.30
-//       Pulse 3: 0.30 → 0.37
-//   Max opacity 0.37 stays well in the "subtle glow" range.
+// Four single-blink keyframes — one per opacity level.
+// Each blink lasts 0.224 s (rise to peak at 50 %, fall back to 0 at 100 %).
+// Two circles are rendered per hint: Circle A plays immediately, Circle B is
+// delayed 0.304 s (= the 80 ms gap between blinks, held by fill-mode: both).
+// Brightness crescendo across the 3 scheduled hint firings:
+//   Pulse 1: A = 0.14, B = 0.22
+//   Pulse 2: A = 0.22, B = 0.30   ← A opens at B's previous level
+//   Pulse 3: A = 0.30, B = 0.37   ← A opens at B's previous level
+// Radii are randomised at fire time (r1 < r2, both ≥ 65 % of the hole radius).
+// A feGaussianBlur SVG filter softens each circle's edge into a warm glow.
 const HINT_KF_ID = "donut-hint-kf";
 if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
   const s = document.createElement("style");
   s.id = HINT_KF_ID;
   s.textContent = `
-    @keyframes donutHintPulse1 {
+    @keyframes donutBlink014 {
       0%   { opacity: 0;    }
-      7%   { opacity: 0.14; }
-      14%  { opacity: 0;    }
-      19%  { opacity: 0;    }
-      26%  { opacity: 0.22; }
-      33%  { opacity: 0;    }
+      50%  { opacity: 0.14; }
       100% { opacity: 0;    }
     }
-    @keyframes donutHintPulse2 {
+    @keyframes donutBlink022 {
       0%   { opacity: 0;    }
-      7%   { opacity: 0.22; }
-      14%  { opacity: 0;    }
-      19%  { opacity: 0;    }
-      26%  { opacity: 0.30; }
-      33%  { opacity: 0;    }
+      50%  { opacity: 0.22; }
       100% { opacity: 0;    }
     }
-    @keyframes donutHintPulse3 {
+    @keyframes donutBlink030 {
       0%   { opacity: 0;    }
-      7%   { opacity: 0.30; }
-      14%  { opacity: 0;    }
-      19%  { opacity: 0;    }
-      26%  { opacity: 0.37; }
-      33%  { opacity: 0;    }
+      50%  { opacity: 0.30; }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutBlink037 {
+      0%   { opacity: 0;    }
+      50%  { opacity: 0.37; }
       100% { opacity: 0;    }
     }
   `;
   document.head.appendChild(s);
 }
+
+// Circle A / B keyframe names indexed by pulse (0-based)
+const HINT_ANIM_A = ["donutBlink014", "donutBlink022", "donutBlink030"] as const;
+const HINT_ANIM_B = ["donutBlink022", "donutBlink030", "donutBlink037"] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -254,6 +249,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
+  const idHintBlur = `hintBlur-${uid}`;
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
   const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
@@ -262,6 +258,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const [hintKey, setHintKey] = useState(0);
   const lastCenterTapRef = useRef<number>(0);
   const containerRef     = useRef<HTMLDivElement>(null);
+  // Random radii for the two circles in each hint firing (r1 < r2, both ≥ 65 % of hole)
+  const hintRadiiRef = useRef<{ r1: number; r2: number }>({ r1: RI - 2, r2: RI - 2 });
 
   const { segs, groupBorders, legend } = buildChart(spending, totalBudget, selectedCat);
 
@@ -285,9 +283,16 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
+    const MIN_R   = Math.round(0.65 * (RI - 2)); // ≈ 47 SVG units
+    const MAX_R   = RI - 2;                       //   73 SVG units
+    const MIN_GAP = 5;                            // r2 must exceed r1 by at least this
     // 3 pulses: at 3 s, 8 s, 13 s
     for (let i = 0; i < 3; i++) {
       timers.push(setTimeout(() => {
+        // r1 ∈ [MIN_R, MAX_R − MIN_GAP], r2 ∈ [r1 + MIN_GAP, MAX_R]
+        const r1 = MIN_R + Math.floor(Math.random() * (MAX_R - MIN_GAP - MIN_R + 1));
+        const r2 = Math.min(r1 + MIN_GAP + Math.floor(Math.random() * (MAX_R - r1 - MIN_GAP + 1)), MAX_R);
+        hintRadiiRef.current = { r1, r2 };
         setHintKey(k => k + 1);
       }, 3_000 + i * 5_000));
     }
@@ -358,6 +363,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
               <stop offset="60%"  stopColor="#374151" />
               <stop offset="100%" stopColor="#1f2937" />
             </radialGradient>
+            {/* Soft-edge blur applied to each hint circle — stdDeviation in SVG
+                user units; at 180 px compact display ≈ 5.6 CSS px, enough to
+                feather the disc into a warm glow without losing the shape.    */}
+            <filter id={idHintBlur} x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation="10" />
+            </filter>
           </defs>
 
           {/* Fill paths */}
@@ -406,20 +417,40 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           })}
 
           {/* ── Hint pulse ─────────────────────────────────────────────────
-              A grey circle that plays the two-brighten animation and then
-              disappears.  Keyed on hintKey so each scheduled pulse remounts
-              the element and restarts the CSS animation from 0%.           */}
-          {mode === "compact" && hintKey > 0 && (
-            <circle
-              key={`hint-${hintKey}`}
-              cx={CX} cy={CY} r={RI - 2}
-              fill={`url(#${idHintGrad})`}
-              style={{
-                animation:     `donutHintPulse${hintKey} 1.6s ease forwards`,
-                pointerEvents: "none",
-              }}
-            />
-          )}
+              Two circles per firing, keyed on hintKey so they remount and
+              restart on each scheduled pulse.
+              Circle A (smaller r, dimmer): plays immediately.
+              Circle B (larger r, brighter): delayed 0.304 s — fill-mode:both
+              holds it at opacity 0 during the gap, then it blooms.
+              Both circles get the feGaussianBlur filter for soft edges.      */}
+          {mode === "compact" && hintKey > 0 && (() => {
+            const idx  = (hintKey - 1) % 3;
+            const { r1, r2 } = hintRadiiRef.current;
+            return (
+              <>
+                <circle
+                  key={`hint-a-${hintKey}`}
+                  cx={CX} cy={CY} r={r1}
+                  fill={`url(#${idHintGrad})`}
+                  filter={`url(#${idHintBlur})`}
+                  style={{
+                    animation:     `${HINT_ANIM_A[idx]} 0.224s ease 0s both`,
+                    pointerEvents: "none",
+                  }}
+                />
+                <circle
+                  key={`hint-b-${hintKey}`}
+                  cx={CX} cy={CY} r={r2}
+                  fill={`url(#${idHintGrad})`}
+                  filter={`url(#${idHintBlur})`}
+                  style={{
+                    animation:     `${HINT_ANIM_B[idx]} 0.224s ease 0.304s both`,
+                    pointerEvents: "none",
+                  }}
+                />
+              </>
+            );
+          })()}
 
           {/* ── Compact centre text (mode 1) ───────────────────────────────
               Font sizes are written in 320×320 SVG units.  At 180 px display
