@@ -481,19 +481,20 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               );
             }
 
-            // Helper: path props for a border
-            function borderPath(gb: GroupBorder) {
-              const isSel  = selectedCat === gb.catKey;
-              const midRad = ((gb.midDeg - 90) * Math.PI) / 180;
-              const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
-              const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
+            // Helper: border for a single part (used only while the group is
+            // detached — each part gets its own border, tracking its own
+            // translate offset, in the same lighter-tone-of-category-color style).
+            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean) {
+              const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
+              const tx = EXPAND * Math.cos(midRad);
+              const ty = EXPAND * Math.sin(midRad);
               return (
                 <path
-                  key={`border-${gb.catKey}`}
-                  d={gb.d}
+                  key={`border-${seg.id}`}
+                  d={seg.d}
                   fill="none"
-                  stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
-                  strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                  stroke={groupIsOverBudget ? "#ef4444" : groupColor + "90"}
+                  strokeWidth={groupIsOverBudget ? 1.5 : 1}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -503,13 +504,41 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               );
             }
 
+            // Helper: border for a whole (non-detached) group — one border
+            // in a lighter tone of the category color around the entire arc.
+            function groupBorderPath(gb: GroupBorder) {
+              return (
+                <path
+                  key={`border-${gb.catKey}`}
+                  d={gb.d}
+                  fill="none"
+                  stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
+                  strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                  style={{
+                    transform:     "translate(0px, 0px)",
+                    transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                    pointerEvents: "none",
+                  }}
+                />
+              );
+            }
+
+            // Border(s) for a group: split into per-part borders once detached
+            // (selected), otherwise a single border around the whole arc.
+            function borderPath(gb: GroupBorder) {
+              const isSel = selectedCat === gb.catKey;
+              if (!isSel) return [groupBorderPath(gb)];
+              const groupSegs = segs.filter(s => s.catKey === gb.catKey);
+              return groupSegs.map(s => partBorderPath(s, gb.groupColor, gb.isOverBudget));
+            }
+
             // Three buckets: wiggle1 (first group), wiggle2 (4th/3rd/2nd fallback), rest
             const group1Fills  = segs.filter(s => s.catKey === wiggleCatKey).map(fillPath);
             const group1Border = groupBorders.find(gb => gb.catKey === wiggleCatKey);
             const group2Fills  = wiggleCatKey2 ? segs.filter(s => s.catKey === wiggleCatKey2).map(fillPath) : [];
             const group2Border = wiggleCatKey2 ? groupBorders.find(gb => gb.catKey === wiggleCatKey2) : undefined;
             const restFills    = segs.filter(s => s.catKey !== wiggleCatKey && s.catKey !== wiggleCatKey2).map(fillPath);
-            const restBorders  = groupBorders.filter(gb => gb.catKey !== wiggleCatKey && gb.catKey !== wiggleCatKey2).map(borderPath);
+            const restBorders  = groupBorders.filter(gb => gb.catKey !== wiggleCatKey && gb.catKey !== wiggleCatKey2).flatMap(borderPath);
 
             return (
               <>
