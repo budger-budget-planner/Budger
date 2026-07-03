@@ -210,10 +210,20 @@ const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 const DUR  = "0.48s";
 const TRANS = `${DUR} ${EASE}`;
 
-// Legend exits first: opacity gone in 0.15 s, layout collapses over 0.48 s.
-// Legend enters after donut shrinks: max-width + margin both delayed 0.3 s,
-// then opacity fades in over 0.28 s (delayed 0.38 s so space opens first).
-const LEGEND_EXIT_TRANS  = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.15s ease`;
+// 2→1 timeline (total 0.78 s):
+//   t=0–0.48 s  SVG shrinks (no delay)
+//   t=0–0.15 s  expanded text fades out
+//   t=0.28–0.56 s  compact text fades in
+//   t=0.30–0.78 s  legend max-width + margin expand
+//   t=0.38–0.66 s  legend opacity fades in
+//
+// 1→2 is the exact time-reverse (each delay = 0.78 − original_end):
+//   legend opacity:        delay 0.12 s, dur 0.28 s  (0.78−0.66)
+//   legend max-width/margin: delay 0 s,  dur 0.48 s  (0.78−0.78) ✓
+//   SVG grows:             delay 0.30 s, dur 0.48 s  (0.78−0.48) ✓
+//   compact text fades out: delay 0.22 s, dur 0.28 s (0.78−0.56)
+//   expanded text fades in: delay 0.63 s, dur 0.15 s (0.78−0.15)
+const LEGEND_EXIT_TRANS  = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.28s ease 0.12s`;
 const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -387,7 +397,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           <g
             style={{
               opacity:       expanded ? 0 : 1,
-              transition:    `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`,
+              transition:    `opacity ${expanded ? "0.28s 0.22s" : "0.28s 0.28s"} ease`,
               pointerEvents: "none",
             }}
           >
@@ -412,7 +422,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           <g
             style={{
               opacity:       expanded ? 1 : 0,
-              transition:    `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`,
+              transition:    `opacity ${expanded ? "0.15s 0.63s" : "0.15s"} ease`,
               pointerEvents: "none",
             }}
           >
