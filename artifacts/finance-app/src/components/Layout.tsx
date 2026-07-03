@@ -22,42 +22,24 @@ function navItems() {
 }
 
 /**
- * Full-screen splash shown while a language switch is in flight. Stays up for
- * a short fixed duration so the user sees the highlight change register
- * before the app actually re-translates, then calls onDone (which persists
- * + reloads with the new language).
+ * Full-screen splash shown the instant a language is picked. It has no timer
+ * of its own — it just covers the screen (hiding the highlight flip and any
+ * text re-translating underneath) until the page actually reloads. On reload,
+ * App.tsx's own SplashScreen takes over with the same look, so the two read
+ * as one continuous "long" splash rather than two separate ones, and the
+ * user lands directly on the translated home tab when it's done.
  */
-function LanguageSwitchSplash({ onDone }: { onDone: () => void }) {
-  const [fading, setFading] = useState(false);
-  const doneRef = useRef(false);
-
-  useEffect(() => {
-    const fadeId = setTimeout(() => setFading(true), 900);
-    const doneId = setTimeout(() => {
-      if (!doneRef.current) {
-        doneRef.current = true;
-        onDone();
-      }
-    }, 1200);
-    return () => {
-      clearTimeout(fadeId);
-      clearTimeout(doneId);
-    };
-  }, [onDone]);
-
+function LanguageSwitchSplash() {
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center"
       style={{
         background:
           "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
-        opacity: fading ? 0 : 1,
-        transition: fading ? "opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-        pointerEvents: fading ? "none" : "auto",
       }}
     >
       <div className="splash-pulse">
-        <BadgerLogo size={100} />
+        <BadgerLogo size={120} />
       </div>
     </div>
   );
@@ -329,18 +311,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
-    // Highlight the clicked button immediately (and unhighlight the old one).
-    // The actual translation is intentionally deferred — it only happens once
-    // the splash screen below has finished, via finishLanguageSwitch().
+    // Cover the screen immediately — the highlight flip and the actual
+    // translation both happen underneath this splash, so the user only ever
+    // sees one continuous splash from click to landing on the home tab.
     setLangSwitchTarget(code);
-  }
-
-  function finishLanguageSwitch() {
-    const code = langSwitchTarget;
-    if (!code) return;
     const next = { ...prefs, language: code };
-    savePrefs(next);
     setPrefsState(next);
+    savePrefs(next);
     // Reloading before the server has actually persisted the new language
     // is a race: App.tsx re-fetches the user on boot and treats the server
     // value as the source of truth, so if the PATCH request gets cancelled
@@ -594,10 +571,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      {/* ── Language switch splash — highlight already flipped on click; the
-          actual translation + reload only happens once this finishes. ── */}
+      {/* ── Language switch splash — covers the highlight flip and the
+          translation/reload underneath, so it reads as one continuous
+          splash from click to landing on the translated home tab. ── */}
       {langSwitchTarget && (
-        <LanguageSwitchSplash onDone={finishLanguageSwitch} />
+        <LanguageSwitchSplash />
       )}
     </div>
   );
