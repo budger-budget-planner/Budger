@@ -168,10 +168,26 @@ export default function LoginPage() {
 
   const verifyEmail = useVerifyEmail({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        // When the user arrives via the email link on a fresh browser session,
+        // signupEmail/firstName/lastName are empty (they were typed on a different
+        // device or the page was reloaded). The verify endpoint returns the stored
+        // values so we can populate them here, ensuring the subsequent
+        // register.mutate({ email }) call has the correct email.
+        //
+        // Guard: if the server somehow returns an empty email, surface a clear
+        // error instead of silently advancing to PIN setup where register would
+        // fail with a generic "Registration failed" message.
+        if (!data?.email) {
+          setVerifyError(t("login.verify_failed"));
+          return;
+        }
         setVerifyError("");
         setSignupPin("");
         setConfirmPin("");
+        setSignupEmail(data.email);
+        if (data.firstName) setFirstName(data.firstName);
+        if (data.lastName)  setLastName(data.lastName);
         setScreen("signup-pin");
       },
       onError: (err: any) => {
