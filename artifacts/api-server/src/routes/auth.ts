@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
+import { sendVerificationEmail } from "../lib/email-sender";
 import {
   LoginBody,
   LoginResponse,
