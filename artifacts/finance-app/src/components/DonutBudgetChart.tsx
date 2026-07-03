@@ -210,20 +210,11 @@ const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 const DUR  = "0.48s";
 const TRANS = `${DUR} ${EASE}`;
 
-// 2→1 timeline (total 0.78 s):
-//   t=0–0.48 s  SVG shrinks (no delay)
-//   t=0–0.15 s  expanded text fades out
-//   t=0.28–0.56 s  compact text fades in
-//   t=0.30–0.78 s  legend max-width + margin expand
-//   t=0.38–0.66 s  legend opacity fades in
-//
-// 1→2 is the exact time-reverse (each delay = 0.78 − original_end):
-//   legend opacity:        delay 0.12 s, dur 0.28 s  (0.78−0.66)
-//   legend max-width/margin: delay 0 s,  dur 0.48 s  (0.78−0.78) ✓
-//   SVG grows:             delay 0.30 s, dur 0.48 s  (0.78−0.48) ✓
-//   compact text fades out: delay 0.22 s, dur 0.28 s (0.78−0.56)
-//   expanded text fades in: delay 0.63 s, dur 0.15 s (0.78−0.15)
-const LEGEND_EXIT_TRANS  = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.28s ease 0.12s`;
+// 2→1: SVG shrinks first (no delay, 0.48 s), legend slides in after 0.3 s.
+// 1→2: legend slides out first (no delay, 0.48 s), SVG grows after 0.3 s —
+//       the exact time-reverse, both using concrete px widths so the transition
+//       has a stable start and end point (no layout jump).
+const LEGEND_EXIT_TRANS  = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.15s ease`;
 const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -235,11 +226,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
 
-  const [selectedCat, setSelectedCat] = useState<string | null>(null);
-  const [mode,        setMode]        = useState<"compact" | "expanded">("compact");
+  const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
+  const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
+  const [containerWidth, setContainerWidth] = useState(320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
-  const lastCenterTapRef      = useRef<number>(0);
+  const lastCenterTapRef = useRef<number>(0);
+  const containerRef     = useRef<HTMLDivElement>(null);
 
   const { segs, groupBorders, legend } = buildChart(spending, totalBudget, selectedCat);
 
@@ -247,6 +240,18 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const budgetUsedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : null;
   const selectedLegend = legend.find(l => l.catKey === selectedCat) ?? null;
   const expanded       = mode === "expanded";
+
+  // ── Track container width so both ends of the SVG transition are concrete px
+  //    values — avoids the layout jump caused by animating to/from "100%".   ──
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      setContainerWidth(Math.round(entries[0].contentRect.width));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
@@ -279,27 +284,25 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
+      ref={containerRef}
       style={{
         display:    "flex",
-        alignItems: expanded ? "flex-start" : "center",
+        alignItems: "center",
         width:      "100%",
-        // width:100% gives the SVG wrapper a stable 100% target to animate
-        // toward — without it the target changes as the legend collapses,
-        // causing the donut to grow from the wrong position.
       }}
     >
       {/* ── SVG wrapper ─────────────────────────────────────────────────────
           Width drives visual scale:
-          • compact  → 180 px → donut displays at 180/320 = 56 % of viewBox
-          • expanded → 100 %  → donut fills the parent card
-          The card's height follows the SVG height automatically, giving the
-          trend-bar cards below a smooth push as the donut grows/shrinks.   */}
+          • compact  → 180 px
+          • expanded → containerWidth px  (measured, never "100%")
+          Both ends are concrete pixel values so the CSS transition has a
+          stable start and end — no layout jump, no "growing from a corner".
+          2→1: shrinks immediately (no delay).
+          1→2: delayed 0.3 s so legend collapses first (time-reverse of 2→1). */}
       <div
         style={{
-          width:      expanded ? "100%" : 180,
+          width:      expanded ? containerWidth : 180,
           flexShrink: 0,
-          // 1→2: delay matches the 0.3 s lead that SVG gets in the 2→1 direction,
-          // making the two animations exact time-reverses of each other.
           transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
         }}
       >
@@ -397,7 +400,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           <g
             style={{
               opacity:       expanded ? 0 : 1,
-              transition:    `opacity ${expanded ? "0.28s 0.22s" : "0.28s 0.28s"} ease`,
+              transition:    `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`,
               pointerEvents: "none",
             }}
           >
@@ -422,7 +425,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
           <g
             style={{
               opacity:       expanded ? 1 : 0,
-              transition:    `opacity ${expanded ? "0.15s 0.63s" : "0.15s"} ease`,
+              transition:    `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`,
               pointerEvents: "none",
             }}
           >
