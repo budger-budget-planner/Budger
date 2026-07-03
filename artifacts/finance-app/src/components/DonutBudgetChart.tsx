@@ -244,7 +244,7 @@ type Props = {
 export default function DonutBudgetChart({ spending, totalBudget, currency }: Props) {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
-  const cx = 100, cy = 100, ri = 46, ro = 80;
+  const cx = 90, cy = 90, ri = 42, ro = 72;
   const { segs, groupBorders, legend } = buildChart(spending, totalBudget, currency, cx, cy, ri, ro, selectedCat);
 
   function handleClick(catKey: string) {
@@ -258,8 +258,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   return (
     <div className="flex items-center gap-3">
       {/* SVG Donut */}
-      <div className="flex-shrink-0 relative" style={{ width: 200, height: 200 }}>
-        <svg width="200" height="200" viewBox="0 0 200 200" style={{ overflow: "visible" }}>
+      <div className="flex-shrink-0 relative" style={{ width: 180, height: 180 }}>
+        <svg width="180" height="180" viewBox="0 0 180 180" style={{ overflow: "visible" }}>
           <defs>
             {/* stdDeviation kept small and filter region tight so glows on adjacent
                 over-budget segments don't visually bleed into one another */}
@@ -312,7 +312,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                 key={`border-${gb.catKey}`}
                 d={gb.d}
                 fill="none"
-                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "80"}
+                stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
                 strokeWidth={gb.isOverBudget ? 1.5 : 1}
                 style={{
                   transform: `translate(${tx}px, ${ty}px)`,
