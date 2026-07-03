@@ -389,13 +389,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "login.check_email_title":{ en: "Check your email",   pl: "Sprawdź swój e-mail"  },
   "login.check_email_sub":  { en: "We sent a verification link to {email}. Confirm it to continue setting up your account.",
                                pl: "Wysłaliśmy link weryfikacyjny na adres {email}. Potwierdź go, aby kontynuować zakładanie konta." },
-  "login.sim_email_subject":{ en: "Confirm your Budger account", pl: "Potwierdź swoje konto Budger" },
-  "login.sim_email_preview":{ en: "Tap to confirm your email address…", pl: "Dotknij, aby potwierdzić adres e-mail…" },
-  "login.sim_email_tag":    { en: "Simulated email — no inbox needed for this demo", pl: "Symulowany e-mail — w tym demo skrzynka nie jest potrzebna" },
-  "login.sim_email_body":   { en: "Hi {name}, welcome to Budger! Tap the button below to verify your email and continue setting up your account.",
-                               pl: "Cześć {name}, witaj w Budger! Dotknij przycisku poniżej, aby potwierdzić e-mail i kontynuować zakładanie konta." },
-  "login.sim_email_fallback_name": { en: "there", pl: "tam" },
-  "login.sim_email_link":   { en: "Verify email address", pl: "Potwierdź adres e-mail" },
+  "login.check_email_hint": { en: "Didn't receive it? Check your spam folder.",
+                               pl: "Nie dotarł? Sprawdź folder ze spamem." },
   "login.verifying":            { en: "Verifying…",         pl: "Weryfikowanie…"       },
   "login.verifying_sub":        { en: "Confirming your email address…", pl: "Potwierdzanie adresu e-mail…" },
   "login.verify_failed":        { en: "Couldn't verify your email. Please try again.", pl: "Nie udało się potwierdzić e-maila. Spróbuj ponownie." },
@@ -846,8 +841,6 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Onboarding — blocked notifications ──
   "ob.notif_blocked_title":  { en: "Notifications are blocked",                       pl: "Powiadomienia są zablokowane"                         },
-  "ob.notif_blocked_desc":   { en: "Open your iPhone Settings and follow the path below, then come back — the app will detect it automatically.", pl: "Otwórz Ustawienia iPhone'a i podążaj ścieżką poniżej, a następnie wróć — aplikacja wykryje to automatycznie." },
-  "ob.open_settings":        { en: "Open Settings",                                   pl: "Otwórz Ustawienia"                                    },
   "ob.try_again":            { en: "Try Again",                                        pl: "Spróbuj ponownie"                                     },
 
   // ── Not found ──

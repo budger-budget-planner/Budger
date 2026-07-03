@@ -11,26 +11,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifications";
 
-// ── iOS notification settings path ───────────────────────────────────────────
-
-function getNotifSettingsPath(): { steps: string[]; tip: string } {
-  const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  if (isStandalone) {
-    return {
-      steps: ["Settings", "Budger", "Notifications", "Allow Notifications"],
-      tip: "",
-    };
-  }
-  return {
-    steps: ["Settings", "Safari", "Notifications", "This website", "Allow"],
-    tip: "Add Budger to your Home Screen for easier notification management.",
-  };
-}
-
-function openIOSSettings() {
-  window.location.href = "app-settings:";
-}
-
 // ── Steps ────────────────────────────────────────────────────────────────────
 
 type Step = "stay-signed-in" | "currency" | "budget" | "wallet" | "notifications";
@@ -275,32 +255,11 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
               <p className="text-sm text-green-400 font-medium">{t("ob.notif_enabled")}</p>
             </div>
           )}
-          {notifStatus === "denied" && (() => {
-            const { steps, tip } = getNotifSettingsPath();
-            return (
-              <div className="bg-muted border border-border rounded-2xl px-4 py-4 space-y-3">
-                <p className="text-sm font-semibold text-foreground">{t("ob.notif_blocked_title")}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t("ob.notif_blocked_desc")}
-                </p>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {steps.map((s, i) => (
-                    <span key={i} className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-foreground bg-background border border-border rounded-lg px-2 py-1">{s}</span>
-                      {i < steps.length - 1 && <span className="text-muted-foreground text-xs">›</span>}
-                    </span>
-                  ))}
-                </div>
-                {tip && <p className="text-xs text-muted-foreground/60 leading-relaxed">{tip}</p>}
-                <button
-                  onClick={openIOSSettings}
-                  className="w-full h-11 rounded-xl bg-background border border-border text-foreground text-sm font-semibold active:scale-95 transition"
-                >
-                  {t("ob.open_settings")}
-                </button>
-              </div>
-            );
-          })()}
+          {notifStatus === "denied" && (
+            <div className="bg-muted border border-border rounded-2xl px-4 py-3 text-center">
+              <p className="text-sm text-muted-foreground">{t("ob.notif_blocked_title")}</p>
+            </div>
+          )}
 
           {notifStatus !== "granted" && (
             <button

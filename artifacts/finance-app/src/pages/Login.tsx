@@ -44,10 +44,6 @@ export default function LoginPage() {
   const [signupPin, setSignupPin]     = useState("");
   const [confirmPin, setConfirmPin]   = useState("");
   const [signupError, setSignupError] = useState("");
-  // Dev-simulated verification email — no real mail service is wired up, so the
-  // "inbox" is rendered right here with a button standing in for the emailed link.
-  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
-  const [emailOpened, setEmailOpened] = useState(false);
   const [verifyError, setVerifyError] = useState("");
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -149,9 +145,7 @@ export default function LoginPage() {
 
   const registerStart = useRegisterStart({
     mutation: {
-      onSuccess: (data) => {
-        setVerifyUrl(data.verifyUrl);
-        setEmailOpened(false);
+      onSuccess: () => {
         setVerifyError("");
         setScreen("signup-check-email");
       },
@@ -259,18 +253,6 @@ export default function LoginPage() {
         email: signupEmail.trim(),
       },
     });
-  }
-
-  function handleOpenSimulatedEmail() {
-    setEmailOpened(true);
-  }
-
-  function handleConfirmEmailLink() {
-    if (!verifyUrl) return;
-    const token = new URL(verifyUrl, window.location.origin).searchParams.get("token");
-    if (!token) return;
-    setVerifyError("");
-    verifyEmail.mutate({ data: { token } });
   }
 
   function handleSignupPin(pin: string) {
@@ -516,49 +498,10 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Dev simulation: no real mail service is wired up, so we render the
-              "inbox" here — tapping it reveals an email whose button behaves exactly
-              like the link a real inbox would deliver. */}
-          <div className="login-enter login-enter-d3 w-full max-w-sm space-y-3">
-            {!emailOpened ? (
-              <button
-                onClick={handleOpenSimulatedEmail}
-                className="w-full rounded-2xl border border-border bg-muted/40 hover:bg-muted transition p-4 text-left flex items-start gap-3"
-              >
-                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Mail className="w-4 h-4 text-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{t("login.sim_email_subject")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t("login.sim_email_preview")}</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">{t("login.sim_email_tag")}</p>
-                </div>
-              </button>
-            ) : (
-              <div className="w-full rounded-2xl border border-border bg-muted/40 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4 text-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{t("login.sim_email_subject")}</p>
-                    <p className="text-[10px] text-muted-foreground/60">{t("login.sim_email_tag")}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("login.sim_email_body").replace("{name}", firstName.trim() || t("login.sim_email_fallback_name"))}
-                </p>
-                <Button
-                  onClick={handleConfirmEmailLink}
-                  disabled={verifyEmail.isPending}
-                  className="w-full h-12 rounded-xl text-sm font-semibold"
-                >
-                  {verifyEmail.isPending ? t("login.verifying") : t("login.sim_email_link")}
-                </Button>
-              </div>
-            )}
+          <div className="login-enter login-enter-d3 w-full max-w-sm space-y-3 text-center">
+            <p className="text-xs text-muted-foreground/60">{t("login.check_email_hint")}</p>
             {verifyError && (
-              <p className="text-sm text-destructive text-center">{verifyError}</p>
+              <p className="text-sm text-destructive">{verifyError}</p>
             )}
           </div>
         </div>
