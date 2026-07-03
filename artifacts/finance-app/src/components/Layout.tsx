@@ -5,8 +5,8 @@ import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@works
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
-import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId } from "@/lib/prefs";
-import { fetchRates, forceFetchRates, getConversionRate } from "@/lib/rates";
+import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
+import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
@@ -231,6 +231,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [converting, setConverting]   = useState(false);
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
   const [refreshingRates, setRefreshingRates] = useState(false);
+  const [ratesUpdatedAt, setRatesUpdatedAt]   = useState<number | null>(() => getLastRatesUpdate());
   const { toast } = useToast();
 
   const logout = useLogout({
@@ -295,6 +296,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     try {
       const fresh = await forceFetchRates();
       setRates(fresh);
+      setRatesUpdatedAt(getLastRatesUpdate());
       toast({ title: t("profile.rates_refreshed") });
     } catch {
       toast({ title: t("profile.rates_refresh_failed"), variant: "destructive" });
@@ -406,6 +408,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     );
                   })}
                 </div>
+                <button
+                  onClick={handleRefreshRates}
+                  disabled={refreshingRates}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl
+                             border border-border bg-muted/40 text-sm font-medium text-foreground
+                             transition active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingRates ? "animate-spin" : ""}`} />
+                  {refreshingRates ? t("profile.updating_rates") : t("profile.update_rates")}
+                </button>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  {ratesUpdatedAt != null
+                    ? t("profile.last_updated", { ts: fmtDateTime(ratesUpdatedAt) })
+                    : t("profile.never_updated")}
+                </p>
               </div>
 
               {/* Language */}

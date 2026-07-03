@@ -181,6 +181,17 @@ export function checkDonutWiggleDue(): boolean {
   return due;
 }
 
+/** Formats an epoch-ms timestamp as "DD.MM.YYYY HH:MM" in the user's local timezone. */
+export function fmtDateTime(ms: number): string {
+  const d = new Date(ms);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+}
+
 export function currencySymbol(currency: string): string {
   const map: Record<string, string> = {
     USD: "$", EUR: "€", GBP: "£", PLN: "zł",

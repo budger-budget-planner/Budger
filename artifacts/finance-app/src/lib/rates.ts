@@ -5,6 +5,7 @@ export type SupportedCurrency = typeof SUPPORTED[number];
 export interface RatesCache {
   date: string;
   rates: Record<string, number>;
+  updatedAt?: number;
 }
 
 const FALLBACK_RATES: Record<string, number> = {
@@ -31,8 +32,25 @@ function loadCached(): RatesCache | null {
 }
 
 function saveCache(rates: Record<string, number>): void {
-  const cache: RatesCache = { date: todayISO(), rates };
+  const cache: RatesCache = { date: todayISO(), rates, updatedAt: Date.now() };
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+/**
+ * Returns the epoch-ms timestamp of the last successful rates fetch, or null
+ * if rates have never been fetched on this device. Reads the raw cache
+ * regardless of whether it's still "fresh" for today — this is purely for
+ * display ("last updated ...").
+ */
+export function getLastRatesUpdate(): number | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed: RatesCache = JSON.parse(raw);
+    return typeof parsed.updatedAt === "number" ? parsed.updatedAt : null;
+  } catch {
+    return null;
+  }
 }
 
 function loadAnyCache(): Record<string, number> | null {

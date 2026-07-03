@@ -20,6 +20,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "profile.sign_out":          { en: "Sign out",                               pl: "Wyloguj"                                 },
   "profile.signing_out":       { en: "Signing out…",                          pl: "Wylogowywanie…"                          },
   "profile.converting":        { en: "Converting…",                           pl: "Przeliczanie…"                           },
+  "profile.update_rates":      { en: "Update rates",                          pl: "Aktualizuj kursy"                        },
+  "profile.updating_rates":    { en: "Updating…",                             pl: "Aktualizowanie…"                         },
+  "profile.last_updated":      { en: "Last updated {ts}",                     pl: "Ostatnia aktualizacja {ts}"              },
+  "profile.never_updated":     { en: "Rates not fetched yet",                 pl: "Kursy jeszcze nie pobrane"                },
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },
