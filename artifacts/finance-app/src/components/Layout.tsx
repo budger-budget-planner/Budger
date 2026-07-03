@@ -21,6 +21,48 @@ function navItems() {
   ];
 }
 
+/**
+ * Full-screen splash shown while a language switch is in flight. Stays up for
+ * a short fixed duration so the user sees the highlight change register
+ * before the app actually re-translates, then calls onDone (which persists
+ * + reloads with the new language).
+ */
+function LanguageSwitchSplash({ onDone }: { onDone: () => void }) {
+  const [fading, setFading] = useState(false);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    const fadeId = setTimeout(() => setFading(true), 900);
+    const doneId = setTimeout(() => {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        onDone();
+      }
+    }, 1200);
+    return () => {
+      clearTimeout(fadeId);
+      clearTimeout(doneId);
+    };
+  }, [onDone]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{
+        background:
+          "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
+        opacity: fading ? 0 : 1,
+        transition: fading ? "opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+        pointerEvents: fading ? "none" : "auto",
+      }}
+    >
+      <div className="splash-pulse">
+        <BadgerLogo size={100} />
+      </div>
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location]     = useLocation();
   const queryClient    = useQueryClient();
@@ -232,6 +274,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
   const [refreshingRates, setRefreshingRates] = useState(false);
   const [ratesUpdatedAt, setRatesUpdatedAt]   = useState<number | null>(() => getLastRatesUpdate());
+  // Pending language the user just picked — highlight flips to it instantly,
+  // but the actual translation/reload is deferred until the splash finishes.
+  const [langSwitchTarget, setLangSwitchTarget] = useState<string | null>(null);
   const { toast } = useToast();
 
   const logout = useLogout({
@@ -283,8 +328,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const updateMe = useUpdateMe();
 
   function changeLanguage(code: string) {
+    if (code === prefs.language || langSwitchTarget) return;
+    // Highlight the clicked button immediately (and unhighlight the old one).
+    // The actual translation is intentionally deferred — it only happens once
+    // the splash screen below has finished, via finishLanguageSwitch().
+    setLangSwitchTarget(code);
+  }
+
+  function finishLanguageSwitch() {
+    const code = langSwitchTarget;
+    if (!code) return;
     const next = { ...prefs, language: code };
     savePrefs(next);
+    setPrefsState(next);
     // Reloading before the server has actually persisted the new language
     // is a race: App.tsx re-fetches the user on boot and treats the server
     // value as the source of truth, so if the PATCH request gets cancelled
@@ -443,12 +499,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="flex gap-2">
                   {LANGUAGES.map(l => {
-                    const isSelected = l.code === prefs.language;
+                    // Reflect the just-clicked language immediately, even though
+                    // the real translation doesn't happen until the splash finishes.
+                    const isSelected = l.code === (langSwitchTarget ?? prefs.language);
                     return (
                       <button
                         key={l.code}
                         onClick={() => changeLanguage(l.code)}
-                        disabled={isSelected}
+                        disabled={isSelected || !!langSwitchTarget}
                         className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-default ${
                           isSelected
                             ? "border-foreground bg-foreground text-background"
@@ -535,6 +593,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+
+      {/* ── Language switch splash — highlight already flipped on click; the
+          actual translation + reload only happens once this finishes. ── */}
+      {langSwitchTarget && (
+        <LanguageSwitchSplash onDone={finishLanguageSwitch} />
+      )}
     </div>
   );
 }
