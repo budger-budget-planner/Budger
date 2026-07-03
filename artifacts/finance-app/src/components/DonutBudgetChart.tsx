@@ -39,14 +39,6 @@ if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
       50%  { opacity: 0.37; }
       100% { opacity: 0;    }
     }
-    @keyframes donutSegWiggle {
-      0%   { transform: rotate(0deg); }
-      20%  { transform: rotate(3.5deg); }
-      38%  { transform: rotate(0.4deg); }
-      55%  { transform: rotate(2deg); }
-      72%  { transform: rotate(0.1deg); }
-      100% { transform: rotate(0deg); }
-    }
   `;
   document.head.appendChild(s);
 }
@@ -264,14 +256,19 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   const [containerWidth, setContainerWidth] = useState(320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
-  // Wiggle: true while the first-segment wiggle animation is playing
-  const [wiggleActive, setWiggleActive] = useState(false);
   const lastCenterTapRef = useRef<number>(0);
   const containerRef     = useRef<HTMLDivElement>(null);
   // Random radii for the two circles in each hint firing (r1 < r2, both ≥ 65 % of hole)
   const hintRadiiRef = useRef<{ r1: number; r2: number }>({ r1: RI - 2, r2: RI - 2 });
+  // Ref to the <g> wrapping the first group (fills + border) for the wiggle animation
+  const wiggleGroupRef    = useRef<SVGGElement>(null);
+  // Tracks the first segment midDeg across renders so the effect can read it at fire time
+  const firstSegMidDegRef = useRef<number>(0);
 
   const { segs, groupBorders, legend } = buildChart(spending, totalBudget, selectedCat);
+
+  // Keep midDeg current so the wiggle effect can read it when it fires
+  firstSegMidDegRef.current = segs[0]?.midDeg ?? 0;
 
   const totalSpent    = spending.reduce((a, s) => a + s.total, 0);
   const budgetUsedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : null;
@@ -310,19 +307,32 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
   }, []);
 
   // ── First-segment wiggle: fires once, 4 s after mount ────────────────────
-  // The animation lasts ~700 ms; we reset state after it finishes so the path
-  // goes back to its normal (non-animated) style cleanly.
-  // Both timers are tracked and cleared on unmount to avoid post-unmount updates.
+  // Uses the Web Animations API so the translate direction can be computed from
+  // the segment's actual midDeg at fire time — CSS keyframes can't do dynamic
+  // values.  Two-beat "detach" pattern mirrors the transaction-swipe wiggle:
+  //   beat 1 → 65 % of the click-expand distance, snap back
+  //   beat 2 → 38 % of the click-expand distance, settle to 0
   useEffect(() => {
-    let resetTimer: ReturnType<typeof setTimeout> | null = null;
     const onTimer = setTimeout(() => {
-      setWiggleActive(true);
-      resetTimer = setTimeout(() => setWiggleActive(false), 700);
+      const el = wiggleGroupRef.current;
+      if (!el) return;
+      const midRad = ((firstSegMidDegRef.current - 90) * Math.PI) / 180;
+      const px1 = EXPAND * 0.65 * Math.cos(midRad);
+      const py1 = EXPAND * 0.65 * Math.sin(midRad);
+      const px2 = EXPAND * 0.38 * Math.cos(midRad);
+      const py2 = EXPAND * 0.38 * Math.sin(midRad);
+      el.animate(
+        [
+          { transform: "translate(0px, 0px)",                      easing: "cubic-bezier(0.34,1.56,0.64,1)" },
+          { transform: `translate(${px1}px, ${py1}px)`, offset: 0.28, easing: "cubic-bezier(0.4,0,0.2,1)" },
+          { transform: "translate(0px, 0px)",            offset: 0.50, easing: "cubic-bezier(0.34,1.56,0.64,1)" },
+          { transform: `translate(${px2}px, ${py2}px)`, offset: 0.72, easing: "cubic-bezier(0.4,0,0.2,1)" },
+          { transform: "translate(0px, 0px)" },
+        ],
+        { duration: 700, fill: "none" },
+      );
     }, 4_000);
-    return () => {
-      clearTimeout(onTimer);
-      if (resetTimer !== null) clearTimeout(resetTimer);
-    };
+    return () => clearTimeout(onTimer);
   }, []);
 
   // ── Interaction handlers ──────────────────────────────────────────────────
@@ -397,92 +407,43 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
             </filter>
           </defs>
 
-          {/* Fill paths — first group wrapped in wiggle <g> */}
-          {(() => {
-            const firstCatKey = segs[0]?.catKey ?? null;
-            // Shared style for the wiggle wrapper: rotate around the donut centre.
-            // transform-box defaults to view-box on SVG, so 160px/160px is in
-            // SVG user units (= the donut centre at CX/CY).
-            const wiggleStyle: React.CSSProperties = wiggleActive && firstCatKey !== null ? {
-              transformOrigin: `${CX}px ${CY}px`,
-              animation: "donutSegWiggle 0.7s cubic-bezier(0.34,1.56,0.64,1) both",
-            } : {};
-
-            const firstGroupPaths = segs
-              .filter(seg => seg.catKey === firstCatKey)
-              .map(seg => {
-                const isSel  = selectedCat === seg.catKey;
-                const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
-                const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
-                const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
-                return (
-                  <path
-                    key={seg.id}
-                    d={seg.d}
-                    fill={seg.fill}
-                    stroke="none"
-                    style={{
-                      transform:  `translate(${tx}px, ${ty}px)`,
-                      transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                      filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
-                      cursor:     "pointer",
-                    }}
-                    onClick={() => handleSegmentClick(seg.catKey)}
-                  />
-                );
-              });
-
-            const restPaths = segs
-              .filter(seg => seg.catKey !== firstCatKey)
-              .map(seg => {
-                const isSel  = selectedCat === seg.catKey;
-                const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
-                const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
-                const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
-                return (
-                  <path
-                    key={seg.id}
-                    d={seg.d}
-                    fill={seg.fill}
-                    stroke="none"
-                    style={{
-                      transform:  `translate(${tx}px, ${ty}px)`,
-                      transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                      filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
-                      cursor:     "pointer",
-                    }}
-                    onClick={() => handleSegmentClick(seg.catKey)}
-                  />
-                );
-              });
-
-            return (
-              <>
-                {firstCatKey !== null && (
-                  <g style={wiggleStyle}>
-                    {firstGroupPaths}
-                  </g>
-                )}
-                {restPaths}
-              </>
-            );
-          })()}
-
-          {/* Group border paths — first group's border wrapped in wiggle <g>,
-              matched by catKey so it always aligns with the fill wiggle group. */}
+          {/* Fill + border paths.
+              The first group's fills AND border share one <g ref={wiggleGroupRef}>
+              so the Web Animations API can translate the whole unit outward as one
+              piece — identical to the click-expand behaviour but driven by .animate(). */}
           {(() => {
             const wiggleCatKey = segs[0]?.catKey ?? null;
-            const wiggleStyle: React.CSSProperties = wiggleActive && wiggleCatKey !== null ? {
-              transformOrigin: `${CX}px ${CY}px`,
-              animation: "donutSegWiggle 0.7s cubic-bezier(0.34,1.56,0.64,1) both",
-            } : {};
 
-            return groupBorders.map(gb => {
+            // Helper: path props for a fill segment
+            function fillPath(seg: Seg) {
+              const isSel  = selectedCat === seg.catKey;
+              const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
+              const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
+              const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
+              return (
+                <path
+                  key={seg.id}
+                  d={seg.d}
+                  fill={seg.fill}
+                  stroke="none"
+                  style={{
+                    transform:  `translate(${tx}px, ${ty}px)`,
+                    transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                    filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
+                    cursor:     "pointer",
+                  }}
+                  onClick={() => handleSegmentClick(seg.catKey)}
+                />
+              );
+            }
+
+            // Helper: path props for a border
+            function borderPath(gb: GroupBorder) {
               const isSel  = selectedCat === gb.catKey;
               const midRad = ((gb.midDeg - 90) * Math.PI) / 180;
               const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
               const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
-              const path = (
+              return (
                 <path
                   key={`border-${gb.catKey}`}
                   d={gb.d}
@@ -496,12 +457,28 @@ export default function DonutBudgetChart({ spending, totalBudget, currency }: Pr
                   }}
                 />
               );
-              return gb.catKey === wiggleCatKey ? (
-                <g key={`border-wrap-${gb.catKey}`} style={wiggleStyle}>
-                  {path}
-                </g>
-              ) : path;
-            });
+            }
+
+            const firstFills   = segs.filter(s => s.catKey === wiggleCatKey).map(fillPath);
+            const restFills    = segs.filter(s => s.catKey !== wiggleCatKey).map(fillPath);
+            const firstBorder  = groupBorders.find(gb => gb.catKey === wiggleCatKey);
+            const restBorders  = groupBorders.filter(gb => gb.catKey !== wiggleCatKey).map(borderPath);
+
+            return (
+              <>
+                {/* First group: fills + border in one wiggle wrapper */}
+                {wiggleCatKey !== null && (
+                  <g ref={wiggleGroupRef}>
+                    {firstFills}
+                    {firstBorder && borderPath(firstBorder)}
+                  </g>
+                )}
+                {/* Remaining fills */}
+                {restFills}
+                {/* Remaining borders */}
+                {restBorders}
+              </>
+            );
           })()}
 
           {/* ── Hint pulse ─────────────────────────────────────────────────
