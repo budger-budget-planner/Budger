@@ -14,6 +14,8 @@ import {
   getListRecurringPaymentsQueryKey,
   useGetMe,
   useListHouseholdMembers,
+  useUpdateMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users } from "lucide-react";
@@ -150,11 +152,13 @@ function BudgetInput({
         </div>
       )}
 
-      {/* Validation */}
+      {/* Warning only — this no longer blocks saving. Users can exceed their
+          available cap; if it pushes categories over the total budget, the
+          Categories page offers an "Adjust total budget to match" option. */}
       {exceedsTotal && totalBudget != null && availableCap != null && (
-        <p className="text-xs text-red-400 font-medium">
-          ⚠ That would put your categories' budgets over your total monthly budget ({fmtAmtRound(totalBudget, loadPrefs().currency)}).
-          You have {fmtAmtRound(availableCap, loadPrefs().currency)} left to allocate — please enter a lower amount.
+        <p className="text-xs text-amber-400 font-medium">
+          ⚠ This will put your categories' budgets over your total monthly budget ({fmtAmtRound(totalBudget, loadPrefs().currency)}).
+          You have {fmtAmtRound(availableCap, loadPrefs().currency)} left before crossing it — you can still save, but consider adjusting your total budget afterward.
         </p>
       )}
     </div>
@@ -396,10 +400,7 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
     },
   });
 
-  const overCap = budgetExceedsCap(budget, budgetMode, totalBudget, otherCategoriesTotal);
-
   function handleSave() {
-    if (overCap) return;
     const dollars = resolveBudgetDollars(budget, budgetMode, totalBudget);
     update.mutate({ id: category.id, data: { name, color, budget: dollars } });
   }
@@ -440,7 +441,7 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
               <Button variant="outline" className="flex-1" onClick={onClose}>
                 <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
               </Button>
-              <Button className="flex-1" onClick={handleSave} disabled={update.isPending || overCap}
+              <Button className="flex-1" onClick={handleSave} disabled={update.isPending}
                 data-testid={`button-save-category-${category.id}`}>
                 <Check className="w-3.5 h-3.5 mr-1" />
                 {update.isPending ? t("common.saving") : t("common.save")}
@@ -781,6 +782,10 @@ export default function CategoriesPage() {
   const { data: categories, isLoading } = useListCategories();
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
 
+  const updateMe = useUpdateMe({
+    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
+  });
+
   const create = useCreateCategory({
     mutation: {
       onSuccess: () => {
@@ -805,11 +810,14 @@ export default function CategoriesPage() {
   const rpBudgetSum  = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
   const combinedBudgetSum = catBudgetSum + rpBudgetSum;
   const catBudgetExceeds = totalBudget != null && combinedBudgetSum > totalBudget;
-  const newCatOverCap = budgetExceedsCap(newBudget, newBudgetMode, totalBudget, catBudgetSum);
 
   function handleAcceptBudgetAdjust() {
+    const newTotal = Math.ceil(combinedBudgetSum);
     const current = loadPrefs();
-    savePrefs({ ...current, totalBudget: Math.ceil(combinedBudgetSum) });
+    savePrefs({ ...current, totalBudget: newTotal });
+    // Persist to the server too — without this the adjustment only lived in
+    // localStorage and reverted on a fresh session/device once useGetMe re-synced.
+    updateMe.mutate({ data: { totalBudget: newTotal } });
     setAdjustBudgetOpen(false);
     navigate("/");
   }
@@ -827,7 +835,7 @@ export default function CategoriesPage() {
 
   function handleCreateCategory(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim() || newCatOverCap) return;
+    if (!newName.trim()) return;
     const dollars = resolveBudgetDollars(newBudget, newBudgetMode, totalBudget);
     create.mutate({ data: { name: newName.trim(), color: newColor, icon: "tag", budget: dollars } });
   }
@@ -1075,7 +1083,7 @@ export default function CategoriesPage() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>
-                <Button type="submit" className="flex-1" disabled={create.isPending || newCatOverCap}
+                <Button type="submit" className="flex-1" disabled={create.isPending}
                   data-testid="button-save-new-category">
                   {create.isPending ? t("common.saving") : t("cat.create_btn")}
                 </Button>

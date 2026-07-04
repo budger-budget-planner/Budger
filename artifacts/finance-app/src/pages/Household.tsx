@@ -543,6 +543,7 @@ export default function HouseholdPage() {
   const [householdName, setHouseholdName]   = useState("");
   const [householdBudget, setHouseholdBudget] = useState("");
   const [editBudgetVal, setEditBudgetVal]   = useState("");
+  const [budgetBreakdownOpen, setBudgetBreakdownOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"head" | "parent" | "child">("child");
   const [copied, setCopied]           = useState<string | null>(null);
@@ -964,6 +965,60 @@ export default function HouseholdPage() {
                 </button>
               )}
             </div>
+
+            {/* ── Member budget breakdown (expandable) ── */}
+            {sumMemberBudgets != null && members && members.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between text-left"
+                  onClick={() => setBudgetBreakdownOpen(o => !o)}
+                  data-testid="button-toggle-member-budgets"
+                >
+                  <span className="text-xs text-white/40 flex items-center gap-1">
+                    {budgetBreakdownOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    {t("hh.member_budgets")}
+                  </span>
+                  <span className="text-xs text-white/50 font-medium tabular-nums">{fmt(sumMemberBudgets)}</span>
+                </button>
+
+                {budgetBreakdownOpen && (
+                  <div className="mt-3 space-y-2">
+                    {members.map(m => {
+                      const inViewerCurrency =
+                        m.totalBudget == null
+                          ? null
+                          : m.currency === prefs.currency
+                          ? m.totalBudget
+                          : splitRates
+                          ? convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates)
+                          : null;
+                      return (
+                        <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-black"
+                            style={{ backgroundColor: m.memberColor }}
+                          >
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs text-white/60 flex-1 truncate">
+                            {m.name} {m.userId === me?.id && <span className="text-white/30">{t("hh.you_label")}</span>}
+                          </span>
+                          <span className="text-xs font-medium tabular-nums">
+                            {inViewerCurrency != null ? fmt(inViewerCurrency) : t("hh.no_budget_set")}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/10">
+                      <span className="text-xs font-semibold text-white/70">{t("hh.members_total")}</span>
+                      <span className="text-xs font-semibold tabular-nums">{fmt(sumMemberBudgets)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Budget mismatch warning (head only) ── */}
