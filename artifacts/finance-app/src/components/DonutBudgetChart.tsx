@@ -657,7 +657,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   <text x={CX} y={CY + 18}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
-                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_budget")}
+                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
                   </text>
                 )}
                 <text x={CX} y={CY + 36}
