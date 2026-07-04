@@ -4,7 +4,7 @@ type Anim = "wink" | "sniff" | "lick" | null;
 
 const ANIM_MS: Record<NonNullable<Anim>, number> = {
   wink: 1400,
-  sniff: 2000,
+  sniff: 1400,
   lick: 2400,
 };
 
@@ -96,18 +96,21 @@ export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
             100% { transform: scaleY(1); }
           }
 
-          /* ══ Animation 2: SNIFF (nose bobs) ══ */
+          /* ══ Animation 2: SNIFF (nose lifts up only) ══ */
+          /* Three upward sniffs at 1.5× the original frequency (1.4 s total).
+             The nose never dips below the resting position — only rises and
+             returns. nostrils flare (scaleX) at each peak. */
           .blg-sniff .blg-nose {
-            animation: blg-sniff 2.0s ease-in-out forwards;
+            animation: blg-sniff 1.4s ease-in-out forwards;
           }
           @keyframes blg-sniff {
             0%   { transform: translateY(0px)    scaleX(1); }
-            10%  { transform: translateY(-3.5px) scaleX(1.08); }
-            24%  { transform: translateY(1.5px)  scaleX(0.96); }
-            40%  { transform: translateY(-3px)   scaleX(1.07); }
-            55%  { transform: translateY(1px)    scaleX(0.97); }
-            70%  { transform: translateY(-2px)   scaleX(1.05); }
-            84%  { transform: translateY(0.5px)  scaleX(0.99); }
+            15%  { transform: translateY(-3.5px) scaleX(1.09); }
+            30%  { transform: translateY(0px)    scaleX(1); }
+            45%  { transform: translateY(-3.5px) scaleX(1.09); }
+            60%  { transform: translateY(0px)    scaleX(1); }
+            75%  { transform: translateY(-3.5px) scaleX(1.09); }
+            90%  { transform: translateY(0px)    scaleX(1); }
             100% { transform: translateY(0px)    scaleX(1); }
           }
 

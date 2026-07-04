@@ -9,9 +9,9 @@ import { t } from "@/lib/i18n";
 // Two circles are rendered per hint: Circle A plays immediately, Circle B is
 // delayed 0.304 s (= the 80 ms gap between blinks, held by fill-mode: both).
 // Brightness crescendo across the 3 scheduled hint firings:
-//   Pulse 1: A = 0.14, B = 0.22
-//   Pulse 2: A = 0.22, B = 0.30   ← A opens at B's previous level
-//   Pulse 3: A = 0.30, B = 0.37   ← A opens at B's previous level
+//   Pulse 1: A = 0.37, B = 0.45   ← starts at what was formerly the 4th tone
+//   Pulse 2: A = 0.45, B = 0.53   ← A opens at B's previous level (+0.08 rule)
+//   Pulse 3: A = 0.53, B = 0.61   ← A opens at B's previous level (+0.08 rule)
 // Radii are randomised at fire time (r1 < r2, both ≥ 65 % of the hole radius).
 // A feGaussianBlur SVG filter softens each circle's edge into a warm glow.
 const HINT_KF_ID = "donut-hint-kf";
@@ -19,24 +19,24 @@ if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
   const s = document.createElement("style");
   s.id = HINT_KF_ID;
   s.textContent = `
-    @keyframes donutBlink014 {
-      0%   { opacity: 0;    }
-      50%  { opacity: 0.14; }
-      100% { opacity: 0;    }
-    }
-    @keyframes donutBlink022 {
-      0%   { opacity: 0;    }
-      50%  { opacity: 0.22; }
-      100% { opacity: 0;    }
-    }
-    @keyframes donutBlink030 {
-      0%   { opacity: 0;    }
-      50%  { opacity: 0.30; }
-      100% { opacity: 0;    }
-    }
     @keyframes donutBlink037 {
       0%   { opacity: 0;    }
       50%  { opacity: 0.37; }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutBlink045 {
+      0%   { opacity: 0;    }
+      50%  { opacity: 0.45; }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutBlink053 {
+      0%   { opacity: 0;    }
+      50%  { opacity: 0.53; }
+      100% { opacity: 0;    }
+    }
+    @keyframes donutBlink061 {
+      0%   { opacity: 0;    }
+      50%  { opacity: 0.61; }
       100% { opacity: 0;    }
     }
   `;
@@ -44,8 +44,8 @@ if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
 }
 
 // Circle A / B keyframe names indexed by pulse (0-based)
-const HINT_ANIM_A = ["donutBlink014", "donutBlink022", "donutBlink030"] as const;
-const HINT_ANIM_B = ["donutBlink022", "donutBlink030", "donutBlink037"] as const;
+const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
+const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
