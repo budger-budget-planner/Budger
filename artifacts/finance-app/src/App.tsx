@@ -131,6 +131,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (showOnboarding) {
     return (
       <Onboarding
+        isHonorableContributor={user.status === "golden"}
         onComplete={(prefs: AppPrefs) => {
           savePrefs(prefs);
           markOnboardingDone();

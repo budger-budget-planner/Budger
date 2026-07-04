@@ -175,7 +175,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   } else {
     // Determine golden/normal status at the moment the row is first created
     const [{ total }] = await db.select({ total: count() }).from(usersTable);
-    const status = total < 100 ? "golden" : "normal";
+    const status = total < 50 ? "golden" : "normal";
 
     [user] = await db.insert(usersTable).values({
       name,

@@ -428,6 +428,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "ob.cross_app":            { en: "Apple restricts cross-app data on all devices, so Budger cannot auto-import payments made in other apps (Maps, App Store, etc.). Each transaction is logged manually — it takes just a few seconds.",
                                 pl: "Apple ogranicza dane między aplikacjami na wszystkich urządzeniach, więc Budger nie może automatycznie importować płatności z innych aplikacji (Mapy, App Store itp.). Każda transakcja jest logowana ręcznie — zajmuje to tylko kilka sekund."},
   "ob.lets_go":              { en: "Let's go!",                       pl: "Zaczynajmy!"                       },
+  "ob.welcome_header":       { en: "WELCOME",                         pl: "WITAJ"                             },
+  "ob.welcome_lets_start":   { en: "Let's start!",                    pl: "Zaczynajmy!"                       },
   "ob.continue":             { en: "Continue →",                      pl: "Kontynuuj →"                       },
   "ob.automate_title":       { en: "Automation elevates Budger",      pl: "Automatyzacja podnosi Budger"      },
   "ob.automate_desc":        { en: "The more you automate, the less you think about logging — Budger can capture transactions from Shortcuts, share sheets, and more.",

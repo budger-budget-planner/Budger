@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES, loadPrefs } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
@@ -13,8 +13,8 @@ import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifi
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
-type Step = "stay-signed-in" | "currency" | "budget" | "wallet" | "notifications";
-const STEPS: Step[] = ["stay-signed-in", "currency", "budget", "wallet", "notifications"];
+type Step = "stay-signed-in" | "currency" | "budget" | "wallet" | "notifications" | "welcome";
+const STEPS: Step[] = ["stay-signed-in", "currency", "budget", "wallet", "notifications", "welcome"];
 
 function Dots({ current }: { current: Step }) {
   const idx = STEPS.indexOf(current);
@@ -32,7 +32,13 @@ function Dots({ current }: { current: Step }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPrefs) => void }) {
+export default function Onboarding({
+  onComplete,
+  isHonorableContributor = false,
+}: {
+  onComplete: (prefs: AppPrefs) => void;
+  isHonorableContributor?: boolean;
+}) {
   const queryClient = useQueryClient();
   const [step, setStep]               = useState<Step>("stay-signed-in");
   const [staySignedIn, setStaySignedIn] = useState(true);
@@ -42,6 +48,20 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
   const [budgetInput, setBudgetInput] = useState("");
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
   const [finishing, setFinishing]     = useState(false);
+
+  // ── Splash-out state for the welcome screen's CTA ─────────────────────────
+  const [launching, setLaunching]   = useState(false);
+  const [launchVisible, setLaunchVisible] = useState(false);
+  const mountedRef    = useRef(true);
+  const launchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (launchTimeout.current) clearTimeout(launchTimeout.current);
+    };
+  }, []);
 
   const updateNotif = useUpdateNotificationSettings();
   const updateMe    = useUpdateMe();
@@ -77,6 +97,18 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
       setFinishing(false);
     }
     onComplete({ currency, language, totalBudget, staySignedIn });
+  }
+
+  function handleLetsStart() {
+    // Show splash overlay, then finish after it's visible
+    setLaunching(true);
+    // Second RAF tick triggers the CSS opacity transition
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (mountedRef.current) setLaunchVisible(true);
+    }));
+    launchTimeout.current = setTimeout(() => {
+      if (mountedRef.current) finish();
+    }, 900);
   }
 
   // ── Auto-recheck when user returns from iOS Settings ─────────────────────
@@ -124,7 +156,21 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center px-6 pt-12 pb-10 gap-6">
-      <Dots current={step} />
+
+      {/* ── Splash-out overlay — sits above everything ── */}
+      {launching && (
+        <div
+          className="fixed inset-0 z-[200] bg-background flex flex-col items-center justify-center"
+          style={{ opacity: launchVisible ? 1 : 0, transition: "opacity 0.55s ease" }}
+        >
+          <div style={{ opacity: launchVisible ? 1 : 0, transition: "opacity 0.4s ease 0.1s", transform: launchVisible ? "scale(1)" : "scale(0.85)", transitionProperty: "opacity, transform" }}>
+            <BadgerLogo size={120} />
+          </div>
+        </div>
+      )}
+
+      {/* Hide dots on welcome — the screen stands alone */}
+      {step !== "welcome" && <Dots current={step} />}
 
       {/* ── Stay signed in ── */}
       {step === "stay-signed-in" && (
@@ -274,13 +320,80 @@ export default function Onboarding({ onComplete }: { onComplete: (prefs: AppPref
             </button>
           )}
 
+          {/* Advance to welcome screen, not directly to finish */}
           <button
-            onClick={finish}
-            disabled={finishing}
-            className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition disabled:opacity-50"
+            onClick={next}
+            className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition"
           >
-            {finishing ? t("common.saving") : notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
+            {notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
           </button>
+        </div>
+      )}
+
+      {/* ── Welcome ── */}
+      {step === "welcome" && (
+        <div className="flex flex-col flex-1 w-full max-w-sm justify-center gap-8">
+          {/* Large header */}
+          <div className="text-center">
+            <h1 className="text-5xl font-black tracking-widest text-foreground uppercase">
+              {t("ob.welcome_header")}
+            </h1>
+          </div>
+
+          {/* Body — scrollable if needed */}
+          <div className="flex-1 overflow-y-auto">
+            {isHonorableContributor ? (
+              /* ── Honorable Contributor body ── */
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {language === "pl" ? (
+                  <>
+                    <span className="font-bold text-foreground">Witamy w Budgerze</span>
+                    {" "}- jedynym Planerze Budżetu jakiego kiedykolwiek będziesz potrzebować. Jesteśmy szczęśliwi że postanowiłaś/łeś dołączyć do nas w podróży do finansowej stabilności i harmonii jako jeden z 50 pierwszych użytkowników. Z tego powodu mamy ekscytujące wieści! Został nadany ci tytuł „Honorowego Współtwórcy". To oznacza, że bez względu na to co przyniesie Budgerowi, będziesz w tym z nami używając wszystkich funkcjonalności aplikacji…{" "}
+                    <span className="font-bold text-foreground">ZA DARMO!</span>
+                    {" "}Raz jeszcze, dziękujemy że jesteś z nami! Zacznijmy grzebać w planowaniu naszej przyszłości!
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold text-foreground">Welcome to Budger</span>
+                    {" "}- the only Budget Planner you'll ever need. We're glad you decided to join us in this journey of financial stability and harmony as one of your first 50 users. For that reason we have an exciting news! You've been awarded with a „Honorable Contributor" title. That means that no matter what the future holds to Budger, you will enjoy this ride with us using full functionalities of the app…{" "}
+                    <span className="font-bold text-foreground">FOR FREE!</span>
+                    {" "}Once again, thank you for being with us and let's dig deeper in planning our future.
+                  </>
+                )}
+              </p>
+            ) : (
+              /* ── Regular user body ── */
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {language === "pl" ? (
+                  <>
+                    <span className="font-bold text-foreground">Witamy w Budgerze</span>
+                    {" "}- jedynym Planerze Budżetu jakiego kiedykolwiek będziesz potrzebować. Jesteśmy szczęśliwi że postanowiłaś/łeś dołączyć do nas w podróży do finansowej stabilności i harmonii. Obecnie wszystkie funkcje są udostępnione do testów za darmo - ciesz się nimi póki czas! W przyszłości możemy wprowadzić plany subskrypcji, ale bez obaw - kluczowe narzędzia Budgera{" "}
+                    <span className="font-bold text-foreground">ZAWSZE POZOSTANĄ DARMOWE</span>
+                    . Raz jeszcze, dziękujemy że jesteś z nami! Zacznijmy grzebać w planowaniu naszej przyszłości!
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold text-foreground">Welcome to Budger</span>
+                    {" "}- the only Budget planner you'll ever need. We're glad you decided to join us in this journey of financial stability and harmony. Currently all the features are free to test - enjoy them while it lasts. In the future we may introduce subscription plans, but don't worry - Budger's key tools will{" "}
+                    <span className="font-bold text-foreground">ALWAYS REMAIN FREE</span>
+                    . Once again, thank you for being with us and let's dig deeper in planning our future.
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+
+          {/* CTA button */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={handleLetsStart}
+              disabled={finishing || launching}
+              className="w-full h-16 rounded-2xl bg-foreground text-background font-bold text-lg
+                         transition active:scale-95 shadow-lg disabled:opacity-60"
+            >
+              {t("ob.welcome_lets_start")}
+            </button>
+          </div>
         </div>
       )}
 
