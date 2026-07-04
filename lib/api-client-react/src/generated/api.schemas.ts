@@ -577,6 +577,10 @@ export type MarkAllNotificationItemsRead200 = {
   ok: boolean;
 };
 
+export type SetNotificationItemReadBody = {
+  read: boolean;
+};
+
 export type SavePushSubscription200 = {
   ok: boolean;
 };

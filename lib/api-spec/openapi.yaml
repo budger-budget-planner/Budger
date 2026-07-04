@@ -812,6 +812,36 @@ paths:
         "204":
           description: Dismissed
 
+  /notifications/items/{id}/read:
+    patch:
+      operationId: setNotificationItemRead
+      tags: [notifications]
+      summary: Set the read/unread state of a single notification item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                read:
+                  type: boolean
+              required:
+                - read
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationItem"
+
   /notifications/vapid-public-key:
     get:
       operationId: getVapidPublicKey

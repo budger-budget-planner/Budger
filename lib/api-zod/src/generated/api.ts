@@ -973,6 +973,29 @@ export const DismissNotificationItemParams = zod.object({
 });
 
 /**
+ * @summary Set the read/unread state of a single notification item
+ */
+export const SetNotificationItemReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetNotificationItemReadBody = zod.object({
+  read: zod.boolean(),
+});
+
+export const SetNotificationItemReadResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  type: zod.string(),
+  titleEn: zod.string(),
+  titlePl: zod.string(),
+  bodyEn: zod.string(),
+  bodyPl: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Get the VAPID public key for Web Push subscription
  */
 export const GetVapidPublicKeyResponse = zod.object({

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
-  Smartphone, ExternalLink,
+  Smartphone, ExternalLink, Circle,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,8 +21,8 @@ import {
 } from "@/hooks/useSmartNotifications";
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
-import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, type NCNotification, type NCNotifType } from "@/lib/nc-store";
-import { loadPrefs } from "@/lib/prefs";
+import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
+import { loadPrefs, checkNcSwipeHintDue } from "@/lib/prefs";
 import { showNotification } from "@/lib/show-notification";
 
 // ─── Alert (alarm) types ──────────────────────────────────────────────────────
@@ -500,10 +500,14 @@ function SwipeableNotifCard({
   n,
   lang,
   onDismiss,
+  onToggleRead,
+  showHint,
 }: {
   n: NCNotification;
   lang: "en" | "pl";
   onDismiss: (id: string) => void;
+  onToggleRead: (id: string, read: boolean) => void;
+  showHint?: boolean;
 }) {
   const [offset,    setOffset]    = useState(0);
   const [animated,  setAnimated]  = useState(false);
@@ -516,7 +520,30 @@ function SwipeableNotifCard({
   const isScrolling = useRef<boolean | null>(null);
   const hasMoved    = useRef(false);
 
-  const THRESHOLD = 80; // px before a release triggers dismiss
+  const THRESHOLD = 80; // px before a release triggers the swipe action
+
+  // Swipe hint wiggle — identical timing/offsets to the home-tab transaction
+  // swipe hint (SwipeableTxRow in HomeSpending.tsx), so both feel the same.
+  useEffect(() => {
+    if (!showHint) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const go = (fn: () => void, ms: number) => {
+      const id = setTimeout(() => { if (!cancelled) fn(); }, ms);
+      timers.push(id);
+    };
+    setAnimated(true);
+    go(() => setOffset(-7.5), 100);          // left ×1 (half)
+    go(() => setOffset(0),    260);          // back
+    go(() => setOffset(-15),  370);          // left ×2 (full)
+    go(() => setOffset(0),    530);          // back
+    go(() => setOffset(9.5),  1360);         // right ×1 (half)
+    go(() => setOffset(0),    1520);         // back
+    go(() => setOffset(19),   1630);         // right ×2 (full)
+    go(() => setOffset(0),    1790);         // back
+    go(() => setAnimated(false), 1900);
+    return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimated(false); };
+  }, [showHint]);
 
   function handleTouchStart(e: React.TouchEvent) {
     if (dismissed) return;
@@ -550,12 +577,18 @@ function SwipeableNotifCard({
     if (!hasMoved.current || isScrolling.current) return;
 
     setAnimated(true);
-    if (Math.abs(currentOff.current) >= THRESHOLD) {
-      // Past threshold → fly off-screen in drag direction, then dismiss
-      const dir = currentOff.current > 0 ? 1 : -1;
+    const off = currentOff.current;
+
+    if (off <= -THRESHOLD) {
+      // Swipe right-to-left, past threshold → delete (matches transaction rows)
       setDismissed(true);
-      setOffset(dir * (window.innerWidth + 60));
+      setOffset(-(window.innerWidth + 60));
       setTimeout(() => onDismiss(n.id), 260);
+    } else if (off >= THRESHOLD) {
+      // Swipe left-to-right, past threshold → toggle read/unread, then spring back
+      onToggleRead(n.id, !n.read);
+      setOffset(0);
+      currentOff.current = 0;
     } else {
       // Not far enough → spring back to rest
       setOffset(0);
@@ -568,13 +601,16 @@ function SwipeableNotifCard({
   const body     = lang === "pl" ? n.bodyPl  : n.bodyEn;
   // 0 → 1 as drag approaches THRESHOLD; clamp so it doesn't exceed 1
   const progress = Math.min(Math.abs(offset) / THRESHOLD, 1);
+  // Swiping left-to-right (offset > 0) reveals the read/unread toggle hint;
+  // swiping right-to-left (offset < 0) reveals the delete hint.
+  const showingToggleHint = offset > 0;
 
   return (
     <div
       className="relative overflow-hidden rounded-2xl"
       style={{ opacity: dismissed ? 0 : 1, transition: dismissed ? "opacity 0.26s ease" : "none" }}
     >
-      {/* Dismiss-hint background: matches transaction delete style */}
+      {/* Swipe-hint background: delete (right-to-left) or read/unread toggle (left-to-right) */}
       <div
         className="absolute inset-0 bg-card rounded-2xl flex items-center px-4"
         style={{
@@ -583,8 +619,19 @@ function SwipeableNotifCard({
         }}
         aria-hidden
       >
-        <div className="absolute inset-0 rounded-2xl bg-destructive/10" />
-        <X className="w-5 h-5 text-destructive relative z-10" />
+        {showingToggleHint ? (
+          <>
+            <div className="absolute inset-0 rounded-2xl bg-sky-500/10" />
+            {isUnread
+              ? <CheckCircle className="w-5 h-5 text-sky-400 relative z-10" />
+              : <Circle className="w-5 h-5 text-sky-400 relative z-10" />}
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 rounded-2xl bg-destructive/10" />
+            <X className="w-5 h-5 text-destructive relative z-10" />
+          </>
+        )}
       </div>
 
       {/* Card content — slides with the finger */}
@@ -628,7 +675,17 @@ function SwipeableNotifCard({
 }
 
 // ─── Notification Feed ────────────────────────────────────────────────────────
-function NotifFeed({ notifications, onDismiss }: { notifications: NCNotification[]; onDismiss: (id: string) => void }) {
+function NotifFeed({
+  notifications,
+  onDismiss,
+  onToggleRead,
+  showHint,
+}: {
+  notifications: NCNotification[];
+  onDismiss: (id: string) => void;
+  onToggleRead: (id: string, read: boolean) => void;
+  showHint: boolean;
+}) {
   const lang = loadPrefs().language as "en" | "pl";
 
   if (notifications.length === 0) {
@@ -640,10 +697,19 @@ function NotifFeed({ notifications, onDismiss }: { notifications: NCNotification
     );
   }
 
+  const topId = notifications[0]?.id;
+
   return (
     <div className="space-y-2">
       {notifications.map(n => (
-        <SwipeableNotifCard key={n.id} n={n} lang={lang} onDismiss={onDismiss} />
+        <SwipeableNotifCard
+          key={n.id}
+          n={n}
+          lang={lang}
+          onDismiss={onDismiss}
+          onToggleRead={onToggleRead}
+          showHint={showHint && n.id === topId}
+        />
       ))}
     </div>
   );
@@ -656,6 +722,7 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const [notifications, setNotifications] = useState<NCNotification[]>([]);
+  const [swipeHintDue, setSwipeHintDue] = useState(false);
 
   async function refresh() {
     setNotifications(await loadNCNotifications());
@@ -683,6 +750,7 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
 
   async function handleOpen() {
     await refresh();
+    setSwipeHintDue(checkNcSwipeHintDue());
     setOpen(true);
   }
 
@@ -694,6 +762,11 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
   async function handleDismiss(id: string) {
     setNotifications(prev => prev.filter(n => n.id !== id));
     await dismissNCNotification(id);
+  }
+
+  async function handleToggleRead(id: string, read: boolean) {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read } : n)));
+    await setNCNotificationRead(id, read);
   }
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -788,7 +861,12 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
 
                   {/* Notification feed */}
                   <div className="flex-1 overflow-y-auto min-h-0">
-                    <NotifFeed notifications={notifications} onDismiss={handleDismiss} />
+                    <NotifFeed
+                      notifications={notifications}
+                      onDismiss={handleDismiss}
+                      onToggleRead={handleToggleRead}
+                      showHint={swipeHintDue}
+                    />
                   </div>
                 </>
               )}

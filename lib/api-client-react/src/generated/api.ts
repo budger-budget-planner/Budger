@@ -62,6 +62,7 @@ import type {
   RegisterStartInput,
   RegisterStartOutput,
   SavePushSubscription200,
+  SetNotificationItemReadBody,
   Transaction,
   TransactionInput,
   TransactionUpdate,
@@ -3654,6 +3655,94 @@ export const useDismissNotificationItem = <
   TContext
 > => {
   return useMutation(getDismissNotificationItemMutationOptions(options));
+};
+
+/**
+ * @summary Set the read/unread state of a single notification item
+ */
+export const getSetNotificationItemReadUrl = (id: number) => {
+  return `/api/notifications/items/${id}/read`;
+};
+
+export const setNotificationItemRead = async (
+  id: number,
+  setNotificationItemReadBody: SetNotificationItemReadBody,
+  options?: RequestInit,
+): Promise<NotificationItem> => {
+  return customFetch<NotificationItem>(getSetNotificationItemReadUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setNotificationItemReadBody),
+  });
+};
+
+export const getSetNotificationItemReadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setNotificationItemRead>>,
+    TError,
+    { id: number; data: BodyType<SetNotificationItemReadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setNotificationItemRead>>,
+  TError,
+  { id: number; data: BodyType<SetNotificationItemReadBody> },
+  TContext
+> => {
+  const mutationKey = ["setNotificationItemRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setNotificationItemRead>>,
+    { id: number; data: BodyType<SetNotificationItemReadBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setNotificationItemRead(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetNotificationItemReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setNotificationItemRead>>
+>;
+export type SetNotificationItemReadMutationBody =
+  BodyType<SetNotificationItemReadBody>;
+export type SetNotificationItemReadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Set the read/unread state of a single notification item
+ */
+export const useSetNotificationItemRead = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setNotificationItemRead>>,
+    TError,
+    { id: number; data: BodyType<SetNotificationItemReadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setNotificationItemRead>>,
+  TError,
+  { id: number; data: BodyType<SetNotificationItemReadBody> },
+  TContext
+> => {
+  return useMutation(getSetNotificationItemReadMutationOptions(options));
 };
 
 /**

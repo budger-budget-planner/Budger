@@ -57,6 +57,7 @@ export * from "./registerInput";
 export * from "./registerStartInput";
 export * from "./registerStartOutput";
 export * from "./savePushSubscription200";
+export * from "./setNotificationItemReadBody";
 export * from "./transaction";
 export * from "./transactionInput";
 export * from "./transactionUpdate";

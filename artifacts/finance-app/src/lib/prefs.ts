@@ -145,6 +145,38 @@ export function checkSwipeHintDue(): boolean {
   return due;
 }
 
+const NC_SWIPE_HINT_KEY_BASE = "budger_nc_swipe_hint_v1";
+
+function ncSwipeHintKey(): string {
+  const uid = getActiveUserId();
+  return uid != null ? `${NC_SWIPE_HINT_KEY_BASE}_${uid}` : NC_SWIPE_HINT_KEY_BASE;
+}
+
+/**
+ * Decides whether the Notification Center's swipe-to-reveal-actions hint
+ * animation should play right now. Mirrors `checkSwipeHintDue` (the home-tab
+ * transaction swipe hint) but tracked under its own key so opening the drawer
+ * doesn't consume/interfere with the home tab's hint cadence, or vice versa.
+ *
+ * Rules:
+ *  - First time ever called for this user (e.g. first drawer open) → show it.
+ *  - Otherwise, only show it again if at least a week has passed since it was last shown.
+ */
+export function checkNcSwipeHintDue(): boolean {
+  const key = ncSwipeHintKey();
+  const now = Date.now();
+  const raw = localStorage.getItem(key);
+  let due: boolean;
+  if (raw == null) {
+    due = true;
+  } else {
+    const lastSeen = parseInt(raw, 10);
+    due = isNaN(lastSeen) || (now - lastSeen) >= SWIPE_HINT_WEEK_MS;
+  }
+  localStorage.setItem(key, String(now));
+  return due;
+}
+
 // ─── Donut chart segment-wiggle hint ─────────────────────────────────────────
 
 const DONUT_WIGGLE_KEY_BASE = "budger_donut_wiggle_v1";

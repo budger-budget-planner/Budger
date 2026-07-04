@@ -85,3 +85,15 @@ export async function dismissNCNotification(id: string) {
     window.dispatchEvent(new CustomEvent("nc-updated"));
   } catch { /* ignore */ }
 }
+
+// Sets a single item's read/unread state — used by the swipe left-to-right
+// toggle in the Notification Center feed.
+export async function setNCNotificationRead(id: string, read: boolean) {
+  try {
+    await customFetch(`/api/notifications/items/${id}/read`, {
+      method: "PATCH",
+      body: JSON.stringify({ read }),
+    });
+    window.dispatchEvent(new CustomEvent("nc-updated"));
+  } catch { /* ignore */ }
+}

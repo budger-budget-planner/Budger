@@ -179,6 +179,28 @@ router.patch("/notifications/items/:id/dismiss", async (req, res): Promise<void>
   res.status(204).send();
 });
 
+// Sets the read/unread state of a single item — used by the swipe-left-to-right
+// toggle in the Notification Center feed (swipe-to-delete stays right-to-left).
+router.patch("/notifications/items/:id/read", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const read = req.body?.read;
+  if (typeof read !== "boolean") { res.status(400).json({ error: "read must be a boolean" }); return; }
+
+  const result = await db.update(notificationItemsTable)
+    .set({ read })
+    .where(and(eq(notificationItemsTable.id, id), eq(notificationItemsTable.userId, userId)))
+    .returning();
+
+  if (result.length === 0) { res.status(404).json({ error: "Not found" }); return; }
+
+  res.json(formatItem(result[0]));
+});
+
 // ── Web Push routes ────────────────────────────────────────────────────────────
 
 router.get("/notifications/vapid-public-key", (req, res): void => {
