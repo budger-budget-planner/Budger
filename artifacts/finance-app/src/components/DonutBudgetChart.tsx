@@ -660,11 +660,18 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   {fmtAmt(selectedLegend.spent, currency)}
                 </text>
                 {selectedLegend.catKey.startsWith("rp-") ? (
-                  <text x={CX} y={CY + 18}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fontSize="11" fill={selectedLegend.isRecurringApplied ? "#4ade80" : "#6b7280"}>
-                    {selectedLegend.isRecurringApplied ? t("donut.rp_paid") : t("donut.rp_not_paid")}
-                  </text>
+                  <>
+                    <text x={CX} y={CY + 13}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="10" fill="#6b7280">
+                      {t("donut.rp_type")}
+                    </text>
+                    <text x={CX} y={CY + 26}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="10" fontWeight="600" fill={selectedLegend.isRecurringApplied ? "#4ade80" : "#9ca3af"}>
+                      {selectedLegend.isRecurringApplied ? t("donut.rp_paid") : t("donut.rp_not_paid")}
+                    </text>
+                  </>
                 ) : selectedLegend.budget > 0 && (
                   <text x={CX} y={CY + 18}
                     textAnchor="middle" dominantBaseline="middle"
@@ -672,7 +679,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
                   </text>
                 )}
-                <text x={CX} y={CY + 36}
+                <text x={CX} y={CY + 40}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="9" fill="#4b5563">
                   {t("donut.tap_to_close")}
