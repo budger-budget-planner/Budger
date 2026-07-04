@@ -12,9 +12,11 @@ import {
   useUpdateRecurringPayment,
   useDeleteRecurringPayment,
   getListRecurringPaymentsQueryKey,
+  useGetMe,
+  useListHouseholdMembers,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp } from "lucide-react";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +28,20 @@ const PRESET_COLORS = [
   "#a78bfa", "#fbbf24", "#f87171", "#4ade80", "#60a5fa",
   "#e879f9", "#2dd4bf", "#facc15", "#fb7185", "#a3e635",
 ];
+
+function isHeadRole(role: string) { return role === "head" || role === "owner"; }
+function isParentRole(role: string) { return role === "parent"; }
+function canProposeShare(role: string) { return isHeadRole(role) || isParentRole(role); }
+
+async function apiFetch(path: string, init?: RequestInit) {
+  const r = await fetch(`${import.meta.env.BASE_URL}api${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  if (!r.ok) throw new Error(await r.text().catch(() => "Request failed"));
+  return r.status === 204 ? null : r.json();
+}
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
@@ -262,15 +278,101 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
   );
 }
 
-function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym }: {
+function ShareCategoryDialog({ category, open, onClose }: {
   category: any; open: boolean; onClose: () => void;
-  totalBudget: number | null; otherCategoriesTotal: number; sym: string;
+}) {
+  const { data: members } = useListHouseholdMembers();
+  const { data: me } = useGetMe();
+  const [target, setTarget] = useState<number | "all" | null>(null);
+  const [done, setDone] = useState(false);
+
+  const otherMembers = (members ?? []).filter(m => m.userId !== me?.id);
+
+  const share = useMutation({
+    mutationFn: (body: { targetUserId?: number; all?: boolean }) =>
+      apiFetch(`/categories/${category.id}/share`, { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => setDone(true),
+  });
+
+  function handleClose() {
+    setTarget(null);
+    setDone(false);
+    onClose();
+  }
+
+  function handleSend() {
+    if (target === "all") share.mutate({ all: true });
+    else if (typeof target === "number") share.mutate({ targetUserId: target });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>{t("cat.share_title")}</DialogTitle></DialogHeader>
+        {done ? (
+          <div className="space-y-4 text-center py-4">
+            <p className="text-sm text-muted-foreground">{t("cat.share_sent")}</p>
+            <Button className="w-full" onClick={handleClose}>{t("common.done")}</Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">{t("cat.share_desc")}</p>
+            <div className="space-y-1.5 max-h-64 overflow-auto">
+              {otherMembers.map(m => (
+                <button
+                  key={m.userId}
+                  type="button"
+                  onClick={() => setTarget(m.userId)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition ${
+                    target === m.userId ? "border-foreground bg-muted" : "border-border bg-transparent"
+                  }`}
+                  data-testid={`button-share-target-${m.userId}`}
+                >
+                  <span>{m.name}</span>
+                  {target === m.userId && <Check className="w-4 h-4" />}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setTarget("all")}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-sm transition ${
+                  target === "all" ? "border-foreground bg-muted" : "border-border bg-transparent"
+                }`}
+                data-testid="button-share-target-all"
+              >
+                <span className="flex items-center gap-2"><Users className="w-4 h-4" /> {t("cat.share_all")}</span>
+                {target === "all" && <Check className="w-4 h-4" />}
+              </button>
+            </div>
+            {otherMembers.length === 0 && (
+              <p className="text-xs text-muted-foreground">{t("cat.share_no_members")}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={handleClose}>
+                <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
+              </Button>
+              <Button className="flex-1" onClick={handleSend} disabled={target === null || share.isPending}>
+                <Share2 className="w-3.5 h-3.5 mr-1" />
+                {share.isPending ? t("cat.share_sending") : t("cat.share_send")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym, canShare }: {
+  category: any; open: boolean; onClose: () => void;
+  totalBudget: number | null; otherCategoriesTotal: number; sym: string; canShare: boolean;
 }) {
   const queryClient = useQueryClient();
   const [name,       setName]       = useState(category.name);
   const [color,      setColor]      = useState(category.color);
   const [budgetMode, setBudgetMode] = useState<"amount" | "percent">("amount");
   const [budget,     setBudget]     = useState(category.budget != null ? String(Number(category.budget).toFixed(0)) : "");
+  const [shareOpen,  setShareOpen]  = useState(false);
 
   const update = useUpdateCategory({
     mutation: {
@@ -290,49 +392,65 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{t("cat.edit")}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ backgroundColor: color }} />
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={t("cat.cat_name")}
-              autoFocus
-              data-testid={`input-category-name-${category.id}`}
-            />
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("cat.edit")}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ backgroundColor: color }} />
+              <Input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder={t("cat.cat_name")}
+                autoFocus
+                data-testid={`input-category-name-${category.id}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
+              <ColorPicker value={color} onChange={setColor} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("cat.monthly_budget_opt")}</Label>
+              <BudgetInput
+                rawValue={budget}
+                onRawChange={setBudget}
+                mode={budgetMode}
+                onModeChange={setBudgetMode}
+                totalBudget={totalBudget}
+                otherCategoriesTotal={otherCategoriesTotal}
+                sym={sym}
+              />
+            </div>
+            {canShare && (
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border
+                           bg-transparent text-xs font-medium text-muted-foreground transition active:opacity-70"
+                data-testid={`button-share-category-${category.id}`}
+              >
+                <Share2 className="w-3.5 h-3.5" /> {t("cat.share_btn")}
+              </button>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={onClose}>
+                <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
+              </Button>
+              <Button className="flex-1" onClick={handleSave} disabled={update.isPending || overCap}
+                data-testid={`button-save-category-${category.id}`}>
+                <Check className="w-3.5 h-3.5 mr-1" />
+                {update.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">{t("cat.color_label")}</Label>
-            <ColorPicker value={color} onChange={setColor} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">{t("cat.monthly_budget_opt")}</Label>
-            <BudgetInput
-              rawValue={budget}
-              onRawChange={setBudget}
-              mode={budgetMode}
-              onModeChange={setBudgetMode}
-              totalBudget={totalBudget}
-              otherCategoriesTotal={otherCategoriesTotal}
-              sym={sym}
-            />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>
-              <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
-            </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={update.isPending || overCap}
-              data-testid={`button-save-category-${category.id}`}>
-              <Check className="w-3.5 h-3.5 mr-1" />
-              {update.isPending ? t("common.saving") : t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {shareOpen && (
+        <ShareCategoryDialog category={category} open={shareOpen} onClose={() => setShareOpen(false)} />
+      )}
+    </>
   );
 }
 
