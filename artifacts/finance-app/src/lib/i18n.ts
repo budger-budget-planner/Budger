@@ -52,7 +52,9 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Donut chart ──
   "donut.of_budget":        { en: "of budget",              pl: "budżetu"                  },
-  "donut.of_its_budget":   { en: "of its budget",          pl: "swojego budżetu"           },
+  "donut.of_its_budget":   { en: "of category's budget",   pl: "z budżetu kategorii"       },
+  "donut.rp_paid":         { en: "recurring payment paid",     pl: "płatność cykliczna opłacona"    },
+  "donut.rp_not_paid":     { en: "recurring payment not paid", pl: "płatność cykliczna nieopłacona" },
   "donut.of_budget_used":   { en: "of budget used",         pl: "budżetu wykorzystano"     },
   "donut.tap_to_close":     { en: "tap again to close",     pl: "dotknij ponownie, by zamknąć" },
   "donut.xx_to_exit":       { en: "×× to exit",             pl: "×× aby wyjść"             },

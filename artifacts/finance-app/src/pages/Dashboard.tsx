@@ -65,7 +65,7 @@ export default function DashboardPage() {
     // the "uncategorized" bucket.
     const enrichedBase = base.map(item =>
       item.recurringPaymentId
-        ? { ...item, _catKey: `rp-${item.recurringPaymentId}` }
+        ? { ...item, _catKey: `rp-${item.recurringPaymentId}`, isRecurringApplied: true }
         : item
     );
     const unapplied = (recurringPayments ?? []).filter(rp => !rp.appliedThisMonth);
@@ -79,6 +79,7 @@ export default function DashboardPage() {
       count: 0,
       recurringPaymentId: rp.id,
       _catKey: `rp-${rp.id}`,
+      isRecurringApplied: false,
     }));
     const merged = [...enrichedBase, ...rpItems];
     return merged.length ? merged : undefined;

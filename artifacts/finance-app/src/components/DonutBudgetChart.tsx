@@ -58,6 +58,8 @@ export type SpendingItem = {
   count: number;
   /** Optional override for the catKey used in the donut chart */
   _catKey?: string;
+  /** True when this item represents a recurring payment that has been applied this month */
+  isRecurringApplied?: boolean;
 };
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
@@ -116,6 +118,7 @@ type GroupBorder = {
 type LegendItem = {
   catKey: string; color: string; name: string;
   spent: number; budget: number; isOverBudget: boolean;
+  isRecurringApplied: boolean;
 };
 
 function buildChart(
@@ -136,6 +139,7 @@ function buildChart(
 
   type Group = {
     catKey: string; color: string; name: string; spent: number; budget: number;
+    isRecurringApplied: boolean;
     parts: Array<{ id: string; fraction: number; fill: string; isOverBudget: boolean }>;
   };
 
@@ -150,8 +154,9 @@ function buildChart(
     const name   = (!s.categoryName || s.categoryName === "Uncategorized")
       ? t("common.uncategorized") : s.categoryName;
 
+    const isRecurringApplied = s.isRecurringApplied ?? false;
     if (over) {
-      groups.push({ catKey, color, name, spent, budget,
+      groups.push({ catKey, color, name, spent, budget, isRecurringApplied,
         parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
@@ -159,7 +164,7 @@ function buildChart(
       const parts = [];
       if (spentFrac  > 0.001) parts.push({ id: `${catKey}-spent`,  fraction: spentFrac,  fill: color,                    isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52),   isOverBudget: false });
-      groups.push({ catKey, color, name, spent, budget, parts });
+      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, parts });
     }
   }
 
@@ -179,7 +184,7 @@ function buildChart(
     }
     if (parts.length > 0) {
       groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
-        spent: uncatSpent, budget: uncatBudget, parts });
+        spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, parts });
     }
   }
 
@@ -223,7 +228,8 @@ function buildChart(
   const legend: LegendItem[] = groups
     .filter(g => g.spent > 0 || g.budget > 0)
     .map(g => ({ catKey: g.catKey, color: g.color, name: g.name, spent: g.spent,
-      budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0 }));
+      budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
+      isRecurringApplied: g.isRecurringApplied }));
 
   return { segs, groupBorders, legend };
 }
@@ -653,7 +659,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   fontSize="16" fontWeight="700" fill="#ffffff">
                   {fmtAmt(selectedLegend.spent, currency)}
                 </text>
-                {selectedLegend.budget > 0 && (
+                {selectedLegend.catKey.startsWith("rp-") ? (
+                  <text x={CX} y={CY + 18}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fontSize="11" fill={selectedLegend.isRecurringApplied ? "#4ade80" : "#6b7280"}>
+                    {selectedLegend.isRecurringApplied ? t("donut.rp_paid") : t("donut.rp_not_paid")}
+                  </text>
+                ) : selectedLegend.budget > 0 && (
                   <text x={CX} y={CY + 18}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
