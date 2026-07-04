@@ -687,11 +687,18 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
                   </text>
                 )}
-                <text x={CX} y={CY + 40}
+                <text x={CX} y={CY + 37}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="9" fill="#4b5563">
-                  {t("donut.tap_to_close")}
+                  {t("donut.tap_to_close_line1")}
                 </text>
+                {t("donut.tap_to_close_line2") && (
+                  <text x={CX} y={CY + 48}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fontSize="9" fill="#4b5563">
+                    {t("donut.tap_to_close_line2")}
+                  </text>
+                )}
               </>
             ) : (
               <>

@@ -743,18 +743,6 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
             <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
               <div className="flex items-center gap-3">
                 {!panel && <h2 className="text-base font-bold">{t("nc.title")}</h2>}
-                {/* Mark-all-read — lives in the fixed header so it's always reachable */}
-                {!panel && unreadCount > 0 && (
-                  <button
-                    onClick={async () => {
-                      await markAllNCRead();
-                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-                    }}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
-                  >
-                    {t("nc.read_all")}
-                  </button>
-                )}
               </div>
               <button onClick={handleClose}
                 className="w-8 h-8 rounded-full bg-muted flex items-center justify-center transition active:scale-95">
@@ -782,6 +770,21 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
                       </button>
                     ))}
                   </div>
+
+                  {/* Mark-all-read — below the tabs stripe */}
+                  {unreadCount > 0 && (
+                    <div className="flex justify-end mb-3 flex-shrink-0">
+                      <button
+                        onClick={async () => {
+                          await markAllNCRead();
+                          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                        }}
+                        className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
+                      >
+                        {t("nc.read_all")}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Notification feed */}
                   <div className="flex-1 overflow-y-auto min-h-0">
