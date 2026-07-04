@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { syncTotalBudgetFloor } from "../lib/budget-sync";
 
 const router: IRouter = Router();
 
@@ -164,6 +165,8 @@ router.post("/recurring-payments", async (req, res): Promise<void> => {
     dayOfMonth: type === "scheduled" ? dayOfMonth : null,
   }).returning();
 
+  await syncTotalBudgetFloor(userId);
+
   const monthKey = currentMonthKey();
   res.status(201).json(formatRP(rp, false, null));
 });
@@ -216,6 +219,10 @@ router.patch("/recurring-payments/:id", async (req, res): Promise<void> => {
     .set(updates)
     .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)))
     .returning();
+
+  if (updates.amount !== undefined) {
+    await syncTotalBudgetFloor(userId);
+  }
 
   const monthKey = currentMonthKey();
   const appliedMap = await getAppliedMap(userId, monthKey);

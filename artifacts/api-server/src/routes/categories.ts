@@ -8,6 +8,7 @@ import {
   DeleteCategoryParams,
   GetCategoryParams,
 } from "@workspace/api-zod";
+import { syncTotalBudgetFloor } from "../lib/budget-sync";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,7 @@ router.post("/categories", async (req, res): Promise<void> => {
   }
 
   const [category] = await db.insert(categoriesTable).values(insertData).returning();
+  await syncTotalBudgetFloor(userId);
   res.status(201).json(formatCategory(category));
 });
 
@@ -119,6 +121,10 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
     .returning();
 
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (parsed.data.budget !== undefined) {
+    await syncTotalBudgetFloor(userId);
+  }
 
   res.json(formatCategory(category));
 });
