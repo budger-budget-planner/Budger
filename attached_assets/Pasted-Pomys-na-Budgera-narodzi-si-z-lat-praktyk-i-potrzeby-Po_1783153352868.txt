@@ -1,0 +1,13 @@
+Pomysł na Budgera narodził się z lat praktyk i potrzeby. Potrzebowałem planera finansowego dla swojej rodziny, by śledzić bieżące wydatki oraz mądrze planować te które dopiero nadejdą 
+
+Od lat starannie planowałem wydatki w notatniku swojego telefonu - zalążki podejścia. Później zacząłem te wydatki kategoryzować. Z biegiem czasu stworzyłem pierwszy świadomy budżet, ale bez środków aby śledzić każdy finansowy ruch trudno było utrzymać konsekwencje. Aplikacje bankowe nie oferowały elastyczności, a ja miałem kilka kont w różnych bankach. To zadanie zdawało się przytłaczające i niemożliwe do zrealizowania.
+
+Gdy nadszedł 2026, Sztuczna Inteligencja pojawiła się w wielu codziennych obszarach, tworząc okazję, otwierając drzwi. Jedną z nich był vibecoding, czyli tworzenie kodu za pomocą promptów, a nie języka programistycznego. Iskra potrzebna by podjąć akcje. Mając środki do zrealizacji celu zacząłem tworzyć narzędzie którego potrzebowałem przez tyle lat. I tak, Panie i Panowie, narodził się Budger. 
+
+Z czasem zdałem sobie sprawę ze osobista potrzeba przekształciła się w misję stworzenia społeczności i szerzenia finansowej świadomości. Każdy z nas ma miesięczne wydatki oraz cele do których dąży. Świadomość swoich finansów oraz staranne planowanie sprawia że stają się one łatwiejsze i bardziej osiągalne. Chciałbym podzielić się tym podejściem z moimi najbliższymi, przyjaciółmi, a w przyszłości po prostu z ludźmi myślącymi podobnie do mnie. Ideą Budgera jest planowanie i osiąganie celów - indywidualnych jak i tych wspólnych. Dla lepszej przyszłości. 
+
+Dedykuję tę aplikację mojej rodzinie, szczególnie żonie Natalii oraz córce Matyldzie, które napędzały mnie i dawały wsparcie w całym procesie, oraz bratu Pawłowi i chrześniakowi Teodorowi, którzy byli inspiracją do brandingu, dając mi pozytywne skojarzenia z Borsukiem (ang. Badger)
+
+Borsuki same w sobie są bardzo przedsiębiorczymi zwierzętami. Poszukują pożywienia na wiele sposobów, podejmują sprytne decyzje, budują złożone nory które przekazywane są z pokolenia na pokolenie. Jeśli ta aplikacja osiągnie komercyjny sukces, deklaruję wsparcie ich bezpieczeństwa oraz dobrobytu. 
+
+Autor i CEO Budgera, Filip Snopek
