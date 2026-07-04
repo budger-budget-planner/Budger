@@ -61,6 +61,7 @@ export function checkBudgetThresholdNotifications(
         titlePl: `Uwaga budżet — ${catName}`,
         bodyEn: `You've used ${Math.round(pct)}% of your ${catName} budget. ${sym}${remaining} remaining this month.`,
         bodyPl: `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${catName}. Pozostało ${sym}${remaining} w tym miesiącu.`,
+        dedupKey: `budget_75_cat_${key}_${monthKey()}`,
       });
     }
   }
@@ -81,6 +82,7 @@ export function checkBudgetThresholdNotifications(
         titlePl: `Ostrzeżenie budżet — ${catName}`,
         bodyEn: `You've used ${Math.round(pct)}% of your ${catName} budget. Only ${sym}${remaining} left — slow down!`,
         bodyPl: `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${catName}. Pozostało tylko ${sym}${remaining} — zwolnij tempo!`,
+        dedupKey: `budget_90_cat_${key}_${monthKey()}`,
       });
     }
   }
@@ -120,6 +122,7 @@ export function checkBudgetThresholdNotifications(
           titlePl: "Ostrzeżenie miesięczny budżet",
           bodyEn: `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
           bodyPl: `Wykorzystano ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało tylko ${sym}${totalRemaining} — uważaj na wydatki!`,
+          dedupKey: `budget_90_total_${monthKey()}`,
         });
       }
     } else if (totalPct >= 75) {
@@ -138,6 +141,7 @@ export function checkBudgetThresholdNotifications(
           titlePl: "Przypomnienie miesięczny budżet",
           bodyEn: `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
           bodyPl: `Osiągnięto ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało ${sym}${totalRemaining}.`,
+          dedupKey: `budget_75_total_${monthKey()}`,
         });
       }
     }

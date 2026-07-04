@@ -856,6 +856,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "nc.dismiss":        { en: "Dismiss",                 pl: "Odrzuć"                       },
   "nc.unread_one":     { en: "unread notification",     pl: "nieprzeczytane powiadomienie" },
   "nc.unread_many":    { en: "unread notifications",    pl: "nieprzeczytane powiadomienia" },
+  "nc.read_all":       { en: "Mark all read",           pl: "Oznacz wszystkie jako przeczytane" },
   "nc.add_alarm":      { en: "Add alarm",               pl: "Dodaj alarm"                  },
   "nc.setup_guide":    { en: "Copy URL",                pl: "Kopiuj URL"                   },
   "nc.setup_guide_desc":{ en: "Same as the Copy URL button in the manuals above — here for convenience.",

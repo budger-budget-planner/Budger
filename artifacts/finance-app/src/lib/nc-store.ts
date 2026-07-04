@@ -57,7 +57,9 @@ export async function loadNCNotifications(): Promise<NCNotification[]> {
   }
 }
 
-export async function addNCNotification(notif: Omit<NCNotification, "id" | "timestamp" | "read">) {
+export async function addNCNotification(
+  notif: Omit<NCNotification, "id" | "timestamp" | "read"> & { dedupKey?: string },
+) {
   if (_currentUserId === "guest") return;
   try {
     await customFetch("/api/notifications/items", {
@@ -77,7 +79,9 @@ export async function markAllNCRead() {
 
 export async function dismissNCNotification(id: string) {
   try {
-    await customFetch(`/api/notifications/items/${id}`, { method: "DELETE" });
+    // PATCH instead of DELETE — server soft-deletes so the dedup_key row is
+    // preserved, permanently preventing the same notification from reappearing.
+    await customFetch(`/api/notifications/items/${id}/dismiss`, { method: "PATCH" });
     window.dispatchEvent(new CustomEvent("nc-updated"));
   } catch { /* ignore */ }
 }

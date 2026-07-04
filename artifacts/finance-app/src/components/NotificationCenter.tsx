@@ -675,9 +675,20 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
                   {/* Notification feed */}
                   <div className="flex-1 overflow-y-auto min-h-0">
                     {unreadCount > 0 && (
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {unreadCount} {unreadCount === 1 ? t("nc.unread_one") : t("nc.unread_many")}
-                      </p>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs text-muted-foreground">
+                          {unreadCount} {unreadCount === 1 ? t("nc.unread_one") : t("nc.unread_many")}
+                        </p>
+                        <button
+                          onClick={async () => {
+                            await markAllNCRead();
+                            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                          }}
+                          className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
+                        >
+                          {t("nc.read_all")}
+                        </button>
+                      </div>
                     )}
                     <NotifFeed notifications={notifications} onDismiss={handleDismiss} />
                   </div>

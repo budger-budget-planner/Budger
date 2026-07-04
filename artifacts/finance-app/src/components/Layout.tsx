@@ -117,6 +117,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const showGoalsBadge = hasNewProposals || hasNewEditProposals;
 
   // ── Detect activity feed events → log to Notification Center ────────────
+  // processedNcIds is a session-only fast-path to skip API calls for items
+  // already handled this mount. The server-side dedup_key unique index is the
+  // durable guarantee — it silently ignores duplicate inserts across sessions,
+  // devices, or cleared localStorage.
   const processedNcIds = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!goalActivityBadge || !user?.id) return;
@@ -128,28 +132,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       "goal_realized",
     ];
 
-    // Use the highest createdAt we have previously seen as the watermark —
-    // avoids skipping late-arriving backend events that createdAt < Date.now().
-    let watermark = 0;
-    try { watermark = parseInt(localStorage.getItem(`nc_goal_watermark_${user.id}`) ?? "0") || 0; } catch { /**/ }
-
-    let maxTs = watermark;
-
     for (const item of goalActivityBadge) {
       if (!NC_TYPES.includes(item.type)) continue;
       if (processedNcIds.current.has(item.id)) continue;
-
-      const itemTs = new Date(item.createdAt).getTime();
-      if (itemTs <= watermark) {
-        processedNcIds.current.add(item.id);
-        continue;
-      }
-
       processedNcIds.current.add(item.id);
-      maxTs = Math.max(maxTs, itemTs);
 
       const gName = item.goalName ?? "goal";
       const actor = item.actorName ?? "";
+      // Each goal_activity row gets a stable dedup key — the server rejects
+      // any second insert for the same (user, key) pair with ON CONFLICT DO NOTHING.
+      const dedupKey = `goal_activity_${item.id}`;
 
       if (item.type === "goal_completed_total") {
         addNCNotification({
@@ -158,6 +150,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel osiągnięty",
           bodyEn: `${gName} has reached 100% of its total target. Well done!`,
           bodyPl: `${gName} osiągnął 100% całkowitego celu. Brawo!`,
+          dedupKey,
         });
       } else if (item.type === "goal_completed_monthly") {
         addNCNotification({
@@ -166,6 +159,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel miesięczny osiągnięty",
           bodyEn: `${gName} hit its monthly savings target this month.`,
           bodyPl: `${gName} osiągnął miesięczny cel oszczędnościowy w tym miesiącu.`,
+          dedupKey,
         });
       } else if (item.type === "share_approved") {
         addNCNotification({
@@ -174,6 +168,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Propozycja celu zatwierdzona",
           bodyEn: `Your proposed goal "${gName}" was approved and added to the household!`,
           bodyPl: `Twój proponowany cel „${gName}" został zaakceptowany i dodany do gospodarstwa!`,
+          dedupKey,
         });
       } else if (item.type === "share_declined") {
         addNCNotification({
@@ -182,6 +177,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Propozycja celu odrzucona",
           bodyEn: `Your proposal for "${gName}" was declined.`,
           bodyPl: `Twoja propozycja dla „${gName}" została odrzucona.`,
+          dedupKey,
         });
       } else if (item.type === "edit_approved") {
         addNCNotification({
@@ -190,6 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Propozycja edycji zatwierdzona",
           bodyEn: `Your edits to "${gName}" were approved!`,
           bodyPl: `Twoje zmiany w „${gName}" zostały zaakceptowane!`,
+          dedupKey,
         });
       } else if (item.type === "edit_declined") {
         addNCNotification({
@@ -198,6 +195,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Propozycja edycji odrzucona",
           bodyEn: `Your edits to "${gName}" were declined.`,
           bodyPl: `Twoje zmiany w „${gName}" zostały odrzucone.`,
+          dedupKey,
         });
       } else if (item.type === "goal_created") {
         addNCNotification({
@@ -206,6 +204,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Nowy cel gospodarstwa",
           bodyEn: `A new goal "${gName}" has been added to the household.`,
           bodyPl: `Nowy cel „${gName}" został dodany do gospodarstwa.`,
+          dedupKey,
         });
       } else if (item.type === "goal_changed") {
         addNCNotification({
@@ -214,6 +213,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel zaktualizowany",
           bodyEn: actor ? `"${gName}" was updated by ${actor}.` : `"${gName}" was updated.`,
           bodyPl: actor ? `„${gName}" został zaktualizowany przez ${actor}.` : `„${gName}" został zaktualizowany.`,
+          dedupKey,
         });
       } else if (item.type === "goal_realized") {
         addNCNotification({
@@ -222,13 +222,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           titlePl: "Cel zrealizowany",
           bodyEn: `${gName} is fully funded! It will move to Past Goals within 24 hours.`,
           bodyPl: `${gName} jest w pełni sfinansowany! Zostanie przeniesiony do Poprzednich celów w ciągu 24 godzin.`,
+          dedupKey,
         });
       }
-    }
-
-    // Persist the highest createdAt we've seen so far as the new watermark
-    if (maxTs > watermark) {
-      try { localStorage.setItem(`nc_goal_watermark_${user.id}`, String(maxTs)); } catch { /**/ }
     }
   }, [goalActivityBadge, user?.id]);
 

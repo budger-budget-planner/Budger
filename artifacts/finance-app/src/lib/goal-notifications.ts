@@ -65,7 +65,7 @@ export function checkGoalNotifications(
     const bodyPl = `Masz ${goals.length} aktywne cele oszczędnościowe. Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu — sprawdź swój postęp!`;
 
     showNotification(titleEn, { body: bodyEn, url: "/", tag: "goal-checkin" });
-    addNCNotification({ type: "goal_checkin_multi", titleEn, titlePl, bodyEn, bodyPl });
+    addNCNotification({ type: "goal_checkin_multi", titleEn, titlePl, bodyEn, bodyPl, dedupKey: `goal_notify_${thisMonthKey()}` });
     return;
   }
 
@@ -88,7 +88,7 @@ export function checkGoalNotifications(
     const bodyPl = `Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu. Zaoszczędzono ${sym}${goal.contributed.toFixed(2)} z ${sym}${goal.monthlyTarget.toFixed(2)} miesięcznego celu (${monthlyPct}%). ${reachedStrPl}`;
 
     showNotification(titleEn, { body: bodyEn, url: "/", tag: `goal-monthly-${goal.goalId}` });
-    addNCNotification({ type: "goal_monthly", titleEn, titlePl, bodyEn, bodyPl });
+    addNCNotification({ type: "goal_monthly", titleEn, titlePl, bodyEn, bodyPl, dedupKey: `goal_notify_${thisMonthKey()}` });
   } else {
     const deadline = new Date(goal.deadline);
     const monthsLeft = Math.max(
@@ -105,6 +105,6 @@ export function checkGoalNotifications(
     const bodyPl = `Jesteś w ${totalPct}% drogi do celu (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). Pozostało ${monthsLeft} ${monthsLeft === 1 ? "miesiąc" : "miesięcy"} — jeszcze ${sym}${remaining.toFixed(2)}!`;
 
     showNotification(titleEn, { body: bodyEn, url: "/", tag: `goal-overall-${goal.goalId}` });
-    addNCNotification({ type: "goal_overall", titleEn, titlePl, bodyEn, bodyPl });
+    addNCNotification({ type: "goal_overall", titleEn, titlePl, bodyEn, bodyPl, dedupKey: `goal_notify_${thisMonthKey()}` });
   }
 }

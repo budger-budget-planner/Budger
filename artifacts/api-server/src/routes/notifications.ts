@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import webpush from "web-push";
 import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { UpdateNotificationSettingsBody, SavePushSubscriptionBody, CreateNotificationItemBody } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
@@ -102,7 +102,10 @@ router.get("/notifications/items", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const items = await db.select().from(notificationItemsTable)
-    .where(eq(notificationItemsTable.userId, userId))
+    .where(and(
+      eq(notificationItemsTable.userId, userId),
+      eq(notificationItemsTable.dismissed, false),
+    ))
     .orderBy(desc(notificationItemsTable.createdAt))
     .limit(NOTIFICATION_ITEMS_MAX);
 
@@ -116,19 +119,30 @@ router.post("/notifications/items", async (req, res): Promise<void> => {
   const parsed = CreateNotificationItemBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [item] = await db.insert(notificationItemsTable).values({
-    userId,
-    ...parsed.data,
-  }).returning();
+  // ON CONFLICT DO NOTHING on the (user_id, dedup_key) partial unique index so
+  // the same notification can never be inserted twice, even across sessions.
+  const result = await db.insert(notificationItemsTable)
+    .values({ userId, ...parsed.data })
+    .onConflictDoNothing()
+    .returning();
 
+  // result is empty when the row was a duplicate — treat as success (no-op).
+  if (result.length === 0) { res.status(204).send(); return; }
+
+  const item = result[0];
+
+  // Trim old items beyond the cap (only needed on real inserts, not no-ops).
   const excess = await db.select({ id: notificationItemsTable.id }).from(notificationItemsTable)
-    .where(eq(notificationItemsTable.userId, userId))
+    .where(and(
+      eq(notificationItemsTable.userId, userId),
+      eq(notificationItemsTable.dismissed, false),
+    ))
     .orderBy(desc(notificationItemsTable.createdAt))
     .offset(NOTIFICATION_ITEMS_MAX);
   if (excess.length > 0) {
-    for (const row of excess) {
-      await db.delete(notificationItemsTable).where(eq(notificationItemsTable.id, row.id));
-    }
+    await db.update(notificationItemsTable)
+      .set({ dismissed: true })
+      .where(sql`id IN (${sql.join(excess.map(r => sql`${r.id}`), sql`, `)})`);
   }
 
   res.json(formatItem(item));
@@ -140,19 +154,26 @@ router.patch("/notifications/items/mark-all-read", async (req, res): Promise<voi
 
   await db.update(notificationItemsTable)
     .set({ read: true })
-    .where(and(eq(notificationItemsTable.userId, userId), eq(notificationItemsTable.read, false)));
+    .where(and(
+      eq(notificationItemsTable.userId, userId),
+      eq(notificationItemsTable.read, false),
+      eq(notificationItemsTable.dismissed, false),
+    ));
 
   res.json({ ok: true });
 });
 
-router.delete("/notifications/items/:id", async (req, res): Promise<void> => {
+// Soft-delete: marks dismissed=true so the dedup_key row is preserved,
+// permanently preventing re-insertion of the same notification.
+router.patch("/notifications/items/:id/dismiss", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  await db.delete(notificationItemsTable)
+  await db.update(notificationItemsTable)
+    .set({ dismissed: true })
     .where(and(eq(notificationItemsTable.id, id), eq(notificationItemsTable.userId, userId)));
 
   res.status(204).send();

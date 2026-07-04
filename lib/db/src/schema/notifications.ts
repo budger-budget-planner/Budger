@@ -28,9 +28,15 @@ export const notificationItemsTable = pgTable("notification_items", {
   bodyEn: text("body_en").notNull(),
   bodyPl: text("body_pl").notNull(),
   read: boolean("read").notNull().default(false),
+  // Soft-delete: row is kept so the dedup_key unique index keeps blocking re-inserts.
+  // GET endpoint filters these out; they never reappear in the feed.
+  dismissed: boolean("dismissed").notNull().default(false),
+  // Optional dedup key — unique per (user, key) via partial index.
+  // POST uses ON CONFLICT DO NOTHING so creating the same notification twice is safe.
+  dedupKey: text("dedup_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertNotificationItemSchema = createInsertSchema(notificationItemsTable).omit({ id: true, createdAt: true, read: true });
+export const insertNotificationItemSchema = createInsertSchema(notificationItemsTable).omit({ id: true, createdAt: true, read: true, dismissed: true });
 export type InsertNotificationItem = z.infer<typeof insertNotificationItemSchema>;
 export type NotificationItem = typeof notificationItemsTable.$inferSelect;

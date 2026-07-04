@@ -935,6 +935,8 @@ export const CreateNotificationItemBody = zod.object({
   titlePl: zod.string(),
   bodyEn: zod.string(),
   bodyPl: zod.string(),
+  // Optional dedup key — server ignores duplicate (user, dedupKey) pairs silently.
+  dedupKey: zod.string().optional(),
 });
 
 export const CreateNotificationItemResponse = zod.object({
