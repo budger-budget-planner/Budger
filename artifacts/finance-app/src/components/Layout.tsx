@@ -232,6 +232,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [goalActivityBadge, user?.id]);
 
+  const { data: categoryProposals } = useQuery<Array<{ id: number }>>({
+    queryKey: ["category-share-proposals"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/category-share-proposals`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasPendingCategoryProposals = (categoryProposals?.length ?? 0) > 0;
+
   const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
     queryKey: ["splits-incoming-badge"],
     queryFn: async () => {
@@ -566,7 +577,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const active = isActive(href);
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
-          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && showGoalsBadge);
+          const isCategories = href === "/categories";
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && showGoalsBadge) || (isCategories && hasPendingCategoryProposals);
           return (
             <Link
               key={href}

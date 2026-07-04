@@ -288,7 +288,7 @@ function ShareCategoryDialog({ category, open, onClose }: {
 
   const otherMembers = (members ?? []).filter(m => m.userId !== me?.id);
 
-  const share = useMutation({
+  const propose = useMutation({
     mutationFn: (body: { targetUserId?: number; all?: boolean }) =>
       apiFetch(`/categories/${category.id}/share`, { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => setDone(true),
@@ -301,8 +301,8 @@ function ShareCategoryDialog({ category, open, onClose }: {
   }
 
   function handleSend() {
-    if (target === "all") share.mutate({ all: true });
-    else if (typeof target === "number") share.mutate({ targetUserId: target });
+    if (target === "all") propose.mutate({ all: true });
+    else if (typeof target === "number") propose.mutate({ targetUserId: target });
   }
 
   return (
@@ -351,9 +351,9 @@ function ShareCategoryDialog({ category, open, onClose }: {
               <Button variant="outline" className="flex-1" onClick={handleClose}>
                 <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
               </Button>
-              <Button className="flex-1" onClick={handleSend} disabled={target === null || share.isPending}>
+              <Button className="flex-1" onClick={handleSend} disabled={target === null || propose.isPending}>
                 <Share2 className="w-3.5 h-3.5 mr-1" />
-                {share.isPending ? t("cat.share_sending") : t("cat.share_send")}
+                {propose.isPending ? t("cat.share_sending") : t("cat.share_send")}
               </Button>
             </div>
           </div>
@@ -363,9 +363,9 @@ function ShareCategoryDialog({ category, open, onClose }: {
   );
 }
 
-function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym, canShare }: {
+function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym, canShare = false }: {
   category: any; open: boolean; onClose: () => void;
-  totalBudget: number | null; otherCategoriesTotal: number; sym: string; canShare: boolean;
+  totalBudget: number | null; otherCategoriesTotal: number; sym: string; canShare?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [name,       setName]       = useState(category.name);
@@ -645,6 +645,107 @@ function EditRPDialog({ rp, open, onClose, sym }: {
   );
 }
 
+// ─── Pending Proposals Section ─────────────────────────────────────────────────
+
+type CategoryProposal = {
+  id: number;
+  proposedByUserId: number;
+  proposerName: string | null;
+  name: string;
+  color: string;
+  status: string;
+  createdAt: string;
+};
+
+function PendingProposals({ onSettled }: { onSettled: () => void }) {
+  const queryClient = useQueryClient();
+
+  const { data: proposals = [], isLoading } = useQuery<CategoryProposal[]>({
+    queryKey: ["category-share-proposals"],
+    queryFn: () => apiFetch("/category-share-proposals"),
+    refetchInterval: 30_000,
+  });
+
+  const accept = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch(`/category-share-proposals/${id}/accept`, { method: "POST", body: "{}" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["category-share-proposals"] });
+      queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+      onSettled();
+    },
+  });
+
+  const reject = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch(`/category-share-proposals/${id}/reject`, { method: "POST", body: "{}" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["category-share-proposals"] });
+      onSettled();
+    },
+  });
+
+  if (isLoading || proposals.length === 0) return null;
+
+  return (
+    <div className="mb-4 space-y-2">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-2 h-2 rounded-full bg-pink-500" />
+        <p className="text-xs font-semibold text-pink-400 uppercase tracking-wider">
+          {t("cat.proposals_title")}
+        </p>
+      </div>
+      {proposals.map(p => (
+        <div
+          key={p.id}
+          className="rounded-2xl border border-pink-500/30 bg-pink-500/5 overflow-hidden"
+        >
+          <div className="h-1" style={{ backgroundColor: p.color }} />
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: p.color + "33" }}
+              >
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-foreground">{p.name}</p>
+                <p className="text-xs text-pink-400">
+                  {t("cat.proposals_from", { name: p.proposerName ?? "Someone" })}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              {t("cat.proposals_desc", { name: p.proposerName ?? "Someone", cat: p.name })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => reject.mutate(p.id)}
+                disabled={reject.isPending || accept.isPending}
+                className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground
+                           transition active:opacity-70 disabled:opacity-40"
+              >
+                <X className="w-3.5 h-3.5 inline mr-1" />
+                {t("cat.proposals_reject")}
+              </button>
+              <button
+                onClick={() => accept.mutate(p.id)}
+                disabled={accept.isPending || reject.isPending}
+                className="flex-1 py-2 rounded-xl bg-pink-500/20 border border-pink-500/40
+                           text-xs font-semibold text-pink-300 transition active:opacity-70 disabled:opacity-40"
+              >
+                <Check className="w-3.5 h-3.5 inline mr-1" />
+                {t("cat.proposals_accept")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CategoriesPage() {
@@ -672,6 +773,11 @@ export default function CategoriesPage() {
   const [rpAmount,      setRpAmount]      = useState("");
   const [rpSchedType,   setRpSchedType]   = useState<"manual" | "scheduled">("manual");
   const [rpDayOfMonth,  setRpDayOfMonth]  = useState("");
+
+  const { data: me } = useGetMe();
+  const { data: members } = useListHouseholdMembers();
+  const myRole = (members ?? []).find((m: any) => m.userId === me?.id)?.role ?? "child";
+  const canShare = canProposeShare(myRole) && !!me?.householdId && (members?.length ?? 0) > 1;
 
   const { data: categories, isLoading } = useListCategories();
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
@@ -762,6 +868,9 @@ export default function CategoriesPage() {
           <Plus className="w-4 h-4" /> {t("cat.add_btn")}
         </button>
       </div>
+
+      {/* ── Pending category proposals ── */}
+      <PendingProposals onSettled={() => {}} />
 
       {/* Budget summary banner */}
       {totalBudget != null && combinedBudgetSum > 0 && (
@@ -891,6 +1000,7 @@ export default function CategoriesPage() {
           totalBudget={totalBudget}
           otherCategoriesTotal={catBudgetSum - (editCat.budget != null ? Number(editCat.budget) : 0)}
           sym={sym}
+          canShare={canShare}
         />
       )}
 
