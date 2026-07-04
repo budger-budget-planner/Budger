@@ -574,16 +574,17 @@ function SwipeableNotifCard({
       className="relative overflow-hidden rounded-2xl"
       style={{ opacity: dismissed ? 0 : 1, transition: dismissed ? "opacity 0.26s ease" : "none" }}
     >
-      {/* Dismiss-hint background: red with an X icon on the leading edge */}
+      {/* Dismiss-hint background: matches transaction delete style */}
       <div
-        className="absolute inset-0 bg-destructive rounded-2xl flex items-center px-4"
+        className="absolute inset-0 bg-card rounded-2xl flex items-center px-4"
         style={{
           justifyContent: offset >= 0 ? "flex-start" : "flex-end",
           opacity: progress,
         }}
         aria-hidden
       >
-        <X className="w-5 h-5 text-white" />
+        <div className="absolute inset-0 rounded-2xl bg-destructive/10" />
+        <X className="w-5 h-5 text-destructive relative z-10" />
       </div>
 
       {/* Card content — slides with the finger */}
@@ -688,12 +689,6 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
   function handleClose() {
     setOpen(false);
     setPanel(null);
-    // Mark all as read when closing so the bell badge clears — the user has
-    // seen the notifications; no need to keep the pink dot on the bell.
-    if (userId) {
-      markAllNCRead().catch(() => {});
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
   }
 
   async function handleDismiss(id: string) {
@@ -746,11 +741,21 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
 
             {/* Header row */}
             <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
-              {panel ? (
-                <div /> /* back button is inside sub-panel */
-              ) : (
-                <h2 className="text-base font-bold">{t("nc.title")}</h2>
-              )}
+              <div className="flex items-center gap-3">
+                {!panel && <h2 className="text-base font-bold">{t("nc.title")}</h2>}
+                {/* Mark-all-read — lives in the fixed header so it's always reachable */}
+                {!panel && unreadCount > 0 && (
+                  <button
+                    onClick={async () => {
+                      await markAllNCRead();
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                    }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
+                  >
+                    {t("nc.read_all")}
+                  </button>
+                )}
+              </div>
               <button onClick={handleClose}
                 className="w-8 h-8 rounded-full bg-muted flex items-center justify-center transition active:scale-95">
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -780,22 +785,6 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
 
                   {/* Notification feed */}
                   <div className="flex-1 overflow-y-auto min-h-0">
-                    {unreadCount > 0 && (
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs text-muted-foreground">
-                          {unreadCount} {unreadCount === 1 ? t("nc.unread_one") : t("nc.unread_many")}
-                        </p>
-                        <button
-                          onClick={async () => {
-                            await markAllNCRead();
-                            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-                          }}
-                          className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
-                        >
-                          {t("nc.read_all")}
-                        </button>
-                      </div>
-                    )}
                     <NotifFeed notifications={notifications} onDismiss={handleDismiss} />
                   </div>
                 </>
