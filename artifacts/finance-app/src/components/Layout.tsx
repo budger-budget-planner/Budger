@@ -290,23 +290,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       const rates = await fetchRates();
       const rate  = getConversionRate(prefs.currency, code, rates);
 
-      await fetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
+      // The server converts and persists the user's *current* totalBudget (as
+      // stored in the DB right now) and returns the resulting value. We must use
+      // that response instead of recomputing from our own local `prefs` cache —
+      // this component's `prefs` state can be stale relative to the DB (e.g. the
+      // user just edited their budget on another page that keeps its own prefs
+      // state), and overwriting with a value derived from stale local state would
+      // silently revert the budget the user just set.
+      const convertRes = await fetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ from: prefs.currency, to: code, rate }),
       });
-
-      const newBudget = prefs.totalBudget != null
-        ? Math.round(prefs.totalBudget * rate * 100) / 100
-        : null;
+      const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
+      const newBudget: number | null = convertData && "totalBudget" in convertData
+        ? convertData.totalBudget
+        : prefs.totalBudget != null
+          ? Math.round(prefs.totalBudget * rate * 100) / 100
+          : null;
 
       const next = { ...prefs, currency: code, totalBudget: newBudget };
       savePrefs(next);
       setPrefsState(next);
-      // Persist to server BEFORE reload — fire-and-forget mutate() would be interrupted
-      // by the page reload, so we await mutateAsync to ensure currency is written to DB.
-      await updateMe.mutateAsync({ data: { currency: code, totalBudget: newBudget } });
+      // Only persist currency here — the server already persisted the converted
+      // totalBudget as part of /api/convert-currency above, so sending it again
+      // from local state would risk re-overwriting it with a stale value.
+      await updateMe.mutateAsync({ data: { currency: code } });
     } catch {
     } finally {
       setConverting(false);

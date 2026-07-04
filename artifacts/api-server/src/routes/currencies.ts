@@ -56,9 +56,13 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
-  // Convert the user's total monthly budget stored in users.totalBudget
+  // Convert the user's total monthly budget stored in users.totalBudget.
+  // Re-read it fresh right here (not from a client-supplied/cached value) so this
+  // always converts whatever is currently persisted, even if the user just
+  // changed their budget moments earlier on another page/tab.
+  let newTotalBudget: string | null = user?.totalBudget ?? null;
   if (user?.totalBudget != null) {
-    const newTotalBudget = (parseFloat(user.totalBudget) * rate).toFixed(2);
+    newTotalBudget = (parseFloat(user.totalBudget) * rate).toFixed(2);
     await db.update(usersTable)
       .set({ totalBudget: newTotalBudget })
       .where(eq(usersTable.id, userId));
@@ -75,7 +79,10 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     }
   }
 
-  res.json({ converted });
+  res.json({
+    converted,
+    totalBudget: newTotalBudget != null ? parseFloat(newTotalBudget) : null,
+  });
 });
 
 export default router;
