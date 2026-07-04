@@ -234,6 +234,8 @@ export interface HouseholdMember {
   email: string;
   memberColor: string;
   monthlySpent: number;
+  /** @nullable */
+  totalBudget: number | null;
   dashboardBlocked: boolean;
   joinedAt: string;
 }

@@ -143,6 +143,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
       email: memberUser?.email ?? "",
       dashboardBlocked: memberUser?.dashboardBlocked ?? false,
       monthlySpent: Math.round(monthlySpent * 100) / 100,
+      totalBudget: memberUser?.totalBudget != null ? parseFloat(String(memberUser.totalBudget)) : null,
       joinedAt: m.joinedAt.toISOString(),
     };
   }));

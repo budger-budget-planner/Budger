@@ -97,6 +97,7 @@ type MemberRow = {
   role: string;
   memberColor: string;
   monthlySpent: number;
+  totalBudget: number | null;
   dashboardBlocked: boolean;
   joinedAt: string;
 };
@@ -531,7 +532,8 @@ export default function HouseholdPage() {
     queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
   }
 
-  const [createOpen, setCreateOpen]   = useState(false);
+  const [createOpen, setCreateOpen]           = useState(false);
+  const [budgetWarnDismissed, setBudgetWarnDismissed] = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
   const [inviteOpen, setInviteOpen]         = useState(false);
   const [inviteResult, setInviteResult] = useState<"sent" | "no_user" | "in_household" | null>(null);
@@ -650,6 +652,16 @@ export default function HouseholdPage() {
   const totalSpent = members?.reduce((s, m) => s + m.monthlySpent, 0) ?? 0;
   const budget = household?.budget ?? null;
   const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
+
+  // Sum of all members' individual budgets (those who have one set)
+  const sumMemberBudgets = members?.reduce((s, m) => s + (m.totalBudget ?? 0), 0) ?? 0;
+  // Warn the head if the household budget is set but less than the sum of individual budgets
+  const showBudgetMismatch =
+    iAmHead &&
+    !budgetWarnDismissed &&
+    budget != null &&
+    sumMemberBudgets > 0 &&
+    budget < sumMemberBudgets;
 
   function barPercent(spent: number) {
     if (budget) return Math.min((spent / budget) * 100, 100);
@@ -928,6 +940,48 @@ export default function HouseholdPage() {
               )}
             </div>
           </div>
+
+          {/* ── Budget mismatch warning (head only) ── */}
+          {showBudgetMismatch && (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-300">{t("hh.budget_mismatch_title")}</p>
+                  <p className="text-xs text-amber-200/70 leading-relaxed">
+                    {t("hh.budget_mismatch_desc")
+                      .replace("{sum}", fmt(sumMemberBudgets))
+                      .replace("{budget}", fmt(budget!))}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 h-9 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs"
+                  onClick={async () => {
+                    try {
+                      await updateHousehold.mutateAsync({ data: { budget: sumMemberBudgets } });
+                      setBudgetWarnDismissed(true);
+                    } catch {
+                      // mutation failed — leave warning visible
+                    }
+                  }}
+                  disabled={updateHousehold.isPending}
+                >
+                  {t("hh.adjust_to_sum").replace("{sum}", fmt(sumMemberBudgets))}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="flex-1 h-9 text-xs text-amber-200/60 hover:text-amber-200 hover:bg-amber-500/10"
+                  onClick={() => setBudgetWarnDismissed(true)}
+                >
+                  {t("hh.leave_as_is")}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* ── My role badge ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
