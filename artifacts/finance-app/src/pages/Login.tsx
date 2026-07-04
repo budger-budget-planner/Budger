@@ -411,6 +411,20 @@ export default function LoginPage() {
               error={loginError || undefined}
             />
           </div>
+
+          {/* Show a submit button when pinLength is unknown (null) so the user
+              can still submit after typing ≥4 digits. When pinLength is known
+              the keyboard auto-submits at exactly that length, so we hide the
+              button to keep the UI clean. */}
+          {loginPinLength === null && (
+            <Button
+              onClick={handleLoginSubmit}
+              disabled={loginPin.length < 4 || login.isPending}
+              className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
+            >
+              {login.isPending ? t("login.signing_in") : t("login.continue")}
+            </Button>
+          )}
         </div>
       )}
 
