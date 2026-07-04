@@ -8,17 +8,42 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
   lick: 2400,
 };
 
-export default function BadgerLogo({ size = 40 }: { size?: number }) {
+interface BadgerLogoProps {
+  size?: number;
+  /** Override the internally-scheduled animation (e.g. for splash-screen wink). */
+  forceAnim?: NonNullable<Anim> | null;
+}
+
+export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
   const uid = useId().replace(/:/g, "");
   const [anim, setAnim] = useState<Anim>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
-  const resetRef    = useRef<ReturnType<typeof setTimeout>>();
+  const intervalRef      = useRef<ReturnType<typeof setInterval>>();
+  const resetRef         = useRef<ReturnType<typeof setTimeout>>();
+  // Track the last animation and how many times it ran consecutively
+  const lastAnimRef      = useRef<NonNullable<Anim> | null>(null);
+  const consecutiveRef   = useRef(0);
 
   useEffect(() => {
     // Fire exactly every 10 s regardless of animation duration
     intervalRef.current = setInterval(() => {
-      const choices: NonNullable<Anim>[] = ["wink", "sniff", "lick"];
-      const chosen = choices[Math.floor(Math.random() * choices.length)];
+      const all: NonNullable<Anim>[] = ["wink", "sniff", "lick"];
+      // Enforce "no more than 2 in a row" rule: if the last animation has
+      // already played twice consecutively, remove it from the pool.
+      // Fall back to the full list if filtering would leave the pool empty
+      // (safety net in case the animation set is ever reduced to one entry).
+      const filtered = consecutiveRef.current >= 2
+        ? all.filter(c => c !== lastAnimRef.current)
+        : all;
+      const pool = filtered.length > 0 ? filtered : all;
+      const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+      if (chosen === lastAnimRef.current) {
+        consecutiveRef.current += 1;
+      } else {
+        lastAnimRef.current    = chosen;
+        consecutiveRef.current = 1;
+      }
+
       setAnim(chosen);
       clearTimeout(resetRef.current);
       resetRef.current = setTimeout(() => setAnim(null), ANIM_MS[chosen] + 150);
@@ -29,8 +54,10 @@ export default function BadgerLogo({ size = 40 }: { size?: number }) {
     };
   }, []);
 
+  // forceAnim (e.g. from splash screen) takes precedence over the internal timer
+  const displayAnim = forceAnim ?? anim;
   // blg- prefix avoids collisions with any global class names
-  const grp = anim ? `blg-${anim}` : "blg-idle";
+  const grp = displayAnim ? `blg-${displayAnim}` : "blg-idle";
 
   return (
     <svg

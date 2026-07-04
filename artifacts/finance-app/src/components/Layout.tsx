@@ -402,10 +402,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             aria-label="The Mission"
           >
             <span data-splash-logo-home>
-              <BadgerLogo size={28} />
+              <BadgerLogo size={42} />
             </span>
           </button>
-          <Link href="/" className="text-base font-bold tracking-tight text-foreground">
+          <Link href="/" className="text-lg font-bold tracking-tight text-foreground leading-none">
             Budger
           </Link>
         </div>

@@ -3,6 +3,9 @@ import { useGetMe } from "@workspace/api-client-react";
 import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
+// Duration of the wink animation + a short settle pause before moving
+const WINK_MS = 1400 + 200;
+
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
 type Phase = "showing" | "moving" | "fading";
@@ -32,7 +35,7 @@ function computeTransform(dest: "home" | "login"): LogoTransform {
   if (!el) {
     // Fallback to hard-coded estimates if the element isn't in the DOM yet
     return dest === "home"
-      ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.233 }
+      ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.35 }
       : { translate: "translateY(-16vh)", scale: 0.733 };
   }
 
@@ -57,10 +60,11 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const [translate, setTranslate] = useState<string>("none");
   const [scale,     setScale]     = useState<number>(1);
   const [minDone,   setMinDone]   = useState(false);
+  const [winking,   setWinking]   = useState(false);
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
-  // ── Minimum display time (logo stays on screen ~3.2 s — doubled) ─────────
+  // ── Minimum display time (logo stays on screen ~3.2 s) ───────────────────
   useEffect(() => {
     const id = setTimeout(() => setMinDone(true), 3200);
     return () => clearTimeout(id);
@@ -71,23 +75,29 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     if (!minDone || isLoading || resolvedRef.current) return;
     resolvedRef.current = true;
 
-    const prefs  = loadPrefs();
-    const target: "home" | "login" =
-      user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
+    // Wink at the user first, then glide to the destination
+    setWinking(true);
+    setTimeout(() => {
+      setWinking(false);
 
-    // Measure live DOM positions now — the destination screen is rendered underneath
-    const { translate: exactTranslate, scale: exactScale } = computeTransform(target);
+      const prefs  = loadPrefs();
+      const target: "home" | "login" =
+        user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
 
-    setDest(target);
-    setTranslate(exactTranslate);
-    setScale(exactScale);
-    setPhase("moving");                         // logo glides at full opacity → motion visible
+      // Measure live DOM positions now — the destination screen is rendered underneath
+      const { translate: exactTranslate, scale: exactScale } = computeTransform(target);
 
-    // Let the glide run almost to completion before the background starts to fade —
-    // fading too early made the destination screen "flash" into view while the logo
-    // was still clearly mid-flight, which read as clunky/jarring.
-    setTimeout(() => setPhase("fading"), 950);   // fade starts near the end of the glide
-    setTimeout(onDone,                  1400);   // remove shortly after the fade completes
+      setDest(target);
+      setTranslate(exactTranslate);
+      setScale(exactScale);
+      setPhase("moving");                        // logo glides at full opacity → motion visible
+
+      // Let the glide run almost to completion before the background starts to fade —
+      // fading too early made the destination screen "flash" into view while the logo
+      // was still clearly mid-flight, which read as clunky/jarring.
+      setTimeout(() => setPhase("fading"), 950); // fade starts near the end of the glide
+      setTimeout(onDone,                  1400); // remove shortly after the fade completes
+    }, WINK_MS);
   }, [minDone, isLoading, user, onDone]);
 
   const isMoving = phase === "moving" || phase === "fading";
@@ -134,9 +144,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
             lineHeight: 0,
           }}
         >
-          {/* Layer 3 — pulse animation only while showing; class removed on exit */}
-          <div className={phase === "showing" ? "splash-pulse" : ""}>
-            <BadgerLogo size={SPLASH_SIZE} />
+          {/* Layer 3 — pulse while idle; stops when winking or moving */}
+          <div className={phase === "showing" && !winking ? "splash-pulse" : ""}>
+            <BadgerLogo size={SPLASH_SIZE} forceAnim={winking ? "wink" : null} />
           </div>
         </div>
       </div>
