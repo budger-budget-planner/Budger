@@ -269,7 +269,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const [containerWidth, setContainerWidth] = useState(320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
-  const lastCenterTapRef = useRef<number>(0);
+  const lastCenterTapRef  = useRef<number>(0);
+  // Pending hint-pulse timer IDs — exposed here so a double-tap can cancel them
+  const hintTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const containerRef     = useRef<HTMLDivElement>(null);
   // Random radii for the two circles in each hint firing (r1 < r2, both ≥ 65 % of hole)
   const hintRadiiRef = useRef<{ r1: number; r2: number }>({ r1: RI - 2, r2: RI - 2 });
@@ -313,13 +315,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
     const MIN_R   = Math.round(0.65 * (RI - 2)); // ≈ 47 SVG units
     const MAX_R   = RI - 2;                       //   73 SVG units
     const MIN_GAP = 5;                            // r2 must exceed r1 by at least this
     // 3 pulses: at 3 s, 8 s, 13 s
+    hintTimersRef.current = [];
     for (let i = 0; i < 3; i++) {
-      timers.push(setTimeout(() => {
+      hintTimersRef.current.push(setTimeout(() => {
         // r1 ∈ [MIN_R, MAX_R − MIN_GAP], r2 ∈ [r1 + MIN_GAP, MAX_R]
         const r1 = MIN_R + Math.floor(Math.random() * (MAX_R - MIN_GAP - MIN_R + 1));
         const r2 = Math.min(r1 + MIN_GAP + Math.floor(Math.random() * (MAX_R - r1 - MIN_GAP + 1)), MAX_R);
@@ -327,7 +329,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
         setHintKey(k => k + 1);
       }, 3_000 + i * 5_000));
     }
-    return () => timers.forEach(clearTimeout);
+    return () => hintTimersRef.current.forEach(clearTimeout);
   }, []);
 
   // ── Two-segment sequential wiggle: fires 4 s after mount ─────────────────
@@ -393,9 +395,15 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   function handleCenterTap() {
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
+      // Double-tap: toggle mode AND cancel any pending/active hint pulses
       setMode(m => (m === "compact" ? "expanded" : "compact"));
       setSelectedCat(null);
       lastCenterTapRef.current = 0;
+      // Clear scheduled hint timers so pulses 2 and 3 never fire
+      hintTimersRef.current.forEach(clearTimeout);
+      hintTimersRef.current = [];
+      // Reset hintKey to 0 so any currently-animating pulse disappears immediately
+      setHintKey(0);
     } else {
       lastCenterTapRef.current = now;
     }
