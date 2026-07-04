@@ -75,6 +75,20 @@ router.post("/categories", async (req, res): Promise<void> => {
   res.status(201).json(formatCategory(category));
 });
 
+/**
+ * A category is visible/editable by a user if they created it, or if it was
+ * created within a household they're currently a member of. This must be
+ * checked on every single-category route (get/patch/delete) — without it,
+ * any authenticated user could read, edit, or delete any category by id,
+ * regardless of who created it.
+ */
+async function canAccessCategory(userId: number, category: { userId: number | null; householdId: number | null }): Promise<boolean> {
+  if (category.userId === userId) return true;
+  if (category.householdId == null) return false;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  return !!user?.householdId && user.householdId === category.householdId;
+}
+
 router.get("/categories/:id", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -84,6 +98,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
 
   const [category] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
+  if (!(await canAccessCategory(userId, category))) { res.status(404).json({ error: "Not found" }); return; }
 
   res.json(formatCategory(category));
 });
@@ -97,6 +112,10 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
 
   const parsed = UpdateCategoryBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existing] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  if (!(await canAccessCategory(userId, existing))) { res.status(404).json({ error: "Not found" }); return; }
 
   const updateData: any = { ...parsed.data };
   if (parsed.data.budget !== undefined) {
@@ -119,6 +138,10 @@ router.delete("/categories/:id", async (req, res): Promise<void> => {
 
   const params = DeleteCategoryParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const [existing] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
+  if (!existing) { res.sendStatus(204); return; }
+  if (!(await canAccessCategory(userId, existing))) { res.status(404).json({ error: "Not found" }); return; }
 
   await db.delete(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   res.sendStatus(204);

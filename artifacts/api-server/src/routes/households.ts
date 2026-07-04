@@ -354,6 +354,12 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
   await db.update(usersTable)
     .set({ householdId: null, pendingHouseholdAlert: household?.name ?? "your household" })
     .where(eq(usersTable.id, params.data.userId));
+  // The removed member's own categories must stop being shared with the household
+  // they no longer belong to — otherwise they keep showing up for the remaining
+  // members forever, even though this member never intended to give them up.
+  await db.update(categoriesTable)
+    .set({ householdId: null })
+    .where(and(eq(categoriesTable.userId, params.data.userId), eq(categoriesTable.householdId, currentUser.householdId)));
 
   res.sendStatus(204);
 });
@@ -369,6 +375,11 @@ router.post("/households/leave", async (req, res): Promise<void> => {
     and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId))
   );
   await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, userId));
+  // Un-share this user's own categories from the household they just left, so
+  // they don't keep leaking to the remaining members.
+  await db.update(categoriesTable)
+    .set({ householdId: null })
+    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)));
 
   res.json({ success: true });
 });
@@ -392,6 +403,10 @@ router.delete("/households", async (req, res): Promise<void> => {
   for (const m of members) {
     await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, m.userId));
   }
+  // The household is going away, so no category should still reference it —
+  // otherwise the dangling householdId would keep matching a since-reused id
+  // (or just be permanently orphaned) and could resurface for other users.
+  await db.update(categoriesTable).set({ householdId: null }).where(eq(categoriesTable.householdId, householdId));
   await db.delete(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
   await db.delete(householdsTable).where(eq(householdsTable.id, householdId));
 
