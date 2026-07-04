@@ -766,10 +766,12 @@ function SwipeableTxRow({
     const off = currentOffset.current;
 
     if (off < -ACTION_THRESHOLD) {
-      // Full left extend → delete
+      // Full left extend → delete: animate off-screen immediately and fire onDelete
+      // right away. No snapTo — the row stays hidden until the parent unmounts it,
+      // so there is no visible snap-back before the list item disappears.
       setAnimating(true);
       setOffset(-window.innerWidth);
-      setTimeout(() => { onDelete(); snapTo(0, null); }, 300);
+      onDelete();
     } else if (off > ACTION_THRESHOLD) {
       // Full right extend → edit
       setAnimating(true);

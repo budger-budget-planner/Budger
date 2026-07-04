@@ -495,6 +495,137 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   );
 }
 
+// ─── Swipeable notification card ─────────────────────────────────────────────
+function SwipeableNotifCard({
+  n,
+  lang,
+  onDismiss,
+}: {
+  n: NCNotification;
+  lang: "en" | "pl";
+  onDismiss: (id: string) => void;
+}) {
+  const [offset,    setOffset]    = useState(0);
+  const [animated,  setAnimated]  = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  const isDragging  = useRef(false);
+  const startX      = useRef(0);
+  const startY      = useRef(0);
+  const currentOff  = useRef(0);
+  const isScrolling = useRef<boolean | null>(null);
+  const hasMoved    = useRef(false);
+
+  const THRESHOLD = 80; // px before a release triggers dismiss
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (dismissed) return;
+    startX.current      = e.touches[0].clientX;
+    startY.current      = e.touches[0].clientY;
+    isDragging.current  = true;
+    isScrolling.current = null;
+    hasMoved.current    = false;
+    setAnimated(false);
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isDragging.current || dismissed) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+
+    // Disambiguate scroll vs horizontal swipe on first significant move
+    if (isScrolling.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      isScrolling.current = Math.abs(dy) > Math.abs(dx);
+    }
+    if (isScrolling.current === null || isScrolling.current) return;
+
+    hasMoved.current   = true;
+    currentOff.current = dx;
+    setOffset(dx);
+  }
+
+  function handleTouchEnd() {
+    if (!isDragging.current || dismissed) return;
+    isDragging.current = false;
+    if (!hasMoved.current || isScrolling.current) return;
+
+    setAnimated(true);
+    if (Math.abs(currentOff.current) >= THRESHOLD) {
+      // Past threshold → fly off-screen in drag direction, then dismiss
+      const dir = currentOff.current > 0 ? 1 : -1;
+      setDismissed(true);
+      setOffset(dir * (window.innerWidth + 60));
+      setTimeout(() => onDismiss(n.id), 260);
+    } else {
+      // Not far enough → spring back to rest
+      setOffset(0);
+      currentOff.current = 0;
+    }
+  }
+
+  const isUnread = !n.read;
+  const title    = lang === "pl" ? n.titlePl : n.titleEn;
+  const body     = lang === "pl" ? n.bodyPl  : n.bodyEn;
+  // 0 → 1 as drag approaches THRESHOLD; clamp so it doesn't exceed 1
+  const progress = Math.min(Math.abs(offset) / THRESHOLD, 1);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl"
+      style={{ opacity: dismissed ? 0 : 1, transition: dismissed ? "opacity 0.26s ease" : "none" }}
+    >
+      {/* Dismiss-hint background: red with an X icon on the leading edge */}
+      <div
+        className="absolute inset-0 bg-destructive rounded-2xl flex items-center px-4"
+        style={{
+          justifyContent: offset >= 0 ? "flex-start" : "flex-end",
+          opacity: progress,
+        }}
+        aria-hidden
+      >
+        <X className="w-5 h-5 text-white" />
+      </div>
+
+      {/* Card content — slides with the finger */}
+      <div
+        className={`flex items-start gap-3 px-4 py-3 rounded-2xl border transition-colors ${
+          isUnread ? "bg-card border-border" : "bg-card/50 border-border/50"
+        }`}
+        style={{
+          transform:  `translateX(${offset}px)`,
+          transition: animated ? "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+          touchAction: "pan-y",
+          willChange: "transform",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${ncIconBg(n.type)}`}>
+          {ncIcon(n.type)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-sm font-semibold leading-snug ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
+              {title}
+            </p>
+            {isUnread && <span className="w-2 h-2 rounded-full bg-pink-500 flex-shrink-0 mt-1.5" />}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{body}</p>
+          <p className="text-[10px] text-muted-foreground/50 mt-1">{relTime(n.timestamp)}</p>
+        </div>
+        <button
+          onClick={() => onDismiss(n.id)}
+          aria-label={t("nc.dismiss")}
+          className="w-6 h-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5 transition active:scale-90 hover:bg-muted/70"
+        >
+          <X className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Notification Feed ────────────────────────────────────────────────────────
 function NotifFeed({ notifications, onDismiss }: { notifications: NCNotification[]; onDismiss: (id: string) => void }) {
   const lang = loadPrefs().language as "en" | "pl";
@@ -510,34 +641,9 @@ function NotifFeed({ notifications, onDismiss }: { notifications: NCNotification
 
   return (
     <div className="space-y-2">
-      {notifications.map(n => {
-        const isUnread = !n.read;
-        const title = lang === "pl" ? n.titlePl : n.titleEn;
-        const body = lang === "pl" ? n.bodyPl : n.bodyEn;
-        return (
-          <div key={n.id}
-            className={`flex items-start gap-3 px-4 py-3 rounded-2xl border transition-colors ${isUnread ? "bg-card border-border" : "bg-card/50 border-border/50"}`}>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${ncIconBg(n.type)}`}>
-              {ncIcon(n.type)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <p className={`text-sm font-semibold leading-snug ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>{title}</p>
-                {isUnread && <span className="w-2 h-2 rounded-full bg-pink-500 flex-shrink-0 mt-1.5" />}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{body}</p>
-              <p className="text-[10px] text-muted-foreground/50 mt-1">{relTime(n.timestamp)}</p>
-            </div>
-            <button
-              onClick={() => onDismiss(n.id)}
-              aria-label={t("nc.dismiss")}
-              className="w-6 h-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5 transition active:scale-90 hover:bg-muted/70"
-            >
-              <X className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-          </div>
-        );
-      })}
+      {notifications.map(n => (
+        <SwipeableNotifCard key={n.id} n={n} lang={lang} onDismiss={onDismiss} />
+      ))}
     </div>
   );
 }
