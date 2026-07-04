@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, categoriesTable, usersTable, transactionsTable } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   CreateCategoryBody,
   UpdateCategoryBody,
@@ -25,16 +25,12 @@ router.get("/categories", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user) { res.status(401).json({ error: "User not found" }); return; }
-
-  const categories = user.householdId
-    ? await db.select().from(categoriesTable)
-        .where(or(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)))
-        .orderBy(categoriesTable.createdAt)
-    : await db.select().from(categoriesTable)
-        .where(eq(categoriesTable.userId, userId))
-        .orderBy(categoriesTable.createdAt);
+  // Categories are strictly per-user. Household membership does NOT grant
+  // access to another member's categories — the propose feature is the only
+  // supported way to share a category definition across users.
+  const categories = await db.select().from(categoriesTable)
+    .where(eq(categoriesTable.userId, userId))
+    .orderBy(categoriesTable.createdAt);
 
   // Compute current-month spending per category, excluding founded-with-realized-goal
   const now = new Date();
@@ -76,17 +72,12 @@ router.post("/categories", async (req, res): Promise<void> => {
 });
 
 /**
- * A category is visible/editable by a user if they created it, or if it was
- * created within a household they're currently a member of. This must be
- * checked on every single-category route (get/patch/delete) — without it,
- * any authenticated user could read, edit, or delete any category by id,
- * regardless of who created it.
+ * A category is visible/editable only by its creator. Household membership
+ * does NOT grant access — the propose feature is the only supported way to
+ * share a category definition across users.
  */
-async function canAccessCategory(userId: number, category: { userId: number | null; householdId: number | null }): Promise<boolean> {
-  if (category.userId === userId) return true;
-  if (category.householdId == null) return false;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  return !!user?.householdId && user.householdId === category.householdId;
+function canAccessCategory(userId: number, category: { userId: number | null }): boolean {
+  return category.userId === userId;
 }
 
 router.get("/categories/:id", async (req, res): Promise<void> => {
@@ -98,7 +89,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
 
   const [category] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
-  if (!(await canAccessCategory(userId, category))) { res.status(404).json({ error: "Not found" }); return; }
+  if (!canAccessCategory(userId, category)) { res.status(404).json({ error: "Not found" }); return; }
 
   res.json(formatCategory(category));
 });
@@ -115,7 +106,7 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
 
   const [existing] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-  if (!(await canAccessCategory(userId, existing))) { res.status(404).json({ error: "Not found" }); return; }
+  if (!canAccessCategory(userId, existing)) { res.status(404).json({ error: "Not found" }); return; }
 
   const updateData: any = { ...parsed.data };
   if (parsed.data.budget !== undefined) {
@@ -141,7 +132,7 @@ router.delete("/categories/:id", async (req, res): Promise<void> => {
 
   const [existing] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   if (!existing) { res.sendStatus(204); return; }
-  if (!(await canAccessCategory(userId, existing))) { res.status(404).json({ error: "Not found" }); return; }
+  if (!canAccessCategory(userId, existing)) { res.status(404).json({ error: "Not found" }); return; }
 
   await db.delete(categoriesTable).where(eq(categoriesTable.id, params.data.id));
   res.sendStatus(204);

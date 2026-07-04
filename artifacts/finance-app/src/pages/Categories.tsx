@@ -180,10 +180,11 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
   return num;
 }
 
-function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: () => void; currency: string }) {
+function CategoryCard({ category, onEdit, currency, canShare = false }: { category: any; onEdit: () => void; currency: string; canShare?: boolean }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [proposeOpen, setProposeOpen] = useState(false);
 
   const remove = useDeleteCategory({
     mutation: {
@@ -264,6 +265,16 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
             >
               <Pencil className="w-3.5 h-3.5" /> {t("common.edit")}
             </button>
+            {canShare && (
+              <button
+                onClick={() => setProposeOpen(true)}
+                data-testid={`button-propose-category-${category.id}`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                           bg-muted text-xs font-medium text-pink-400 border border-pink-500/30 transition active:opacity-70"
+              >
+                <Share2 className="w-3.5 h-3.5" /> {t("cat.share_send")}
+              </button>
+            )}
             <button
               onClick={() => setConfirmDelete(true)}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
@@ -274,6 +285,9 @@ function CategoryCard({ category, onEdit, currency }: { category: any; onEdit: (
           </div>
         )}
       </div>
+      {proposeOpen && (
+        <ShareCategoryDialog category={category} open={proposeOpen} onClose={() => setProposeOpen(false)} />
+      )}
     </div>
   );
 }
@@ -363,16 +377,15 @@ function ShareCategoryDialog({ category, open, onClose }: {
   );
 }
 
-function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym, canShare = false }: {
+function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal, sym }: {
   category: any; open: boolean; onClose: () => void;
-  totalBudget: number | null; otherCategoriesTotal: number; sym: string; canShare?: boolean;
+  totalBudget: number | null; otherCategoriesTotal: number; sym: string;
 }) {
   const queryClient = useQueryClient();
   const [name,       setName]       = useState(category.name);
   const [color,      setColor]      = useState(category.color);
   const [budgetMode, setBudgetMode] = useState<"amount" | "percent">("amount");
   const [budget,     setBudget]     = useState(category.budget != null ? String(Number(category.budget).toFixed(0)) : "");
-  const [shareOpen,  setShareOpen]  = useState(false);
 
   const update = useUpdateCategory({
     mutation: {
@@ -423,17 +436,6 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
                 sym={sym}
               />
             </div>
-            {canShare && (
-              <button
-                type="button"
-                onClick={() => setShareOpen(true)}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border
-                           bg-transparent text-xs font-medium text-muted-foreground transition active:opacity-70"
-                data-testid={`button-share-category-${category.id}`}
-              >
-                <Share2 className="w-3.5 h-3.5" /> {t("cat.share_btn")}
-              </button>
-            )}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={onClose}>
                 <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
@@ -447,9 +449,6 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
           </div>
         </DialogContent>
       </Dialog>
-      {shareOpen && (
-        <ShareCategoryDialog category={category} open={shareOpen} onClose={() => setShareOpen(false)} />
-      )}
     </>
   );
 }
@@ -910,7 +909,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} />
           ))}
         </div>
       ) : (
@@ -1000,7 +999,6 @@ export default function CategoriesPage() {
           totalBudget={totalBudget}
           otherCategoriesTotal={catBudgetSum - (editCat.budget != null ? Number(editCat.budget) : 0)}
           sym={sym}
-          canShare={canShare}
         />
       )}
 
