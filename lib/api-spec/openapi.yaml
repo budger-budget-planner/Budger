@@ -1654,6 +1654,8 @@ components:
           type: number
         dashboardBlocked:
           type: boolean
+        currency:
+          type: string
         joinedAt:
           type: string
       required:
@@ -1665,6 +1667,7 @@ components:
         - memberColor
         - monthlySpent
         - dashboardBlocked
+        - currency
         - joinedAt
 
     Invite:

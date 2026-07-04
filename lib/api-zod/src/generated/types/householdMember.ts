@@ -17,5 +17,6 @@ export interface HouseholdMember {
   /** @nullable */
   totalBudget: number | null;
   dashboardBlocked: boolean;
+  currency: string;
   joinedAt: string;
 }

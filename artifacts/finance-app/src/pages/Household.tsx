@@ -98,6 +98,7 @@ type MemberRow = {
   memberColor: string;
   monthlySpent: number;
   totalBudget: number | null;
+  currency: string;
   dashboardBlocked: boolean;
   joinedAt: string;
 };
@@ -653,13 +654,26 @@ export default function HouseholdPage() {
   const budget = household?.budget ?? null;
   const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
 
-  // Sum of all members' individual budgets (those who have one set)
-  const sumMemberBudgets = members?.reduce((s, m) => s + (m.totalBudget ?? 0), 0) ?? 0;
+  // Sum of all members' individual budgets converted to the viewer's currency.
+  // We must wait for exchange rates before showing any mismatch warning —
+  // without rates we cannot tell whether the raw numbers are actually mismatched.
+  const sumMemberBudgets: number | null = (members && splitRates)
+    ? members.reduce((s, m) => {
+        if (m.totalBudget == null) return s;
+        const inViewerCurrency =
+          m.currency === prefs.currency
+            ? m.totalBudget
+            : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
+        return s + inViewerCurrency;
+      }, 0)
+    : null;
+
   // Warn the head if the household budget is set but less than the sum of individual budgets
   const showBudgetMismatch =
     iAmHead &&
     !budgetWarnDismissed &&
     budget != null &&
+    sumMemberBudgets != null &&
     sumMemberBudgets > 0 &&
     budget < sumMemberBudgets;
 
@@ -950,7 +964,7 @@ export default function HouseholdPage() {
                   <p className="text-sm font-semibold text-amber-300">{t("hh.budget_mismatch_title")}</p>
                   <p className="text-xs text-amber-200/70 leading-relaxed">
                     {t("hh.budget_mismatch_desc")
-                      .replace("{sum}", fmt(sumMemberBudgets))
+                      .replace("{sum}", fmt(sumMemberBudgets!))
                       .replace("{budget}", fmt(budget!))}
                   </p>
                 </div>
@@ -961,7 +975,7 @@ export default function HouseholdPage() {
                   className="flex-1 h-9 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs"
                   onClick={async () => {
                     try {
-                      await updateHousehold.mutateAsync({ data: { budget: sumMemberBudgets } });
+                      await updateHousehold.mutateAsync({ data: { budget: sumMemberBudgets! } });
                       setBudgetWarnDismissed(true);
                     } catch {
                       // mutation failed — leave warning visible
@@ -969,7 +983,7 @@ export default function HouseholdPage() {
                   }}
                   disabled={updateHousehold.isPending}
                 >
-                  {t("hh.adjust_to_sum").replace("{sum}", fmt(sumMemberBudgets))}
+                  {t("hh.adjust_to_sum").replace("{sum}", fmt(sumMemberBudgets!))}
                 </Button>
                 <Button
                   size="sm"

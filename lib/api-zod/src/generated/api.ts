@@ -722,6 +722,7 @@ export const ListHouseholdMembersResponseItem = zod.object({
   memberColor: zod.string(),
   monthlySpent: zod.number(),
   dashboardBlocked: zod.boolean(),
+  currency: zod.string(),
   joinedAt: zod.string(),
 });
 export const ListHouseholdMembersResponse = zod.array(
