@@ -1,4 +1,5 @@
-import { pgTable, serial, integer, boolean, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, boolean, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -35,7 +36,14 @@ export const notificationItemsTable = pgTable("notification_items", {
   // POST uses ON CONFLICT DO NOTHING so creating the same notification twice is safe.
   dedupKey: text("dedup_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  // Partial unique index: only rows WITH a dedup_key are constrained.
+  // This guarantees that a dismissed row's dedup_key permanently blocks
+  // re-insertion of the same notification across reloads/sessions.
+  uniqueIndex("notification_items_user_dedup_idx")
+    .on(table.userId, table.dedupKey)
+    .where(sql`${table.dedupKey} IS NOT NULL`),
+]);
 
 export const insertNotificationItemSchema = createInsertSchema(notificationItemsTable).omit({ id: true, createdAt: true, read: true, dismissed: true });
 export type InsertNotificationItem = z.infer<typeof insertNotificationItemSchema>;

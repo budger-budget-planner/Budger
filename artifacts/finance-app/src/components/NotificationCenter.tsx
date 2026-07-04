@@ -683,17 +683,17 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
   async function handleOpen() {
     await refresh();
     setOpen(true);
-    if (userId) {
-      // Mark everything currently unread as read once the user has opened the
-      // center — this is persisted server-side so it stays read permanently.
-      await markAllNCRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
   }
 
   function handleClose() {
     setOpen(false);
     setPanel(null);
+    // Mark all as read when closing so the bell badge clears — the user has
+    // seen the notifications; no need to keep the pink dot on the bell.
+    if (userId) {
+      markAllNCRead().catch(() => {});
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
   }
 
   async function handleDismiss(id: string) {

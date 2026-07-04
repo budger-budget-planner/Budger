@@ -655,9 +655,14 @@ export default function HouseholdPage() {
   const budgetCurrency = (household as any)?.budgetCurrency ?? null;
   const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
 
+  // When budgetCurrency is null (budget was set before currency tracking was added),
+  // fall back to the household head's currency so conversion still works correctly.
+  const headMember = members?.find(m => isHeadRole(m.role));
+  const effectiveBudgetCurrency = budgetCurrency ?? headMember?.currency ?? null;
+
   // Convert the household budget from the currency it was set in to the viewer's currency
-  const budgetInViewerCurrency = budget != null && budgetCurrency && budgetCurrency !== prefs.currency && splitRates
-    ? convertAmount(budget, budgetCurrency, prefs.currency, splitRates)
+  const budgetInViewerCurrency = budget != null && effectiveBudgetCurrency && effectiveBudgetCurrency !== prefs.currency && splitRates
+    ? convertAmount(budget, effectiveBudgetCurrency, prefs.currency, splitRates)
     : budget;
 
   // Sum of all members' individual budgets converted to the viewer's currency.
