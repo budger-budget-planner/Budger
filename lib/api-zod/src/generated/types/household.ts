@@ -12,5 +12,7 @@ export interface Household {
   ownerId: number;
   /** @nullable */
   budget: number | null;
+  /** @nullable */
+  budgetCurrency: string | null;
   createdAt: string;
 }

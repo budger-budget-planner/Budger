@@ -7,6 +7,7 @@ export const householdsTable = pgTable("households", {
   name: text("name").notNull(),
   ownerId: integer("owner_id").notNull(),
   budget: numeric("budget", { precision: 12, scale: 2 }),
+  budgetCurrency: text("budget_currency"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

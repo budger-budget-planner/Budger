@@ -652,7 +652,13 @@ export default function HouseholdPage() {
 
   const totalSpent = members?.reduce((s, m) => s + m.monthlySpent, 0) ?? 0;
   const budget = household?.budget ?? null;
+  const budgetCurrency = (household as any)?.budgetCurrency ?? null;
   const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
+
+  // Convert the household budget from the currency it was set in to the viewer's currency
+  const budgetInViewerCurrency = budget != null && budgetCurrency && budgetCurrency !== prefs.currency && splitRates
+    ? convertAmount(budget, budgetCurrency, prefs.currency, splitRates)
+    : budget;
 
   // Sum of all members' individual budgets converted to the viewer's currency.
   // We must wait for exchange rates before showing any mismatch warning —
@@ -672,13 +678,13 @@ export default function HouseholdPage() {
   const showBudgetMismatch =
     iAmHead &&
     !budgetWarnDismissed &&
-    budget != null &&
+    budgetInViewerCurrency != null &&
     sumMemberBudgets != null &&
     sumMemberBudgets > 0 &&
-    budget < sumMemberBudgets;
+    budgetInViewerCurrency < sumMemberBudgets;
 
   function barPercent(spent: number) {
-    if (budget) return Math.min((spent / budget) * 100, 100);
+    if (budgetInViewerCurrency) return Math.min((spent / budgetInViewerCurrency) * 100, 100);
     return Math.min((spent / maxMemberSpent) * 100, 100);
   }
 
@@ -914,25 +920,25 @@ export default function HouseholdPage() {
               <div className="flex items-baseline justify-between">
                 <span className="text-xs text-white/40">{t("hh.this_month")}</span>
                 <span className="text-xs text-white/40">
-                  {budget ? `${fmt(totalSpent)} / ${fmt(budget)}` : fmt(totalSpent)}
+                  {budgetInViewerCurrency != null ? `${fmt(totalSpent)} / ${fmt(budgetInViewerCurrency)}` : fmt(totalSpent)}
                 </span>
               </div>
-              {budget && (
+              {budgetInViewerCurrency != null && (
                 <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-white/70 transition-all"
-                    style={{ width: `${Math.min((totalSpent / budget) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((totalSpent / budgetInViewerCurrency) * 100, 100)}%` }}
                   />
                 </div>
               )}
-              {budget && (
+              {budgetInViewerCurrency != null && (
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-white/30">
-                    {totalSpent <= budget
+                    {totalSpent <= budgetInViewerCurrency
                       ? prefs.language === "pl"
-                        ? `${t("common.remaining")} ${fmt(budget - totalSpent)}`
-                        : `${fmt(budget - totalSpent)} ${t("common.remaining")}`
-                      : `${fmt(totalSpent - budget)} ${t("common.over_budget")}`}
+                        ? `${t("common.remaining")} ${fmt(budgetInViewerCurrency - totalSpent)}`
+                        : `${fmt(budgetInViewerCurrency - totalSpent)} ${t("common.remaining")}`
+                      : `${fmt(totalSpent - budgetInViewerCurrency)} ${t("common.over_budget")}`}
                   </span>
                   {iAmHead && (
                     <button
@@ -965,7 +971,7 @@ export default function HouseholdPage() {
                   <p className="text-xs text-amber-200/70 leading-relaxed">
                     {t("hh.budget_mismatch_desc")
                       .replace("{sum}", fmt(sumMemberBudgets!))
-                      .replace("{budget}", fmt(budget!))}
+                      .replace("{budget}", fmt(budgetInViewerCurrency!))}
                   </p>
                 </div>
               </div>

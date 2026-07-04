@@ -1607,6 +1607,8 @@ components:
           type: integer
         budget:
           type: ["number", "null"]
+        budgetCurrency:
+          type: ["string", "null"]
         createdAt:
           type: string
       required:
@@ -1614,6 +1616,7 @@ components:
         - name
         - ownerId
         - budget
+        - budgetCurrency
         - createdAt
 
     HouseholdInput:
@@ -1626,6 +1629,8 @@ components:
           minLength: 1
         budget:
           type: ["number", "null"]
+        budgetCurrency:
+          type: ["string", "null"]
 
     HouseholdUpdate:
       type: object
@@ -1634,6 +1639,8 @@ components:
           type: string
         budget:
           type: ["number", "null"]
+        budgetCurrency:
+          type: ["string", "null"]
 
     HouseholdMember:
       type: object
@@ -1656,6 +1663,8 @@ components:
           type: boolean
         currency:
           type: string
+        totalBudget:
+          type: ["number", "null"]
         joinedAt:
           type: string
       required:
@@ -1668,6 +1677,7 @@ components:
         - monthlySpent
         - dashboardBlocked
         - currency
+        - totalBudget
         - joinedAt
 
     Invite:
@@ -1828,6 +1838,8 @@ components:
           type: string
         bodyPl:
           type: string
+        dedupKey:
+          type: ["string", "null"]
 
     CategorySpending:
       type: object

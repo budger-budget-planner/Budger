@@ -3,7 +3,7 @@ import { useState, useEffect, useId, useRef } from "react";
 type Anim = "wink" | "sniff" | "lick" | null;
 
 const ANIM_MS: Record<NonNullable<Anim>, number> = {
-  wink: 1400,
+  wink: 700,
   sniff: 1400,
   lick: 2400,
 };
@@ -17,8 +17,8 @@ interface BadgerLogoProps {
 export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
   const uid = useId().replace(/:/g, "");
   const [anim, setAnim] = useState<Anim>(null);
-  const intervalRef      = useRef<ReturnType<typeof setInterval>>();
-  const resetRef         = useRef<ReturnType<typeof setTimeout>>();
+  const intervalRef      = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const resetRef         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Track the last animation and how many times it ran consecutively
   const lastAnimRef      = useRef<NonNullable<Anim> | null>(null);
   const consecutiveRef   = useRef(0);
@@ -85,7 +85,7 @@ export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
 
           /* ══ Animation 1: WINK (right eye) ══ */
           .blg-wink .blg-eye-r {
-            animation: blg-wink 1.4s ease-in-out forwards;
+            animation: blg-wink 0.7s ease-in-out forwards;
           }
           @keyframes blg-wink {
             0%   { transform: scaleY(1); }

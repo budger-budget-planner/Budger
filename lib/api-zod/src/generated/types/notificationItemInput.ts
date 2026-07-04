@@ -12,4 +12,6 @@ export interface NotificationItemInput {
   titlePl: string;
   bodyEn: string;
   bodyPl: string;
+  /** @nullable */
+  dedupKey?: string | null;
 }

@@ -210,6 +210,8 @@ export interface Household {
   ownerId: number;
   /** @nullable */
   budget: number | null;
+  /** @nullable */
+  budgetCurrency: string | null;
   createdAt: string;
 }
 
@@ -218,12 +220,16 @@ export interface HouseholdInput {
   name: string;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  budgetCurrency?: string | null;
 }
 
 export interface HouseholdUpdate {
   name?: string;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  budgetCurrency?: string | null;
 }
 
 export interface HouseholdMember {
@@ -234,10 +240,10 @@ export interface HouseholdMember {
   email: string;
   memberColor: string;
   monthlySpent: number;
-  /** @nullable */
-  totalBudget: number | null;
   dashboardBlocked: boolean;
   currency: string;
+  /** @nullable */
+  totalBudget: number | null;
   joinedAt: string;
 }
 
@@ -328,6 +334,8 @@ export interface NotificationItemInput {
   titlePl: string;
   bodyEn: string;
   bodyPl: string;
+  /** @nullable */
+  dedupKey?: string | null;
 }
 
 export interface CategorySpending {

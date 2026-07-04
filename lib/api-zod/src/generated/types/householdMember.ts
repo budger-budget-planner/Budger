@@ -14,9 +14,9 @@ export interface HouseholdMember {
   email: string;
   memberColor: string;
   monthlySpent: number;
-  /** @nullable */
-  totalBudget: number | null;
   dashboardBlocked: boolean;
   currency: string;
+  /** @nullable */
+  totalBudget: number | null;
   joinedAt: string;
 }

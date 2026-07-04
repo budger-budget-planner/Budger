@@ -4,7 +4,7 @@ import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
 // Duration of the wink animation + a short settle pause before moving
-const WINK_MS = 1400 + 200;
+const WINK_MS = 700 + 200;
 
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
@@ -144,8 +144,11 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
             lineHeight: 0,
           }}
         >
-          {/* Layer 3 — pulse while idle; stops when winking or moving */}
-          <div className={phase === "showing" && !winking ? "splash-pulse" : ""}>
+          {/* Layer 3 — pulse while idle or winking; stops only when moving.
+              Keeping the class active during the wink prevents a jump: removing
+              the animation mid-cycle snaps the scale back to 1 abruptly. The
+              eye wink runs inside the SVG and doesn't conflict with the pulse. */}
+          <div className={phase === "showing" ? "splash-pulse" : ""}>
             <BadgerLogo size={SPLASH_SIZE} forceAnim={winking ? "wink" : null} />
           </div>
         </div>

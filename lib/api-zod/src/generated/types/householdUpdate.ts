@@ -10,4 +10,6 @@ export interface HouseholdUpdate {
   name?: string;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  budgetCurrency?: string | null;
 }

@@ -682,6 +682,7 @@ export const GetHouseholdResponse = zod.object({
   name: zod.string(),
   ownerId: zod.number(),
   budget: zod.number().nullable(),
+  budgetCurrency: zod.string().nullable(),
   createdAt: zod.string(),
 });
 
@@ -692,6 +693,7 @@ export const GetHouseholdResponse = zod.object({
 export const CreateHouseholdBody = zod.object({
   name: zod.string().min(1),
   budget: zod.number().nullish(),
+  budgetCurrency: zod.string().nullish(),
 });
 
 /**
@@ -700,6 +702,7 @@ export const CreateHouseholdBody = zod.object({
 export const UpdateHouseholdBody = zod.object({
   name: zod.string().optional(),
   budget: zod.number().nullish(),
+  budgetCurrency: zod.string().nullish(),
 });
 
 export const UpdateHouseholdResponse = zod.object({
@@ -707,6 +710,7 @@ export const UpdateHouseholdResponse = zod.object({
   name: zod.string(),
   ownerId: zod.number(),
   budget: zod.number().nullable(),
+  budgetCurrency: zod.string().nullable(),
   createdAt: zod.string(),
 });
 
@@ -723,6 +727,7 @@ export const ListHouseholdMembersResponseItem = zod.object({
   monthlySpent: zod.number(),
   dashboardBlocked: zod.boolean(),
   currency: zod.string(),
+  totalBudget: zod.number().nullable(),
   joinedAt: zod.string(),
 });
 export const ListHouseholdMembersResponse = zod.array(
@@ -783,6 +788,8 @@ export const UpdateMemberRoleResponse = zod.object({
   memberColor: zod.string(),
   monthlySpent: zod.number(),
   dashboardBlocked: zod.boolean(),
+  currency: zod.string(),
+  totalBudget: zod.number().nullable(),
   joinedAt: zod.string(),
 });
 
@@ -842,6 +849,7 @@ export const AcceptInviteResponse = zod.object({
   name: zod.string(),
   ownerId: zod.number(),
   budget: zod.number().nullable(),
+  budgetCurrency: zod.string().nullable(),
   createdAt: zod.string(),
 });
 
@@ -935,8 +943,7 @@ export const CreateNotificationItemBody = zod.object({
   titlePl: zod.string(),
   bodyEn: zod.string(),
   bodyPl: zod.string(),
-  // Optional dedup key — server ignores duplicate (user, dedupKey) pairs silently.
-  dedupKey: zod.string().optional(),
+  dedupKey: zod.string().nullish(),
 });
 
 export const CreateNotificationItemResponse = zod.object({

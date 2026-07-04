@@ -68,10 +68,13 @@ router.post("/households", async (req, res): Promise<void> => {
   const parsed = CreateHouseholdBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  // Capture the creator's currency as the budget's reference currency
+  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const [household] = await db.insert(householdsTable).values({
     name: parsed.data.name,
     ownerId: userId,
     budget: parsed.data.budget != null ? String(parsed.data.budget) : null,
+    budgetCurrency: parsed.data.budget != null ? (creator?.currency ?? "USD") : null,
   }).returning();
 
   await db.insert(householdMembersTable).values({
@@ -99,6 +102,16 @@ router.patch("/households", async (req, res): Promise<void> => {
   const updateData: Record<string, any> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if ("budget" in parsed.data) updateData.budget = parsed.data.budget != null ? String(parsed.data.budget) : null;
+  if ("budget" in parsed.data && parsed.data.budget != null) {
+    // Capture the currency of the user setting the budget so other members can convert
+    const [settingUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    updateData.budgetCurrency = settingUser?.currency ?? "USD";
+  } else if ("budget" in parsed.data && parsed.data.budget == null) {
+    updateData.budgetCurrency = null;
+  }
+  if ("budgetCurrency" in parsed.data && !("budget" in parsed.data)) {
+    updateData.budgetCurrency = parsed.data.budgetCurrency;
+  }
 
   const [household] = await db.update(householdsTable)
     .set(updateData)
