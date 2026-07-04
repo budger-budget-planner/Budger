@@ -48,6 +48,11 @@ function PrefsSwitchSplash() {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location]     = useLocation();
+
+  // Scroll to top on every tab/route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
   const { data: incomingInvites } = useListIncomingInvites();
