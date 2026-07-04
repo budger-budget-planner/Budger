@@ -20,11 +20,10 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
   const txs = await db.select().from(transactionsTable)
     .where(eq(transactionsTable.userId, userId));
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  const categories = user?.householdId
-    ? await db.select().from(categoriesTable)
-        .where(or(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)))
-    : await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
+  // Personal dashboards must only ever show categories the user themselves created.
+  // Household membership does NOT grant visibility into other members' categories here —
+  // that sharing only happens in the dedicated household-tab view.
+  const categories = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   const catMap = new Map(categories.map(c => [c.id, c]));
 
   // Load recurring payments so RP-linked transactions can be grouped by their RP
