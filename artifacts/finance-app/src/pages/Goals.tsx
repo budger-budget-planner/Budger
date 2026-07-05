@@ -1194,22 +1194,6 @@ export default function GoalsPage() {
 
   return (
     <>
-      {/* ── Larder flowing orbs — drift across screen until Larder card scrolls into view ── */}
-      <style>{`
-        @keyframes orbRight { 0%{transform:translateX(-80px) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(110vw) translateY(-30px);opacity:0} }
-        @keyframes orbLeft  { 0%{transform:translateX(110vw) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(-80px) translateY(25px);opacity:0} }
-      `}</style>
-      <div
-        className="fixed inset-0 z-30 pointer-events-none overflow-hidden"
-        style={{ opacity: larderVisible ? 0 : 1, transition: "opacity 1.4s ease" }}
-      >
-        <div style={{ position:"absolute", bottom:"22%", left:0, width:10, height:10, borderRadius:"50%", background:"rgba(255,255,255,0.50)", boxShadow:"0 0 20px 8px rgba(255,255,255,0.15)", animation:"orbRight 8s ease-in-out 0s infinite" }} />
-        <div style={{ position:"absolute", bottom:"35%", left:0, width:6,  height:6,  borderRadius:"50%", background:"rgba(255,255,255,0.30)", boxShadow:"0 0 12px 4px rgba(255,255,255,0.08)", animation:"orbRight 11s ease-in-out 3s infinite" }} />
-        <div style={{ position:"absolute", bottom:"15%", left:0, width:18, height:18, borderRadius:"50%", background:"rgba(255,255,255,0.18)", boxShadow:"0 0 40px 16px rgba(255,255,255,0.08)", animation:"orbRight 14s ease-in-out 6s infinite" }} />
-        <div style={{ position:"absolute", bottom:"28%", right:0, width:14, height:14, borderRadius:"50%", background:"rgba(255,255,255,0.35)", boxShadow:"0 0 28px 10px rgba(255,255,255,0.12)", animation:"orbLeft 9s ease-in-out 1.5s infinite" }} />
-        <div style={{ position:"absolute", bottom:"42%", right:0, width:7,  height:7,  borderRadius:"50%", background:"rgba(255,255,255,0.28)", boxShadow:"0 0 14px 5px rgba(255,255,255,0.09)", animation:"orbLeft 12s ease-in-out 4.5s infinite" }} />
-        <div style={{ position:"absolute", bottom:"18%", right:0, width:5,  height:5,  borderRadius:"50%", background:"rgba(255,255,255,0.55)", boxShadow:"0 0 10px 3px rgba(255,255,255,0.15)", animation:"orbLeft 7s ease-in-out 7s infinite" }} />
-      </div>
 
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
 

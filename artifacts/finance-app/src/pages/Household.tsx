@@ -818,24 +818,6 @@ export default function HouseholdPage() {
 
   return (
     <div className="pb-28">
-      {/* ── Great Larder flowing orbs: drift across screen until GL card scrolls into view ── */}
-      <style>{`
-        @keyframes orbRight { 0%{transform:translateX(-80px) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(110vw) translateY(-30px);opacity:0} }
-        @keyframes orbLeft  { 0%{transform:translateX(110vw) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(-80px) translateY(25px);opacity:0} }
-      `}</style>
-      {canSeeGreatLarder && (
-        <div
-          className="fixed inset-0 z-30 pointer-events-none overflow-hidden"
-          style={{ opacity: glVisible ? 0 : 1, transition: "opacity 1.4s ease" }}
-        >
-          <div style={{ position:"absolute", bottom:"22%", left:0, width:10, height:10, borderRadius:"50%", background:"rgba(255,255,255,0.50)", boxShadow:"0 0 20px 8px rgba(255,255,255,0.15)", animation:"orbRight 8s ease-in-out 0s infinite" }} />
-          <div style={{ position:"absolute", bottom:"38%", left:0, width:6,  height:6,  borderRadius:"50%", background:"rgba(255,255,255,0.30)", boxShadow:"0 0 12px 4px rgba(255,255,255,0.08)", animation:"orbRight 11s ease-in-out 2s infinite" }} />
-          <div style={{ position:"absolute", bottom:"14%", left:0, width:16, height:16, borderRadius:"50%", background:"rgba(255,255,255,0.18)", boxShadow:"0 0 36px 14px rgba(255,255,255,0.08)", animation:"orbRight 15s ease-in-out 5s infinite" }} />
-          <div style={{ position:"absolute", bottom:"28%", right:0, width:14, height:14, borderRadius:"50%", background:"rgba(255,255,255,0.35)", boxShadow:"0 0 28px 10px rgba(255,255,255,0.12)", animation:"orbLeft 9s ease-in-out 1s infinite" }} />
-          <div style={{ position:"absolute", bottom:"45%", right:0, width:7,  height:7,  borderRadius:"50%", background:"rgba(255,255,255,0.28)", boxShadow:"0 0 14px 5px rgba(255,255,255,0.09)", animation:"orbLeft 12s ease-in-out 4s infinite" }} />
-          <div style={{ position:"absolute", bottom:"18%", right:0, width:5,  height:5,  borderRadius:"50%", background:"rgba(255,255,255,0.55)", boxShadow:"0 0 10px 3px rgba(255,255,255,0.15)", animation:"orbLeft 7s ease-in-out 7s infinite" }} />
-        </div>
-      )}
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
@@ -1481,15 +1463,43 @@ export default function HouseholdPage() {
                 boxShadow: "0 0 40px 6px rgba(255,255,255,0.04), 0 0 80px 10px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.08)",
               }}
             >
-              {/* Shine sweep */}
-              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-                <div className="great-larder-shine absolute -inset-full"
-                  style={{
-                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.07) 50%, transparent 70%)",
-                    animation: "larderShine 4s ease-in-out infinite",
-                  }}
-                />
+              <style>{`
+                @keyframes gemFlashGL { 0%{opacity:0;transform:scale(0.15) rotate(0deg)} 25%{opacity:1;transform:scale(1) rotate(0deg)} 55%{opacity:0.4;transform:scale(0.8) rotate(45deg)} 75%{opacity:0.9;transform:scale(1) rotate(0deg)} 100%{opacity:0;transform:scale(0.15) rotate(0deg)} }
+                @keyframes glEdge1 { 0%{transform:translateX(-110px);opacity:0} 12%{opacity:0.7} 88%{opacity:0.7} 100%{transform:translateX(100vw);opacity:0} }
+                @keyframes glEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.5} 85%{opacity:0.5} 100%{transform:translateX(-80px);opacity:0} }
+                @keyframes glEdge3 { 0%{transform:translateX(8%);opacity:0.25} 45%{opacity:0.7;transform:translateX(62%)} 100%{transform:translateX(8%);opacity:0.25} }
+              `}</style>
+              {/* Border edge wave glow */}
+              <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none" style={{ zIndex:12 }}>
+                <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"110px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent)", animation:"glEdge1 7s ease-in-out 0.5s infinite" }} />
+                <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"75px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.38), transparent)", animation:"glEdge2 9s ease-in-out 2s infinite" }} />
+                <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"60px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.48), transparent)", animation:"glEdge3 5.5s ease-in-out 3.5s infinite" }} />
               </div>
+              {/* Gem sparkles — appear when GL card is in view */}
+              {glVisible && (
+                <>
+                  <div style={{ position:"absolute", top:8, left:"14%", width:18, height:18, pointerEvents:"none", zIndex:20, animation:"gemFlashGL 2.9s ease-in-out 0s infinite" }}>
+                    <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.92), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.92), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.85)" }} />
+                  </div>
+                  <div style={{ position:"absolute", top:6, right:"18%", width:13, height:13, pointerEvents:"none", zIndex:20, animation:"gemFlashGL 3.5s ease-in-out 1s infinite" }}>
+                    <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.82), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.82), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 2px rgba(255,255,255,0.75)" }} />
+                  </div>
+                  <div style={{ position:"absolute", bottom:9, left:"28%", width:15, height:15, pointerEvents:"none", zIndex:20, animation:"gemFlashGL 3.2s ease-in-out 1.8s infinite" }}>
+                    <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.65)" }} />
+                  </div>
+                  <div style={{ position:"absolute", top:"38%", right:7, width:11, height:11, pointerEvents:"none", zIndex:20, animation:"gemFlashGL 2.6s ease-in-out 2.5s infinite" }}>
+                    <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.70), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.70), transparent)" }} />
+                    <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.55)" }} />
+                  </div>
+                </>
+              )}
 
               <div className="relative z-10 px-5 pt-5 pb-4 space-y-4">
                 {/* Header */}

@@ -845,7 +845,7 @@ export default function TransactionsPage() {
                           <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
                           {(tx as any).isLarderFund && (
                             <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-white/85 tracking-wide flex-shrink-0">
-                              From Larder
+                              ze Spiżarni
                             </span>
                           )}
                           {tx.receiptImage && (

@@ -651,7 +651,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Bottom navigation — 5 tabs evenly spaced ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 h-16
                       bg-card/95 backdrop-blur border-t border-border
-                      flex items-stretch">
+                      flex items-stretch relative">
+        {/* Ocean wave glow along the top border of the nav bar */}
+        <style>{`
+          @keyframes nw1{0%{transform:translateX(-120px);opacity:0}12%{opacity:.85}88%{opacity:.85}100%{transform:translateX(110vw);opacity:0}}
+          @keyframes nw2{0%{transform:translateX(110vw);opacity:0}15%{opacity:.60}85%{opacity:.60}100%{transform:translateX(-90px);opacity:0}}
+          @keyframes nw3{0%{transform:translateX(5vw);opacity:.25}40%{opacity:.80;transform:translateX(55vw)}100%{transform:translateX(5vw);opacity:.25}}
+          @keyframes nw4{0%{transform:translateX(60vw);opacity:0}20%{opacity:.70}80%{opacity:.70}100%{transform:translateX(-100px);opacity:0}}
+          @keyframes nw5{0%{transform:translateX(-60px);opacity:.20}50%{opacity:.65;transform:translateX(40vw)}100%{transform:translateX(-60px);opacity:.20}}
+          @keyframes nw6{0%{transform:translateX(80vw);opacity:.15}45%{opacity:.55;transform:translateX(20vw)}100%{transform:translateX(80vw);opacity:.15}}
+        `}</style>
+        <div className="absolute top-0 inset-x-0 overflow-visible pointer-events-none" style={{ height:0, zIndex:50 }}>
+          <div style={{ position:"absolute", top:"-5px", left:0, width:"110px", height:"10px", background:"radial-gradient(ellipse 55px 5px at center, rgba(255,255,255,0.78) 0%, transparent 100%)", animation:"nw1 7s ease-in-out 0s infinite" }} />
+          <div style={{ position:"absolute", top:"-4px", left:0, width:"80px",  height:"8px",  background:"radial-gradient(ellipse 40px 4px at center, rgba(255,255,255,0.50) 0%, transparent 100%)", animation:"nw2 9s ease-in-out 1.2s infinite" }} />
+          <div style={{ position:"absolute", top:"-5px", left:0, width:"95px",  height:"10px", background:"radial-gradient(ellipse 47px 5px at center, rgba(255,255,255,0.42) 0%, transparent 100%)", animation:"nw3 5.5s ease-in-out 0s infinite" }} />
+          <div style={{ position:"absolute", top:"-4px", left:0, width:"70px",  height:"8px",  background:"radial-gradient(ellipse 35px 4px at center, rgba(255,255,255,0.60) 0%, transparent 100%)", animation:"nw4 8s ease-in-out 2.5s infinite" }} />
+          <div style={{ position:"absolute", top:"-6px", left:0, width:"55px",  height:"12px", background:"radial-gradient(ellipse 27px 6px at center, rgba(255,255,255,0.35) 0%, transparent 100%)", animation:"nw5 6.5s ease-in-out 4s infinite" }} />
+          <div style={{ position:"absolute", top:"-3px", left:0, width:"65px",  height:"6px",  background:"radial-gradient(ellipse 32px 3px at center, rgba(255,255,255,0.45) 0%, transparent 100%)", animation:"nw6 7.5s ease-in-out 5.5s infinite" }} />
+        </div>
         {nav.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           const isHousehold = href === "/household";

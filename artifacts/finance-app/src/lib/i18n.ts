@@ -886,7 +886,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.dedicate":         { en: "Dedicate to Goal",               pl: "Przeznacz na cel"                   },
   "larder.recent":           { en: "Recent activity",                pl: "Ostatnia aktywność"                 },
   "larder.source_recurring": { en: "Recurring payment",              pl: "Płatność cykliczna"                 },
-  "larder.source_fund":      { en: "From Larder",                    pl: "Ze Spiżarni"                        },
+  "larder.source_fund":      { en: "From Larder",                    pl: "ze Spiżarni"                        },
   "larder.source_manual":    { en: "Manual entry",                   pl: "Wpis ręczny"                        },
   "larder.source_dedication": { en: "Dedicated to goal",             pl: "Przeznaczono na cel"                },
   "larder.source_transfer":  { en: "Sent to Great Larder",           pl: "Wysłano do Wielkiej Spiżarni"       },

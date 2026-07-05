@@ -115,6 +115,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   const total   = larder?.total ?? 0;
   const entries = larder?.entries ?? [];
+  const totalGLSent = entries
+    .filter(e => e.sourceType === "great_larder_transfer")
+    .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
@@ -146,51 +149,29 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     e.preventDefault();
     setSendGlLoading(true);
     try {
+      let amount: number;
       if (sendGlMode === "percent") {
-        // Percent mode → set / update the standing GL rule
         const pct = parseFloat(sendGlPct);
         if (isNaN(pct) || pct < 1 || pct > 99) throw new Error("Enter a percentage between 1 and 99");
-        const r = await fetch(`${import.meta.env.BASE_URL}api/larder/gl-rule`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ percent: pct }),
-        });
-        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
-        toast({ title: `GL rule set: ${pct}% auto-sync active` });
+        amount = (pct / 100) * total;
+        if (amount <= 0) throw new Error("Niewystarczające saldo Spiżarni");
       } else {
-        // Amount mode → one-time transfer
-        const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ amount: parseFloat(sendGlAmt) }),
-        });
-        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
-        toast({ title: "Sent to Great Larder" });
+        amount = parseFloat(sendGlAmt);
       }
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ amount }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      toast({ title: "Wysłano do Wielkiej Spiżarni" });
       invalidate();
       setSendGlOpen(false);
       setSendGlAmt(""); setSendGlPct("");
     } catch (err: any) {
       toast({ title: err.message ?? "Failed", variant: "destructive" });
     } finally { setSendGlLoading(false); }
-  }
-
-  async function handleClearGLRule() {
-    try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/gl-rule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ percent: 0 }),
-      });
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
-      invalidate();
-      toast({ title: "GL standing rule cleared" });
-    } catch (err: any) {
-      toast({ title: err.message ?? "Failed", variant: "destructive" });
-    }
   }
 
   async function handleDedicate(e: React.FormEvent) {
@@ -227,8 +208,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   return (
     <>
       <style>{`
-        @keyframes sparkleIn { 0%{transform:scale(0) rotate(0deg);opacity:0} 50%{transform:scale(1.3) rotate(15deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:0.8} }
-        @keyframes sparkleFloat { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(20deg)} }
+        @keyframes gemFlash { 0%{opacity:0;transform:scale(0.15) rotate(0deg)} 25%{opacity:1;transform:scale(1) rotate(0deg)} 55%{opacity:0.45;transform:scale(0.8) rotate(45deg)} 75%{opacity:0.9;transform:scale(1) rotate(0deg)} 100%{opacity:0;transform:scale(0.15) rotate(0deg)} }
+        @keyframes larderEdge1 { 0%{transform:translateX(-110px);opacity:0} 12%{opacity:0.8} 88%{opacity:0.8} 100%{transform:translateX(100vw);opacity:0} }
+        @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.6} 85%{opacity:0.6} 100%{transform:translateX(-80px);opacity:0} }
+        @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.3} 40%{opacity:0.75;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.3} }
       `}</style>
       <div
         ref={ref}
@@ -242,13 +225,35 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           transition: "border-color 0.8s ease, box-shadow 0.8s ease",
         }}
       >
-        {/* Sparkles — appear when revealed */}
+        {/* Border edge wave glow */}
+        <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none" style={{ zIndex:12 }}>
+          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"110px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)", animation:"larderEdge1 6s ease-in-out 0s infinite" }} />
+          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"75px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.40), transparent)", animation:"larderEdge2 8.5s ease-in-out 1.5s infinite" }} />
+          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"60px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.50), transparent)", animation:"larderEdge3 5s ease-in-out 3s infinite" }} />
+        </div>
+        {/* Gem sparkles — appear when revealed */}
         {revealed && (
           <>
-            <span style={{ position:"absolute", top:-8, left:"18%", fontSize:14, color:"rgba(255,255,255,0.70)", animation:"sparkleIn 0.6s ease forwards, sparkleFloat 2.4s ease-in-out 0.6s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
-            <span style={{ position:"absolute", top:-6, right:"22%", fontSize:10, color:"rgba(255,255,255,0.50)", animation:"sparkleIn 0.6s ease 0.2s forwards, sparkleFloat 2.8s ease-in-out 0.8s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
-            <span style={{ position:"absolute", bottom:-8, left:"35%", fontSize:12, color:"rgba(255,255,255,0.55)", animation:"sparkleIn 0.6s ease 0.1s forwards, sparkleFloat 2.2s ease-in-out 0.7s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
-            <span style={{ position:"absolute", top:"40%", right:-8, fontSize:9, color:"rgba(255,255,255,0.45)", animation:"sparkleIn 0.6s ease 0.35s forwards, sparkleFloat 3s ease-in-out 1s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
+            <div style={{ position:"absolute", top:8, left:"15%", width:18, height:18, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.8s ease-in-out 0s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.95), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.9)" }} />
+            </div>
+            <div style={{ position:"absolute", top:5, right:"19%", width:13, height:13, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.4s ease-in-out 0.9s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 2px rgba(255,255,255,0.8)" }} />
+            </div>
+            <div style={{ position:"absolute", bottom:9, left:"32%", width:15, height:15, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.1s ease-in-out 1.6s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.7)" }} />
+            </div>
+            <div style={{ position:"absolute", top:"40%", right:7, width:11, height:11, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.5s ease-in-out 2.2s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.6)" }} />
+            </div>
           </>
         )}
         <div className="relative z-10 px-5 pt-5 pb-5 space-y-5">
@@ -273,31 +278,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             >
               {sym}{fmtAmt(total, prefs.currency).replace(/^[^0-9-]*/,"").replace(sym,"")}
             </p>
-            {larder?.glPercent ? (
-              <p className="text-xs text-white/25 mt-1.5 tracking-wide">
-                {prefs.currency} · {100 - larder.glPercent}% personal savings
-              </p>
-            ) : (
-              <p className="text-xs text-white/25 mt-1.5 tracking-wide">{prefs.currency} · personal savings</p>
-            )}
-            {larder?.glPercent ? (
-              <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
-                <div className="text-left">
-                  <p className="text-[10px] text-white/30 uppercase tracking-widest">Great Larder</p>
-                  <p className="text-sm font-semibold text-white/55 tabular-nums">
-                    {sym}{(larder.glRuleSynced).toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-white/25">{larder.glPercent}% standing rule</p>
+            <p className="text-xs text-white/25 mt-1.5 tracking-wide">{prefs.currency} · personal savings</p>
+            {totalGLSent > 0 && (
+              <div className="mt-3 flex items-center justify-center rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
+                <div className="text-center">
+                  <p className="text-[10px] text-white/30 uppercase tracking-widest">ze Spiżarni</p>
+                  <p className="text-sm font-semibold text-white/55 tabular-nums">{sym}{totalGLSent.toFixed(2)}</p>
+                  <p className="text-[10px] text-white/25">przekazano do Wielkiej Spiżarni</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleClearGLRule}
-                  className="text-[10px] text-white/30 border border-white/10 rounded-xl px-2.5 py-1 hover:text-white/60 hover:border-white/20 transition"
-                >
-                  Clear rule
-                </button>
               </div>
-            ) : null}
+            )}
           </div>
 
           {/* Action buttons */}
@@ -414,33 +404,26 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             {sendGlMode === "amount" ? (
               <div className="space-y-1.5">
                 <label className={labelCls}>
-                  {t("larder.amount_label")} ({prefs.currency}) · Balance: {sym}{total.toFixed(2)}
+                  {t("larder.amount_label")} ({prefs.currency}) · Saldo: {sym}{total.toFixed(2)}
                 </label>
                 <input type="number" step="0.01" min="0.01" max={total} required value={sendGlAmt}
                   onChange={e => setSendGlAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className={labelCls}>
-                    {t("larder.percent_label")}{sendGlPct ? ` · ${sym}${((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)} will go to GL` : ""}
-                  </label>
-                  <input type="number" step="1" min="1" max="99" required value={sendGlPct}
-                    onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="e.g. 25" className={inputCls} />
-                </div>
-                {larder?.glPercent && (
-                  <p className="text-xs text-amber-400/70 bg-amber-400/5 border border-amber-400/15 rounded-xl px-3 py-2">
-                    Current rule: <strong>{larder.glPercent}%</strong> active. Setting a new % will replace it.
-                  </p>
-                )}
+              <div className="space-y-1.5">
+                <label className={labelCls}>
+                  {t("larder.percent_label")}{sendGlPct ? ` · ${sym}${((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)} zostanie wysłane` : ""}
+                </label>
+                <input type="number" step="1" min="1" max="99" required value={sendGlPct}
+                  onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="np. 25" className={inputCls} />
                 <p className="text-xs text-white/30 leading-relaxed">
-                  A standing rule — every time your Larder grows, this % is automatically moved to the Great Larder.
+                  Obliczona kwota zostanie natychmiast przekazana do Wielkiej Spiżarni.
                 </p>
               </div>
             )}
             <button type="submit" disabled={sendGlLoading || total <= 0}
               className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
-              {sendGlLoading ? "…" : sendGlMode === "percent" ? "Set Standing Rule" : t("larder.send")}
+              {sendGlLoading ? "…" : t("larder.send")}
             </button>
           </form>
         </Sheet>
