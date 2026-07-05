@@ -205,6 +205,13 @@ function MemberSheet({
     fetchRates().then(setRates);
   }, []);
 
+  const viewerCurrency = loadPrefs().currency;
+  /** Convert an amount from the member's own currency to the viewer's display currency. */
+  function convertMemberAmt(amount: number): number {
+    if (!Object.keys(rates).length || member.currency === viewerCurrency) return amount;
+    return convertAmount(amount, member.currency, viewerCurrency, rates);
+  }
+
   const { data: goalContribs, isLoading: contribsLoading } = useQuery<GoalContribRow[]>({
     queryKey: ["member-goal-contributions", member.userId],
     queryFn: async () => {
@@ -299,7 +306,7 @@ function MemberSheet({
                         {isRP && (
                           <span className="text-[10px] text-white/30 font-medium">↺</span>
                         )}
-                        <span className="text-sm font-semibold tabular-nums">{fmt(row.total)}</span>
+                        <span className="text-sm font-semibold tabular-nums">{fmt(convertMemberAmt(row.total))}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
                         <div
@@ -312,7 +319,7 @@ function MemberSheet({
                   })}
                   <div className="pt-3 border-t border-white/10 flex items-center justify-between">
                     <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
-                    <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + r.total, 0))}</span>
+                    <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + convertMemberAmt(r.total), 0))}</span>
                   </div>
                 </div>
               </>
@@ -651,10 +658,16 @@ export default function HouseholdPage() {
   const sharedGoals = (goals ?? []).filter((g: any) => g.householdId && household && g.householdId === household.id);
   const summaryMap = new Map((goalSummary ?? []).map((s: any) => [s.goalId, s]));
 
-  const totalSpent = members?.reduce((s, m) => s + m.monthlySpent, 0) ?? 0;
+  /** Convert a member's monthlySpent from their own currency to the viewer's currency. */
+  function memberSpentInViewerCurrency(m: { monthlySpent: number; currency: string }): number {
+    if (!splitRates || m.currency === prefs.currency) return m.monthlySpent;
+    return convertAmount(m.monthlySpent, m.currency, prefs.currency, splitRates);
+  }
+
+  const totalSpent = members?.reduce((s, m) => s + memberSpentInViewerCurrency(m), 0) ?? 0;
   const budget = household?.budget ?? null;
   const budgetCurrency = (household as any)?.budgetCurrency ?? null;
-  const maxMemberSpent = members ? Math.max(...members.map(m => m.monthlySpent), 1) : 1;
+  const maxMemberSpent = members ? Math.max(...members.map(m => memberSpentInViewerCurrency(m)), 1) : 1;
 
   // When budgetCurrency is null (budget was set before currency tracking was added),
   // fall back to the household head's currency so conversion still works correctly.
@@ -1125,7 +1138,8 @@ export default function HouseholdPage() {
             <div className="divide-y divide-white/5">
               {members?.map(m => {
                 const isMe = m.userId === me?.id;
-                const barPct = barPercent(m.monthlySpent);
+                const spentConverted = memberSpentInViewerCurrency(m);
+                const barPct = barPercent(spentConverted);
                 return (
                   <button
                     key={m.userId}
@@ -1155,7 +1169,7 @@ export default function HouseholdPage() {
                             <RoleBadge role={m.role} />
                           </div>
                           <span className="text-sm font-semibold tabular-nums flex-shrink-0">
-                            {fmt(m.monthlySpent)}
+                            {fmt(spentConverted)}
                           </span>
                         </div>
 
