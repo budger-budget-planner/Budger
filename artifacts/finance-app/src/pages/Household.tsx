@@ -188,6 +188,7 @@ function MemberSheet({
   viewerRole,
   onRoleChange,
   onRemove,
+  rates,
 }: {
   member: MemberRow;
   onClose: () => void;
@@ -195,20 +196,16 @@ function MemberSheet({
   viewerRole: string;
   onRoleChange?: (newRole: string) => void;
   onRemove?: () => void;
+  rates: Record<string, number> | null;
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
   const [savingRole, setSavingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>(member.role);
-  const [rates, setRates] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    fetchRates().then(setRates);
-  }, []);
 
   const viewerCurrency = loadPrefs().currency;
   /** Convert an amount from the member's own currency to the viewer's display currency. */
   function convertMemberAmt(amount: number): number {
-    if (!Object.keys(rates).length || member.currency === viewerCurrency) return amount;
+    if (!rates || member.currency === viewerCurrency) return amount;
     return convertAmount(amount, member.currency, viewerCurrency, rates);
   }
 
@@ -340,7 +337,7 @@ function MemberSheet({
                 {goalContribs.map(g => {
                   const viewerCurrency = loadPrefs().currency;
                   const goalCurrency = g.goalCurrency ?? viewerCurrency;
-                  const convertedAmount = Object.keys(rates).length > 0 && goalCurrency !== viewerCurrency
+                  const convertedAmount = rates && goalCurrency !== viewerCurrency
                     ? convertAmount(g.displayAmount, goalCurrency, viewerCurrency, rates)
                     : g.displayAmount;
                   const amtStr = fmtAmt(convertedAmount, viewerCurrency);
@@ -1368,6 +1365,7 @@ export default function HouseholdPage() {
           onRemove={() => {
             removeMember.mutate({ userId: selectedMember.userId });
           }}
+          rates={splitRates}
         />
       )}
 
