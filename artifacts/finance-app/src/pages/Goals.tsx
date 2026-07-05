@@ -185,12 +185,54 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveMode, setSaveMode] = useState<"amount" | "percent">("amount");
+  const [saveValue, setSaveValue] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Compute pct early so we can use it in query enabled flags
+  const _contributedRaw = summary?.totalContributed ?? 0;
+  const _rawBudget = parseFloat(goal.budget);
+  const _pctEarly = _rawBudget > 0 ? Math.min((_contributedRaw / _rawBudget) * 100, 100) : 0;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
   };
   const remove = useDeleteGoal({ mutation: { onSuccess: invalidate } });
+
+  const { data: myContribsForSave } = useListGoalContributions(
+    { goalId: goal.id, all: "true" } as any,
+    { query: { queryKey: ["goal-contributions-save", goal.id], enabled: saveOpen } },
+  );
+  const { data: larderForBadge } = useGetLarder({ query: { enabled: saveOpen || _pctEarly >= 100 } } as any);
+  const myTotalForSave = (myContribsForSave ?? []).reduce((s: number, c: any) => s + Number(c.accountAmount ?? c.amount), 0);
+  const savedToLarderActive = ((larderForBadge as any)?.entries ?? [])
+    .filter((e: any) => e.sourceType === "goal_save" && e.goalId === goal.id)
+    .reduce((s: number, e: any) => s + Number(e.amount), 0);
+
+  const saveToLarder = useLarderSaveFromGoal({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["goal-contributions-save", goal.id] });
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+        setSaveOpen(false);
+        setSaveValue("");
+        setSaveError(null);
+      },
+      onError: (err: any) => setSaveError(err?.message ?? t("larder.save_error")),
+    },
+  });
+
+  function handleGoalSave() {
+    setSaveError(null);
+    const amount = saveMode === "percent"
+      ? (parseFloat(saveValue) / 100) * myTotalForSave
+      : parseFloat(saveValue);
+    if (!amount || amount <= 0) return;
+    saveToLarder.mutate({ data: { goalId: goal.id, amount } });
+  }
 
   const { data: memberBreakdown, isLoading: breakdownLoading } = useQuery<MemberBreakdownRow[]>({
     queryKey: ["goal-member-breakdown", goal.id],
@@ -338,6 +380,16 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
           </div>
         )}
 
+        {/* Stored in Larder badge — shown on completed goals */}
+        {_pctEarly >= 100 && savedToLarderActive > 0 && (
+          <div className="flex items-center gap-1.5 mt-1 mb-1">
+            <Star className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {t("larder.stored_badge")} {fmtAmt(savedToLarderActive, currency)}
+            </span>
+          </div>
+        )}
+
         <div className="mt-3">
           {confirmDelete ? (
             <div className="flex gap-2">
@@ -359,6 +411,13 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                   <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
                 </button>
               )}
+              <button
+                onClick={() => setSaveOpen(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                           bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+              >
+                <Star className="w-3.5 h-3.5" /> {t("larder.save_btn")}
+              </button>
               {canDelete && (
                 <button onClick={() => setConfirmDelete(true)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
@@ -370,6 +429,56 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
           )}
         </div>
       </div>
+
+      {/* Save to Larder dialog */}
+      <Dialog open={saveOpen} onOpenChange={o => { setSaveOpen(o); if (!o) { setSaveValue(""); setSaveError(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("larder.save_from_goal")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {myContribsForSave === undefined ? (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : myTotalForSave <= 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                You haven't contributed to this goal yet.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {t("larder.you_contributed")} {fmtAmt(myTotalForSave, currency)}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSaveMode("amount")}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${saveMode === "amount" ? "bg-foreground text-background border-foreground" : "bg-muted text-muted-foreground border-border"}`}>
+                    {t("larder.mode_amount")}
+                  </button>
+                  <button
+                    onClick={() => setSaveMode("percent")}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${saveMode === "percent" ? "bg-foreground text-background border-foreground" : "bg-muted text-muted-foreground border-border"}`}>
+                    {t("larder.mode_percent")}
+                  </button>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    {saveMode === "percent" ? "%" : currencySymbol(currency)}
+                  </span>
+                  <Input
+                    type="number" min="0" step="0.01" placeholder={saveMode === "percent" ? "100" : "0.00"}
+                    value={saveValue} onChange={e => setSaveValue(e.target.value)}
+                    className="pl-7"
+                  />
+                </div>
+                {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+                <Button className="w-full" onClick={handleGoalSave} disabled={saveToLarder.isPending || !saveValue}>
+                  {saveToLarder.isPending ? "…" : t("larder.save_btn")}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -852,6 +961,19 @@ export default function GoalsPage() {
   const sym   = currencySymbol(prefs.currency);
 
   const larderRef = useRef<HTMLDivElement>(null);
+  const [larderVisible, setLarderVisible] = useState(false);
+
+  // Glow animation: watch when Larder card comes into view
+  useEffect(() => {
+    const el = larderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setLarderVisible(entry.isIntersecting),
+      { threshold: 0.15 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
@@ -1071,6 +1193,22 @@ export default function GoalsPage() {
   }
 
   return (
+    <>
+      {/* ── Larder glow pulse — visible at bottom until Larder card scrolls into view ── */}
+      <div
+        className="fixed inset-x-0 bottom-16 z-30 pointer-events-none"
+        style={{ opacity: larderVisible ? 0 : 1, transition: "opacity 0.7s ease" }}
+      >
+        <div
+          className="animate-pulse"
+          style={{
+            height: "2px",
+            background: "linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.55) 25%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.55) 75%, transparent 95%)",
+            boxShadow: "0 0 14px 5px rgba(255,255,255,0.35), 0 0 40px 14px rgba(255,255,255,0.10)",
+          }}
+        />
+      </div>
+
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
 
       {/* ── Goals content ── */}
@@ -1560,5 +1698,6 @@ export default function GoalsPage() {
       </Dialog>
       </>
     </div>
+    </>
   );
 }
