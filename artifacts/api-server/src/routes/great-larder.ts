@@ -16,6 +16,11 @@ function todayStr(): string {
   return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, "0")}-${String(n.getUTCDate()).padStart(2, "0")}`;
 }
 
+function currentMonth(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+}
+
 async function getMembership(userId: number, householdId: number) {
   const [m] = await db.select().from(householdMembersTable)
     .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
@@ -436,6 +441,67 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
   }).returning();
 
   res.status(201).json({ success: true, contributionId: contrib.id, newBalance: balance - amount });
+});
+
+// POST /great-larder/save-from-goal — move money from a completed household goal into the Great Larder
+// Body: { goalId, amount }
+// Any household member can save their own contributions into the GL (auto-approved).
+router.post("/great-larder/save-from-goal", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const { goalId, amount } = req.body;
+  if (!goalId || typeof goalId !== "number") {
+    res.status(400).json({ error: "goalId is required" }); return;
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (goal.householdId !== user.householdId) {
+    res.status(403).json({ error: "Goal does not belong to this household" }); return;
+  }
+
+  const currency = user.currency ?? "USD";
+
+  // Only let a user save out of the amount THEY contributed to this goal
+  const myContribs = await db.select().from(goalContributionsTable)
+    .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
+  const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
+  if (amount > myTotal + 0.001) {
+    res.status(400).json({ error: "Amount exceeds your contribution to this goal" }); return;
+  }
+
+  // Offset the goal's progress with a negative contribution (mirrors personal larder save-from-goal)
+  await db.insert(goalContributionsTable).values({
+    goalId,
+    amount: String(-amount),
+    currency: goal.currency ?? currency,
+    accountAmount: String(-amount),
+    accountCurrency: currency,
+    month: currentMonth(),
+    userId,
+    householdId: user.householdId,
+  });
+
+  // Credit the Great Larder (auto-approved — member cashing out their own goal contribution)
+  const [entry] = await db.insert(greatLarderEntriesTable).values({
+    householdId: user.householdId,
+    contributedByUserId: userId,
+    amount: String(amount),
+    currency,
+    sourceType: "goal_save",
+    status: "approved",
+    note: `Saved from household goal: ${goal.name}`,
+  }).returning();
+
+  const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  res.status(201).json({ success: true, entry: fmtEntry(entry, u?.name ?? "Unknown") });
 });
 
 export default router;

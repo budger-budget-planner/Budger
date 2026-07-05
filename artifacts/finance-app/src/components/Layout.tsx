@@ -82,6 +82,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     document.addEventListener('larder-reached', handler);
     return () => document.removeEventListener('larder-reached', handler);
   }, []);
+
+  // Apply/remove animation kill-switch from persisted pref (NotificationCenter applies immediately on change)
+  useEffect(() => {
+    document.documentElement.classList.toggle('no-animations', prefs.disableAnimations ?? false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
   const { data: incomingInvites } = useListIncomingInvites();

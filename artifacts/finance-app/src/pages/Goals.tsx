@@ -189,6 +189,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   const [saveMode, setSaveMode] = useState<"amount" | "percent">("amount");
   const [saveValue, setSaveValue] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [glSaving, setGlSaving] = useState(false);
 
   // Compute pct early so we can use it in query enabled flags
   const _contributedRaw = summary?.totalContributed ?? 0;
@@ -232,6 +233,27 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     saveToLarder.mutate({ data: { goalId: goal.id, amount } });
+  }
+
+  function handleGoalSaveGL() {
+    setSaveError(null);
+    const amount = saveMode === "percent"
+      ? (parseFloat(saveValue) / 100) * myTotalForSave
+      : parseFloat(saveValue);
+    if (!amount || amount <= 0) return;
+    setGlSaving(true);
+    fetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goalId: goal.id, amount }),
+    }).then(async r => {
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Failed"); }
+      queryClient.invalidateQueries({ queryKey: ["great-larder"] });
+      queryClient.invalidateQueries({ queryKey: ["goal-contributions-save", goal.id] });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      setSaveOpen(false); setSaveValue(""); setSaveError(null);
+    }).catch(err => setSaveError(err?.message ?? t("larder.save_error")))
+      .finally(() => setGlSaving(false));
   }
 
   const { data: memberBreakdown, isLoading: breakdownLoading } = useQuery<MemberBreakdownRow[]>({
@@ -416,7 +438,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                            bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
               >
-                <Star className="w-3.5 h-3.5" /> {t("larder.save_btn")}
+                <Star className="w-3.5 h-3.5" /> {t(isHousehold ? "larder.save_to_gl" : "larder.save_btn")}
               </button>
               {canDelete && (
                 <button onClick={() => setConfirmDelete(true)}
@@ -433,7 +455,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
       {/* Save to Larder dialog */}
       <Dialog open={saveOpen} onOpenChange={o => { setSaveOpen(o); if (!o) { setSaveValue(""); setSaveError(null); } }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t("larder.save_from_goal")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t(isHousehold ? "larder.save_from_goal_gl" : "larder.save_from_goal")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {myContribsForSave === undefined ? (
               <div className="flex justify-center py-4">
@@ -471,8 +493,14 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                   />
                 </div>
                 {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-                <Button className="w-full" onClick={handleGoalSave} disabled={saveToLarder.isPending || !saveValue}>
-                  {saveToLarder.isPending ? "…" : t("larder.save_btn")}
+                <Button
+                  className="w-full"
+                  onClick={isHousehold ? handleGoalSaveGL : handleGoalSave}
+                  disabled={(isHousehold ? glSaving : saveToLarder.isPending) || !saveValue}
+                >
+                  {(isHousehold ? glSaving : saveToLarder.isPending)
+                    ? "…"
+                    : t(isHousehold ? "larder.save_to_gl" : "larder.save_btn")}
                 </Button>
               </>
             )}
@@ -811,6 +839,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
   const [saveMode, setSaveMode] = useState<"amount" | "percent">("amount");
   const [saveValue, setSaveValue] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [glSaving, setGlSaving] = useState(false);
 
   const remove = useDeleteGoal({
     mutation: {
@@ -849,6 +878,26 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     saveToLarder.mutate({ data: { goalId: goal.id, amount } });
+  }
+
+  function handleSaveGL() {
+    setSaveError(null);
+    const amount = saveMode === "percent"
+      ? (parseFloat(saveValue) / 100) * myTotal
+      : parseFloat(saveValue);
+    if (!amount || amount <= 0) return;
+    setGlSaving(true);
+    fetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goalId: goal.id, amount }),
+    }).then(async r => {
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Failed"); }
+      queryClient.invalidateQueries({ queryKey: ["great-larder"] });
+      queryClient.invalidateQueries({ queryKey: ["goal-contributions-all", goal.id] });
+      setSaveOpen(false); setSaveValue(""); setSaveError(null);
+    }).catch(err => setSaveError(err?.message ?? t("larder.save_error")))
+      .finally(() => setGlSaving(false));
   }
 
   return (
@@ -907,7 +956,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
 
       <Dialog open={saveOpen} onOpenChange={o => { setSaveOpen(o); if (!o) { setSaveValue(""); setSaveError(null); } }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t("larder.save_from_goal")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t(goal.householdId ? "larder.save_from_goal_gl" : "larder.save_from_goal")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {t("larder.you_contributed")} {fmtAmt(myTotal, currency)}
@@ -935,8 +984,14 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
               />
             </div>
             {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-            <Button className="w-full" onClick={handleSave} disabled={saveToLarder.isPending || !saveValue}>
-              {saveToLarder.isPending ? "…" : t("larder.save_btn")}
+            <Button
+              className="w-full"
+              onClick={goal.householdId ? handleSaveGL : handleSave}
+              disabled={(goal.householdId ? glSaving : saveToLarder.isPending) || !saveValue}
+            >
+              {(goal.householdId ? glSaving : saveToLarder.isPending)
+                ? "…"
+                : t(goal.householdId ? "larder.save_to_gl" : "larder.save_btn")}
             </Button>
           </div>
         </DialogContent>

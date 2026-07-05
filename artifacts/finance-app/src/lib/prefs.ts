@@ -3,6 +3,7 @@ export type AppPrefs = {
   language: string;
   totalBudget: number | null;
   staySignedIn: boolean;
+  disableAnimations: boolean;
 };
 
 const PREFS_KEY_BASE = "budger_prefs_v1";
@@ -15,6 +16,7 @@ const DEFAULT_PREFS: AppPrefs = {
   language: "en",
   totalBudget: null,
   staySignedIn: true,
+  disableAnimations: false,
 };
 
 /** Store the current user's id so prefs can be namespaced per account. */

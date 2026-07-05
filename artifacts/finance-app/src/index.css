@@ -1,6 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* ── Animation kill-switch (disable-animations pref) ── */
+html.no-animations *,
+html.no-animations *::before,
+html.no-animations *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* ── "ze Spiżarni" dot spark animation ── */
 @keyframes dotSpark {
   0%   { box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12), 0 0 0px 0px rgba(255,255,255,0); }

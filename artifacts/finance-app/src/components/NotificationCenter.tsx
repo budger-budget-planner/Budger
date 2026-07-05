@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
-  Smartphone, ExternalLink, Circle,
+  Smartphone, ExternalLink, Circle, Sparkles,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,7 +22,7 @@ import {
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
-import { loadPrefs, checkNcSwipeHintDue } from "@/lib/prefs";
+import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
 import { showNotification } from "@/lib/show-notification";
 
 // ─── Alert (alarm) types ──────────────────────────────────────────────────────
@@ -373,6 +373,7 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
 // ─── Sub-panel: Settings ──────────────────────────────────────────────────────
 function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
+  const [animDisabled, setAnimDisabled] = useState(() => loadPrefs().disableAnimations ?? false);
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem("budger_haptic_v1") !== "off"; } catch { return true; }
@@ -461,6 +462,28 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                 {previewing ? "▶︎" : t("notif.preview_btn")}
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Animations toggle */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("prefs.animations")}</p>
+          <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-muted-foreground"><Sparkles className="w-4 h-4" /></div>
+              <div>
+                <p className="text-sm font-medium">{t("prefs.disable_animations")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("prefs.disable_animations_desc")}</p>
+              </div>
+            </div>
+            <Switch
+              checked={animDisabled}
+              onCheckedChange={val => {
+                setAnimDisabled(val);
+                savePrefs({ ...loadPrefs(), disableAnimations: val });
+                document.documentElement.classList.toggle('no-animations', val);
+              }}
+            />
           </div>
         </section>
 
