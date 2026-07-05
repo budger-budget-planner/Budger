@@ -1848,7 +1848,7 @@ export default function HomeSpending() {
                 className="w-full text-destructive hover:text-destructive text-xs"
                 onClick={() => saveTotalBudget(null)}
               >
-                Remove budget
+                {t("home.remove_budget")}
               </Button>
             )}
           </form>

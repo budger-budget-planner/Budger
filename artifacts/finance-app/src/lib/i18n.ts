@@ -509,6 +509,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.new_tx":              { en: "New Transaction",         pl: "Nowa Transakcja"              },
   "home.total_budget_label":  { en: "Total monthly budget",    pl: "Całkowity miesięczny budżet"  },
   "home.budget_cap_desc":     { en: "This is your total spending cap for the month. Leave blank to remove.", pl: "To jest Twój miesięczny limit wydatków. Zostaw puste, aby usunąć." },
+  "home.remove_budget":       { en: "Remove budget",                       pl: "Usuń budżet"                     },
   "home.budget_eg":           { en: "e.g. 3000",               pl: "np. 3000"                     },
   "home.edit_btn":            { en: "Edit",                    pl: "Edytuj"                       },
   "home.edit_tx_title":       { en: "Edit Transaction",        pl: "Edytuj Transakcję"            },
