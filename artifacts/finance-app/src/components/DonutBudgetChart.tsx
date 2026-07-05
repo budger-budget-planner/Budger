@@ -125,7 +125,7 @@ function buildChart(
   spending: SpendingItem[],
   totalBudget: number,
   selectedCat: string | null,
-): { segs: Seg[]; groupBorders: GroupBorder[]; legend: LegendItem[] } {
+): { segs: Seg[]; groupBorders: GroupBorder[]; legend: LegendItem[]; sumBudgets: number } {
   const CAT_GAP = 2.5;
 
   const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
@@ -231,7 +231,7 @@ function buildChart(
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
       isRecurringApplied: g.isRecurringApplied }));
 
-  return { segs, groupBorders, legend };
+  return { segs, groupBorders, legend, sumBudgets };
 }
 
 // ─── Animation constants ──────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   // Latest hasData value — updated every render, read inside the timer closure
   const hasDataRef = useRef<boolean>(false);
 
-  const { segs, groupBorders, legend } = buildChart(spending, totalBudget, selectedCat);
+  const { segs, groupBorders, legend, sumBudgets } = buildChart(spending, totalBudget, selectedCat);
 
   // Keep refs current every render so timer callbacks read the latest values at fire time.
   // wiggle1 = first group; wiggle2 = 4th group clockwise (fallback: 3rd, 2nd, none if <2 groups)

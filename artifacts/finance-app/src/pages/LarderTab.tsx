@@ -133,9 +133,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       if (!r.ok) throw new Error("Failed");
       invalidate();
       setHistoryOpen(false);
-      toast({ title: "History cleared" });
+      toast({ title: t("larder.history_cleared") });
     } catch {
-      toast({ title: "Failed to clear history", variant: "destructive" });
+      toast({ title: t("larder.clear_failed"), variant: "destructive" });
     }
   }
 
@@ -155,7 +155,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       invalidate();
       setSpendOpen(false);
       setSpendDesc(""); setSpendAmt("");
-      toast({ title: "Transaction created from Larder" });
+      toast({ title: t("larder.tx_created") });
     } catch (err: any) {
       toast({ title: err.message ?? "Failed", variant: "destructive" });
     } finally { setSpendLoading(false); }
@@ -181,7 +181,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         body: JSON.stringify({ amount }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
-      toast({ title: "Wysłano do Wielkiej Spiżarni" });
+      toast({ title: t("larder.sent_to_gl_toast") });
       invalidate();
       setSendGlOpen(false);
       setSendGlAmt(""); setSendGlPct("");
@@ -293,7 +293,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               <p className="text-xs font-semibold tracking-widest uppercase text-white/35">
                 Spiżarnia
               </p>
-              <p className="text-[11px] text-white/20 -mt-0.5">Larder · personal savings</p>
             </div>
           </div>
 
@@ -303,15 +302,14 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               className="text-5xl font-bold tracking-tight text-white tabular-nums"
               style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
             >
-              {sym}{fmtAmt(total, prefs.currency).replace(/^[^0-9-]*/,"").replace(sym,"")}
+              {fmtAmt(total, prefs.currency)}
             </p>
-            <p className="text-xs text-white/25 mt-1.5 tracking-wide">{prefs.currency} · personal savings</p>
             {totalGLSent > 0 && (
               <div className="mt-3 flex items-center justify-center rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
                 <div className="text-center">
-                  <p className="text-[10px] text-white/30 uppercase tracking-widest">ze Spiżarni</p>
-                  <p className="text-sm font-semibold text-white/55 tabular-nums">{sym}{totalGLSent.toFixed(2)}</p>
-                  <p className="text-[10px] text-white/25">przekazano do Wielkiej Spiżarni</p>
+                  <p className="text-[10px] text-white/30 uppercase tracking-widest">{t("larder.source_fund")}</p>
+                  <p className="text-sm font-semibold text-white/55 tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</p>
+                  <p className="text-[10px] text-white/25">{t("larder.transferred_gl")}</p>
                 </div>
               </div>
             )}
@@ -355,7 +353,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   onClick={() => setHistoryOpen(v => !v)}
                   className="flex items-center gap-1.5 text-xs text-white/35 font-semibold uppercase tracking-widest"
                 >
-                  <span>History ({entries.length})</span>
+                  <span>{t("larder.history", { n: entries.length })}</span>
                   {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
                 <button
@@ -363,7 +361,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors"
                 >
                   <Trash2 className="w-3 h-3" />
-                  Clear
+                  {t("larder.clear")}
                 </button>
               </div>
               {historyOpen && (
@@ -382,7 +380,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                           <p className="text-[10px] text-white/25">{dateStr}</p>
                         </div>
                         <p className={`text-xs font-semibold tabular-nums flex-shrink-0 ${positive ? "text-emerald-400" : "text-red-400"}`}>
-                          {positive ? "+" : "−"}{sym}{Math.abs(e.amount).toFixed(2)}
+                          {positive ? "+" : "−"}{fmtAmt(Math.abs(e.amount), prefs.currency)}
                         </p>
                       </div>
                     );
@@ -404,12 +402,12 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </div>
           <div className="space-y-1.5">
             <label className={labelCls}>
-              {t("larder.amount_label")} ({prefs.currency}) · Balance: {sym}{total.toFixed(2)}
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
             </label>
             <input type="number" step="0.01" min="0.01" max={total} required value={spendAmt}
               onChange={e => setSpendAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
             <p className="text-xs text-white/25 leading-relaxed">
-              Creates a transaction from your Larder, marked with a "From Larder" badge.
+              {t("larder.from_larder_desc")}
             </p>
           </div>
           <button type="submit" disabled={spendLoading || total <= 0}
@@ -440,7 +438,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             {sendGlMode === "amount" ? (
               <div className="space-y-1.5">
                 <label className={labelCls}>
-                  {t("larder.amount_label")} ({prefs.currency}) · Saldo: {sym}{total.toFixed(2)}
+                  {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
                 </label>
                 <input type="number" step="0.01" min="0.01" max={total} required value={sendGlAmt}
                   onChange={e => setSendGlAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
@@ -448,12 +446,12 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             ) : (
               <div className="space-y-1.5">
                 <label className={labelCls}>
-                  {t("larder.percent_label")}{sendGlPct ? ` · ${sym}${((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)} zostanie wysłane` : ""}
+                  {t("larder.percent_label")}{sendGlPct ? ` · ${fmtAmt((total * (parseFloat(sendGlPct) || 0)) / 100, prefs.currency)} ${t("larder.will_be_sent")}` : ""}
                 </label>
                 <input type="number" step="1" min="1" max="99" required value={sendGlPct}
                   onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="np. 25" className={inputCls} />
                 <p className="text-xs text-white/30 leading-relaxed">
-                  Obliczona kwota zostanie natychmiast przekazana do Wielkiej Spiżarni.
+                  {t("larder.calc_sent_gl")}
                 </p>
               </div>
             )}
@@ -490,7 +488,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </div>
           <div className="space-y-1.5">
             <label className={labelCls}>
-              {t("larder.amount_label")} ({prefs.currency}) · Balance: {sym}{total.toFixed(2)}
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
             </label>
             <input type="number" step="0.01" min="0.01" max={total} required
               value={dedAmount} onChange={e => setDedAmount(e.target.value)}

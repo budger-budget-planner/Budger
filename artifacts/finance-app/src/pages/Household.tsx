@@ -1526,7 +1526,7 @@ export default function HouseholdPage() {
                     <p className="text-xs font-semibold tracking-widest uppercase text-white/40">
                       Wielka Spiżarnia
                     </p>
-                    <p className="text-[11px] text-white/25 -mt-0.5">Great Larder · household savings</p>
+                    <p className="text-[11px] text-white/25 -mt-0.5">{t("gl.subtitle_card")}</p>
                   </div>
                 </div>
 
@@ -1535,13 +1535,12 @@ export default function HouseholdPage() {
                   {greatLarder ? (
                     <p className="text-4xl font-bold tracking-tight text-white"
                       style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
-                      {currencySymbol(greatLarder.currency)}{fmtAmtRound(greatLarder.total, greatLarder.currency)}
-                      <span className="text-lg font-normal text-white/30 ml-1">{greatLarder.currency}</span>
+                      {fmtAmtRound(greatLarder.total, greatLarder.currency)}
                     </p>
                   ) : (
                     <p className="text-4xl font-bold text-white/20">—</p>
                   )}
-                  <p className="text-xs text-white/30 mt-1">household collective savings</p>
+                  <p className="text-xs text-white/30 mt-1">{t("gl.collective_savings")}</p>
                 </div>
 
                 {/* Action buttons — Fund for parents+head; Dedicate to HH goal for head only */}
@@ -1553,7 +1552,7 @@ export default function HouseholdPage() {
                   >
                     <PiggyBank className="w-4 h-4" />
                     {t("larder.fund")}
-                    {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· needs approval</span>}
+                    {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· {t("larder.needs_approval")}</span>}
                   </button>
                   {iAmHead && (
                     <button
@@ -1571,7 +1570,7 @@ export default function HouseholdPage() {
                 {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
                   <div className="space-y-2 pt-1">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
-                      Pending approvals ({greatLarder.entries.filter((e: any) => e.status === "pending").length})
+                      {t("gl.pending_approvals", { n: greatLarder.entries.filter((e: any) => e.status === "pending").length })}
                     </p>
                     <div className="space-y-1.5">
                       {greatLarder.entries
@@ -1579,8 +1578,8 @@ export default function HouseholdPage() {
                         .map((e: any) => (
                           <div key={e.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 border border-white/8">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{e.note || "Fund request"}</p>
-                              <p className="text-xs text-white/40">{e.contributorName} · {currencySymbol(e.currency)}{fmtAmtRound(e.amount, e.currency)} {e.currency}</p>
+                              <p className="text-sm font-medium text-white truncate">{e.note || t("gl.fund_request")}</p>
+                              <p className="text-xs text-white/40">{e.contributorName} · {fmtAmtRound(e.amount, e.currency)}</p>
                             </div>
                             <button
                               onClick={() => handleGlApprove(e.id)}
@@ -1830,18 +1829,18 @@ export default function HouseholdPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-white/60" /> Fund Great Larder
+              <TrendingUp className="w-5 h-5 text-white/60" /> {t("gl.fund_sheet")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleGlFund} className="space-y-4">
             <p className="text-sm text-white/50">
-              Create a transaction that funds the Great Larder.
-              {!iAmHead && <span className="text-amber-400/80"> Requires head approval.</span>}
+              {t("gl.fund_desc")}
+              {!iAmHead && <span className="text-amber-400/80"> {t("gl.fund_requires_approval")}</span>}
             </p>
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>{t("larder.description")}</Label>
               <Input
-                placeholder="e.g. Monthly household savings"
+                placeholder={t("gl.fund_placeholder")}
                 value={glFundDesc}
                 onChange={e => setGlFundDesc(e.target.value)}
                 required
@@ -1849,7 +1848,7 @@ export default function HouseholdPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Amount</Label>
+              <Label>{t("larder.amount_label")}</Label>
               <Input
                 type="number"
                 min="0.01"
@@ -1862,10 +1861,10 @@ export default function HouseholdPage() {
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" className="flex-1" disabled={glLoading}>
-                {glLoading ? "Submitting…" : iAmHead ? "Fund" : "Request"}
+                {glLoading ? t("gl.submitting") : iAmHead ? t("gl.fund_btn") : t("gl.request_btn")}
               </Button>
             </div>
           </form>
@@ -1920,20 +1919,20 @@ export default function HouseholdPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-white/60" /> Support
+              <Users className="w-5 h-5 text-white/60" /> {t("gl.support_title")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleGlDedicate} className="space-y-4">
             <p className="text-sm text-white/50">
-              Move funds from the Great Larder into a shared household goal.
+              {t("gl.support_desc")}
             </p>
             {sharedGoals.length === 0 ? (
               <p className="text-sm text-amber-400/80 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3">
-                No shared goals found. Create a household goal first.
+                {t("gl.no_shared_goals")}
               </p>
             ) : (
               <div className="space-y-1.5">
-                <Label>Goal</Label>
+                <Label>{t("gl.goal_label")}</Label>
                 <div className="space-y-2">
                   {sharedGoals.map((g: any) => (
                     <button
@@ -1955,7 +1954,7 @@ export default function HouseholdPage() {
             )}
             <div className="space-y-1.5">
               <Label>
-                Amount · Balance: {greatLarder ? `${currencySymbol(greatLarder.currency)}${fmtAmtRound(greatLarder.total, greatLarder.currency)}` : "—"}
+                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {greatLarder ? fmtAmtRound(greatLarder.total, greatLarder.currency) : "—"}
               </Label>
               <Input
                 type="number"
@@ -1975,7 +1974,7 @@ export default function HouseholdPage() {
                 className="flex-1"
                 onClick={() => { setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt(""); }}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
