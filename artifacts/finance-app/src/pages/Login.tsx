@@ -49,6 +49,15 @@ export default function LoginPage() {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [loginChecking, setLoginChecking] = useState(false);
   const [loginPinLength, setLoginPinLength] = useState<number | null>(null);
+  const [showPinSubmit, setShowPinSubmit] = useState(false);
+
+  // Show a manual submit button after 15 s on the PIN screen in case auto-submit
+  // doesn't fire (e.g. pinLength unknown, network hiccup, or mobile keyboard quirk).
+  useEffect(() => {
+    if (screen !== "login-pin") { setShowPinSubmit(false); return; }
+    const t = setTimeout(() => setShowPinSubmit(true), 15_000);
+    return () => clearTimeout(t);
+  }, [screen]);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -411,6 +420,16 @@ export default function LoginPage() {
               error={loginError || undefined}
             />
           </div>
+
+          {showPinSubmit && (
+            <Button
+              className="w-full h-14 rounded-2xl text-base font-semibold"
+              disabled={loginPin.length < 4 || login.isPending}
+              onClick={handleLoginSubmit}
+            >
+              {login.isPending ? t("login.signing_in") : t("login.continue")}
+            </Button>
+          )}
         </div>
       )}
 

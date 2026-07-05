@@ -20,4 +20,5 @@ export interface RecurringPaymentInput {
    * @nullable
    */
   dayOfMonth?: number | null;
+  addToLarder?: boolean;
 }

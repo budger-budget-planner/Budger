@@ -1219,6 +1219,239 @@ paths:
         "409":
           description: Already applied this month
 
+  /larder:
+    get:
+      operationId: getLarder
+      tags: [larder]
+      summary: Get the current user's personal Larder total and entries
+      responses:
+        "200":
+          description: Larder summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LarderSummary"
+
+  /larder/entries:
+    post:
+      operationId: addLarderEntry
+      tags: [larder]
+      summary: Add an entry to the user's personal Larder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, sourceType]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+                currency:
+                  type: string
+                sourceType:
+                  type: string
+                sourceId:
+                  type: ["integer", "null"]
+                goalId:
+                  type: ["integer", "null"]
+                note:
+                  type: ["string", "null"]
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LarderEntry"
+
+  /larder/dedicate-to-goal:
+    post:
+      operationId: larderDedicateToGoal
+      tags: [larder]
+      summary: Move money from personal Larder into a goal contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goalId, amount]
+              properties:
+                goalId:
+                  type: integer
+                amount:
+                  type: number
+                  minimum: 0.01
+      responses:
+        "201":
+          description: Contribution created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  contributionId:
+                    type: integer
+                  newLarderTotal:
+                    type: number
+                required: [success, contributionId, newLarderTotal]
+
+  /larder/fund:
+    post:
+      operationId: larderFund
+      tags: [larder]
+      summary: Create a fund transaction and credit Larder with larderAmount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description, amount, larderAmount]
+              properties:
+                description:
+                  type: string
+                amount:
+                  type: number
+                  minimum: 0.01
+                larderAmount:
+                  type: number
+                  minimum: 0.01
+                categoryId:
+                  type: ["integer", "null"]
+                date:
+                  type: string
+      responses:
+        "201":
+          description: Transaction and Larder entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactionId:
+                    type: integer
+                  larderEntryId:
+                    type: integer
+                  larderAmount:
+                    type: number
+                required: [transactionId, larderEntryId, larderAmount]
+
+  /great-larder:
+    get:
+      operationId: getGreatLarder
+      tags: [greatLarder]
+      summary: Get the household Great Larder total and entries (head/parent only)
+      responses:
+        "200":
+          description: Great Larder summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderSummary"
+
+  /great-larder/send:
+    post:
+      operationId: sendToGreatLarder
+      tags: [greatLarder]
+      summary: Transfer from personal Larder to the household Great Larder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+                percent:
+                  type: number
+                  minimum: 1
+                  maximum: 100
+      responses:
+        "201":
+          description: Great Larder entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderEntry"
+
+  /great-larder/fund:
+    post:
+      operationId: fundGreatLarder
+      tags: [greatLarder]
+      summary: Create a fund transaction for the Great Larder (head auto-approved; parents need approval)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description, amount, larderAmount]
+              properties:
+                description:
+                  type: string
+                amount:
+                  type: number
+                  minimum: 0.01
+                larderAmount:
+                  type: number
+                  minimum: 0.01
+                categoryId:
+                  type: ["integer", "null"]
+                date:
+                  type: string
+      responses:
+        "201":
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderEntry"
+
+  /great-larder/entries/{id}/approve:
+    post:
+      operationId: approveGreatLarderEntry
+      tags: [greatLarder]
+      summary: Head approves a pending Great Larder fund entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderEntry"
+
+  /great-larder/entries/{id}/reject:
+    post:
+      operationId: rejectGreatLarderEntry
+      tags: [greatLarder]
+      summary: Head rejects a pending Great Larder fund entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderEntry"
+
   /merchant-categories:
     get:
       operationId: listMerchantCategoryRules
@@ -2212,6 +2445,8 @@ components:
           type: number
         dayOfMonth:
           type: ["integer", "null"]
+        addToLarder:
+          type: boolean
         appliedThisMonth:
           type: boolean
         transactionId:
@@ -2227,6 +2462,7 @@ components:
         - type
         - amount
         - dayOfMonth
+        - addToLarder
         - appliedThisMonth
         - transactionId
         - createdAt
@@ -2250,6 +2486,8 @@ components:
           type: ["integer", "null"]
           minimum: 1
           maximum: 31
+        addToLarder:
+          type: boolean
 
     RecurringPaymentUpdate:
       type: object
@@ -2266,3 +2504,84 @@ components:
           minimum: 0.01
         dayOfMonth:
           type: ["integer", "null"]
+        addToLarder:
+          type: boolean
+
+    LarderEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        amount:
+          type: number
+        currency:
+          type: string
+        sourceType:
+          type: string
+        sourceId:
+          type: ["integer", "null"]
+        goalId:
+          type: ["integer", "null"]
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, userId, amount, currency, sourceType, sourceId, goalId, note, createdAt]
+
+    LarderSummary:
+      type: object
+      properties:
+        total:
+          type: number
+        currency:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LarderEntry"
+      required: [total, currency, entries]
+
+    GreatLarderEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        householdId:
+          type: integer
+        contributedByUserId:
+          type: integer
+        contributorName:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        sourceType:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        transactionId:
+          type: ["integer", "null"]
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, householdId, contributedByUserId, contributorName, amount, currency, sourceType, status, transactionId, note, createdAt]
+
+    GreatLarderSummary:
+      type: object
+      properties:
+        total:
+          type: number
+        currency:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/GreatLarderEntry"
+        pendingCount:
+          type: integer
+      required: [total, currency, entries, pendingCount]

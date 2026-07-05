@@ -536,6 +536,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
   const [amount, setAmount] = useState(String(rp.amount));
   const [schedType, setSchedType] = useState<"manual" | "scheduled">(rp.type);
   const [dayOfMonth, setDayOfMonth] = useState(rp.dayOfMonth != null ? String(rp.dayOfMonth) : "");
+  const [addToLarder, setAddToLarder] = useState<boolean>(rp.addToLarder ?? false);
 
   const update = useUpdateRecurringPayment({
     mutation: {
@@ -562,6 +563,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
         type: schedType,
         amount: amt,
         dayOfMonth: schedType === "scheduled" && dayOfMonth !== "" ? dayNum : null,
+        addToLarder,
       },
     });
   }
@@ -630,6 +632,21 @@ function EditRPDialog({ rp, open, onClose, sym }: {
               {dayWarning && !dayError && <p className="text-xs text-amber-400">{t("rp.day_warning")}</p>}
             </div>
           )}
+
+          {/* Add to Larder toggle */}
+          <button
+            type="button"
+            onClick={() => setAddToLarder(v => !v)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
+          >
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-foreground">{t("rp.add_to_larder")}</p>
+              <p className="text-xs text-muted-foreground">{t("rp.add_to_larder_desc")}</p>
+            </div>
+            <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${addToLarder ? "bg-foreground" : "bg-muted border border-border"}`}>
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${addToLarder ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
+            </div>
+          </button>
 
           <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={onClose}>
@@ -775,6 +792,7 @@ export default function CategoriesPage() {
   const [rpAmount,      setRpAmount]      = useState("");
   const [rpSchedType,   setRpSchedType]   = useState<"manual" | "scheduled">("manual");
   const [rpDayOfMonth,  setRpDayOfMonth]  = useState("");
+  const [rpAddToLarder, setRpAddToLarder] = useState(false);
 
   const { data: me } = useGetMe();
   const { data: members } = useListHouseholdMembers();
@@ -840,7 +858,7 @@ export default function CategoriesPage() {
     setAddOpen(false);
     setDialogType("category");
     setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewBudgetMode("amount");
-    setRpName(""); setRpColor("#818cf8"); setRpAmount(""); setRpSchedType("manual"); setRpDayOfMonth("");
+    setRpName(""); setRpColor("#818cf8"); setRpAmount(""); setRpSchedType("manual"); setRpDayOfMonth(""); setRpAddToLarder(false);
   }
 
   function handleCreateCategory(e: React.FormEvent) {
@@ -862,6 +880,7 @@ export default function CategoriesPage() {
         type: rpSchedType,
         amount: amt,
         dayOfMonth: rpSchedType === "scheduled" ? rpDayNum : null,
+        addToLarder: rpAddToLarder,
       },
     });
   }
@@ -1195,6 +1214,21 @@ export default function CategoriesPage() {
                   {rpDayWarning && !rpDayError && <p className="text-xs text-amber-400">{t("rp.day_warning")}</p>}
                 </div>
               )}
+
+              {/* Add to Larder toggle */}
+              <button
+                type="button"
+                onClick={() => setRpAddToLarder(v => !v)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
+              >
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">{t("rp.add_to_larder")}</p>
+                  <p className="text-xs text-muted-foreground">{t("rp.add_to_larder_desc")}</p>
+                </div>
+                <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${rpAddToLarder ? "bg-foreground" : "bg-muted border border-border"}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${rpAddToLarder ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
+                </div>
+              </button>
 
               <div className="flex gap-2 pt-1">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>

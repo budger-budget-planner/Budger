@@ -33,6 +33,7 @@ import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
   Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
   Scissors, GitFork, GitMerge, ChevronDown, ChevronRight,
+  Warehouse, PiggyBank, ArrowRightCircle, TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -535,6 +536,87 @@ export default function HouseholdPage() {
     await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/dismiss`, { method: "PATCH", credentials: "include" });
     refetchDeclined();
     queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
+  }
+
+  // ── Great Larder ─────────────────────────────────────────────────────────
+  const canSeeGreatLarder = !iAmChild && !!household;
+
+  const { data: greatLarder, refetch: refetchGL } = useQuery<any>({
+    queryKey: ["great-larder"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder`, { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    enabled: canSeeGreatLarder,
+    refetchInterval: 30_000,
+  });
+
+  const [glSendOpen,  setGlSendOpen]  = useState(false);
+  const [glFundOpen,  setGlFundOpen]  = useState(false);
+  const [glSendAmt,   setGlSendAmt]   = useState("");
+  const [glFundDesc,  setGlFundDesc]  = useState("");
+  const [glFundAmt,   setGlFundAmt]   = useState("");
+  const [glLoading,   setGlLoading]   = useState(false);
+  const [glApproving, setGlApproving] = useState<number | null>(null);
+
+  async function handleGlSend(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(glSendAmt);
+    if (isNaN(amt) || amt <= 0) return;
+    setGlLoading(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      setGlSendOpen(false); setGlSendAmt("");
+      refetchGL();
+      queryClient.invalidateQueries({ queryKey: ["larder"] });
+    } catch (err: any) {
+      alert(err.message ?? t("common.error"));
+    } finally { setGlLoading(false); }
+  }
+
+  async function handleGlFund(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(glFundAmt);
+    if (!glFundDesc.trim() || isNaN(amt) || amt <= 0) return;
+    setGlLoading(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/fund`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: glFundDesc.trim(), amount: amt }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt("");
+      refetchGL();
+    } catch (err: any) {
+      alert(err.message ?? t("common.error"));
+    } finally { setGlLoading(false); }
+  }
+
+  async function handleGlApprove(id: number) {
+    setGlApproving(id);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/approve`, {
+        method: "POST", credentials: "include",
+      });
+      refetchGL();
+    } finally { setGlApproving(null); }
+  }
+
+  async function handleGlReject(id: number) {
+    setGlApproving(id);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/reject`, {
+        method: "POST", credentials: "include",
+      });
+      refetchGL();
+    } finally { setGlApproving(null); }
   }
 
   const [createOpen, setCreateOpen]           = useState(false);

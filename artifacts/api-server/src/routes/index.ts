@@ -15,6 +15,8 @@ import merchantCategoriesRouter from "./merchant-categories";
 import splitsRouter from "./splits";
 import liveActivityRouter from "./live-activity";
 import recurringPaymentsRouter from "./recurring-payments";
+import larderRouter from "./larder";
+import greatLarderRouter from "./great-larder";
 
 const router: IRouter = Router();
 
@@ -34,5 +36,7 @@ router.use(goalsRouter);
 router.use(currenciesRouter);
 router.use(liveActivityRouter);
 router.use(recurringPaymentsRouter);
+router.use(larderRouter);
+router.use(greatLarderRouter);
 
 export default router;

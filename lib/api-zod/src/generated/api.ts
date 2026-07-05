@@ -1330,6 +1330,7 @@ export const ListRecurringPaymentsResponseItem = zod.object({
   type: zod.enum(["manual", "scheduled"]),
   amount: zod.number(),
   dayOfMonth: zod.number().nullable(),
+  addToLarder: zod.boolean(),
   appliedThisMonth: zod.boolean(),
   transactionId: zod.number().nullable(),
   createdAt: zod.string(),
@@ -1356,6 +1357,7 @@ export const CreateRecurringPaymentBody = zod.object({
     .min(1)
     .max(createRecurringPaymentBodyDayOfMonthMax)
     .nullish(),
+  addToLarder: zod.boolean().optional(),
 });
 
 /**
@@ -1373,6 +1375,7 @@ export const UpdateRecurringPaymentBody = zod.object({
   type: zod.enum(["manual", "scheduled"]).optional(),
   amount: zod.number().min(updateRecurringPaymentBodyAmountMin).optional(),
   dayOfMonth: zod.number().nullish(),
+  addToLarder: zod.boolean().optional(),
 });
 
 export const UpdateRecurringPaymentResponse = zod.object({
@@ -1384,6 +1387,7 @@ export const UpdateRecurringPaymentResponse = zod.object({
   type: zod.enum(["manual", "scheduled"]),
   amount: zod.number(),
   dayOfMonth: zod.number().nullable(),
+  addToLarder: zod.boolean(),
   appliedThisMonth: zod.boolean(),
   transactionId: zod.number().nullable(),
   createdAt: zod.string(),
@@ -1421,8 +1425,162 @@ export const ApplyRecurringPaymentResponse = zod.object({
   type: zod.enum(["manual", "scheduled"]),
   amount: zod.number(),
   dayOfMonth: zod.number().nullable(),
+  addToLarder: zod.boolean(),
   appliedThisMonth: zod.boolean(),
   transactionId: zod.number().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Get the current user's personal Larder total and entries
+ */
+export const GetLarderResponse = zod.object({
+  total: zod.number(),
+  currency: zod.string(),
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      userId: zod.number(),
+      amount: zod.number(),
+      currency: zod.string(),
+      sourceType: zod.string(),
+      sourceId: zod.number().nullable(),
+      goalId: zod.number().nullable(),
+      note: zod.string().nullable(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Add an entry to the user's personal Larder
+ */
+export const addLarderEntryBodyAmountMin = 0.01;
+
+export const AddLarderEntryBody = zod.object({
+  amount: zod.number().min(addLarderEntryBodyAmountMin),
+  currency: zod.string(),
+  sourceType: zod.string(),
+  sourceId: zod.number().nullish(),
+  goalId: zod.number().nullish(),
+  note: zod.string().nullish(),
+});
+
+/**
+ * @summary Move money from personal Larder into a goal contribution
+ */
+export const larderDedicateToGoalBodyAmountMin = 0.01;
+
+export const LarderDedicateToGoalBody = zod.object({
+  goalId: zod.number(),
+  amount: zod.number().min(larderDedicateToGoalBodyAmountMin),
+});
+
+/**
+ * @summary Create a fund transaction and credit Larder with larderAmount
+ */
+export const larderFundBodyAmountMin = 0.01;
+
+export const larderFundBodyLarderAmountMin = 0.01;
+
+export const LarderFundBody = zod.object({
+  description: zod.string(),
+  amount: zod.number().min(larderFundBodyAmountMin),
+  larderAmount: zod.number().min(larderFundBodyLarderAmountMin),
+  categoryId: zod.number().nullish(),
+  date: zod.string().optional(),
+});
+
+/**
+ * @summary Get the household Great Larder total and entries (head/parent only)
+ */
+export const GetGreatLarderResponse = zod.object({
+  total: zod.number(),
+  currency: zod.string(),
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      householdId: zod.number(),
+      contributedByUserId: zod.number(),
+      contributorName: zod.string(),
+      amount: zod.number(),
+      currency: zod.string(),
+      sourceType: zod.string(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      transactionId: zod.number().nullable(),
+      note: zod.string().nullable(),
+      createdAt: zod.string(),
+    }),
+  ),
+  pendingCount: zod.number(),
+});
+
+/**
+ * @summary Transfer from personal Larder to the household Great Larder
+ */
+export const sendToGreatLarderBodyAmountMin = 0.01;
+
+export const sendToGreatLarderBodyPercentMax = 100;
+
+export const SendToGreatLarderBody = zod.object({
+  amount: zod.number().min(sendToGreatLarderBodyAmountMin).optional(),
+  percent: zod.number().min(1).max(sendToGreatLarderBodyPercentMax).optional(),
+});
+
+/**
+ * @summary Create a fund transaction for the Great Larder (head auto-approved; parents need approval)
+ */
+export const fundGreatLarderBodyAmountMin = 0.01;
+
+export const fundGreatLarderBodyLarderAmountMin = 0.01;
+
+export const FundGreatLarderBody = zod.object({
+  description: zod.string(),
+  amount: zod.number().min(fundGreatLarderBodyAmountMin),
+  larderAmount: zod.number().min(fundGreatLarderBodyLarderAmountMin),
+  categoryId: zod.number().nullish(),
+  date: zod.string().optional(),
+});
+
+/**
+ * @summary Head approves a pending Great Larder fund entry
+ */
+export const ApproveGreatLarderEntryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ApproveGreatLarderEntryResponse = zod.object({
+  id: zod.number(),
+  householdId: zod.number(),
+  contributedByUserId: zod.number(),
+  contributorName: zod.string(),
+  amount: zod.number(),
+  currency: zod.string(),
+  sourceType: zod.string(),
+  status: zod.enum(["pending", "approved", "rejected"]),
+  transactionId: zod.number().nullable(),
+  note: zod.string().nullable(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Head rejects a pending Great Larder fund entry
+ */
+export const RejectGreatLarderEntryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RejectGreatLarderEntryResponse = zod.object({
+  id: zod.number(),
+  householdId: zod.number(),
+  contributedByUserId: zod.number(),
+  contributorName: zod.string(),
+  amount: zod.number(),
+  currency: zod.string(),
+  sourceType: zod.string(),
+  status: zod.enum(["pending", "approved", "rejected"]),
+  transactionId: zod.number().nullable(),
+  note: zod.string().nullable(),
   createdAt: zod.string(),
 });
 

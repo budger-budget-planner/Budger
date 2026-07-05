@@ -17,12 +17,14 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddLarderEntryBody,
   ApplyRecurringPaymentBody,
   Category,
   CategoryInput,
   CategorySpending,
   CategoryUpdate,
   CurrencyConvertInput,
+  FundGreatLarderBody,
   GetGoalsSummaryParams,
   GetRecentActivityParams,
   GetSpendingSummaryParams,
@@ -32,6 +34,8 @@ import type {
   GoalInput,
   GoalSummary,
   GoalUpdate,
+  GreatLarderEntry,
+  GreatLarderSummary,
   HealthStatus,
   Household,
   HouseholdInput,
@@ -40,6 +44,12 @@ import type {
   Invite,
   InviteError,
   InviteInput,
+  LarderDedicateToGoal201,
+  LarderDedicateToGoalBody,
+  LarderEntry,
+  LarderFund201,
+  LarderFundBody,
+  LarderSummary,
   ListGoalContributionsParams,
   ListTransactionsParams,
   LoginInput,
@@ -62,6 +72,7 @@ import type {
   RegisterStartInput,
   RegisterStartOutput,
   SavePushSubscription200,
+  SendToGreatLarderBody,
   SetNotificationItemReadBody,
   Transaction,
   TransactionInput,
@@ -5430,6 +5441,747 @@ export const useApplyRecurringPayment = <
   TContext
 > => {
   return useMutation(getApplyRecurringPaymentMutationOptions(options));
+};
+
+/**
+ * @summary Get the current user's personal Larder total and entries
+ */
+export const getGetLarderUrl = () => {
+  return `/api/larder`;
+};
+
+export const getLarder = async (
+  options?: RequestInit,
+): Promise<LarderSummary> => {
+  return customFetch<LarderSummary>(getGetLarderUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLarderQueryKey = () => {
+  return [`/api/larder`] as const;
+};
+
+export const getGetLarderQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLarder>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getLarder>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLarderQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLarder>>> = ({
+    signal,
+  }) => getLarder({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLarder>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLarderQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLarder>>
+>;
+export type GetLarderQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the current user's personal Larder total and entries
+ */
+
+export function useGetLarder<
+  TData = Awaited<ReturnType<typeof getLarder>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getLarder>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLarderQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add an entry to the user's personal Larder
+ */
+export const getAddLarderEntryUrl = () => {
+  return `/api/larder/entries`;
+};
+
+export const addLarderEntry = async (
+  addLarderEntryBody: AddLarderEntryBody,
+  options?: RequestInit,
+): Promise<LarderEntry> => {
+  return customFetch<LarderEntry>(getAddLarderEntryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addLarderEntryBody),
+  });
+};
+
+export const getAddLarderEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addLarderEntry>>,
+    TError,
+    { data: BodyType<AddLarderEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addLarderEntry>>,
+  TError,
+  { data: BodyType<AddLarderEntryBody> },
+  TContext
+> => {
+  const mutationKey = ["addLarderEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addLarderEntry>>,
+    { data: BodyType<AddLarderEntryBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addLarderEntry(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddLarderEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addLarderEntry>>
+>;
+export type AddLarderEntryMutationBody = BodyType<AddLarderEntryBody>;
+export type AddLarderEntryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add an entry to the user's personal Larder
+ */
+export const useAddLarderEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addLarderEntry>>,
+    TError,
+    { data: BodyType<AddLarderEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addLarderEntry>>,
+  TError,
+  { data: BodyType<AddLarderEntryBody> },
+  TContext
+> => {
+  return useMutation(getAddLarderEntryMutationOptions(options));
+};
+
+/**
+ * @summary Move money from personal Larder into a goal contribution
+ */
+export const getLarderDedicateToGoalUrl = () => {
+  return `/api/larder/dedicate-to-goal`;
+};
+
+export const larderDedicateToGoal = async (
+  larderDedicateToGoalBody: LarderDedicateToGoalBody,
+  options?: RequestInit,
+): Promise<LarderDedicateToGoal201> => {
+  return customFetch<LarderDedicateToGoal201>(getLarderDedicateToGoalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(larderDedicateToGoalBody),
+  });
+};
+
+export const getLarderDedicateToGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderDedicateToGoal>>,
+    TError,
+    { data: BodyType<LarderDedicateToGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof larderDedicateToGoal>>,
+  TError,
+  { data: BodyType<LarderDedicateToGoalBody> },
+  TContext
+> => {
+  const mutationKey = ["larderDedicateToGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof larderDedicateToGoal>>,
+    { data: BodyType<LarderDedicateToGoalBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return larderDedicateToGoal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LarderDedicateToGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof larderDedicateToGoal>>
+>;
+export type LarderDedicateToGoalMutationBody =
+  BodyType<LarderDedicateToGoalBody>;
+export type LarderDedicateToGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Move money from personal Larder into a goal contribution
+ */
+export const useLarderDedicateToGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderDedicateToGoal>>,
+    TError,
+    { data: BodyType<LarderDedicateToGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof larderDedicateToGoal>>,
+  TError,
+  { data: BodyType<LarderDedicateToGoalBody> },
+  TContext
+> => {
+  return useMutation(getLarderDedicateToGoalMutationOptions(options));
+};
+
+/**
+ * @summary Create a fund transaction and credit Larder with larderAmount
+ */
+export const getLarderFundUrl = () => {
+  return `/api/larder/fund`;
+};
+
+export const larderFund = async (
+  larderFundBody: LarderFundBody,
+  options?: RequestInit,
+): Promise<LarderFund201> => {
+  return customFetch<LarderFund201>(getLarderFundUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(larderFundBody),
+  });
+};
+
+export const getLarderFundMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderFund>>,
+    TError,
+    { data: BodyType<LarderFundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof larderFund>>,
+  TError,
+  { data: BodyType<LarderFundBody> },
+  TContext
+> => {
+  const mutationKey = ["larderFund"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof larderFund>>,
+    { data: BodyType<LarderFundBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return larderFund(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LarderFundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof larderFund>>
+>;
+export type LarderFundMutationBody = BodyType<LarderFundBody>;
+export type LarderFundMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a fund transaction and credit Larder with larderAmount
+ */
+export const useLarderFund = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderFund>>,
+    TError,
+    { data: BodyType<LarderFundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof larderFund>>,
+  TError,
+  { data: BodyType<LarderFundBody> },
+  TContext
+> => {
+  return useMutation(getLarderFundMutationOptions(options));
+};
+
+/**
+ * @summary Get the household Great Larder total and entries (head/parent only)
+ */
+export const getGetGreatLarderUrl = () => {
+  return `/api/great-larder`;
+};
+
+export const getGreatLarder = async (
+  options?: RequestInit,
+): Promise<GreatLarderSummary> => {
+  return customFetch<GreatLarderSummary>(getGetGreatLarderUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGreatLarderQueryKey = () => {
+  return [`/api/great-larder`] as const;
+};
+
+export const getGetGreatLarderQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGreatLarder>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGreatLarder>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGreatLarderQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGreatLarder>>> = ({
+    signal,
+  }) => getGreatLarder({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGreatLarder>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGreatLarderQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGreatLarder>>
+>;
+export type GetGreatLarderQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the household Great Larder total and entries (head/parent only)
+ */
+
+export function useGetGreatLarder<
+  TData = Awaited<ReturnType<typeof getGreatLarder>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGreatLarder>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGreatLarderQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Transfer from personal Larder to the household Great Larder
+ */
+export const getSendToGreatLarderUrl = () => {
+  return `/api/great-larder/send`;
+};
+
+export const sendToGreatLarder = async (
+  sendToGreatLarderBody: SendToGreatLarderBody,
+  options?: RequestInit,
+): Promise<GreatLarderEntry> => {
+  return customFetch<GreatLarderEntry>(getSendToGreatLarderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sendToGreatLarderBody),
+  });
+};
+
+export const getSendToGreatLarderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendToGreatLarder>>,
+    TError,
+    { data: BodyType<SendToGreatLarderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendToGreatLarder>>,
+  TError,
+  { data: BodyType<SendToGreatLarderBody> },
+  TContext
+> => {
+  const mutationKey = ["sendToGreatLarder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendToGreatLarder>>,
+    { data: BodyType<SendToGreatLarderBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendToGreatLarder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendToGreatLarderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendToGreatLarder>>
+>;
+export type SendToGreatLarderMutationBody = BodyType<SendToGreatLarderBody>;
+export type SendToGreatLarderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Transfer from personal Larder to the household Great Larder
+ */
+export const useSendToGreatLarder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendToGreatLarder>>,
+    TError,
+    { data: BodyType<SendToGreatLarderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendToGreatLarder>>,
+  TError,
+  { data: BodyType<SendToGreatLarderBody> },
+  TContext
+> => {
+  return useMutation(getSendToGreatLarderMutationOptions(options));
+};
+
+/**
+ * @summary Create a fund transaction for the Great Larder (head auto-approved; parents need approval)
+ */
+export const getFundGreatLarderUrl = () => {
+  return `/api/great-larder/fund`;
+};
+
+export const fundGreatLarder = async (
+  fundGreatLarderBody: FundGreatLarderBody,
+  options?: RequestInit,
+): Promise<GreatLarderEntry> => {
+  return customFetch<GreatLarderEntry>(getFundGreatLarderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(fundGreatLarderBody),
+  });
+};
+
+export const getFundGreatLarderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fundGreatLarder>>,
+    TError,
+    { data: BodyType<FundGreatLarderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fundGreatLarder>>,
+  TError,
+  { data: BodyType<FundGreatLarderBody> },
+  TContext
+> => {
+  const mutationKey = ["fundGreatLarder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fundGreatLarder>>,
+    { data: BodyType<FundGreatLarderBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return fundGreatLarder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FundGreatLarderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof fundGreatLarder>>
+>;
+export type FundGreatLarderMutationBody = BodyType<FundGreatLarderBody>;
+export type FundGreatLarderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a fund transaction for the Great Larder (head auto-approved; parents need approval)
+ */
+export const useFundGreatLarder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fundGreatLarder>>,
+    TError,
+    { data: BodyType<FundGreatLarderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof fundGreatLarder>>,
+  TError,
+  { data: BodyType<FundGreatLarderBody> },
+  TContext
+> => {
+  return useMutation(getFundGreatLarderMutationOptions(options));
+};
+
+/**
+ * @summary Head approves a pending Great Larder fund entry
+ */
+export const getApproveGreatLarderEntryUrl = (id: number) => {
+  return `/api/great-larder/entries/${id}/approve`;
+};
+
+export const approveGreatLarderEntry = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GreatLarderEntry> => {
+  return customFetch<GreatLarderEntry>(getApproveGreatLarderEntryUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getApproveGreatLarderEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveGreatLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveGreatLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["approveGreatLarderEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveGreatLarderEntry>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return approveGreatLarderEntry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveGreatLarderEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveGreatLarderEntry>>
+>;
+
+export type ApproveGreatLarderEntryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Head approves a pending Great Larder fund entry
+ */
+export const useApproveGreatLarderEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveGreatLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveGreatLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getApproveGreatLarderEntryMutationOptions(options));
+};
+
+/**
+ * @summary Head rejects a pending Great Larder fund entry
+ */
+export const getRejectGreatLarderEntryUrl = (id: number) => {
+  return `/api/great-larder/entries/${id}/reject`;
+};
+
+export const rejectGreatLarderEntry = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GreatLarderEntry> => {
+  return customFetch<GreatLarderEntry>(getRejectGreatLarderEntryUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRejectGreatLarderEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectGreatLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectGreatLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["rejectGreatLarderEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectGreatLarderEntry>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rejectGreatLarderEntry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectGreatLarderEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectGreatLarderEntry>>
+>;
+
+export type RejectGreatLarderEntryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Head rejects a pending Great Larder fund entry
+ */
+export const useRejectGreatLarderEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectGreatLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectGreatLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRejectGreatLarderEntryMutationOptions(options));
 };
 
 /**

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
+import LarderTab from "@/pages/LarderTab";
 import {
   useListGoals,
   useListPastGoals,
@@ -754,6 +755,8 @@ export default function GoalsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
 
+  const [activeTab, setActiveTab] = useState<"goals" | "larder">("goals");
+
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
     fetchRates().then(setRates);
@@ -973,6 +976,30 @@ export default function GoalsPage() {
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
+
+      {/* ── Tab bar ── */}
+      <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-5">
+        {(["goals", "larder"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
+              activeTab === tab
+                ? "bg-foreground text-background shadow"
+                : "text-muted-foreground"
+            }`}
+          >
+            {tab === "goals" ? t("goals.tab_goals") : t("goals.tab_larder")}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Larder tab ── */}
+      {activeTab === "larder" && <LarderTab />}
+
+      {/* ── Goals tab content ── */}
+      {activeTab === "goals" && <>
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold">{t("goals.title")}</h1>
@@ -1450,6 +1477,7 @@ export default function GoalsPage() {
           </form>
         </DialogContent>
       </Dialog>
+      </>}
     </div>
   );
 }

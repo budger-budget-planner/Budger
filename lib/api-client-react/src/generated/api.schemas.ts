@@ -518,6 +518,7 @@ export interface RecurringPayment {
   amount: number;
   /** @nullable */
   dayOfMonth: number | null;
+  addToLarder: boolean;
   appliedThisMonth: boolean;
   /** @nullable */
   transactionId: number | null;
@@ -545,6 +546,7 @@ export interface RecurringPaymentInput {
    * @nullable
    */
   dayOfMonth?: number | null;
+  addToLarder?: boolean;
 }
 
 export type RecurringPaymentUpdateType =
@@ -563,6 +565,60 @@ export interface RecurringPaymentUpdate {
   amount?: number;
   /** @nullable */
   dayOfMonth?: number | null;
+  addToLarder?: boolean;
+}
+
+export interface LarderEntry {
+  id: number;
+  userId: number;
+  amount: number;
+  currency: string;
+  sourceType: string;
+  /** @nullable */
+  sourceId: number | null;
+  /** @nullable */
+  goalId: number | null;
+  /** @nullable */
+  note: string | null;
+  createdAt: string;
+}
+
+export interface LarderSummary {
+  total: number;
+  currency: string;
+  entries: LarderEntry[];
+}
+
+export type GreatLarderEntryStatus =
+  (typeof GreatLarderEntryStatus)[keyof typeof GreatLarderEntryStatus];
+
+export const GreatLarderEntryStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface GreatLarderEntry {
+  id: number;
+  householdId: number;
+  contributedByUserId: number;
+  contributorName: string;
+  amount: number;
+  currency: string;
+  sourceType: string;
+  status: GreatLarderEntryStatus;
+  /** @nullable */
+  transactionId: number | null;
+  /** @nullable */
+  note: string | null;
+  createdAt: string;
+}
+
+export interface GreatLarderSummary {
+  total: number;
+  currency: string;
+  entries: GreatLarderEntry[];
+  pendingCount: number;
 }
 
 export type ListTransactionsParams = {
@@ -606,5 +662,68 @@ export type GetRecentActivityParams = {
 
 export type ApplyRecurringPaymentBody = {
   /** ISO date string (YYYY-MM-DD) for the transaction; defaults to today (server time) if omitted */
+  date?: string;
+};
+
+export type AddLarderEntryBody = {
+  /** @minimum 0.01 */
+  amount: number;
+  currency: string;
+  sourceType: string;
+  /** @nullable */
+  sourceId?: number | null;
+  /** @nullable */
+  goalId?: number | null;
+  /** @nullable */
+  note?: string | null;
+};
+
+export type LarderDedicateToGoalBody = {
+  goalId: number;
+  /** @minimum 0.01 */
+  amount: number;
+};
+
+export type LarderDedicateToGoal201 = {
+  success: boolean;
+  contributionId: number;
+  newLarderTotal: number;
+};
+
+export type LarderFundBody = {
+  description: string;
+  /** @minimum 0.01 */
+  amount: number;
+  /** @minimum 0.01 */
+  larderAmount: number;
+  /** @nullable */
+  categoryId?: number | null;
+  date?: string;
+};
+
+export type LarderFund201 = {
+  transactionId: number;
+  larderEntryId: number;
+  larderAmount: number;
+};
+
+export type SendToGreatLarderBody = {
+  /** @minimum 0.01 */
+  amount?: number;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  percent?: number;
+};
+
+export type FundGreatLarderBody = {
+  description: string;
+  /** @minimum 0.01 */
+  amount: number;
+  /** @minimum 0.01 */
+  larderAmount: number;
+  /** @nullable */
+  categoryId?: number | null;
   date?: string;
 };

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable } from "@workspace/db";
+import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, larderEntriesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { syncTotalBudgetFloor } from "../lib/budget-sync";
 
@@ -90,6 +90,19 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
       monthKey,
       transactionId: tx.id,
     }).onConflictDoNothing();
+
+    // If addToLarder is set, credit the user's personal Larder with the full payment amount
+    if (rp.addToLarder) {
+      const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
+      await db.insert(larderEntriesTable).values({
+        userId,
+        amount: rp.amount,
+        currency: user?.currency ?? "USD",
+        sourceType: "recurring_payment",
+        sourceId: tx.id,
+        note: rp.name,
+      }).onConflictDoNothing();
+    }
   }
 }
 
@@ -103,6 +116,7 @@ function formatRP(rp: any, appliedThisMonth: boolean, transactionId: number | nu
     type: rp.type,
     amount: parseFloat(rp.amount),
     dayOfMonth: rp.dayOfMonth ?? null,
+    addToLarder: rp.addToLarder ?? false,
     appliedThisMonth,
     transactionId,
     createdAt: rp.createdAt instanceof Date ? rp.createdAt.toISOString() : rp.createdAt,
@@ -133,7 +147,7 @@ router.post("/recurring-payments", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { name, color, type, amount, dayOfMonth } = req.body;
+  const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     res.status(400).json({ error: "name is required" }); return;
@@ -163,6 +177,7 @@ router.post("/recurring-payments", async (req, res): Promise<void> => {
     type,
     amount: String(amount),
     dayOfMonth: type === "scheduled" ? dayOfMonth : null,
+    addToLarder: addToLarder === true,
   }).returning();
 
   await syncTotalBudgetFloor(userId);
@@ -183,7 +198,7 @@ router.patch("/recurring-payments/:id", async (req, res): Promise<void> => {
     .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  const { name, color, type, amount, dayOfMonth } = req.body;
+  const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
   const updates: Record<string, any> = {};
 
   if (name !== undefined) {
@@ -204,6 +219,9 @@ router.patch("/recurring-payments/:id", async (req, res): Promise<void> => {
       res.status(400).json({ error: "dayOfMonth must be 1-31 or null" }); return;
     }
     updates.dayOfMonth = dayOfMonth;
+  }
+  if (addToLarder !== undefined) {
+    updates.addToLarder = addToLarder === true;
   }
 
   // Validate resulting state: scheduled always needs a valid dayOfMonth

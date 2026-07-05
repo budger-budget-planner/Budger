@@ -18,6 +18,7 @@ export interface RecurringPayment {
   amount: number;
   /** @nullable */
   dayOfMonth: number | null;
+  addToLarder: boolean;
   appliedThisMonth: boolean;
   /** @nullable */
   transactionId: number | null;
