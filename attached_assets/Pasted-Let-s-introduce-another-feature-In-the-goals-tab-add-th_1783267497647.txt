@@ -1,0 +1,45 @@
+Let's introduce another feature. In the goals tab add the header saying "Larder" (Spiżarnia in polish). There user will have a singular field, where some amounts will be added to present users savings. Keep this field in onyx-shiny-black color. You can add an animation of a slight glow/shine to make it look precious, gem alike. Additionally, upon opening the goals tab user should see a glowing animation happening at the bottom of his screen (top of the tabs navigation strip) to indicate that something precious is hidden below. While he scrolls animation smoothly transitions to the Larder glowing field 
+
+Here's how you can dedicate amounts to Larder: 
+
+1. During reoccurring payments creation/edition lets add a toggle add to larder. When such reoccurring payment happens it is added to total monthly spendings but also added to a Larder sum. 
+2. During edition of tasks, when you click on dedicate to goals, for every user Larder should be hardcoded as the first choice, always. Moreover, it should have a star icon instead of a circle/dot. So, users can send money to Larder just like they send it to the goal. 
+3. When clicking upon the goal field in goals tab (either not completed or completed/past goal) there should be a button saying SAVE. If clicked a pop up window appears with an input field - just like for some other fields user should be able to save a precise amount or should be able to save a percent of a goal. If goal is completed it receives a badge saying stored in Larder. If it is not completed the amount sent to Larder gets subtracted form that goal and no label is added. 
+Upon deletion of the goal from which money was dedicated to the Larder, the amounts do not vanish, they stay in Larder as they were (as if someone resigned from the goal and dedicated that money to their savings)
+
+When it comes to Larder field it should have a „Dedicate to a goal” button that works exactly like the functionality from edit/create record in home tab (choose a goal, choose amount you want to dedicate - only this way, no toggle saying dedicate all). Also, should have a button called fund. This would open create record just like the one in home tab and user will be able to create a record that is being added to home tab records list. What is special about such record is that it appears with an onyx-colored (so black but make it shiny) badge saying „From Larder”. Such a record does not count to any of the total spendings in the app (do not include it either in main spendings counter at home tab, or in dashboard tab, do not include it in donut chart, do not include it in household spendings presented right away or in the ones presented in personalized dashboards in household tab) as it is funded from the money from the Larder and not monthly total budget. 
+
+Larder savings sum should be in currency set by the user in preferences tab and should be converted when this setting is changed. Larder is a personal space for each user - it is account bound and never to be shared or carried over. For household members we will proceed the following way:
+
+For the household members there should also be visible a button saying send to the Great Larder, clones options from dedicate to goal: has a toggle to send entire Larder amount to the Great Larder, or a part of it, which can be established by entering amount or dedicating a percent of the amount saved in user’s Larder. If user dedicates a certain amount, it sends it to the Great Larder and updates the amount in users Larder. the If user chooses to dedicate a percent of his Larder savings, it’s being calculated, subtracted from users Larder and sent to the Greater Larder. Additionally, this amount should be updated everytime when user updates the total amount collected in the Larder. 
+
+The Great Larder (polish - Wielka Spiżarnia) is a common Larder for a household. There Household members can see how much money they have as their savings. the Great Larder is placed in household tab, right at the bottom. The same principles apply when it comes to visuals, user should see the shiny, glowy bottom until they scroll down to see the Great Larder field that has this shiny effect constantly. When it comes to visibility, family Larder should be visible only to head of the household and parent, ward should not see the Great Larder. The way it works it that it displays the sum amount of money that individual users dedicated to the Great Larder. Remember, these individual contributions can be sent in different currencies so they have to be converted to the currency that viewer has set in his account. 
+
+When it comes to buttons on Great Larder: both parents and head of the household can see „fund” button. They can use it just as on their personal Larder, but before transaction gets added to their individual transactions list, head of the household has to approve it, just like they approve goals proposals and goals edits. These notifications should land in Notification Center, as well as be displayed right below the Great Larder in household tab and make the household tab icon highlight pink. When head approves transaction is added. When head declines, notification lands only in Notification Center of a parent, notifying about the rejection. Then, contrary to fund, only head of the household can see Dedicate to goal button. When it is clicked, it works just like the one on personal Larder, but the rule is that the Great Larder savings can only be dedicated to support Household Goals. Meaning no personal goal should be available to be supported from the Great Larder. Also, when the Great Larder amount is changing (either increasing or decreasing) parents and head of household should be notified via Notification Center. 
+
+This is a big overhaul so plan this in steps and record a checkpoint after realizing each. Let me know what steps you will come up with so I know where you are in this process. Also, when you complete each set, let me know if you have enough credits to complete the next step, and ask to me to confirm if you can proceed. 
+
+Execute. 
+
+Plan: Larder & Great Larder
+Step 1 — DB Schema (doing now)
+* New larder_entries table (personal savings ledger)
+* New great_larder_entries table (household savings ledger, with approval status)
+* Add add_to_larder column to recurring_payments
+* Add larder_amount column to transactions (for the "Fund" flow where only a portion of a spend goes to Larder)
+Step 2 — API Routes (after your go-ahead)
+* Larder: GET total/entries, POST entries from recurring/goals/fund
+* Great Larder: GET, POST send-from-personal, POST fund (pending), POST approve/reject
+Step 3 — Goals Tab: Larder UI (after your go-ahead)
+* Larder card with onyx/glow/shine effect
+* Glowing pulse animation at the bottom of the screen until scrolled into view
+* "Dedicate to goal" and "Fund" buttons
+Step 4 — Integrate into existing flows (after your go-ahead)
+* Recurring payments: "Add to Larder" toggle
+* Dedicate-to-goals: Larder first with ★ icon
+* Goal detail: SAVE button, % or amount modal, badge on completed goals, amounts persist on goal deletion
+Step 5 — Household: Great Larder (after your go-ahead)
+* Great Larder card at the bottom of the Household tab with same visual treatment
+* "Send to Great Larder" on personal Larder
+* Pending fund approvals below Great Larder card
+* Household tab icon badge + Notification Center entries for pending approvals
