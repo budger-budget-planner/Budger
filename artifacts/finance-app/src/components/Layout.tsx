@@ -682,7 +682,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Ocean wave glow — Goals & Household tabs only; opacity scales with scroll, fades when Larder/GL card reached */}
+      {/* Ocean wave glow — Goals & Household tabs only; base beams scale with scroll for crescendo effect */}
       <style>{`
         @keyframes nw1{0%{transform:translateX(-120px);opacity:0}12%{opacity:.85}88%{opacity:.85}100%{transform:translateX(110vw);opacity:0}}
         @keyframes nw2{0%{transform:translateX(110vw);opacity:0}15%{opacity:.60}85%{opacity:.60}100%{transform:translateX(-90px);opacity:0}}
@@ -692,24 +692,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         @keyframes nw6{0%{transform:translateX(80vw);opacity:.15}45%{opacity:.55;transform:translateX(20vw)}100%{transform:translateX(80vw);opacity:.15}}
       `}</style>
       {/* Wave beams — fixed, sit just above the nav bar top border */}
-      <div
-        className="fixed bottom-16 inset-x-0 overflow-visible pointer-events-none"
-        style={{
-          height: 0,
-          zIndex: 41,
-          opacity: (location === '/goals' || location === '/household') && !larderReached
-            ? Math.min(1, 0.4 + 0.6 * waveIntensity)
-            : 0,
-          transition: "opacity 0.8s ease",
-        }}
-      >
-        <div style={{ position:"absolute", top:"-5px", left:0, width:"110px", height:"10px", background:"radial-gradient(ellipse 55px 5px at center, rgba(255,255,255,0.78) 0%, transparent 100%)", animation:"nw1 7s ease-in-out 0s infinite" }} />
-        <div style={{ position:"absolute", top:"-4px", left:0, width:"80px",  height:"8px",  background:"radial-gradient(ellipse 40px 4px at center, rgba(255,255,255,0.50) 0%, transparent 100%)", animation:"nw2 9s ease-in-out 1.2s infinite" }} />
-        <div style={{ position:"absolute", top:"-5px", left:0, width:"95px",  height:"10px", background:"radial-gradient(ellipse 47px 5px at center, rgba(255,255,255,0.42) 0%, transparent 100%)", animation:"nw3 5.5s ease-in-out 0s infinite" }} />
-        <div style={{ position:"absolute", top:"-4px", left:0, width:"70px",  height:"8px",  background:"radial-gradient(ellipse 35px 4px at center, rgba(255,255,255,0.60) 0%, transparent 100%)", animation:"nw4 8s ease-in-out 2.5s infinite" }} />
-        <div style={{ position:"absolute", top:"-6px", left:0, width:"55px",  height:"12px", background:"radial-gradient(ellipse 27px 6px at center, rgba(255,255,255,0.35) 0%, transparent 100%)", animation:"nw5 6.5s ease-in-out 4s infinite" }} />
-        <div style={{ position:"absolute", top:"-3px", left:0, width:"65px",  height:"6px",  background:"radial-gradient(ellipse 32px 3px at center, rgba(255,255,255,0.45) 0%, transparent 100%)", animation:"nw6 7.5s ease-in-out 5.5s infinite" }} />
-      </div>
+      {(() => {
+        const wi = waveIntensity;
+        const isWaveOn = (location === '/goals' || location === '/household') && !larderReached;
+        return (
+          <div
+            className="fixed bottom-16 inset-x-0 overflow-visible pointer-events-none"
+            style={{ height:0, zIndex:41, opacity: isWaveOn ? Math.min(1, 0.4 + 0.6 * wi) : 0, transition:"opacity 0.8s ease" }}
+          >
+            {/* ── Base beams — size + brightness scales with scroll ── */}
+            <div style={{ position:"absolute", top:`${-5 - 13*wi}px`, left:0, width:`${110 + 100*wi}px`, height:`${10 + 18*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.78 + 0.18*wi}) 0%, transparent 100%)`, animation:"nw1 7s ease-in-out 0s infinite" }} />
+            <div style={{ position:"absolute", top:`${-4 - 10*wi}px`, left:0, width:`${80  + 80*wi}px`,  height:`${8  + 14*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.50 + 0.30*wi}) 0%, transparent 100%)`, animation:"nw2 9s ease-in-out 1.2s infinite" }} />
+            <div style={{ position:"absolute", top:`${-5 - 11*wi}px`, left:0, width:`${95  + 90*wi}px`,  height:`${10 + 16*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.42 + 0.28*wi}) 0%, transparent 100%)`, animation:"nw3 5.5s ease-in-out 0s infinite" }} />
+            <div style={{ position:"absolute", top:`${-4 - 9*wi}px`,  left:0, width:`${70  + 75*wi}px`,  height:`${8  + 14*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.60 + 0.22*wi}) 0%, transparent 100%)`, animation:"nw4 8s ease-in-out 2.5s infinite" }} />
+            <div style={{ position:"absolute", top:`${-6 - 13*wi}px`, left:0, width:`${55  + 70*wi}px`,  height:`${12 + 20*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.35 + 0.35*wi}) 0%, transparent 100%)`, animation:"nw5 6.5s ease-in-out 4s infinite" }} />
+            <div style={{ position:"absolute", top:`${-3 - 8*wi}px`,  left:0, width:`${65  + 80*wi}px`,  height:`${6  + 12*wi}px`, background:`radial-gradient(ellipse at center, rgba(255,255,255,${0.45 + 0.25*wi}) 0%, transparent 100%)`, animation:"nw6 7.5s ease-in-out 5.5s infinite" }} />
+            {/* ── Crescendo power beams — emerge as user scrolls ── */}
+            <div style={{ position:"absolute", top:`${-8 - 18*wi}px`, left:0, width:`${200 + 80*wi}px`, height:`${26 + 22*wi}px`, background:"radial-gradient(ellipse at center, rgba(255,255,255,0.95) 0%, transparent 100%)", animation:"nw1 5s ease-in-out 0.5s infinite", opacity:Math.min(1, wi * 1.4) }} />
+            <div style={{ position:"absolute", top:`${-6 - 14*wi}px`, left:0, width:`${165 + 90*wi}px`, height:`${20 + 18*wi}px`, background:"radial-gradient(ellipse at center, rgba(255,228,100,0.88) 0%, transparent 100%)", animation:"nw3 6s ease-in-out 2s infinite",   opacity:Math.min(1, wi * 1.3) }} />
+            <div style={{ position:"absolute", top:`${-5 - 12*wi}px`, left:0, width:`${145 + 80*wi}px`, height:`${17 + 16*wi}px`, background:"radial-gradient(ellipse at center, rgba(255,255,255,0.90) 0%, transparent 100%)", animation:"nw4 7s ease-in-out 4s infinite",   opacity:Math.min(1, wi * 1.2) }} />
+            <div style={{ position:"absolute", top:`${-9 - 20*wi}px`, left:0, width:`${255 + 80*wi}px`, height:`${34 + 22*wi}px`, background:"radial-gradient(ellipse at center, rgba(255,242,170,0.72) 0%, transparent 100%)", animation:"nw2 8s ease-in-out 1s infinite",   opacity:Math.min(1, wi) }} />
+          </div>
+        );
+      })()}
 
       {/* ── Bottom navigation — 5 tabs evenly spaced ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 h-16
