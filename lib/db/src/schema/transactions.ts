@@ -36,6 +36,11 @@ export const transactionsTable = pgTable("transactions", {
   foundedWithRealizedGoal: boolean("founded_with_realized_goal").notNull().default(false),
   /** ID of the recurring payment that created this transaction (if any) */
   recurringPaymentId: integer("recurring_payment_id"),
+  /** Amount of this transaction that was earmarked for the user's Larder (personal savings).
+   *  Only set for 'larder_fund' transactions. Null for regular transactions. */
+  larderAmount: numeric("larder_amount", { precision: 12, scale: 2 }),
+  /** When true this transaction was created via the Larder "Fund" flow */
+  isLarderFund: boolean("is_larder_fund").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
