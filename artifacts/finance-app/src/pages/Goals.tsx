@@ -1255,7 +1255,7 @@ export default function GoalsPage() {
   return (
     <>
 
-    <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
+    <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto anim-in">
 
       {/* ── Goals content ── */}
       <>

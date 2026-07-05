@@ -1537,8 +1537,8 @@ export default function HomeSpending() {
                               {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasFromLarder && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/20 bg-black text-[10px] font-semibold text-white/90"
-                                      style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 0 0 0.5px rgba(255,255,255,0.08)" }}>
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
+                                      style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}>
                                       <Warehouse className="w-2 h-2" />
                                       ze Spiżarni
                                     </span>
@@ -1583,7 +1583,13 @@ export default function HomeSpending() {
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
                               {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  {hasFromLarder  && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 dot-spark" style={{ background:"radial-gradient(circle at 72% 28%, #2e2e2e 0%, #080808 55%)", border:"0.5px solid rgba(255,255,255,0.32)" }} />}
+                                  {hasFromLarder  && (
+                                    <span className="relative flex-shrink-0 inline-block" style={{ width:10, height:10, animation:"gemFlash 2.6s ease-in-out infinite" }}>
+                                      <span style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:1, height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.95), transparent)" }} />
+                                      <span style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:1, background:"linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent)" }} />
+                                      <span style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2.5, height:2.5, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.85)" }} />
+                                    </span>
+                                  )}
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
                                   {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
                                   {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}

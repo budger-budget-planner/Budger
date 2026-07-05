@@ -11,16 +11,6 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   transition: none !important;
 }
 
-/* ── "ze Spiżarni" dot spark animation ── */
-@keyframes dotSpark {
-  0%   { box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12), 0 0 0px 0px rgba(255,255,255,0); }
-  30%  { box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.40), 0 0 5px 3px rgba(255,255,255,0.72); }
-  60%  { box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.20), 0 0 2px 1px rgba(255,255,255,0.28); }
-  100% { box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12), 0 0 0px 0px rgba(255,255,255,0); }
-}
-.dot-spark {
-  animation: dotSpark 2.6s ease-in-out infinite;
-}
 
 /* ── Login screen entrance animations ── */
 @keyframes login-enter {
@@ -346,3 +336,12 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 .anim-delay-1 { animation-delay: 80ms; }
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
+
+/* ── Global diamond-spark keyframe (used by "from Larder" dot in transactions) ── */
+@keyframes gemFlash {
+  0%   { opacity: 0; transform: scale(0.15) rotate(0deg); }
+  25%  { opacity: 1; transform: scale(1)    rotate(0deg); }
+  55%  { opacity: 0.45; transform: scale(0.8) rotate(45deg); }
+  75%  { opacity: 0.9; transform: scale(1)    rotate(0deg); }
+  100% { opacity: 0; transform: scale(0.15) rotate(0deg); }
+}

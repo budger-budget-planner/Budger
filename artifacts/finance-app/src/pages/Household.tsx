@@ -822,7 +822,7 @@ export default function HouseholdPage() {
   }
 
   return (
-    <div className="pb-28">
+    <div className="pb-28 anim-in">
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
