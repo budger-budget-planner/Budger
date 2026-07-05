@@ -978,6 +978,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: all
+          in: query
+          description: When "true" (and goalId is set), returns all-time contributions for that goal, ignoring the month filter.
+          schema:
+            type: string
       responses:
         "200":
           description: List of contributions
@@ -1265,6 +1270,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LarderEntry"
+
+  /larder/entries/{id}:
+    delete:
+      operationId: deleteLarderEntry
+      tags: [larder]
+      summary: Delete one of the current user's own Larder entries
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /larder/save-from-goal:
+    post:
+      operationId: larderSaveFromGoal
+      tags: [larder]
+      summary: Move money out of a goal's contributed progress and into the user's personal Larder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goalId, amount]
+              properties:
+                goalId:
+                  type: integer
+                amount:
+                  type: number
+                  minimum: 0.01
+      responses:
+        "201":
+          description: Saved to Larder
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  larderEntryId:
+                    type: integer
+                  newLarderTotal:
+                    type: number
+                required: [success, larderEntryId, newLarderTotal]
 
   /larder/dedicate-to-goal:
     post:

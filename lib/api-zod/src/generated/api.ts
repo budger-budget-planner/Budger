@@ -1121,6 +1121,12 @@ export const DeleteGoalParams = zod.object({
 export const ListGoalContributionsQueryParams = zod.object({
   month: zod.coerce.string().optional(),
   goalId: zod.coerce.number().optional(),
+  all: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      'When \"true\" (and goalId is set), returns all-time contributions for that goal, ignoring the month filter.',
+    ),
 });
 
 export const ListGoalContributionsResponseItem = zod.object({
@@ -1464,6 +1470,23 @@ export const AddLarderEntryBody = zod.object({
   sourceId: zod.number().nullish(),
   goalId: zod.number().nullish(),
   note: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete one of the current user's own Larder entries
+ */
+export const DeleteLarderEntryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Move money out of a goal's contributed progress and into the user's personal Larder
+ */
+export const larderSaveFromGoalBodyAmountMin = 0.01;
+
+export const LarderSaveFromGoalBody = zod.object({
+  goalId: zod.number(),
+  amount: zod.number().min(larderSaveFromGoalBodyAmountMin),
 });
 
 /**

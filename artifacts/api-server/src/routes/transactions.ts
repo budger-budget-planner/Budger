@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable, larderEntriesTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
@@ -188,6 +188,11 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
   // goal progress bars and totals stay accurate.
   await db.delete(goalContributionsTable)
     .where(eq(goalContributionsTable.transactionId, params.data.id));
+
+  // Remove any Larder entry created by dedicating this transaction straight
+  // to the Larder, so the Larder balance stays accurate.
+  await db.delete(larderEntriesTable)
+    .where(and(eq(larderEntriesTable.sourceType, "transaction_dedication"), eq(larderEntriesTable.sourceId, params.data.id)));
 
   // If this transaction was created by a recurring payment auto-apply, remove
   // the log entry so the recurring payment becomes applicable again this month.

@@ -75,6 +75,79 @@ router.post("/larder/entries", async (req, res): Promise<void> => {
   res.status(201).json(fmtEntry(entry));
 });
 
+// DELETE /larder/entries/:id — remove one of the current user's own entries
+// (used by the client to resync transaction-dedication entries on edit/delete)
+router.delete("/larder/entries/:id", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [entry] = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.id, id));
+  if (!entry || entry.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
+  await db.delete(larderEntriesTable).where(eq(larderEntriesTable.id, id));
+  res.sendStatus(204);
+});
+
+// POST /larder/save-from-goal — move money OUT of a goal's contributed progress
+// and INTO the user's personal Larder. Reduces the goal's tracked progress by
+// inserting an offsetting negative contribution (mirrors dedicate-to-goal's pattern).
+router.post("/larder/save-from-goal", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const { goalId, amount } = req.body;
+  if (!goalId || typeof goalId !== "number") {
+    res.status(400).json({ error: "goalId is required" }); return;
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const currency = user?.currency ?? "USD";
+
+  // Only let a user save out of the amount THEY contributed to this goal
+  const myContribs = await db.select().from(goalContributionsTable)
+    .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
+  const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
+  if (amount > myTotal + 0.001) {
+    res.status(400).json({ error: "Amount exceeds what you contributed to this goal" }); return;
+  }
+
+  // Offset the goal's progress with a negative contribution in the same accounting currency
+  await db.insert(goalContributionsTable).values({
+    goalId,
+    amount: String(-amount),
+    currency: goal.currency ?? currency,
+    accountAmount: String(-amount),
+    accountCurrency: currency,
+    month: currentMonth(),
+    userId,
+    householdId: goal.householdId ?? null,
+  });
+
+  // Credit the user's Larder
+  const [entry] = await db.insert(larderEntriesTable).values({
+    userId,
+    amount: String(amount),
+    currency,
+    sourceType: "goal_save",
+    goalId,
+    note: `Saved from goal: ${goal.name}`,
+  }).returning();
+
+  const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+  const newLarderTotal = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+
+  res.status(201).json({ success: true, larderEntryId: entry.id, newLarderTotal });
+});
+
 // POST /larder/dedicate-to-goal — move money from Larder into a goal contribution
 router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;

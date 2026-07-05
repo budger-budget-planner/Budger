@@ -23,9 +23,13 @@ import {
   getListGoalContributionsQueryKey,
   getGetGoalsSummaryQueryKey,
   getListGoalsQueryKey,
+  useGetLarder,
+  getGetLarderQueryKey,
+  useAddLarderEntry,
+  useDeleteLarderEntry,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,21 +95,23 @@ function TxForm({
                 </span>
               </SelectItem>
             ))}
-            {goals.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t border-border mt-1 pt-2">
-                  {t("tx.goals_group")}
-                </div>
-                {goals.map(g => (
-                  <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
-                      {g.name} ({t("tx.goal")})
-                    </span>
-                  </SelectItem>
-                ))}
-              </>
-            )}
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t border-border mt-1 pt-2">
+              {t("tx.goals_group")}
+            </div>
+            <SelectItem value="goal_larder">
+              <span className="flex items-center gap-2">
+                <Star className="w-3 h-3 flex-shrink-0" />
+                {t("larder.tab")}
+              </span>
+            </SelectItem>
+            {goals.map(g => (
+              <SelectItem key={`goal_${g.id}`} value={`goal_${g.id}`}>
+                <span className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                  {g.name} ({t("tx.goal")})
+                </span>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -145,10 +151,14 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
 
   const { data: existingContribs } = useListGoalContributions(
     { month: currentMonth },
-    { query: { enabled: goals.length > 0, queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) } }
+    { query: { queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) } }
   );
+  const { data: larderSummary } = useGetLarder();
 
   const txContribs = (existingContribs ?? []).filter(c => c.transactionId === tx.id);
+  const txLarderEntries = (larderSummary?.entries ?? []).filter(
+    e => e.sourceType === "transaction_dedication" && e.sourceId === tx.id && e.amount > 0,
+  );
 
   const [goalId, setGoalId]     = useState("");
   const [amount, setAmount]     = useState("");
@@ -174,20 +184,45 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
     },
   });
 
-  if (goals.length === 0) return null;
+  const addLarderEntry = useAddLarderEntry({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+        setGoalId(""); setAmount(""); setSaving(false);
+      },
+      onError: () => setSaving(false),
+    },
+  });
+
+  const removeLarderEntry = useDeleteLarderEntry({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() }),
+    },
+  });
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!goalId || !amount) return;
     setSaving(true);
-    addContrib.mutate({
-      data: {
-        goalId: parseInt(goalId),
-        transactionId: tx.id,
-        amount: parseFloat(amount),
-        month: currentMonth,
-      },
-    });
+    if (goalId === "larder") {
+      addLarderEntry.mutate({
+        data: {
+          amount: parseFloat(amount),
+          currency: loadPrefs().currency,
+          sourceType: "transaction_dedication",
+          sourceId: tx.id,
+        },
+      });
+    } else {
+      addContrib.mutate({
+        data: {
+          goalId: parseInt(goalId),
+          transactionId: tx.id,
+          amount: parseFloat(amount),
+          month: currentMonth,
+        },
+      });
+    }
   }
 
   return (
@@ -197,8 +232,23 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
         <p className="text-sm font-medium">{t("tx.dedicate")}</p>
       </div>
 
-      {txContribs.length > 0 && (
+      {(txContribs.length > 0 || txLarderEntries.length > 0) && (
         <div className="space-y-1.5">
+          {txLarderEntries.map(e => (
+            <div key={`larder-${e.id}`} className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <Star className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{t("larder.tab")}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{fmtAmt(Number(e.amount), loadPrefs().currency)}</span>
+                <button onClick={() => removeLarderEntry.mutate({ id: e.id })}
+                  className="text-muted-foreground hover:text-destructive transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
           {txContribs.map(c => (
             <div key={c.id} className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-xl">
               <div className="flex items-center gap-2">
@@ -224,6 +274,12 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
             <SelectValue placeholder={t("tx.choose_goal")} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="larder">
+              <span className="flex items-center gap-2">
+                <Star className="w-3 h-3 flex-shrink-0" />
+                {t("larder.tab")}
+              </span>
+            </SelectItem>
             {goals.map(g => (
               <SelectItem key={g.id} value={String(g.id)}>
                 <span className="flex items-center gap-2">
@@ -507,6 +563,7 @@ export default function TransactionsPage() {
     filterCat !== "all" ? { categoryId: parseInt(filterCat) } : {}
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
+  const { data: larderSummary } = useGetLarder();
   const [isSaving, setIsSaving] = useState(false);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
@@ -542,8 +599,11 @@ export default function TransactionsPage() {
     paymentMethod: "card",
   };
 
-  function resolveCategory(form: TxFormState): { categoryId: number | null; goalContribution?: { goalId: number; amount: number } } {
+  function resolveCategory(form: TxFormState): { categoryId: number | null; goalContribution?: { goalId: number; amount: number }; larderAmount?: number } {
     if (!form.categoryId || form.categoryId === "none") return { categoryId: null };
+    if (form.categoryId === "goal_larder") {
+      return { categoryId: null, larderAmount: parseFloat(form.amount) };
+    }
     if (form.categoryId.startsWith("goal_")) {
       const goalId = parseInt(form.categoryId.replace("goal_", ""));
       return { categoryId: null, goalContribution: { goalId, amount: parseFloat(form.amount) } };
@@ -552,7 +612,7 @@ export default function TransactionsPage() {
   }
 
   function handleCreate(form: TxFormState) {
-    const { categoryId, goalContribution } = resolveCategory(form);
+    const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     create.mutate(
@@ -584,6 +644,20 @@ export default function TransactionsPage() {
               queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
               queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
             });
+          } else if (larderAmount && larderAmount > 0) {
+            fetch("/api/larder/entries", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                amount: larderAmount,
+                currency: prefs.currency,
+                sourceType: "transaction_dedication",
+                sourceId: (tx as any).id,
+              }),
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+            });
           }
         },
       }
@@ -593,7 +667,7 @@ export default function TransactionsPage() {
   async function handleUpdate(form: TxFormState) {
     if (!editTx || isSaving) return;
     const txId = editTx.id;
-    const { categoryId, goalContribution } = resolveCategory(form);
+    const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
 
     // Was this an auto-assigned category that the user is now overriding?
     const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
@@ -603,6 +677,7 @@ export default function TransactionsPage() {
     // Detect whether this tx previously had a goal assignment (categoryId null = goal tx)
     const hadGoal = !editTx.categoryId;
     const nowHasGoal = !!goalContribution;
+    const nowHasLarder = larderAmount != null && larderAmount > 0;
     const needsContribUpdate = nowHasGoal || hadGoal;
 
     setIsSaving(true);
@@ -661,6 +736,31 @@ export default function TransactionsPage() {
           });
         }
       }
+
+      // Step 3: Manage the Larder entry when the tx is dedicated straight to the Larder,
+      // or clean up a stale one when switching away from it.
+      const larderRes = await fetch("/api/larder", { credentials: "include" });
+      const larderData = larderRes.ok ? await larderRes.json() : { entries: [] };
+      const priorLarderEntries: any[] = (larderData.entries ?? []).filter(
+        (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
+      );
+      await Promise.all(priorLarderEntries.map(e =>
+        fetch(`/api/larder/entries/${e.id}`, { method: "DELETE", credentials: "include" }),
+      ));
+      if (nowHasLarder) {
+        await fetch("/api/larder/entries", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: larderAmount,
+            currency: prefs.currency,
+            sourceType: "transaction_dedication",
+            sourceId: txId,
+          }),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
 
       invalidateAll(queryClient, currentMonth);
       setEditTx(null);
@@ -852,9 +952,13 @@ export default function TransactionsPage() {
             const existingContrib = !editTx.categoryId
               ? (allContribs ?? []).find((c: any) => c.transactionId === editTx.id)
               : null;
+            const existingLarderEntry = !editTx.categoryId && !existingContrib
+              ? (larderSummary?.entries ?? []).find((e: any) => e.sourceType === "transaction_dedication" && e.sourceId === editTx.id && e.amount > 0)
+              : null;
             const initCategoryId = editTx.categoryId
               ? String(editTx.categoryId)
-              : existingContrib ? `goal_${existingContrib.goalId}` : "none";
+              : existingContrib ? `goal_${existingContrib.goalId}`
+              : existingLarderEntry ? "goal_larder" : "none";
             return (
               <>
                 <FoundedWithRealizedGoalToggle tx={editTx} />

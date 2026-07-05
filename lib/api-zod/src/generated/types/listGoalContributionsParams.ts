@@ -9,4 +9,8 @@
 export type ListGoalContributionsParams = {
   month?: string;
   goalId?: number;
+  /**
+   * When "true" (and goalId is set), returns all-time contributions for that goal, ignoring the month filter.
+   */
+  all?: string;
 };

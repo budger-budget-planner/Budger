@@ -906,6 +906,13 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.add_success":      { en: "Added to Larder",                 pl: "Dodano do Spiżarni"                 },
   "larder.fund_success":     { en: "Larder funded",                   pl: "Spiżarnia zasilona"                 },
   "larder.dedicate_success": { en: "Dedicated to goal",               pl: "Przeznaczono na cel"                },
+  "larder.save_from_goal":   { en: "Save to Larder",                  pl: "Zapisz do Spiżarni"                 },
+  "larder.you_contributed":  { en: "You contributed",                 pl: "Wpłaciłeś/aś"                       },
+  "larder.mode_amount":      { en: "Amount",                          pl: "Kwota"                              },
+  "larder.mode_percent":     { en: "Percent",                         pl: "Procent"                            },
+  "larder.save_btn":         { en: "Save to Larder",                  pl: "Zapisz do Spiżarni"                 },
+  "larder.save_error":       { en: "Couldn't save to Larder",         pl: "Nie udało się zapisać do Spiżarni"  },
+  "larder.stored_badge":     { en: "Stored in Larder:",               pl: "Zapisano w Spiżarni:"               },
 
   // ── Great Larder (Wielka Spiżarnia) ──
   "gl.title":                { en: "Great Larder",                    pl: "Wielka Spiżarnia"                   },

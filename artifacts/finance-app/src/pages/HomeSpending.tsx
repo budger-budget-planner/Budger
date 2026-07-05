@@ -28,9 +28,11 @@ import {
   useListRecurringPayments,
   useApplyRecurringPayment,
   getListRecurringPaymentsQueryKey,
+  useGetLarder,
+  getGetLarderQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -217,6 +219,12 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                     <SelectValue placeholder={t("home.select_goal")} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="larder">
+                      <span className="flex items-center gap-2">
+                        <Star className="w-3 h-3 flex-shrink-0" />
+                        {t("larder.tab")}
+                      </span>
+                    </SelectItem>
                     {goals.map(g => (
                       <SelectItem key={g.id} value={String(g.id)}>
                         <span className="flex items-center gap-2">
@@ -598,6 +606,7 @@ async function syncGoalContribution(opts: {
   userCurrency: string;
 }) {
   const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth, goals, userCurrency } = opts;
+  const isLarder = goalId === "larder";
 
   // Find and delete ALL contributions for this transaction across every month.
   // Searching by transactionId avoids missing contributions from past months
@@ -605,15 +614,38 @@ async function syncGoalContribution(opts: {
   const linkedRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
   const linkedContribs: any[] = linkedRes.ok ? await linkedRes.json() : [];
   const idsToDelete = new Set<number>(linkedContribs.map((c: any) => c.id));
-  if (existingContribId != null) idsToDelete.add(existingContribId);
+  if (existingContribId != null && !isLarder) idsToDelete.add(existingContribId);
   await Promise.all([...idsToDelete].map(id =>
     fetch(`/api/goal-contributions/${id}`, { method: "DELETE", credentials: "include" }),
   ));
 
-  // Create new contribution if needed, converted to goal's base currency.
-  // We also store accountAmount/accountCurrency (the pre-conversion user-currency amount)
-  // so that split validation can compare amounts in the same currency as the transaction.
-  if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
+  // Find and delete any prior Larder entry created by dedicating this transaction
+  // straight to the Larder, so switching selections doesn't leave stale entries.
+  const larderRes = await fetch("/api/larder", { credentials: "include" });
+  const larderData = larderRes.ok ? await larderRes.json() : { entries: [] };
+  const priorLarderEntries: any[] = (larderData.entries ?? []).filter(
+    (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
+  );
+  await Promise.all(priorLarderEntries.map(e =>
+    fetch(`/api/larder/entries/${e.id}`, { method: "DELETE", credentials: "include" }),
+  ));
+
+  if (isGoalExpense && isLarder && parseFloat(goalAmount) > 0) {
+    await fetch("/api/larder/entries", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: parseFloat(goalAmount),
+        currency: userCurrency,
+        sourceType: "transaction_dedication",
+        sourceId: txId,
+      }),
+    });
+  } else if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
+    // Create new contribution, converted to goal's base currency.
+    // We also store accountAmount/accountCurrency (the pre-conversion user-currency amount)
+    // so that split validation can compare amounts in the same currency as the transaction.
     const month = dateToMonth(txDate);
     const goal = goals.find((g: any) => String(g.id) === String(goalId));
     const goalCurrency: string = (goal as any)?.currency ?? userCurrency;
@@ -645,6 +677,7 @@ async function syncGoalContribution(opts: {
   queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) });
   queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
+  queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
 }
 
 function SwipeableTxRow({
@@ -969,6 +1002,7 @@ export default function HomeSpending() {
     { month: viewMonth },
     { query: { queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) } }
   );
+  const { data: larderSummary } = useGetLarder();
   const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
   const { data: recurringPayments } = useListRecurringPayments({
     query: { enabled: isCurrentMonth } as any,
@@ -998,6 +1032,15 @@ export default function HomeSpending() {
         accountAmount: c.accountAmount ?? null,
         accountCurrency: c.accountCurrency ?? null,
       });
+    }
+  }
+
+  // Map transactionId → Larder entry (for display + edit pre-fill), for entries
+  // created by dedicating a transaction straight to the Larder instead of a goal.
+  const larderByTxId = new Map<number, { id: number; amount: number; currency: string }>();
+  for (const e of larderSummary?.entries ?? []) {
+    if (e.sourceType === "transaction_dedication" && e.sourceId != null && e.amount > 0) {
+      larderByTxId.set(e.sourceId, { id: e.id, amount: e.amount, currency: e.currency });
     }
   }
 
@@ -1143,12 +1186,17 @@ export default function HomeSpending() {
 
   function buildEditInitial(tx: any): TxFormState {
     const contrib = contribByTxId.get(tx.id);
-    const contribInUser = contrib ? contribAmountInUserCurrency(contrib) : 0;
-    const goalAmtDisplay = contrib
+    const larderEntry = !contrib ? larderByTxId.get(tx.id) : undefined;
+    const contribInUser = contrib
+      ? contribAmountInUserCurrency(contrib)
+      : larderEntry
+        ? contribAmountInUserCurrency({ amount: larderEntry.amount, currency: larderEntry.currency })
+        : 0;
+    const goalAmtDisplay = (contrib || larderEntry)
       ? String(Math.round(contribInUser * 100) / 100)
       : "";
     let goalMode: "off" | "all" | "part" = "off";
-    if (contrib) {
+    if (contrib || larderEntry) {
       goalMode = Math.abs(contribInUser - Number(tx.amount)) < 0.005 ? "all" : "part";
     }
     return {
@@ -1158,7 +1206,7 @@ export default function HomeSpending() {
       date: tx.date,
       paymentMethod: tx.paymentMethod,
       goalMode,
-      goalId: contrib ? String(contrib.goalId) : "none",
+      goalId: contrib ? String(contrib.goalId) : larderEntry ? "larder" : "none",
       goalAmount: goalAmtDisplay,
       foundedWithRealizedGoal: !!tx.foundedWithRealizedGoal,
     };

@@ -4,21 +4,25 @@ import LarderCard from "@/pages/LarderTab";
 import {
   useListGoals,
   useListPastGoals,
+  useListGoalContributions,
   useCreateGoal,
   useUpdateGoal,
   useDeleteGoal,
   useGetGoalsSummary,
   useGetMe,
   useGetHousehold,
+  useGetLarder,
+  useLarderSaveFromGoal,
   getListGoalsQueryKey,
   getListPastGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
+  getGetLarderQueryKey,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Check, X, History,
   ChevronDown, ChevronRight, Target, Users, Lock, ArrowUpRight,
-  Bell, CheckCircle2, Clock,
+  Bell, CheckCircle2, Clock, Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -694,11 +698,49 @@ function EditGoalDialog({
 function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveMode, setSaveMode] = useState<"amount" | "percent">("amount");
+  const [saveValue, setSaveValue] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const remove = useDeleteGoal({
     mutation: {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListPastGoalsQueryKey() }),
     },
   });
+
+  const { data: myContribs } = useListGoalContributions(
+    { goalId: goal.id, all: "true" } as any,
+    { query: { queryKey: ["goal-contributions-all", goal.id] } },
+  );
+  const { data: larderSummary } = useGetLarder();
+
+  const myTotal = (myContribs ?? []).reduce((s: number, c: any) => s + Number(c.accountAmount ?? c.amount), 0);
+  const savedToLarder = (larderSummary?.entries ?? [])
+    .filter((e: any) => e.sourceType === "goal_save" && e.goalId === goal.id)
+    .reduce((s: number, e: any) => s + Number(e.amount), 0);
+
+  const saveToLarder = useLarderSaveFromGoal({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["goal-contributions-all", goal.id] });
+        setSaveOpen(false);
+        setSaveValue("");
+        setSaveError(null);
+      },
+      onError: (err: any) => setSaveError(err?.message ?? t("larder.save_error")),
+    },
+  });
+
+  function handleSave() {
+    setSaveError(null);
+    const amount = saveMode === "percent"
+      ? (parseFloat(saveValue) / 100) * myTotal
+      : parseFloat(saveValue);
+    if (!amount || amount <= 0) return;
+    saveToLarder.mutate({ data: { goalId: goal.id, amount } });
+  }
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden opacity-70">
@@ -729,13 +771,67 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDelete(true)}
-              className="p-1.5 rounded-lg bg-muted text-muted-foreground">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {myTotal > 0 && (
+                <button onClick={() => setSaveOpen(true)}
+                  className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground"
+                  title={t("larder.save_from_goal")}>
+                  <Star className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button onClick={() => setConfirmDelete(true)}
+                className="p-1.5 rounded-lg bg-muted text-muted-foreground">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
         </div>
+        {savedToLarder > 0 && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <Star className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {t("larder.stored_badge")} {fmtAmt(savedToLarder, currency)}
+            </span>
+          </div>
+        )}
       </div>
+
+      <Dialog open={saveOpen} onOpenChange={o => { setSaveOpen(o); if (!o) { setSaveValue(""); setSaveError(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("larder.save_from_goal")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {t("larder.you_contributed")} {fmtAmt(myTotal, currency)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSaveMode("amount")}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${saveMode === "amount" ? "bg-foreground text-background border-foreground" : "bg-muted text-muted-foreground border-border"}`}>
+                {t("larder.mode_amount")}
+              </button>
+              <button
+                onClick={() => setSaveMode("percent")}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border ${saveMode === "percent" ? "bg-foreground text-background border-foreground" : "bg-muted text-muted-foreground border-border"}`}>
+                {t("larder.mode_percent")}
+              </button>
+            </div>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                {saveMode === "percent" ? "%" : currencySymbol(currency)}
+              </span>
+              <Input
+                type="number" min="0" step="0.01" placeholder={saveMode === "percent" ? "100" : "0.00"}
+                value={saveValue} onChange={e => setSaveValue(e.target.value)}
+                className="pl-7"
+              />
+            </div>
+            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+            <Button className="w-full" onClick={handleSave} disabled={saveToLarder.isPending || !saveValue}>
+              {saveToLarder.isPending ? "…" : t("larder.save_btn")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

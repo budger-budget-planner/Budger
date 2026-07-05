@@ -644,6 +644,10 @@ export type SavePushSubscription200 = {
 export type ListGoalContributionsParams = {
   month?: string;
   goalId?: number;
+  /**
+   * When "true" (and goalId is set), returns all-time contributions for that goal, ignoring the month filter.
+   */
+  all?: string;
 };
 
 export type GetGoalsSummaryParams = {
@@ -676,6 +680,18 @@ export type AddLarderEntryBody = {
   goalId?: number | null;
   /** @nullable */
   note?: string | null;
+};
+
+export type LarderSaveFromGoalBody = {
+  goalId: number;
+  /** @minimum 0.01 */
+  amount: number;
+};
+
+export type LarderSaveFromGoal201 = {
+  success: boolean;
+  larderEntryId: number;
+  newLarderTotal: number;
 };
 
 export type LarderDedicateToGoalBody = {

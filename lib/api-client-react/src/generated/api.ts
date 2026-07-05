@@ -49,6 +49,8 @@ import type {
   LarderEntry,
   LarderFund201,
   LarderFundBody,
+  LarderSaveFromGoal201,
+  LarderSaveFromGoalBody,
   LarderSummary,
   ListGoalContributionsParams,
   ListTransactionsParams,
@@ -5594,6 +5596,176 @@ export const useAddLarderEntry = <
   TContext
 > => {
   return useMutation(getAddLarderEntryMutationOptions(options));
+};
+
+/**
+ * @summary Delete one of the current user's own Larder entries
+ */
+export const getDeleteLarderEntryUrl = (id: number) => {
+  return `/api/larder/entries/${id}`;
+};
+
+export const deleteLarderEntry = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteLarderEntryUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteLarderEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteLarderEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteLarderEntry>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteLarderEntry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteLarderEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteLarderEntry>>
+>;
+
+export type DeleteLarderEntryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete one of the current user's own Larder entries
+ */
+export const useDeleteLarderEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLarderEntry>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteLarderEntry>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteLarderEntryMutationOptions(options));
+};
+
+/**
+ * @summary Move money out of a goal's contributed progress and into the user's personal Larder
+ */
+export const getLarderSaveFromGoalUrl = () => {
+  return `/api/larder/save-from-goal`;
+};
+
+export const larderSaveFromGoal = async (
+  larderSaveFromGoalBody: LarderSaveFromGoalBody,
+  options?: RequestInit,
+): Promise<LarderSaveFromGoal201> => {
+  return customFetch<LarderSaveFromGoal201>(getLarderSaveFromGoalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(larderSaveFromGoalBody),
+  });
+};
+
+export const getLarderSaveFromGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderSaveFromGoal>>,
+    TError,
+    { data: BodyType<LarderSaveFromGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof larderSaveFromGoal>>,
+  TError,
+  { data: BodyType<LarderSaveFromGoalBody> },
+  TContext
+> => {
+  const mutationKey = ["larderSaveFromGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof larderSaveFromGoal>>,
+    { data: BodyType<LarderSaveFromGoalBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return larderSaveFromGoal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LarderSaveFromGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof larderSaveFromGoal>>
+>;
+export type LarderSaveFromGoalMutationBody = BodyType<LarderSaveFromGoalBody>;
+export type LarderSaveFromGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Move money out of a goal's contributed progress and into the user's personal Larder
+ */
+export const useLarderSaveFromGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof larderSaveFromGoal>>,
+    TError,
+    { data: BodyType<LarderSaveFromGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof larderSaveFromGoal>>,
+  TError,
+  { data: BodyType<LarderSaveFromGoalBody> },
+  TContext
+> => {
+  return useMutation(getLarderSaveFromGoalMutationOptions(options));
 };
 
 /**

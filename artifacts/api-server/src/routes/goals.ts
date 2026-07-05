@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable } from "@workspace/db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull } from "drizzle-orm";
 import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
 
@@ -709,6 +709,43 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
     }
   }
 
+  // Refund each contributor's own money into their personal Larder instead of
+  // letting it vanish when the goal (and its contributions) are deleted.
+  const contribs = await db.select().from(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
+  const refundByUser = new Map<number, { amount: number; currency: string }>();
+  for (const c of contribs) {
+    const amt = parseFloat(String(c.accountAmount ?? c.amount));
+    const currency = c.accountCurrency ?? c.currency ?? goal.currency ?? "USD";
+    const existing = refundByUser.get(c.userId);
+    if (existing && existing.currency === currency) {
+      existing.amount += amt;
+    } else if (!existing) {
+      refundByUser.set(c.userId, { amount: amt, currency });
+    } else {
+      // Mixed-currency contributions from the same user: keep the larger bucket,
+      // still refund via a second entry rather than dropping the amount.
+      await db.insert(larderEntriesTable).values({
+        userId: c.userId,
+        amount: String(amt),
+        currency,
+        sourceType: "goal_deleted_refund",
+        goalId: id,
+        note: `Refunded from deleted goal: ${goal.name}`,
+      });
+    }
+  }
+  for (const [refundUserId, { amount, currency }] of refundByUser) {
+    if (amount <= 0.001) continue;
+    await db.insert(larderEntriesTable).values({
+      userId: refundUserId,
+      amount: String(amount),
+      currency,
+      sourceType: "goal_deleted_refund",
+      goalId: id,
+      note: `Refunded from deleted goal: ${goal.name}`,
+    });
+  }
+
   await db.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
   await db.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
   await db.delete(goalEditProposalsTable).where(eq(goalEditProposalsTable.goalId, id));
@@ -741,9 +778,15 @@ router.get("/goal-contributions", async (req, res): Promise<void> => {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const month = typeof req.query.month === "string" ? req.query.month : currentMonth;
   const goalIdFilter = typeof req.query.goalId === "string" ? parseInt(req.query.goalId) : null;
+  // `all=true` bypasses the month filter so callers can compute a goal's
+  // all-time contributed total (e.g. for the Save-to-Larder flow on past goals).
+  const allMonths = req.query.all === "true";
 
   let contribs;
-  if (goalIdFilter) {
+  if (goalIdFilter && allMonths) {
+    contribs = await db.select().from(goalContributionsTable)
+      .where(and(eq(goalContributionsTable.userId, userId), eq(goalContributionsTable.goalId, goalIdFilter)));
+  } else if (goalIdFilter) {
     contribs = await db.select().from(goalContributionsTable)
       .where(and(eq(goalContributionsTable.userId, userId), eq(goalContributionsTable.month, month), eq(goalContributionsTable.goalId, goalIdFilter)));
   } else {

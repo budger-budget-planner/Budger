@@ -41,6 +41,8 @@ export * from "./larderDedicateToGoalBody";
 export * from "./larderEntry";
 export * from "./larderFund201";
 export * from "./larderFundBody";
+export * from "./larderSaveFromGoal201";
+export * from "./larderSaveFromGoalBody";
 export * from "./larderSummary";
 export * from "./listGoalContributionsParams";
 export * from "./listTransactionsParams";
