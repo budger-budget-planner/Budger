@@ -957,12 +957,39 @@ export default function HouseholdPage() {
                 </div>
               )}
               {!budget && iAmHead && (
-                <button
-                  className="text-xs text-white/30 hover:text-white/60 flex items-center gap-1"
-                  onClick={() => { setEditBudgetVal(""); setEditBudgetOpen(true); }}
-                >
-                  <Plus className="w-3 h-3" /> {t("hh.set_budget")}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    className="text-xs text-white/30 hover:text-white/60 flex items-center gap-1"
+                    onClick={() => { setEditBudgetVal(""); setEditBudgetOpen(true); }}
+                  >
+                    <Plus className="w-3 h-3" /> {t("hh.set_budget")}
+                  </button>
+                  {sumMemberBudgets != null && sumMemberBudgets > 0 && (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 space-y-2">
+                      <p className="text-xs text-amber-200/70 leading-relaxed">
+                        {prefs.language === "pl"
+                          ? `Suma budżetów członków wynosi ${fmt(sumMemberBudgets)}. Czy chcesz użyć jej jako budżetu domowego?`
+                          : `Your members' budgets sum to ${fmt(sumMemberBudgets)}. Use that as the household budget?`}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="h-8 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs w-full"
+                        onClick={async () => {
+                          try {
+                            await updateHousehold.mutateAsync({ data: { budget: sumMemberBudgets! } });
+                          } catch {
+                            // mutation failed — leave prompt visible
+                          }
+                        }}
+                        disabled={updateHousehold.isPending}
+                      >
+                        {prefs.language === "pl"
+                          ? `Ustaw ${fmt(sumMemberBudgets)} jako budżet domowy`
+                          : `Set ${fmt(sumMemberBudgets)} as household budget`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 

@@ -1033,6 +1033,11 @@ export default function HomeSpending() {
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
   const remaining   = totalBudget ? totalBudget - total : null;
 
+  // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
+  const catBudgetSum   = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
+  const rpBudgetSum    = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
+  const combinedBudgetSum = catBudgetSum + rpBudgetSum;
+
   // Always recompute "today" at call time so the date field stays current even if the
   // page has been open for a long time or across a midnight boundary.
   function getBlank(): TxFormState {
@@ -1237,6 +1242,25 @@ export default function HomeSpending() {
                 </div>
                 <Plus className="w-4 h-4 text-white/30 flex-shrink-0" />
               </button>
+              {/* Suggest category sum as budget when categories have budgets set */}
+              {combinedBudgetSum > 0 && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 space-y-2">
+                  <p className="text-xs text-amber-200/70 leading-relaxed">
+                    {prefs.language === "pl"
+                      ? `Łączna suma budżetów kategorii i płatności cyklicznych wynosi ${fmtAmt(combinedBudgetSum, prefs.currency)}. Czy chcesz użyć jej jako miesięcznego budżetu?`
+                      : `Your category budgets and recurring payments sum to ${fmtAmt(combinedBudgetSum, prefs.currency)}. Use that as your monthly budget?`}
+                  </p>
+                  <button
+                    onClick={() => saveTotalBudget(Math.ceil(combinedBudgetSum))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
+                  >
+                    <Target className="w-3 h-3" />
+                    {prefs.language === "pl"
+                      ? `Ustaw ${fmtAmt(combinedBudgetSum, prefs.currency)} jako budżet`
+                      : `Set ${fmtAmt(combinedBudgetSum, prefs.currency)} as budget`}
+                  </button>
+                </div>
+              )}
               {/* Divider */}
               <div className="border-t border-border" />
               {/* Stats row */}

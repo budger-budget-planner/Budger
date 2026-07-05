@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import SplashScreen from "@/components/SplashScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -30,7 +30,7 @@ import {
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
-import { AppReadyContext } from "@/lib/appReady";
+import { AppReadyContext, SplashResetContext, useSplashReset } from "@/lib/appReady";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
@@ -45,6 +45,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe();
   const [, navigate] = useLocation();
   const logout = useLogout();
+  const resetSplash = useSplashReset();
   const [onboarded, setOnboarded] = useState(isOnboardingDone);
   // Track whether onboarding should show (set when login/register sets sessionStorage flag)
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -65,7 +66,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         logout.mutate({} as any, {
           onSettled: () => {
             queryClient.clear();
-            navigate("/login");
+            resetSplash(); // show splash → sequence plays → lands on login
           },
         });
         return;
@@ -183,11 +184,14 @@ function AppRoutes() {
 
 function AppWithSplash() {
   const [splashDone, setSplashDone] = useState(false);
+  const resetSplash = useCallback(() => setSplashDone(false), []);
   return (
-    <AppReadyContext.Provider value={splashDone}>
-      <AppRoutes />
-      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-    </AppReadyContext.Provider>
+    <SplashResetContext.Provider value={resetSplash}>
+      <AppReadyContext.Provider value={splashDone}>
+        <AppRoutes />
+        {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+      </AppReadyContext.Provider>
+    </SplashResetContext.Provider>
   );
 }
 

@@ -934,13 +934,13 @@ export default function CategoriesPage() {
       {/* Budget summary banner — always visible when there are category budgets */}
       {combinedBudgetSum > 0 && (
         <div className={`mb-4 px-4 py-3 rounded-xl border text-sm ${
-          catBudgetExceeds
-            ? "border-red-500/30 bg-red-500/10"
+          catBudgetExceeds || totalBudget == null
+            ? "border-amber-500/40 bg-amber-500/10"
             : "border-white/10 bg-white/5"
         }`}>
           <div className="flex items-center justify-between">
             <span className="text-white/60">{t("cat.budgets_total")}</span>
-            <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
+            <span className={`font-semibold ${catBudgetExceeds || totalBudget == null ? "text-amber-300" : ""}`}>
               {totalBudget != null
                 ? `${fmtAmtRound(combinedBudgetSum, prefs.currency)} / ${fmtAmtRound(totalBudget, prefs.currency)}`
                 : fmtAmtRound(combinedBudgetSum, prefs.currency)}
@@ -948,15 +948,42 @@ export default function CategoriesPage() {
           </div>
           {catBudgetExceeds && (
             <>
-              <p className="text-xs text-red-400 mt-1">
-                Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - (totalBudget ?? 0), prefs.currency)}.
+              <p className="text-xs text-amber-300 mt-1">
+                {prefs.language === "pl"
+                  ? `Budżety kategorii przekraczają miesięczny budżet o ${fmtAmtRound(combinedBudgetSum - (totalBudget ?? 0), prefs.currency)}.`
+                  : `Category budgets exceed your total monthly budget by ${fmtAmtRound(combinedBudgetSum - (totalBudget ?? 0), prefs.currency)}.`}
               </p>
               <button
                 onClick={() => setAdjustBudgetOpen(true)}
-                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400 transition active:opacity-70 hover:bg-red-500/25"
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
               >
                 <TrendingUp className="w-3 h-3" />
-                Adjust total budget to match
+                {prefs.language === "pl" ? "Dostosuj do sumy kategorii" : "Adjust total budget to match"}
+              </button>
+            </>
+          )}
+          {totalBudget == null && (
+            <>
+              <p className="text-xs text-amber-200/70 mt-1 leading-relaxed">
+                {prefs.language === "pl"
+                  ? "Masz skonfigurowane budżety kategorii, ale nie ustawiłeś miesięcznego budżetu."
+                  : "You have category budgets set but no monthly budget configured."}
+              </p>
+              <button
+                onClick={() => {
+                  const newTotal = Math.ceil(combinedBudgetSum);
+                  const current = loadPrefs();
+                  const updated = { ...current, totalBudget: newTotal };
+                  savePrefs(updated);
+                  setPrefsState(updated);
+                  updateMe.mutate({ data: { totalBudget: newTotal } });
+                }}
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
+              >
+                <TrendingUp className="w-3 h-3" />
+                {prefs.language === "pl"
+                  ? `Ustaw ${fmtAmtRound(combinedBudgetSum, prefs.currency)} jako miesięczny budżet`
+                  : `Set ${fmtAmtRound(combinedBudgetSum, prefs.currency)} as monthly budget`}
               </button>
             </>
           )}

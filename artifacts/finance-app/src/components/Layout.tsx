@@ -6,6 +6,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
+import { useSplashReset } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
@@ -276,12 +277,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [currSwitchTarget, setCurrSwitchTarget] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const resetSplash = useSplashReset();
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
         setActiveUserId(null);
         queryClient.clear();
-        window.location.href = import.meta.env.BASE_URL + "login";
+        resetSplash(); // re-show splash → sequence plays → lands on login
       },
     },
   });

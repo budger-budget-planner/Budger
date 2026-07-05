@@ -6,7 +6,11 @@ import {
   useGetMonthlySummary,
   useGetGoalsSummary,
   useListRecurringPayments,
+  useListCategories,
+  useUpdateMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
   PieChart, Pie, Cell,
@@ -14,7 +18,7 @@ import {
 import DonutBudgetChart from "@/components/DonutBudgetChart";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
-import { loadPrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 import { useLiveActivity } from "@/hooks/useLiveActivity";
 
@@ -41,11 +45,12 @@ function BudgetBar({ spent, budget, color }: { spent: number; budget: number; co
 }
 
 export default function DashboardPage() {
-  const prefs = loadPrefs();
+  const [prefs, setPrefsState] = useState(() => loadPrefs());
   const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
+  const queryClient = useQueryClient();
 
   useEffect(() => { fetchRates().then(setRates); }, []);
 
@@ -54,6 +59,8 @@ export default function DashboardPage() {
 
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
+  const { data: categories } = useListCategories();
+  const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
   // Merge ONLY un-applied recurring payments into spending as virtual budget segments.
   // Applied ones already exist as real transactions in the spending summary — adding them
@@ -90,6 +97,20 @@ export default function DashboardPage() {
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
+
+  // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
+  const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
+  const rpBudgetSumDash = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
+  const combinedBudgetSum = catBudgetSum + rpBudgetSumDash;
+
+  function setFromCategorySum() {
+    const newTotal = Math.ceil(combinedBudgetSum);
+    const current = loadPrefs();
+    const updated = { ...current, totalBudget: newTotal };
+    savePrefs(updated);
+    setPrefsState(updated);
+    updateMe.mutate({ data: { totalBudget: newTotal } });
+  }
 
   const [realizedExcluded, setRealizedExcluded] = useState(0);
   useEffect(() => {
@@ -180,6 +201,19 @@ export default function DashboardPage() {
             <>
               <p className="text-2xl font-bold">—</p>
               <p className="text-xs text-muted-foreground">{t("dashboard.no_budgets")}</p>
+              {combinedBudgetSum > 0 && (
+                <button
+                  onClick={setFromCategorySum}
+                  className="mt-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[11px] font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 w-full"
+                >
+                  <Target className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">
+                    {prefs.language === "pl"
+                      ? `Ustaw ${fmtAmtRound(combinedBudgetSum, prefs.currency)}`
+                      : `Set ${fmtAmtRound(combinedBudgetSum, prefs.currency)}`}
+                  </span>
+                </button>
+              )}
             </>
           )}
         </div>

@@ -65,6 +65,13 @@ export default function BadgerLogo({ size = 40, forceAnim, forceAnimDurationMs }
   // blg- prefix avoids collisions with any global class names
   const grp = displayAnim ? `blg-${displayAnim}` : "blg-idle";
 
+  // Inject --blg-anim-dur so CSS var() overrides can control animation speed
+  // from outside (e.g. splash screen plays sniff at 2× without touching the
+  // internal idle-interval timers that run at default speeds everywhere else).
+  const svgStyle = forceAnimDurationMs != null
+    ? ({ "--blg-anim-dur": `${forceAnimDurationMs}ms` } as React.CSSProperties)
+    : undefined;
+
   return (
     <svg
       width={size}
@@ -74,6 +81,7 @@ export default function BadgerLogo({ size = 40, forceAnim, forceAnimDurationMs }
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label="Budger badger logo"
+      style={svgStyle}
     >
       <defs>
         <linearGradient id={`bgBorderGrad-${uid}`} x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
