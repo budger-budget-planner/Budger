@@ -1552,7 +1552,7 @@ export default function HouseholdPage() {
                     className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
                   >
                     <PiggyBank className="w-4 h-4" />
-                    Fund
+                    {t("larder.fund")}
                     {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· needs approval</span>}
                   </button>
                   {iAmHead && (
@@ -1562,7 +1562,7 @@ export default function HouseholdPage() {
                       className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
                     >
                       <Users className="w-4 h-4" />
-                      Support
+                      {t("larder.support_btn")}
                     </button>
                   )}
                 </div>
@@ -1982,7 +1982,7 @@ export default function HouseholdPage() {
                 className="flex-1"
                 disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0}
               >
-                {glDedicateLoading ? "Supporting…" : "Support"}
+                {glDedicateLoading ? "…" : t("larder.support_btn")}
               </Button>
             </div>
           </form>

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -27,6 +27,8 @@ export const larderEntriesTable = pgTable("larder_entries", {
   /** Goal ID that was saved from (for goal_save entries) */
   goalId: integer("goal_id"),
   note: text("note"),
+  /** Soft-hide from history display (balance is still included in totals) */
+  hidden: boolean("hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

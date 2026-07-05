@@ -6,7 +6,7 @@ import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
-  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2,
+  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users,
 } from "lucide-react";
 
 type LarderEntry = {
@@ -320,20 +320,20 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           {/* Action buttons */}
           <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-3" : "grid-cols-2"}`}>
             <button
-              onClick={() => setDedicateOpen(true)}
-              disabled={total <= 0}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <Target className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">Support</span>
-            </button>
-            <button
               onClick={() => setSpendOpen(true)}
               disabled={total <= 0}
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <PiggyBank className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">Fund</span>
+              <span className="text-[11px] leading-tight text-center">{t("larder.fund")}</span>
+            </button>
+            <button
+              onClick={() => setDedicateOpen(true)}
+              disabled={total <= 0}
+              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+            >
+              <Target className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[11px] leading-tight text-center">{t("larder.support_btn")}</span>
             </button>
             {inHousehold && (
               <button
@@ -341,8 +341,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 disabled={total <= 0}
                 className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
               >
-                <ArrowRightCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[11px] leading-tight text-center">Send to Great Larder</span>
+                <Users className="w-4 h-4 flex-shrink-0" />
+                <span className="text-[11px] leading-tight text-center">{t("larder.send_gl_btn")}</span>
               </button>
             )}
           </div>

@@ -94,7 +94,11 @@ router.get("/larder", async (req, res): Promise<void> => {
     .filter(e => e.sourceType === "gl_rule_sync")
     .reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
 
-  res.json({ total, currency, entries: entries.map(fmtEntry), glPercent, glRuleSynced });
+  // Only send visible (non-hidden) entries to the frontend for display;
+  // balance is always computed from all entries regardless of visibility.
+  const visibleEntries = entries.filter(e => !e.hidden);
+
+  res.json({ total, currency, entries: visibleEntries.map(fmtEntry), glPercent, glRuleSynced });
 });
 
 // POST /larder/entries — add a raw entry (used internally by recurring-payment auto-apply
@@ -394,11 +398,14 @@ router.post("/larder/gl-rule", async (req, res): Promise<void> => {
   res.json({ success: true, glPercent: percent === 0 ? null : percent, total, glRuleSynced });
 });
 
-// DELETE /larder/history — clear all Larder history entries for the current user
+// DELETE /larder/history — hide all Larder history entries from display for the current user.
+// Entries are soft-hidden (hidden=true) so the Larder balance is unaffected.
 router.delete("/larder/history", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-  await db.delete(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+  await db.update(larderEntriesTable)
+    .set({ hidden: true })
+    .where(eq(larderEntriesTable.userId, userId));
   res.sendStatus(204);
 });
 

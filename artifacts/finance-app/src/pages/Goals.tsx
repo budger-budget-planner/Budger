@@ -409,15 +409,17 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
             <span className="text-xs text-muted-foreground">
               {t("larder.stored_badge")} {fmtAmt(savedToLarderActive, currency)}
             </span>
-            <div style={{ position:"absolute", top:-5, left:2, width:9, height:9, pointerEvents:"none", animation:"badgeSpark 3.4s ease-in-out 0s infinite" }}>
+            {/* bottom-left diamond */}
+            <div style={{ position:"absolute", bottom:-7, left:-6, width:12, height:12, pointerEvents:"none", animation:"gemFlash 3.2s ease-in-out 0s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.75)" }} />
+            </div>
+            {/* top-right diamond */}
+            <div style={{ position:"absolute", top:-7, right:-6, width:10, height:10, pointerEvents:"none", animation:"gemFlash 2.8s ease-in-out 1.5s infinite" }}>
               <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
-            </div>
-            <div style={{ position:"absolute", top:-3, right:4, width:7, height:7, pointerEvents:"none", animation:"badgeSpark 2.9s ease-in-out 1.6s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.65), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1, height:1, borderRadius:"50%", background:"white", boxShadow:"0 0 2px 1px rgba(255,255,255,0.55)" }} />
             </div>
           </div>
         )}
@@ -448,7 +450,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                            bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
               >
-                <Star className="w-3.5 h-3.5" /> Save
+                <Star className="w-3.5 h-3.5" /> {t("larder.save_short")}
               </button>
               {canDelete && (
                 <button onClick={() => setConfirmDelete(true)}
@@ -508,7 +510,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                   onClick={isHousehold ? handleGoalSaveGL : handleGoalSave}
                   disabled={(isHousehold ? glSaving : saveToLarder.isPending) || !saveValue}
                 >
-                  {(isHousehold ? glSaving : saveToLarder.isPending) ? "…" : "Save"}
+                  {(isHousehold ? glSaving : saveToLarder.isPending) ? "…" : t("larder.save_short")}
                 </Button>
               </>
             )}
@@ -958,15 +960,17 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
             <span className="text-xs text-muted-foreground">
               {t("larder.stored_badge")} {fmtAmt(savedToLarder, currency)}
             </span>
-            <div style={{ position:"absolute", top:-5, left:2, width:9, height:9, pointerEvents:"none", animation:"badgeSpark 3.4s ease-in-out 0.3s infinite" }}>
+            {/* bottom-left diamond */}
+            <div style={{ position:"absolute", bottom:-7, left:-6, width:12, height:12, pointerEvents:"none", animation:"gemFlash 3.2s ease-in-out 0.3s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.75)" }} />
+            </div>
+            {/* top-right diamond */}
+            <div style={{ position:"absolute", top:-7, right:-6, width:10, height:10, pointerEvents:"none", animation:"gemFlash 2.8s ease-in-out 1.9s infinite" }}>
               <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
-            </div>
-            <div style={{ position:"absolute", top:-3, right:4, width:7, height:7, pointerEvents:"none", animation:"badgeSpark 2.9s ease-in-out 1.9s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.65), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1, height:1, borderRadius:"50%", background:"white", boxShadow:"0 0 2px 1px rgba(255,255,255,0.55)" }} />
             </div>
           </div>
         )}
@@ -1007,7 +1011,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
               onClick={goal.householdId ? handleSaveGL : handleSave}
               disabled={(goal.householdId ? glSaving : saveToLarder.isPending) || !saveValue}
             >
-              {(goal.householdId ? glSaving : saveToLarder.isPending) ? "…" : "Save"}
+              {(goal.householdId ? glSaving : saveToLarder.isPending) ? "…" : t("larder.save_short")}
             </Button>
           </div>
         </DialogContent>

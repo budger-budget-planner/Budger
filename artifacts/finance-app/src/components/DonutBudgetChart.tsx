@@ -762,7 +762,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
         {/* Fixed inner width prevents items from squishing during the animation */}
         <div style={{ width: 160 }} className="space-y-2.5">
           {legend.map(item => {
-            const pct    = item.budget > 0 ? Math.round((item.spent / item.budget) * 100) : null;
+            const pct    = (item.budget > 0 && !(item.catKey === "cat-uncat" && Math.round(sumBudgets * 100) >= Math.round(totalBudget * 100)))
+              ? Math.round((item.spent / item.budget) * 100) : null;
             const isSel  = selectedCat === item.catKey;
             const dimmed = selectedCat !== null && !isSel;
             return (
