@@ -756,17 +756,27 @@ export default function GoalsPage() {
   const sym   = currencySymbol(prefs.currency);
 
   const larderRef = useRef<HTMLDivElement>(null);
-  const [larderInView, setLarderInView] = useState(false);
+  const [larderInView,     setLarderInView]     = useState(false);
+  const [larderProximity,  setLarderProximity]  = useState(0); // 0=far, 1=arrived
 
   useEffect(() => {
     const el = larderRef.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setLarderInView(true);
-      else setLarderInView(false);
-    }, { threshold: 0.1 });
-    obs.observe(el);
-    return () => obs.disconnect();
+
+    function computeProximity() {
+      const rect = el!.getBoundingClientRect();
+      const navH = 64;
+      const viewBottom = window.innerHeight - navH;
+      const dist = rect.top - viewBottom;           // positive = card still below fold
+      const prox = dist <= 0 ? 1 : Math.max(0, 1 - dist / 380);
+      setLarderProximity(prox);
+      setLarderInView(rect.top < viewBottom && rect.bottom > navH);
+    }
+
+    const main = document.querySelector("main");
+    main?.addEventListener("scroll", computeProximity, { passive: true });
+    computeProximity();
+    return () => main?.removeEventListener("scroll", computeProximity);
   }, []);
 
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
@@ -989,14 +999,26 @@ export default function GoalsPage() {
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
 
-      {/* ── Glowing Larder pulse — visible until user scrolls to Larder card ── */}
+      {/* ── Tab-strip shimmer hint — sweeps across the gap above the nav bar ── */}
       {!larderInView && (
-        <div className="fixed bottom-24 inset-x-0 z-20 pointer-events-none flex justify-center">
+        <div
+          className="fixed bottom-16 inset-x-0 z-20 pointer-events-none overflow-hidden"
+          style={{ height: 52 }}
+        >
+          {/* Subtle vignette so the strip blends into the page */}
+          <div className="absolute inset-0"
+            style={{ background: "linear-gradient(to top, rgba(255,255,255,0.015) 0%, transparent 100%)" }} />
+          {/* The sweeping shimmer band — speed and opacity grow with proximity */}
           <div
-            className="w-20 h-1 rounded-full animate-pulse"
+            className="absolute top-0 bottom-0"
             style={{
-              background: "rgba(255,255,255,0.35)",
-              boxShadow: "0 0 18px 6px rgba(255,255,255,0.18), 0 0 40px 14px rgba(255,255,255,0.08)",
+              width: "42%",
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)",
+              opacity: 0.18 + larderProximity * 0.82,
+              animationName: "tabShimmer",
+              animationDuration: `${Math.max(0.55, 2.2 - larderProximity * 1.65)}s`,
+              animationTimingFunction: "linear",
+              animationIterationCount: "infinite",
             }}
           />
         </div>
@@ -1426,7 +1448,7 @@ export default function GoalsPage() {
 
       {/* ── Larder card — personal savings, below goals ── */}
       <div className="mt-5 mb-2">
-        <LarderCard ref={larderRef} />
+        <LarderCard ref={larderRef} nearness={larderProximity} />
       </div>
 
       {/* Edit dialog */}

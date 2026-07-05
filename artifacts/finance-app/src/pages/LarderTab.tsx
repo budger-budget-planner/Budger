@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals } from "@workspace/api-client-react";
@@ -69,7 +69,21 @@ function Sheet({
 const inputCls = "w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20 placeholder:text-white/25";
 const labelCls = "text-xs text-white/40 font-medium";
 
-const LarderCard = forwardRef<HTMLDivElement>((_, ref) => {
+const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness = 0 }, ref) => {
+  const [bursting, setBursting] = useState(false);
+  const prevNearness = useRef(0);
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    if (nearness >= 1 && prevNearness.current < 1) {
+      setBursting(true);
+      const t = setTimeout(() => setBursting(false), 1400);
+      cleanup = () => clearTimeout(t);
+    }
+    prevNearness.current = nearness;
+    return cleanup;
+  }, [nearness]);
+
   const prefs = loadPrefs();
   const sym = currencySymbol(prefs.currency);
   const { toast } = useToast();
@@ -170,16 +184,25 @@ const LarderCard = forwardRef<HTMLDivElement>((_, ref) => {
           boxShadow: "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
         }}
       >
-        {/* Shine sweep */}
+        {/* Periodic glisten sweep */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
           <div
-            className="absolute -inset-full"
+            className="absolute top-0 bottom-0"
             style={{
-              background: "linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%)",
-              animation: "larderShine 5s ease-in-out infinite",
+              width: "55%",
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.09) 50%, transparent 100%)",
+              animation: "larderGlisten 7s ease-in-out infinite",
             }}
           />
         </div>
+
+        {/* Entry burst — white flash that fades when card first scrolls into view */}
+        {bursting && (
+          <div
+            className="pointer-events-none absolute inset-0 rounded-3xl"
+            style={{ animation: "larderBurst 1.4s ease-out forwards" }}
+          />
+        )}
 
         <div className="relative z-10 px-5 pt-5 pb-5 space-y-5">
           {/* Header */}

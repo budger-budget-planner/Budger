@@ -326,10 +326,33 @@
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
+/* ── Larder card: periodic glisten — long idle, then a fast bright sweep ── */
+@keyframes larderGlisten {
+  0%, 72%  { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
+  76%      { opacity: 0; }
+  80%      { transform: translateX(-60%) skewX(-12deg); opacity: 1; }
+  90%      { transform: translateX(160%) skewX(-12deg); opacity: 0.6; }
+  93%      { opacity: 0; }
+  100%     { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+}
+
+/* ── Tab strip shimmer — sweeps left→right ── */
+@keyframes tabShimmer {
+  0%   { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(320%) skewX(-12deg); }
+}
+
+/* ── Larder card burst — white flash on entry, then settles ── */
+@keyframes larderBurst {
+  0%   { opacity: 0.22; }
+  60%  { opacity: 0.08; }
+  100% { opacity: 0; }
+}
+
+/* keep old name as alias in case any other file still references it */
 @keyframes larderShine {
-  0%   { transform: translateX(-100%) translateY(-100%) rotate(15deg); opacity: 0; }
-  20%  { opacity: 1; }
-  50%  { transform: translateX(100%) translateY(100%) rotate(15deg); opacity: 1; }
-  51%  { opacity: 0; }
-  100% { transform: translateX(100%) translateY(100%) rotate(15deg); opacity: 0; }
+  0%, 72%  { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
+  80%      { transform: translateX(-60%) skewX(-12deg); opacity: 1; }
+  90%      { transform: translateX(160%) skewX(-12deg); opacity: 0.6; }
+  100%     { transform: translateX(160%) skewX(-12deg); opacity: 0; }
 }
