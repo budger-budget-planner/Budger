@@ -756,28 +756,6 @@ export default function GoalsPage() {
   const sym   = currencySymbol(prefs.currency);
 
   const larderRef = useRef<HTMLDivElement>(null);
-  const [larderInView,     setLarderInView]     = useState(false);
-  const [larderProximity,  setLarderProximity]  = useState(0); // 0=far, 1=arrived
-
-  useEffect(() => {
-    const el = larderRef.current;
-    if (!el) return;
-
-    function computeProximity() {
-      const rect = el!.getBoundingClientRect();
-      const navH = 64;
-      const viewBottom = window.innerHeight - navH;
-      const dist = rect.top - viewBottom;           // positive = card still below fold
-      const prox = dist <= 0 ? 1 : Math.max(0, 1 - dist / 380);
-      setLarderProximity(prox);
-      setLarderInView(rect.top < viewBottom && rect.bottom > navH);
-    }
-
-    const main = document.querySelector("main");
-    main?.addEventListener("scroll", computeProximity, { passive: true });
-    computeProximity();
-    return () => main?.removeEventListener("scroll", computeProximity);
-  }, []);
 
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
@@ -998,42 +976,6 @@ export default function GoalsPage() {
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
-
-      {/* ── Tab-strip beacon — a small spark travels a thin line above the
-           nav bar, luring the eye toward the Larder. Grows brighter and
-           quicker as the Larder card gets closer, like a treasure chest
-           glinting to say "come find me". ── */}
-      {!larderInView && (
-        <div
-          className="fixed bottom-16 inset-x-0 z-20 pointer-events-none overflow-hidden"
-          style={{ height: 30 }}
-        >
-          {/* The line itself — barely-there, brightens slightly with proximity */}
-          <div
-            className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-px"
-            style={{ background: `rgba(255,255,255,${0.06 + larderProximity * 0.14})` }}
-          />
-          {/* Soft heartbeat bloom behind the spark */}
-          <div
-            className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-6 rounded-full"
-            style={{
-              background: "radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 72%)",
-              animation: `beaconPulse ${Math.max(0.9, 2.4 - larderProximity * 1.7)}s ease-in-out infinite`,
-            }}
-          />
-          {/* The traveling spark — a tiny glinting orb */}
-          <div
-            className="absolute top-1/2 rounded-full"
-            style={{
-              width: 5,
-              height: 5,
-              background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 72%)",
-              boxShadow: `0 0 ${6 + larderProximity * 12}px ${2 + larderProximity * 4}px rgba(255,255,255,${0.45 + larderProximity * 0.45})`,
-              animation: `beaconTravel ${Math.max(1.3, 3.2 - larderProximity * 2.2)}s ease-in-out infinite`,
-            }}
-          />
-        </div>
-      )}
 
       {/* ── Goals content ── */}
       <>
@@ -1459,7 +1401,7 @@ export default function GoalsPage() {
 
       {/* ── Larder card — personal savings, below goals ── */}
       <div className="mt-5 mb-2">
-        <LarderCard ref={larderRef} nearness={larderProximity} />
+        <LarderCard ref={larderRef} />
       </div>
 
       {/* Edit dialog */}
