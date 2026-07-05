@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { t } from "@/lib/i18n";
 import {
@@ -16,6 +16,7 @@ import {
   useListHouseholdMembers,
   useUpdateMe,
   getGetMeQueryKey,
+  getListHouseholdMembersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users } from "lucide-react";
@@ -751,7 +752,8 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const prefs       = loadPrefs();
+  // Reactive prefs so any auto-sync of totalBudget immediately updates this page's UI
+  const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym         = currencySymbol(prefs.currency);
   const totalBudget = prefs.totalBudget;
 
@@ -783,8 +785,56 @@ export default function CategoriesPage() {
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
 
   const updateMe = useUpdateMe({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        // Also refresh household members so the Household tab sees the updated member budgets
+        queryClient.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
+      },
+    },
   });
+
+  // ── Auto-sync totalBudget = sum of all category budgets + recurring payments ──
+  // Whenever categories or recurring payments change, automatically update the
+  // totalBudget in prefs (localStorage) and on the server so every tab (Home,
+  // Dashboard, Household) always shows the correct total without any manual step.
+  //
+  // We track the last synced sum so that:
+  //  - if sum > 0 and changed → sync to the new sum
+  //  - if sum becomes 0 after being non-zero → clear the budget (null)
+  //  - if sum is 0 on initial load (no budgets ever set) → do nothing
+  const lastSyncedSumRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (categories === undefined || recurringPayments === undefined) return;
+    const newTotal =
+      categories.reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0) +
+      recurringPayments.reduce((s, rp) => s + Number(rp.amount), 0);
+
+    if (newTotal <= 0) {
+      // Budget was cleared (all categories/RPs removed): only act if we previously
+      // had a non-zero sum tracked in this session — otherwise leave prefs alone.
+      if (lastSyncedSumRef.current !== null && lastSyncedSumRef.current > 0.005) {
+        lastSyncedSumRef.current = 0;
+        const current = loadPrefs();
+        if (current.totalBudget != null && current.totalBudget > 0) {
+          const updated = { ...current, totalBudget: null };
+          savePrefs(updated);
+          setPrefsState(updated);
+          updateMe.mutate({ data: { totalBudget: null } });
+        }
+      }
+      return;
+    }
+
+    if (lastSyncedSumRef.current !== null && Math.abs(lastSyncedSumRef.current - newTotal) < 0.005) return;
+    lastSyncedSumRef.current = newTotal;
+    const current = loadPrefs();
+    if (Math.abs((current.totalBudget ?? 0) - newTotal) < 0.005) return; // Already in sync
+    const updated = { ...current, totalBudget: newTotal };
+    savePrefs(updated);
+    setPrefsState(updated);
+    updateMe.mutate({ data: { totalBudget: newTotal } });
+  }, [categories, recurringPayments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const create = useCreateCategory({
     mutation: {
@@ -814,7 +864,9 @@ export default function CategoriesPage() {
   function handleAcceptBudgetAdjust() {
     const newTotal = Math.ceil(combinedBudgetSum);
     const current = loadPrefs();
-    savePrefs({ ...current, totalBudget: newTotal });
+    const updated = { ...current, totalBudget: newTotal };
+    savePrefs(updated);
+    setPrefsState(updated);
     // Persist to the server too — without this the adjustment only lived in
     // localStorage and reverted on a fresh session/device once useGetMe re-synced.
     updateMe.mutate({ data: { totalBudget: newTotal } });
