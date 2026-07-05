@@ -1,8 +1,56 @@
 import { Router, type IRouter } from "express";
-import { db, larderEntriesTable, goalsTable, goalContributionsTable, transactionsTable, usersTable } from "@workspace/db";
+import { db, larderEntriesTable, goalsTable, goalContributionsTable, transactionsTable, usersTable, greatLarderEntriesTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// ── GL standing-rule sync ────────────────────────────────────────────────────
+// If the user has a larderGlPercent rule set, compute how much MORE should go
+// to the Great Larder and auto-transfer the diff (positive increments only).
+async function syncGLRule(userId: number): Promise<void> {
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const glPercent = user?.larderGlPercent;
+  if (!glPercent || glPercent <= 0 || !user?.householdId) return;
+
+  const entries = await db.select().from(larderEntriesTable)
+    .where(eq(larderEntriesTable.userId, userId));
+
+  // rawTotal = everything EXCEPT rule-sync deductions (so we base the % on "real" incoming)
+  const rawTotal = entries
+    .filter(e => e.sourceType !== "gl_rule_sync")
+    .reduce((s, e) => s + parseFloat(e.amount), 0);
+
+  const intended = parseFloat((rawTotal * glPercent / 100).toFixed(2));
+
+  const alreadySynced = entries
+    .filter(e => e.sourceType === "gl_rule_sync")
+    .reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
+
+  const diff = parseFloat((intended - alreadySynced).toFixed(2));
+  if (diff < 0.01) return;
+
+  const currency = user.currency ?? "USD";
+
+  // Credit Great Larder (auto-approved, no head needed for rule transfers)
+  await db.insert(greatLarderEntriesTable).values({
+    householdId: user.householdId,
+    contributedByUserId: userId,
+    amount: String(diff),
+    currency,
+    sourceType: "rule_transfer",
+    status: "approved",
+    note: `${glPercent}% standing rule auto-sync`,
+  });
+
+  // Deduct from personal Larder
+  await db.insert(larderEntriesTable).values({
+    userId,
+    amount: String(-diff),
+    currency,
+    sourceType: "gl_rule_sync",
+    note: `${glPercent}% auto-sync to Great Larder`,
+  });
+}
 
 function currentMonth(): string {
   const n = new Date();
@@ -28,21 +76,25 @@ function fmtEntry(e: typeof larderEntriesTable.$inferSelect) {
   };
 }
 
-// GET /larder — user's personal Larder total + recent entries
+// GET /larder — user's personal Larder total + recent entries + GL rule info
 router.get("/larder", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
+  const glPercent = user?.larderGlPercent ?? null;
 
   const entries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId))
     .orderBy(desc(larderEntriesTable.createdAt));
 
   const total = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const glRuleSynced = entries
+    .filter(e => e.sourceType === "gl_rule_sync")
+    .reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
 
-  res.json({ total, currency, entries: entries.map(fmtEntry) });
+  res.json({ total, currency, entries: entries.map(fmtEntry), glPercent, glRuleSynced });
 });
 
 // POST /larder/entries — add a raw entry (used internally by recurring-payment auto-apply
@@ -299,7 +351,47 @@ router.post("/larder/fund", async (req, res): Promise<void> => {
     note: description.trim(),
   }).returning();
 
+  // Auto-sync GL rule if one is active
+  await syncGLRule(userId);
+
   res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, larderAmount });
+});
+
+// POST /larder/gl-rule — set (or clear) a standing GL percentage rule
+// Body: { percent: number } — 0 clears the rule, 1–99 sets it
+router.post("/larder/gl-rule", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const { percent } = req.body;
+  if (typeof percent !== "number" || percent < 0 || percent > 99) {
+    res.status(400).json({ error: "percent must be between 0 and 99" }); return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  if (percent > 0 && !user.householdId) {
+    res.status(400).json({ error: "You must be in a household to set a GL standing rule" }); return;
+  }
+
+  await db.update(usersTable)
+    .set({ larderGlPercent: percent === 0 ? null : percent })
+    .where(eq(usersTable.id, userId));
+
+  if (percent > 0) {
+    await syncGLRule(userId);
+  }
+
+  // Return fresh larder summary
+  const entries = await db.select().from(larderEntriesTable)
+    .where(eq(larderEntriesTable.userId, userId));
+  const total = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const glRuleSynced = entries
+    .filter(e => e.sourceType === "gl_rule_sync")
+    .reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
+
+  res.json({ success: true, glPercent: percent === 0 ? null : percent, total, glRuleSynced });
 });
 
 export default router;

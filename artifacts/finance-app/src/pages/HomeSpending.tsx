@@ -32,7 +32,7 @@ import {
   getGetLarderQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Star, Warehouse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1482,6 +1482,7 @@ export default function HomeSpending() {
                   const hasLocked      = !!(tx.currencyLocked && tx.transactionCurrency);
                   const hasUnavailable = !!(tx as any).currencyUnavailable;
                   const hasForeign     = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && !hasUnavailable);
+                  const hasFromLarder  = !!(tx as any).isLarderFund;
 
                   // Truncated name (30 chars max in collapsed view)
                   const shortName = tx.description.length > 30
@@ -1533,8 +1534,15 @@ export default function HomeSpending() {
                                   {t("tx.name_it")}
                                 </button>
                               )}
-                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked) && (
+                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex flex-wrap gap-1">
+                                  {hasFromLarder && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/20 bg-black text-[10px] font-semibold text-white/90"
+                                      style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 0 0 0.5px rgba(255,255,255,0.08)" }}>
+                                      <Warehouse className="w-2 h-2" />
+                                      From Larder
+                                    </span>
+                                  )}
                                   {hasSplit && (
                                     <span title={(tx as any).splitRole === "issuer" ? t("split.issued_icon") : t("split.received_icon")}
                                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-pink-500/60 bg-pink-500/10 text-[10px] font-medium text-pink-400">
@@ -1573,8 +1581,9 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked) && (
+                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
+                                  {hasFromLarder  && <span className="w-1.5 h-1.5 rounded-full bg-white border border-white/30" />}
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
                                   {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
                                   {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}

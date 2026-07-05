@@ -19,6 +19,7 @@ export const usersTable = pgTable("users", {
   pendingHouseholdAlert: text("pending_household_alert"),
   pinLength: integer("pin_length"),
   webhookToken: text("webhook_token"),
+  larderGlPercent: integer("larder_gl_percent"),
   emailVerified: boolean("email_verified").notNull().default(false),
   verificationToken: text("verification_token"),
   verificationTokenExpiresAt: timestamp("verification_token_expires_at", { withTimezone: true }),

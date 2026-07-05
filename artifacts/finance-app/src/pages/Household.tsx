@@ -818,19 +818,22 @@ export default function HouseholdPage() {
 
   return (
     <div className="pb-28">
-      {/* ── Great Larder glow pulse: fades once the card scrolls into view ── */}
-      {canSeeGreatLarder && !glVisible && (
+      {/* ── Great Larder flowing orbs: drift across screen until GL card scrolls into view ── */}
+      <style>{`
+        @keyframes orbRight { 0%{transform:translateX(-80px) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(110vw) translateY(-30px);opacity:0} }
+        @keyframes orbLeft  { 0%{transform:translateX(110vw) translateY(0px);opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{transform:translateX(-80px) translateY(25px);opacity:0} }
+      `}</style>
+      {canSeeGreatLarder && (
         <div
-          className="fixed inset-x-0 bottom-16 z-30 pointer-events-none flex justify-center"
-          style={{ transition: "opacity 0.6s" }}
+          className="fixed inset-0 z-30 pointer-events-none overflow-hidden"
+          style={{ opacity: glVisible ? 0 : 1, transition: "opacity 1.4s ease" }}
         >
-          <div
-            className="animate-pulse w-40 h-1 rounded-full"
-            style={{
-              background: "rgba(255,255,255,0.55)",
-              boxShadow: "0 0 24px 12px rgba(255,255,255,0.22), 0 0 60px 20px rgba(255,255,255,0.08)",
-            }}
-          />
+          <div style={{ position:"absolute", bottom:"22%", left:0, width:10, height:10, borderRadius:"50%", background:"rgba(255,255,255,0.50)", boxShadow:"0 0 20px 8px rgba(255,255,255,0.15)", animation:"orbRight 8s ease-in-out 0s infinite" }} />
+          <div style={{ position:"absolute", bottom:"38%", left:0, width:6,  height:6,  borderRadius:"50%", background:"rgba(255,255,255,0.30)", boxShadow:"0 0 12px 4px rgba(255,255,255,0.08)", animation:"orbRight 11s ease-in-out 2s infinite" }} />
+          <div style={{ position:"absolute", bottom:"14%", left:0, width:16, height:16, borderRadius:"50%", background:"rgba(255,255,255,0.18)", boxShadow:"0 0 36px 14px rgba(255,255,255,0.08)", animation:"orbRight 15s ease-in-out 5s infinite" }} />
+          <div style={{ position:"absolute", bottom:"28%", right:0, width:14, height:14, borderRadius:"50%", background:"rgba(255,255,255,0.35)", boxShadow:"0 0 28px 10px rgba(255,255,255,0.12)", animation:"orbLeft 9s ease-in-out 1s infinite" }} />
+          <div style={{ position:"absolute", bottom:"45%", right:0, width:7,  height:7,  borderRadius:"50%", background:"rgba(255,255,255,0.28)", boxShadow:"0 0 14px 5px rgba(255,255,255,0.09)", animation:"orbLeft 12s ease-in-out 4s infinite" }} />
+          <div style={{ position:"absolute", bottom:"18%", right:0, width:5,  height:5,  borderRadius:"50%", background:"rgba(255,255,255,0.55)", boxShadow:"0 0 10px 3px rgba(255,255,255,0.15)", animation:"orbLeft 7s ease-in-out 7s infinite" }} />
         </div>
       )}
 
@@ -1574,23 +1577,6 @@ export default function HouseholdPage() {
                   </div>
                 )}
 
-                {/* Recent approved entries */}
-                {greatLarder?.entries?.filter((e: any) => e.status === "approved").length > 0 && (
-                  <div className="space-y-1 pt-1 border-t border-white/5">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-white/25 pb-1">Recent contributions</p>
-                    {greatLarder.entries
-                      .filter((e: any) => e.status === "approved")
-                      .slice(0, 4)
-                      .map((e: any) => (
-                        <div key={e.id} className="flex items-center justify-between text-xs text-white/40 py-0.5">
-                          <span className="truncate">{e.contributorName} · {e.note || e.sourceType}</span>
-                          <span className="font-medium text-white/60 ml-2 flex-shrink-0">
-                            +{currencySymbol(e.currency)}{fmtAmtRound(e.amount, e.currency)}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1899,6 +1885,80 @@ export default function HouseholdPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Great Larder: Dedicate to household goal ── */}
+      <Dialog open={glDedicateOpen} onOpenChange={setGlDedicateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-white/60" /> Dedicate to household goal
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleGlDedicate} className="space-y-4">
+            <p className="text-sm text-white/50">
+              Move funds from the Great Larder into a shared household goal.
+            </p>
+            {sharedGoals.length === 0 ? (
+              <p className="text-sm text-amber-400/80 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3">
+                No shared goals found. Create a household goal first.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Goal</Label>
+                <div className="space-y-2">
+                  {sharedGoals.map((g: any) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setGlDedicateGoalId(g.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition ${
+                        glDedicateGoalId === g.id
+                          ? "border-white/40 bg-white/10"
+                          : "border-white/10 bg-white/3 text-white/60 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: g.color ?? "#818cf8" }} />
+                      <p className="text-sm font-medium truncate text-left">{g.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>
+                Amount · Balance: {greatLarder ? `${currencySymbol(greatLarder.currency)}${fmtAmtRound(greatLarder.total, greatLarder.currency)}` : "—"}
+              </Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={greatLarder?.total ?? undefined}
+                placeholder="0.00"
+                value={glDedicateAmt}
+                onChange={e => setGlDedicateAmt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0}
+              >
+                {glDedicateLoading ? "Dedicating…" : "Dedicate"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

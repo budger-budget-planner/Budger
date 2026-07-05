@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useListGoals, useGetMe } from "@workspace/api-client-react";
+import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,6 +25,8 @@ type LarderSummary = {
   total: number;
   currency: string;
   entries: LarderEntry[];
+  glPercent: number | null;
+  glRuleSynced: number;
 };
 
 function sourceLabel(sourceType: string): string {
@@ -71,7 +73,7 @@ function Sheet({
 const inputCls = "w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20 placeholder:text-white/25";
 const labelCls = "text-xs text-white/40 font-medium";
 
-const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
+const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ revealed = false }, ref) => {
   const prefs = loadPrefs();
   const sym = currencySymbol(prefs.currency);
   const { toast } = useToast();
@@ -144,23 +146,51 @@ const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
     e.preventDefault();
     setSendGlLoading(true);
     try {
-      const body = sendGlMode === "percent"
-        ? { percent: parseFloat(sendGlPct) }
-        : { amount: parseFloat(sendGlAmt) };
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      if (sendGlMode === "percent") {
+        // Percent mode → set / update the standing GL rule
+        const pct = parseFloat(sendGlPct);
+        if (isNaN(pct) || pct < 1 || pct > 99) throw new Error("Enter a percentage between 1 and 99");
+        const r = await fetch(`${import.meta.env.BASE_URL}api/larder/gl-rule`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ percent: pct }),
+        });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+        toast({ title: `GL rule set: ${pct}% auto-sync active` });
+      } else {
+        // Amount mode → one-time transfer
+        const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ amount: parseFloat(sendGlAmt) }),
+        });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+        toast({ title: "Sent to Great Larder" });
+      }
       invalidate();
       setSendGlOpen(false);
       setSendGlAmt(""); setSendGlPct("");
-      toast({ title: "Sent to Great Larder" });
     } catch (err: any) {
       toast({ title: err.message ?? "Failed", variant: "destructive" });
     } finally { setSendGlLoading(false); }
+  }
+
+  async function handleClearGLRule() {
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/gl-rule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ percent: 0 }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      invalidate();
+      toast({ title: "GL standing rule cleared" });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Failed", variant: "destructive" });
+    }
   }
 
   async function handleDedicate(e: React.FormEvent) {
@@ -181,6 +211,8 @@ const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
       setDedicateOpen(false);
       setDedGoalId(null); setDedAmount("");
       toast({ title: t("larder.dedicate_success") });
@@ -194,14 +226,31 @@ const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
 
   return (
     <>
+      <style>{`
+        @keyframes sparkleIn { 0%{transform:scale(0) rotate(0deg);opacity:0} 50%{transform:scale(1.3) rotate(15deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:0.8} }
+        @keyframes sparkleFloat { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(20deg)} }
+      `}</style>
       <div
         ref={ref}
-        className="relative overflow-hidden rounded-3xl border border-white/10"
+        className="relative overflow-hidden rounded-3xl"
         style={{
           background: "linear-gradient(135deg, #080808 0%, #161616 35%, #0e0e0e 60%, #0a0a0a 100%)",
-          boxShadow: "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
+          border: revealed ? "1px solid rgba(255,255,255,0.28)" : "1px solid rgba(255,255,255,0.10)",
+          boxShadow: revealed
+            ? "0 0 0px 0px rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,0.12)"
+            : "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
+          transition: "border-color 0.8s ease, box-shadow 0.8s ease",
         }}
       >
+        {/* Sparkles — appear when revealed */}
+        {revealed && (
+          <>
+            <span style={{ position:"absolute", top:-8, left:"18%", fontSize:14, color:"rgba(255,255,255,0.70)", animation:"sparkleIn 0.6s ease forwards, sparkleFloat 2.4s ease-in-out 0.6s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
+            <span style={{ position:"absolute", top:-6, right:"22%", fontSize:10, color:"rgba(255,255,255,0.50)", animation:"sparkleIn 0.6s ease 0.2s forwards, sparkleFloat 2.8s ease-in-out 0.8s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
+            <span style={{ position:"absolute", bottom:-8, left:"35%", fontSize:12, color:"rgba(255,255,255,0.55)", animation:"sparkleIn 0.6s ease 0.1s forwards, sparkleFloat 2.2s ease-in-out 0.7s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
+            <span style={{ position:"absolute", top:"40%", right:-8, fontSize:9, color:"rgba(255,255,255,0.45)", animation:"sparkleIn 0.6s ease 0.35s forwards, sparkleFloat 3s ease-in-out 1s infinite", pointerEvents:"none", zIndex:20 }}>✦</span>
+          </>
+        )}
         <div className="relative z-10 px-5 pt-5 pb-5 space-y-5">
           {/* Header */}
           <div className="flex items-center gap-2.5">
@@ -224,7 +273,31 @@ const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
             >
               {sym}{fmtAmt(total, prefs.currency).replace(/^[^0-9-]*/,"").replace(sym,"")}
             </p>
-            <p className="text-xs text-white/25 mt-1.5 tracking-wide">{prefs.currency} · personal savings</p>
+            {larder?.glPercent ? (
+              <p className="text-xs text-white/25 mt-1.5 tracking-wide">
+                {prefs.currency} · {100 - larder.glPercent}% personal savings
+              </p>
+            ) : (
+              <p className="text-xs text-white/25 mt-1.5 tracking-wide">{prefs.currency} · personal savings</p>
+            )}
+            {larder?.glPercent ? (
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
+                <div className="text-left">
+                  <p className="text-[10px] text-white/30 uppercase tracking-widest">Great Larder</p>
+                  <p className="text-sm font-semibold text-white/55 tabular-nums">
+                    {sym}{(larder.glRuleSynced).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-white/25">{larder.glPercent}% standing rule</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearGLRule}
+                  className="text-[10px] text-white/30 border border-white/10 rounded-xl px-2.5 py-1 hover:text-white/60 hover:border-white/20 transition"
+                >
+                  Clear rule
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* Action buttons */}
@@ -347,17 +420,27 @@ const LarderCard = forwardRef<HTMLDivElement, {}>((_props, ref) => {
                   onChange={e => setSendGlAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
               </div>
             ) : (
-              <div className="space-y-1.5">
-                <label className={labelCls}>
-                  {t("larder.percent_label")} · {sym}{((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)}
-                </label>
-                <input type="number" step="1" min="1" max="100" required value={sendGlPct}
-                  onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="0" className={inputCls} />
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>
+                    {t("larder.percent_label")}{sendGlPct ? ` · ${sym}${((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)} will go to GL` : ""}
+                  </label>
+                  <input type="number" step="1" min="1" max="99" required value={sendGlPct}
+                    onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="e.g. 25" className={inputCls} />
+                </div>
+                {larder?.glPercent && (
+                  <p className="text-xs text-amber-400/70 bg-amber-400/5 border border-amber-400/15 rounded-xl px-3 py-2">
+                    Current rule: <strong>{larder.glPercent}%</strong> active. Setting a new % will replace it.
+                  </p>
+                )}
+                <p className="text-xs text-white/30 leading-relaxed">
+                  A standing rule — every time your Larder grows, this % is automatically moved to the Great Larder.
+                </p>
               </div>
             )}
             <button type="submit" disabled={sendGlLoading || total <= 0}
               className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
-              {sendGlLoading ? "…" : t("larder.send")}
+              {sendGlLoading ? "…" : sendGlMode === "percent" ? "Set Standing Rule" : t("larder.send")}
             </button>
           </form>
         </Sheet>
