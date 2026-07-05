@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   db, greatLarderEntriesTable, larderEntriesTable,
   transactionsTable, usersTable, householdMembersTable,
-  notificationItemsTable,
+  notificationItemsTable, goalsTable, goalContributionsTable,
 } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -298,6 +298,144 @@ router.post("/great-larder/entries/:id/reject", async (req, res): Promise<void> 
 
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, entry.contributedByUserId));
   res.json(fmtEntry(updated, u?.name ?? "Unknown"));
+});
+
+// POST /great-larder/spend — spend FROM Great Larder; creates transaction, head auto-approved, parent pending
+// Body: { description, amount, categoryId?, date? }
+router.post("/great-larder/spend", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const membership = await getMembership(userId, user.householdId);
+  if (!membership || !isParent(membership.role)) {
+    res.status(403).json({ error: "Only parents and the head can spend from the Great Larder" }); return;
+  }
+
+  const { description, amount, categoryId, date } = req.body;
+  if (!description || typeof description !== "string" || !description.trim()) {
+    res.status(400).json({ error: "description is required" }); return;
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  const allEntries = await db.select().from(greatLarderEntriesTable)
+    .where(eq(greatLarderEntriesTable.householdId, user.householdId));
+  const balance = allEntries.filter(e => e.status === "approved").reduce((s, e) => s + parseFloat(e.amount), 0);
+  if (amount > balance + 0.001) {
+    res.status(400).json({ error: "Insufficient Great Larder balance" }); return;
+  }
+
+  const currency = user.currency ?? "USD";
+  const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
+
+  const [tx] = await db.insert(transactionsTable).values({
+    userId,
+    amount: String(amount),
+    description: description.trim(),
+    categoryId: categoryId ?? null,
+    date: dateStr,
+    paymentMethod: "card",
+    isLarderFund: true,
+    larderAmount: String(amount),
+    transactionCurrency: currency,
+  }).returning();
+
+  const status = isHead(membership.role) ? "approved" : "pending";
+
+  const [entry] = await db.insert(greatLarderEntriesTable).values({
+    householdId: user.householdId,
+    contributedByUserId: userId,
+    amount: String(-amount),
+    currency,
+    sourceType: "spend",
+    status,
+    transactionId: tx.id,
+    note: description.trim(),
+  }).returning();
+
+  if (status === "pending") {
+    const headIds = await getHeadIds(user.householdId);
+    for (const headId of headIds) {
+      await db.insert(notificationItemsTable).values({
+        userId: headId,
+        type: "great_larder_fund_pending",
+        titleEn: "Great Larder spend request",
+        titlePl: "Wniosek o wydatek z Wielkiej Spiżarni",
+        bodyEn: `${user.name} wants to spend ${amount} ${currency} from the Great Larder`,
+        bodyPl: `${user.name} chce wydać ${amount} ${currency} z Wielkiej Spiżarni`,
+        dedupKey: `great-larder-spend-pending-${entry.id}`,
+      }).onConflictDoNothing();
+    }
+  }
+
+  const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  res.status(201).json({ ...fmtEntry(entry, u?.name ?? "Unknown"), transactionId: tx.id, requiresApproval: status === "pending" });
+});
+
+// POST /great-larder/dedicate-to-goal — head moves Great Larder funds into a household goal contribution
+// Body: { goalId, amount }
+router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const membership = await getMembership(userId, user.householdId);
+  if (!membership || !isHead(membership.role)) {
+    res.status(403).json({ error: "Only the head can dedicate Great Larder funds to a goal" }); return;
+  }
+
+  const { goalId, amount } = req.body;
+  if (!goalId || typeof goalId !== "number") {
+    res.status(400).json({ error: "goalId is required" }); return;
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  const allEntries = await db.select().from(greatLarderEntriesTable)
+    .where(eq(greatLarderEntriesTable.householdId, user.householdId));
+  const balance = allEntries.filter(e => e.status === "approved").reduce((s, e) => s + parseFloat(e.amount), 0);
+  if (amount > balance + 0.001) {
+    res.status(400).json({ error: "Insufficient Great Larder balance" }); return;
+  }
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (goal.householdId !== user.householdId) {
+    res.status(403).json({ error: "Goal does not belong to this household" }); return;
+  }
+
+  const currency = user.currency ?? "USD";
+  const currentMonth = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })();
+
+  await db.insert(greatLarderEntriesTable).values({
+    householdId: user.householdId,
+    contributedByUserId: userId,
+    amount: String(-amount),
+    currency,
+    sourceType: "goal_dedication",
+    status: "approved",
+    note: `Dedicated to goal: ${goal.name}`,
+  });
+
+  const [contrib] = await db.insert(goalContributionsTable).values({
+    goalId,
+    amount: String(amount),
+    currency,
+    accountAmount: String(amount),
+    accountCurrency: currency,
+    month: currentMonth,
+    userId,
+    householdId: user.householdId,
+  }).returning();
+
+  res.status(201).json({ success: true, contributionId: contrib.id, newBalance: balance - amount });
 });
 
 export default router;

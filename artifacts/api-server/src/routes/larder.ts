@@ -128,6 +128,58 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   res.status(201).json({ success: true, contributionId: contrib.id, newLarderTotal: total - amount });
 });
 
+// POST /larder/spend — spend FROM the Larder: deducts balance, creates a transaction tagged "From Larder"
+// Body: { description, amount, categoryId?, date? }
+router.post("/larder/spend", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const { description, amount, categoryId, date } = req.body;
+  if (!description || typeof description !== "string" || !description.trim()) {
+    res.status(400).json({ error: "description is required" }); return;
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const currency = user?.currency ?? "USD";
+
+  // Verify balance
+  const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+  const balance = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  if (amount > balance + 0.001) {
+    res.status(400).json({ error: "Insufficient Larder balance" }); return;
+  }
+
+  const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
+
+  // Create transaction — isLarderFund marks it as "From Larder" in the UI
+  const [tx] = await db.insert(transactionsTable).values({
+    userId,
+    amount: String(amount),
+    description: description.trim(),
+    categoryId: categoryId ?? null,
+    date: dateStr,
+    paymentMethod: "card",
+    isLarderFund: true,
+    larderAmount: String(amount),
+    transactionCurrency: currency,
+  }).returning();
+
+  // Deduct from Larder
+  const [entry] = await db.insert(larderEntriesTable).values({
+    userId,
+    amount: String(-amount),
+    currency,
+    sourceType: "larder_spend",
+    sourceId: tx.id,
+    note: description.trim(),
+  }).returning();
+
+  res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, newBalance: balance - amount });
+});
+
 // POST /larder/fund — create a "fund" transaction and credit the Larder with larderAmount
 // Body: { description, amount, larderAmount, categoryId?, date? }
 // The full `amount` appears in the transaction list. `larderAmount` portion goes to Larder.

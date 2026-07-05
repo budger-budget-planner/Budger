@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useListGoals } from "@workspace/api-client-react";
+import { useListGoals, useGetMe } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -102,18 +102,26 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
 
   const { data: goals } = useListGoals({ query: { retry: false } } as any);
 
-  const [fundOpen,     setFundOpen]     = useState(false);
   const [dedicateOpen, setDedicateOpen] = useState(false);
   const [historyOpen,  setHistoryOpen]  = useState(false);
 
-  const [fundDesc,    setFundDesc]    = useState("");
-  const [fundTotal,   setFundTotal]   = useState("");
-  const [fundPortion, setFundPortion] = useState("");
-  const [fundLoading, setFundLoading] = useState(false);
+  const [spendOpen,    setSpendOpen]    = useState(false);
+  const [spendDesc,    setSpendDesc]    = useState("");
+  const [spendAmt,     setSpendAmt]     = useState("");
+  const [spendLoading, setSpendLoading] = useState(false);
+
+  const [sendGlOpen,    setSendGlOpen]    = useState(false);
+  const [sendGlMode,    setSendGlMode]    = useState<"amount" | "percent">("amount");
+  const [sendGlAmt,     setSendGlAmt]     = useState("");
+  const [sendGlPct,     setSendGlPct]     = useState("");
+  const [sendGlLoading, setSendGlLoading] = useState(false);
 
   const [dedGoalId,  setDedGoalId]  = useState<number | null>(null);
   const [dedAmount,  setDedAmount]  = useState("");
   const [dedLoading, setDedLoading] = useState(false);
+
+  const { data: me } = useGetMe();
+  const inHousehold = !!(me as any)?.householdId;
 
   const total   = larder?.total ?? 0;
   const entries = larder?.entries ?? [];
@@ -122,27 +130,49 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
     queryClient.invalidateQueries({ queryKey: ["larder"] });
   }
 
-  async function handleFund(e: React.FormEvent) {
+  async function handleSpend(e: React.FormEvent) {
     e.preventDefault();
-    const amount = parseFloat(fundTotal);
-    const larderAmount = parseFloat(fundPortion);
-    if (isNaN(amount) || amount <= 0 || isNaN(larderAmount) || larderAmount <= 0) return;
-    setFundLoading(true);
+    const amount = parseFloat(spendAmt);
+    if (isNaN(amount) || amount <= 0) return;
+    setSpendLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/fund`, {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ description: fundDesc.trim(), amount, larderAmount }),
+        body: JSON.stringify({ description: spendDesc.trim(), amount }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
-      setFundOpen(false);
-      setFundDesc(""); setFundTotal(""); setFundPortion("");
-      toast({ title: t("larder.fund_success") });
+      setSpendOpen(false);
+      setSpendDesc(""); setSpendAmt("");
+      toast({ title: "Transaction created from Larder" });
     } catch (err: any) {
-      toast({ title: err.message ?? "Failed to fund Larder", variant: "destructive" });
-    } finally { setFundLoading(false); }
+      toast({ title: err.message ?? "Failed", variant: "destructive" });
+    } finally { setSpendLoading(false); }
+  }
+
+  async function handleSendToGL(e: React.FormEvent) {
+    e.preventDefault();
+    setSendGlLoading(true);
+    try {
+      const body = sendGlMode === "percent"
+        ? { percent: parseFloat(sendGlPct) }
+        : { amount: parseFloat(sendGlAmt) };
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      invalidate();
+      setSendGlOpen(false);
+      setSendGlAmt(""); setSendGlPct("");
+      toast({ title: "Sent to Great Larder" });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Failed", variant: "destructive" });
+    } finally { setSendGlLoading(false); }
   }
 
   async function handleDedicate(e: React.FormEvent) {
@@ -230,22 +260,33 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
           </div>
 
           {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-3" : "grid-cols-2"}`}>
             <button
               onClick={() => setDedicateOpen(true)}
               disabled={total <= 0}
-              className="flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <Target className="w-4 h-4 flex-shrink-0" />
-              <span>Dedicate to goal</span>
+              <span className="text-[11px] leading-tight text-center">Dedicate to goal</span>
             </button>
             <button
-              onClick={() => setFundOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors"
+              onClick={() => setSpendOpen(true)}
+              disabled={total <= 0}
+              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <PiggyBank className="w-4 h-4 flex-shrink-0" />
-              <span>Fund</span>
+              <span className="text-[11px] leading-tight text-center">Fund</span>
             </button>
+            {inHousehold && (
+              <button
+                onClick={() => setSendGlOpen(true)}
+                disabled={total <= 0}
+                className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+              >
+                <ArrowRightCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-[11px] leading-tight text-center">Send to Great Larder</span>
+              </button>
+            )}
           </div>
 
           {/* Recent entries — collapsible */}

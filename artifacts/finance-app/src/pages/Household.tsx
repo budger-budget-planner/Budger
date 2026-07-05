@@ -553,33 +553,15 @@ export default function HouseholdPage() {
     refetchInterval: 30_000,
   });
 
-  const [glSendOpen,  setGlSendOpen]  = useState(false);
-  const [glFundOpen,  setGlFundOpen]  = useState(false);
-  const [glSendAmt,   setGlSendAmt]   = useState("");
-  const [glFundDesc,  setGlFundDesc]  = useState("");
-  const [glFundAmt,   setGlFundAmt]   = useState("");
-  const [glLoading,   setGlLoading]   = useState(false);
-  const [glApproving, setGlApproving] = useState<number | null>(null);
-
-  async function handleGlSend(e: React.FormEvent) {
-    e.preventDefault();
-    const amt = parseFloat(glSendAmt);
-    if (isNaN(amt) || amt <= 0) return;
-    setGlLoading(true);
-    try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amt }),
-      });
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
-      setGlSendOpen(false); setGlSendAmt("");
-      refetchGL();
-      queryClient.invalidateQueries({ queryKey: ["larder"] });
-    } catch (err: any) {
-      alert(err.message ?? t("common.error"));
-    } finally { setGlLoading(false); }
-  }
+  const [glFundOpen,        setGlFundOpen]        = useState(false);
+  const [glFundDesc,        setGlFundDesc]        = useState("");
+  const [glFundAmt,         setGlFundAmt]         = useState("");
+  const [glLoading,         setGlLoading]         = useState(false);
+  const [glApproving,       setGlApproving]       = useState<number | null>(null);
+  const [glDedicateOpen,    setGlDedicateOpen]    = useState(false);
+  const [glDedicateGoalId,  setGlDedicateGoalId]  = useState<number | null>(null);
+  const [glDedicateAmt,     setGlDedicateAmt]     = useState("");
+  const [glDedicateLoading, setGlDedicateLoading] = useState(false);
 
   async function handleGlFund(e: React.FormEvent) {
     e.preventDefault();
@@ -587,7 +569,7 @@ export default function HouseholdPage() {
     if (!glFundDesc.trim() || isNaN(amt) || amt <= 0) return;
     setGlLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/fund`, {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: glFundDesc.trim(), amount: amt }),
@@ -598,6 +580,29 @@ export default function HouseholdPage() {
     } catch (err: any) {
       alert(err.message ?? t("common.error"));
     } finally { setGlLoading(false); }
+  }
+
+  async function handleGlDedicate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!glDedicateGoalId) return;
+    const amt = parseFloat(glDedicateAmt);
+    if (isNaN(amt) || amt <= 0) return;
+    if (amt > (greatLarder?.total ?? 0) + 0.001) {
+      alert("Insufficient Great Larder balance"); return;
+    }
+    setGlDedicateLoading(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt("");
+      refetchGL();
+    } catch (err: any) {
+      alert(err.message ?? t("common.error"));
+    } finally { setGlDedicateLoading(false); }
   }
 
   async function handleGlApprove(id: number) {
@@ -1478,22 +1483,27 @@ export default function HouseholdPage() {
                   <p className="text-xs text-white/30 mt-1">household collective savings</p>
                 </div>
 
-                {/* Action buttons */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setGlSendOpen(true)}
-                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors"
-                  >
-                    <ArrowRightCircle className="w-4 h-4" />
-                    Send to Great Larder
-                  </button>
+                {/* Action buttons — Fund for parents+head; Dedicate to HH goal for head only */}
+                <div className={`grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
                   <button
                     onClick={() => setGlFundOpen(true)}
-                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors"
+                    disabled={!greatLarder || greatLarder.total <= 0}
+                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
                   >
-                    <TrendingUp className="w-4 h-4" />
+                    <PiggyBank className="w-4 h-4" />
                     Fund
+                    {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· needs approval</span>}
                   </button>
+                  {iAmHead && (
+                    <button
+                      onClick={() => setGlDedicateOpen(true)}
+                      disabled={!greatLarder || greatLarder.total <= 0}
+                      className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
+                    >
+                      <Target className="w-4 h-4" />
+                      Dedicate to household goal
+                    </button>
+                  )}
                 </div>
 
                 {/* Pending fund approvals — head only */}

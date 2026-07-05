@@ -740,8 +740,13 @@ export default function TransactionsPage() {
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
+                          {(tx as any).isLarderFund && (
+                            <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-white/85 tracking-wide flex-shrink-0">
+                              Larder
+                            </span>
+                          )}
                           {tx.receiptImage && (
                             <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                               <Camera className="w-2.5 h-2.5" /> receipt

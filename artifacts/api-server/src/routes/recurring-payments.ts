@@ -333,6 +333,19 @@ router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => 
     transactionId: tx.id,
   }).onConflictDoNothing();
 
+  // If addToLarder is set, credit the user's personal Larder with the full payment amount
+  if (rp.addToLarder) {
+    const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
+    await db.insert(larderEntriesTable).values({
+      userId,
+      amount: rp.amount,
+      currency: user?.currency ?? "USD",
+      sourceType: "recurring_payment",
+      sourceId: tx.id,
+      note: rp.name,
+    }).onConflictDoNothing();
+  }
+
   res.json(formatRP(rp, true, tx.id));
 });
 
