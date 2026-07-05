@@ -74,9 +74,12 @@ router.get("/auth/check-email", async (req, res): Promise<void> => {
   }
   const email = (req.query.email as string ?? "").toLowerCase().trim();
   if (!email) { res.status(400).json({ error: "Missing email" }); return; }
-  const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength })
+  const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength, passwordHash: usersTable.passwordHash })
     .from(usersTable).where(eq(usersTable.email, email));
-  res.json({ exists: !!user, pinLength: user?.pinLength ?? null });
+  // A pending account (no passwordHash) is treated as non-existent for login — the user
+  // should re-register with the same email to set a new PIN.
+  const fullyRegistered = !!user && !!user.passwordHash;
+  res.json({ exists: fullyRegistered, pinLength: fullyRegistered ? (user?.pinLength ?? null) : null });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
@@ -288,7 +291,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { email, password } = parsed.data;
+  const { email: rawEmail, password } = parsed.data;
+  const email = rawEmail.toLowerCase().trim();
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!user) {

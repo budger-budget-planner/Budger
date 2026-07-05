@@ -27,6 +27,9 @@ export const usersTable = pgTable("users", {
   // still-pending (no passwordHash) row is purged. Reset whenever /auth/register-start
   // is (re)submitted for this row. Ignored once passwordHash is set.
   signupExpiresAt: timestamp("signup_expires_at", { withTimezone: true }),
+  // PIN reset flow — token is single-use and expires in 30 minutes.
+  pinResetToken: text("pin_reset_token"),
+  pinResetTokenExpiresAt: timestamp("pin_reset_token_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
