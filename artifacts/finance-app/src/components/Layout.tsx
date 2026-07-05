@@ -264,6 +264,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     refetchInterval: 30_000,
   });
   const hasPendingSplits = (incomingSplits?.length ?? 0) > 0 || (declinedSplits?.length ?? 0) > 0;
+
+  const { data: glData } = useQuery<{ entries?: Array<{ id: number; status: string }> } | null>({
+    queryKey: ["great-larder"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder`, { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+  const hasGLPendingApprovals = (glData?.entries ?? []).some((e) => e.status === "pending");
+
   const [showProfile, setShowProfile] = useState(false);
   const [showMission, setShowMission] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
@@ -645,7 +657,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           const isHousehold = href === "/household";
           const isGoals = href === "/goals";
           const isCategories = href === "/categories";
-          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits)) || (isGoals && showGoalsBadge) || (isCategories && hasPendingCategoryProposals);
+          const showBadge = (isHousehold && (hasInvitations || hasHouseholdAlert || hasPendingSplits || hasGLPendingApprovals)) || (isGoals && showGoalsBadge) || (isCategories && hasPendingCategoryProposals);
           return (
             <Link
               key={href}

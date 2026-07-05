@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
@@ -563,6 +563,9 @@ export default function HouseholdPage() {
   const [glDedicateAmt,     setGlDedicateAmt]     = useState("");
   const [glDedicateLoading, setGlDedicateLoading] = useState(false);
 
+  const greatLarderRef = useRef<HTMLDivElement>(null);
+  const [glVisible, setGlVisible] = useState(false);
+
   async function handleGlFund(e: React.FormEvent) {
     e.preventDefault();
     const amt = parseFloat(glFundAmt);
@@ -648,6 +651,18 @@ export default function HouseholdPage() {
   const iAmHead = isHeadRole(myRole);
   const iAmChild = isChildRole(myRole);
   const canSeeGreatLarder = !iAmChild && !!household;
+
+  useEffect(() => {
+    if (!canSeeGreatLarder) return;
+    const el = greatLarderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setGlVisible(entry.isIntersecting),
+      { threshold: 0.15 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [canSeeGreatLarder]);
 
   const createHousehold = useCreateHousehold({
     mutation: {
@@ -803,6 +818,22 @@ export default function HouseholdPage() {
 
   return (
     <div className="pb-28">
+      {/* ── Great Larder glow pulse: fades once the card scrolls into view ── */}
+      {canSeeGreatLarder && !glVisible && (
+        <div
+          className="fixed inset-x-0 bottom-16 z-30 pointer-events-none flex justify-center"
+          style={{ transition: "opacity 0.6s" }}
+        >
+          <div
+            className="animate-pulse w-40 h-1 rounded-full"
+            style={{
+              background: "rgba(255,255,255,0.55)",
+              boxShadow: "0 0 24px 12px rgba(255,255,255,0.22), 0 0 60px 20px rgba(255,255,255,0.08)",
+            }}
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold">{t("hh.title")}</h1>
@@ -1441,7 +1472,7 @@ export default function HouseholdPage() {
 
           {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
           {canSeeGreatLarder && (
-            <div className="relative overflow-hidden rounded-3xl border border-white/10"
+            <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl border border-white/10"
               style={{
                 background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 40%, #111 60%, #0d0d0d 100%)",
                 boxShadow: "0 0 40px 6px rgba(255,255,255,0.04), 0 0 80px 10px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.08)",
