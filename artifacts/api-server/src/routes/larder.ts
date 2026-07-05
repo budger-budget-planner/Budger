@@ -394,4 +394,12 @@ router.post("/larder/gl-rule", async (req, res): Promise<void> => {
   res.json({ success: true, glPercent: percent === 0 ? null : percent, total, glRuleSynced });
 });
 
+// DELETE /larder/history — clear all Larder history entries for the current user
+router.delete("/larder/history", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  await db.delete(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+  res.sendStatus(204);
+});
+
 export default router;

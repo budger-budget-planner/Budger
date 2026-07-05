@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { fmtAmt, checkDonutWiggleDue } from "@/lib/prefs";
+import { fmtAmt, checkDonutWiggleDue, loadPrefs } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
 // ─── Inject hint-pulse keyframes once ────────────────────────────────────────
@@ -315,6 +315,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
+    if (loadPrefs().disableAnimations) return;
     const MIN_R   = Math.round(0.65 * (RI - 2)); // ≈ 47 SVG units
     const MAX_R   = RI - 2;                       //   73 SVG units
     const MIN_GAP = 5;                            // r2 must exceed r1 by at least this
@@ -348,6 +349,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   // Sequence: group1 wiggles first (700 ms), then group2 wiggles 200 ms later.
   // If there is no group2 (only one segment in the chart), skip the animation entirely.
   useEffect(() => {
+    if (loadPrefs().disableAnimations) return;
     function wiggleEl(el: SVGGElement, midDeg: number) {
       const midRad = ((midDeg - 90) * Math.PI) / 180;
       const px1 = EXPAND * 0.65 * Math.cos(midRad);

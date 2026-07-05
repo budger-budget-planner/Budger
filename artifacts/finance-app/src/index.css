@@ -337,11 +337,18 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
-/* ── Global diamond-spark keyframe (used by "from Larder" dot in transactions) ── */
+/* ── Global diamond-spark keyframes ── */
 @keyframes gemFlash {
   0%   { opacity: 0; transform: scale(0.15) rotate(0deg); }
   25%  { opacity: 1; transform: scale(1)    rotate(0deg); }
   55%  { opacity: 0.45; transform: scale(0.8) rotate(45deg); }
   75%  { opacity: 0.9; transform: scale(1)    rotate(0deg); }
   100% { opacity: 0; transform: scale(0.15) rotate(0deg); }
+}
+@keyframes badgeSpark {
+  0%   { opacity: 0; transform: scale(0.1)  rotate(0deg); }
+  25%  { opacity: 1; transform: scale(1)    rotate(0deg); }
+  60%  { opacity: 0.35; transform: scale(0.7) rotate(45deg); }
+  80%  { opacity: 0.85; transform: scale(1)  rotate(0deg); }
+  100% { opacity: 0; transform: scale(0.1)  rotate(0deg); }
 }

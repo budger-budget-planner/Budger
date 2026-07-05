@@ -6,7 +6,7 @@ import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
-  ArrowRightCircle, X, ChevronDown, ChevronUp,
+  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2,
 } from "lucide-react";
 
 type LarderEntry = {
@@ -75,6 +75,7 @@ const labelCls = "text-xs text-white/40 font-medium";
 
 const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ revealed = false }, ref) => {
   const prefs = loadPrefs();
+  const noAnim = prefs.disableAnimations;
   const sym = currencySymbol(prefs.currency);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -121,6 +122,21 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
+  }
+
+  async function handleClearHistory() {
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/history`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Failed");
+      invalidate();
+      setHistoryOpen(false);
+      toast({ title: "History cleared" });
+    } catch {
+      toast({ title: "Failed to clear history", variant: "destructive" });
+    }
   }
 
   async function handleSpend(e: React.FormEvent) {
@@ -209,100 +225,61 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     <>
       <style>{`
         @keyframes gemFlash { 0%{opacity:0;transform:scale(0.15) rotate(0deg)} 25%{opacity:1;transform:scale(1) rotate(0deg)} 55%{opacity:0.45;transform:scale(0.8) rotate(45deg)} 75%{opacity:0.9;transform:scale(1) rotate(0deg)} 100%{opacity:0;transform:scale(0.15) rotate(0deg)} }
-        @keyframes larderEdge1 { 0%{transform:translateX(-130px);opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{transform:translateX(100vw);opacity:0} }
-        @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 12%{opacity:0.85} 88%{opacity:0.85} 100%{transform:translateX(-100px);opacity:0} }
-        @keyframes larderEdge3 { 0%{transform:translateX(5%);opacity:0.38} 40%{opacity:0.92;transform:translateX(60%)} 100%{transform:translateX(5%);opacity:0.38} }
-        @keyframes larderEdgeV1 { 0%{transform:translateY(-80px);opacity:0} 14%{opacity:0.80} 86%{opacity:0.80} 100%{transform:translateY(300px);opacity:0} }
-        @keyframes larderEdgeV2 { 0%{transform:translateY(300px);opacity:0} 14%{opacity:0.60} 86%{opacity:0.60} 100%{transform:translateY(-80px);opacity:0} }
+        @keyframes larderEdge1 { 0%{transform:translateX(-110px);opacity:0} 12%{opacity:1} 88%{opacity:1} 100%{transform:translateX(100vw);opacity:0} }
+        @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.85} 85%{opacity:0.85} 100%{transform:translateX(-80px);opacity:0} }
+        @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.45} 40%{opacity:0.95;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.45} }
       `}</style>
       <div
         ref={ref}
         className="relative overflow-hidden rounded-3xl"
         style={{
           background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
-          border: revealed ? "1px solid rgba(255,215,85,0.45)" : "1px solid rgba(255,255,255,0.13)",
+          border: revealed ? "1px solid rgba(255,255,255,0.48)" : "1px solid rgba(255,255,255,0.12)",
           boxShadow: revealed
-            ? "0 0 0 1px rgba(255,200,60,0.10), 0 0 28px 6px rgba(255,185,50,0.14), 0 0 60px 14px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,220,100,0.22)"
+            ? "0 0 55px 16px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.28)"
             : "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
           transition: "border-color 0.8s ease, box-shadow 0.8s ease",
         }}
       >
-        {/* Border edge wave glow — all 4 edges, gold + white beams, intensifies when revealed */}
+        {/* Border edge wave glow — hidden when animations disabled */}
+        {!noAnim && (
         <div
           className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
-          style={{ zIndex:12, opacity: revealed ? 1 : 0.6, transition: "opacity 0.9s ease" }}
+          style={{ zIndex:12, opacity: revealed ? 1 : 0.72, transition: "opacity 0.9s ease" }}
         >
-          {/* Top edge — white + gold beams */}
-          <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"130px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.88), transparent)", animation:"larderEdge1 5.5s ease-in-out 0s infinite" }} />
-          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"80px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.55), transparent)", animation:"larderEdge2 8s ease-in-out 1.5s infinite" }} />
-          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"68px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.68), transparent)", animation:"larderEdge3 4.5s ease-in-out 3s infinite" }} />
-          <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"120px", background:"linear-gradient(to right, transparent, rgba(255,210,70,0.88), transparent)", animation:"larderEdge2 7.5s ease-in-out 0.9s infinite" }} />
-          {/* Bottom edge */}
-          <div style={{ position:"absolute", bottom:0, left:0, height:"1px", width:"110px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.68), transparent)", animation:"larderEdge1 8.5s ease-in-out 2.2s infinite" }} />
-          <div style={{ position:"absolute", bottom:0, left:0, height:"2px", width:"85px",  background:"linear-gradient(to right, transparent, rgba(255,210,70,0.72), transparent)", animation:"larderEdge3 6.5s ease-in-out 4.5s infinite" }} />
-          <div style={{ position:"absolute", bottom:0, right:0, height:"1px", width:"70px",  background:"linear-gradient(to left,  transparent, rgba(255,255,255,0.50), transparent)", animation:"larderEdge2 9s ease-in-out 1.2s infinite" }} />
-          {/* Left edge — vertical beams */}
-          <div style={{ position:"absolute", top:0, left:0, width:"1px", height:"90px", background:"linear-gradient(to bottom, rgba(255,255,255,0.68), transparent)", animation:"larderEdgeV1 9s ease-in-out 1s infinite" }} />
-          <div style={{ position:"absolute", top:0, left:0, width:"2px", height:"65px", background:"linear-gradient(to bottom, rgba(255,210,70,0.62), transparent)", animation:"larderEdgeV2 7.5s ease-in-out 3.5s infinite" }} />
-          {/* Right edge — vertical beams */}
-          <div style={{ position:"absolute", top:0, right:0, width:"1px", height:"78px", background:"linear-gradient(to bottom, rgba(255,255,255,0.60), transparent)", animation:"larderEdgeV2 8.5s ease-in-out 2.2s infinite" }} />
-          <div style={{ position:"absolute", top:0, right:0, width:"2px", height:"55px", background:"linear-gradient(to bottom, rgba(255,210,70,0.56), transparent)", animation:"larderEdgeV1 7s ease-in-out 0.7s infinite" }} />
-          {/* Corner glow dots */}
-          <div style={{ position:"absolute", top:-1, left:-1, width:8, height:8, borderRadius:"50%", background:"radial-gradient(circle, rgba(255,225,100,0.95) 0%, transparent 70%)", boxShadow:"0 0 10px 4px rgba(255,200,50,0.50)" }} />
-          <div style={{ position:"absolute", top:-1, right:-1, width:6, height:6, borderRadius:"50%", background:"radial-gradient(circle, rgba(255,255,255,0.88) 0%, transparent 70%)", boxShadow:"0 0 7px 3px rgba(255,255,255,0.38)" }} />
-          <div style={{ position:"absolute", bottom:-1, left:-1, width:6, height:6, borderRadius:"50%", background:"radial-gradient(circle, rgba(255,210,70,0.78) 0%, transparent 70%)" }} />
-          <div style={{ position:"absolute", bottom:-1, right:-1, width:5, height:5, borderRadius:"50%", background:"radial-gradient(circle, rgba(255,255,255,0.68) 0%, transparent 70%)" }} />
-          {/* Extra fierce beams when fully revealed */}
+          <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"140px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.90), transparent)", animation:"larderEdge1 6s ease-in-out 0s infinite" }} />
+          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"95px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)", animation:"larderEdge2 8.5s ease-in-out 1.5s infinite" }} />
+          <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"80px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.72), transparent)", animation:"larderEdge3 5s ease-in-out 3s infinite" }} />
           {revealed && <>
-            <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"155px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.98), transparent)", animation:"larderEdge1 3.5s ease-in-out 0.4s infinite" }} />
-            <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"115px", background:"linear-gradient(to right, transparent, rgba(255,215,70,0.98), transparent)", animation:"larderEdge2 4.5s ease-in-out 0.1s infinite" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, height:"2px", width:"125px", background:"linear-gradient(to right, transparent, rgba(255,215,70,0.78), transparent)", animation:"larderEdge1 7s ease-in-out 1.5s infinite" }} />
-            <div style={{ position:"absolute", bottom:0, right:0, height:"2px", width:"90px",  background:"linear-gradient(to left,  transparent, rgba(255,255,255,0.65), transparent)", animation:"larderEdge2 6s ease-in-out 3s infinite" }} />
-            <div style={{ position:"absolute", top:0, right:0, width:"2px", height:"85px", background:"linear-gradient(to bottom, rgba(255,210,70,0.72), transparent)", animation:"larderEdgeV1 6s ease-in-out 2s infinite" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, width:"2px", height:"75px", background:"linear-gradient(to top, rgba(255,225,100,0.65), transparent)", animation:"larderEdgeV2 7.5s ease-in-out 1.8s infinite" }} />
+            <div style={{ position:"absolute", top:0, left:0, height:"2px", width:"150px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent)", animation:"larderEdge1 3.8s ease-in-out 0.4s infinite" }} />
+            <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"105px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)", animation:"larderEdge2 5.5s ease-in-out 0s infinite" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, height:"1px", width:"115px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)", animation:"larderEdge3 6.5s ease-in-out 2s infinite" }} />
+            <div style={{ position:"absolute", top:0, left:0, width:"1px", height:"100%", background:"linear-gradient(to bottom, rgba(255,255,255,0.60) 0%, transparent 60%)", animation:"larderEdge2 7s ease-in-out 1s infinite" }} />
           </>}
         </div>
-        {/* Gem sparkles — appear when revealed */}
-        {revealed && (
+        )}
+        {/* Gem sparkles — appear when revealed, hidden when animations disabled */}
+        {revealed && !noAnim && (
           <>
-            {/* Gold sparkle — top-left */}
-            <div style={{ position:"absolute", top:7, left:"6%", width:16, height:16, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.6s ease-in-out 0.3s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,228,100,0.98), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,228,100,0.98), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"rgba(255,228,100,1)", boxShadow:"0 0 7px 3px rgba(255,200,50,0.95)" }} />
-            </div>
-            {/* White sparkle — top-right area */}
             <div style={{ position:"absolute", top:8, left:"15%", width:18, height:18, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.8s ease-in-out 0s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.98), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.98), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"white", boxShadow:"0 0 6px 3px rgba(255,255,255,0.95)" }} />
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.95), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.9)" }} />
             </div>
-            <div style={{ position:"absolute", top:5, right:"19%", width:14, height:14, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.4s ease-in-out 0.9s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.90), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.90), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.88)" }} />
-            </div>
-            {/* Gold sparkle — bottom-center */}
-            <div style={{ position:"absolute", bottom:8, left:"48%", width:16, height:16, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.6s ease-in-out 1.2s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,228,100,0.95), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,228,100,0.95), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:3, height:3, borderRadius:"50%", background:"rgba(255,228,100,1)", boxShadow:"0 0 6px 2px rgba(255,200,50,0.90)" }} />
-            </div>
-            <div style={{ position:"absolute", bottom:9, left:"32%", width:15, height:15, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.1s ease-in-out 1.6s infinite" }}>
+            <div style={{ position:"absolute", top:5, right:"19%", width:13, height:13, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.4s ease-in-out 0.9s infinite" }}>
               <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.80)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 2px rgba(255,255,255,0.8)" }} />
             </div>
-            {/* Gold sparkle — left-center */}
-            <div style={{ position:"absolute", top:"43%", left:7, width:12, height:12, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.9s ease-in-out 2.0s infinite" }}>
-              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,215,80,0.92), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,215,80,0.92), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"rgba(255,228,100,1)", boxShadow:"0 0 5px 2px rgba(255,200,50,0.85)" }} />
-            </div>
-            <div style={{ position:"absolute", top:"40%", right:7, width:11, height:11, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.5s ease-in-out 2.2s infinite" }}>
+            <div style={{ position:"absolute", bottom:9, left:"32%", width:15, height:15, pointerEvents:"none", zIndex:20, animation:"gemFlash 3.1s ease-in-out 1.6s infinite" }}>
               <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
               <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 2px rgba(255,255,255,0.72)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.7)" }} />
+            </div>
+            <div style={{ position:"absolute", top:"40%", right:7, width:11, height:11, pointerEvents:"none", zIndex:20, animation:"gemFlash 2.5s ease-in-out 2.2s infinite" }}>
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.6)" }} />
             </div>
           </>
         )}
@@ -348,7 +325,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <Target className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">Dedicate to goal</span>
+              <span className="text-[11px] leading-tight text-center">Support</span>
             </button>
             <button
               onClick={() => setSpendOpen(true)}
@@ -373,13 +350,22 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           {/* Recent entries — collapsible */}
           {entries.length > 0 && (
             <div className="border-t border-white/6 pt-4 space-y-2">
-              <button
-                onClick={() => setHistoryOpen(v => !v)}
-                className="w-full flex items-center justify-between text-xs text-white/35 font-semibold uppercase tracking-widest"
-              >
-                <span>History ({entries.length})</span>
-                {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setHistoryOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-xs text-white/35 font-semibold uppercase tracking-widest"
+                >
+                  <span>History ({entries.length})</span>
+                  {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={handleClearHistory}
+                  className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear
+                </button>
+              </div>
               {historyOpen && (
                 <div className="space-y-1 pt-1">
                   {entries.slice(0, 20).map(e => {
