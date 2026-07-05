@@ -325,3 +325,11 @@
 .anim-delay-1 { animation-delay: 80ms; }
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
+
+@keyframes larderShine {
+  0%   { transform: translateX(-100%) translateY(-100%) rotate(15deg); opacity: 0; }
+  20%  { opacity: 1; }
+  50%  { transform: translateX(100%) translateY(100%) rotate(15deg); opacity: 1; }
+  51%  { opacity: 0; }
+  100% { transform: translateX(100%) translateY(100%) rotate(15deg); opacity: 0; }
+}

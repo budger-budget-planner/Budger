@@ -539,7 +539,8 @@ export default function HouseholdPage() {
   }
 
   // ── Great Larder ─────────────────────────────────────────────────────────
-  const canSeeGreatLarder = !iAmChild && !!household;
+  // _glEnabled is computed before iAmChild; canSeeGreatLarder is finalised after.
+  const _glEnabled = !!household;
 
   const { data: greatLarder, refetch: refetchGL } = useQuery<any>({
     queryKey: ["great-larder"],
@@ -548,7 +549,7 @@ export default function HouseholdPage() {
       if (!r.ok) return null;
       return r.json();
     },
-    enabled: canSeeGreatLarder,
+    enabled: _glEnabled,
     refetchInterval: 30_000,
   });
 
@@ -641,6 +642,7 @@ export default function HouseholdPage() {
   const myRole = myMembership?.role ?? "child";
   const iAmHead = isHeadRole(myRole);
   const iAmChild = isChildRole(myRole);
+  const canSeeGreatLarder = !iAmChild && !!household;
 
   const createHousehold = useCreateHousehold({
     mutation: {
@@ -1431,6 +1433,126 @@ export default function HouseholdPage() {
               </div>
             </div>
           )}
+
+          {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
+          {canSeeGreatLarder && (
+            <div className="relative overflow-hidden rounded-3xl border border-white/10"
+              style={{
+                background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 40%, #111 60%, #0d0d0d 100%)",
+                boxShadow: "0 0 40px 6px rgba(255,255,255,0.04), 0 0 80px 10px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.08)",
+              }}
+            >
+              {/* Shine sweep */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+                <div className="great-larder-shine absolute -inset-full"
+                  style={{
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.07) 50%, transparent 70%)",
+                    animation: "larderShine 4s ease-in-out infinite",
+                  }}
+                />
+              </div>
+
+              <div className="relative z-10 px-5 pt-5 pb-4 space-y-4">
+                {/* Header */}
+                <div className="flex items-center gap-2">
+                  <Warehouse className="w-5 h-5 text-white/60" />
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-white/40">
+                      Wielka Spiżarnia
+                    </p>
+                    <p className="text-[11px] text-white/25 -mt-0.5">Great Larder · household savings</p>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="text-center py-2">
+                  {greatLarder ? (
+                    <p className="text-4xl font-bold tracking-tight text-white"
+                      style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
+                      {currencySymbol(greatLarder.currency)}{fmtAmtRound(greatLarder.total, greatLarder.currency)}
+                      <span className="text-lg font-normal text-white/30 ml-1">{greatLarder.currency}</span>
+                    </p>
+                  ) : (
+                    <p className="text-4xl font-bold text-white/20">—</p>
+                  )}
+                  <p className="text-xs text-white/30 mt-1">household collective savings</p>
+                </div>
+
+                {/* Action buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setGlSendOpen(true)}
+                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors"
+                  >
+                    <ArrowRightCircle className="w-4 h-4" />
+                    Send to Great Larder
+                  </button>
+                  <button
+                    onClick={() => setGlFundOpen(true)}
+                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Fund
+                  </button>
+                </div>
+
+                {/* Pending fund approvals — head only */}
+                {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
+                      Pending approvals ({greatLarder.entries.filter((e: any) => e.status === "pending").length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {greatLarder.entries
+                        .filter((e: any) => e.status === "pending")
+                        .map((e: any) => (
+                          <div key={e.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 border border-white/8">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{e.note || "Fund request"}</p>
+                              <p className="text-xs text-white/40">{e.contributorName} · {currencySymbol(e.currency)}{fmtAmtRound(e.amount, e.currency)} {e.currency}</p>
+                            </div>
+                            <button
+                              onClick={() => handleGlApprove(e.id)}
+                              disabled={glApproving === e.id}
+                              className="p-1.5 text-green-400/70 hover:text-green-400 active:text-green-400 transition-colors"
+                              title="Approve"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleGlReject(e.id)}
+                              disabled={glApproving === e.id}
+                              className="p-1.5 text-red-400/50 hover:text-red-400 active:text-red-400 transition-colors"
+                              title="Reject"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent approved entries */}
+                {greatLarder?.entries?.filter((e: any) => e.status === "approved").length > 0 && (
+                  <div className="space-y-1 pt-1 border-t border-white/5">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-white/25 pb-1">Recent contributions</p>
+                    {greatLarder.entries
+                      .filter((e: any) => e.status === "approved")
+                      .slice(0, 4)
+                      .map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between text-xs text-white/40 py-0.5">
+                          <span className="truncate">{e.contributorName} · {e.note || e.sourceType}</span>
+                          <span className="font-medium text-white/60 ml-2 flex-shrink-0">
+                            +{currencySymbol(e.currency)}{fmtAmtRound(e.amount, e.currency)}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1646,6 +1768,88 @@ export default function HouseholdPage() {
               </div>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Great Larder: Send from personal Larder ── */}
+      <Dialog open={glSendOpen} onOpenChange={setGlSendOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightCircle className="w-5 h-5 text-white/60" /> Send to Great Larder
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleGlSend} className="space-y-4">
+            <p className="text-sm text-white/50">Transfer from your personal Larder into the household Great Larder.</p>
+            <div className="space-y-1.5">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                value={glSendAmt}
+                onChange={e => setGlSendAmt(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlSendOpen(false); setGlSendAmt(""); }}>
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={glLoading}>
+                {glLoading ? "Sending…" : "Send"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Great Larder: Fund (requires head approval if parent) ── */}
+      <Dialog open={glFundOpen} onOpenChange={setGlFundOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-white/60" /> Fund Great Larder
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleGlFund} className="space-y-4">
+            <p className="text-sm text-white/50">
+              Create a transaction that funds the Great Larder.
+              {!iAmHead && <span className="text-amber-400/80"> Requires head approval.</span>}
+            </p>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Input
+                placeholder="e.g. Monthly household savings"
+                value={glFundDesc}
+                onChange={e => setGlFundDesc(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                value={glFundAmt}
+                onChange={e => setGlFundAmt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={glLoading}>
+                {glLoading ? "Submitting…" : iAmHead ? "Fund" : "Request"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
