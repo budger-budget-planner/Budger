@@ -931,8 +931,8 @@ export default function CategoriesPage() {
       {/* ── Pending category proposals ── */}
       <PendingProposals onSettled={() => {}} />
 
-      {/* Budget summary banner */}
-      {totalBudget != null && combinedBudgetSum > 0 && (
+      {/* Budget summary banner — always visible when there are category budgets */}
+      {combinedBudgetSum > 0 && (
         <div className={`mb-4 px-4 py-3 rounded-xl border text-sm ${
           catBudgetExceeds
             ? "border-red-500/30 bg-red-500/10"
@@ -941,13 +941,15 @@ export default function CategoriesPage() {
           <div className="flex items-center justify-between">
             <span className="text-white/60">{t("cat.budgets_total")}</span>
             <span className={`font-semibold ${catBudgetExceeds ? "text-red-400" : ""}`}>
-              {fmtAmtRound(combinedBudgetSum, prefs.currency)} / {fmtAmtRound(totalBudget, prefs.currency)}
+              {totalBudget != null
+                ? `${fmtAmtRound(combinedBudgetSum, prefs.currency)} / ${fmtAmtRound(totalBudget, prefs.currency)}`
+                : fmtAmtRound(combinedBudgetSum, prefs.currency)}
             </span>
           </div>
           {catBudgetExceeds && (
             <>
               <p className="text-xs text-red-400 mt-1">
-                Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - totalBudget, prefs.currency)}.
+                Category budgets exceed your total monthly budget by {fmtAmtRound(combinedBudgetSum - (totalBudget ?? 0), prefs.currency)}.
               </p>
               <button
                 onClick={() => setAdjustBudgetOpen(true)}

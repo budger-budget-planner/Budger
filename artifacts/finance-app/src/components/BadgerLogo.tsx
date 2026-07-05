@@ -12,9 +12,15 @@ interface BadgerLogoProps {
   size?: number;
   /** Override the internally-scheduled animation (e.g. for splash-screen wink). */
   forceAnim?: NonNullable<Anim> | null;
+  /**
+   * Override the CSS animation duration (in ms) for the forced animation.
+   * Only used when `forceAnim` is set — the internal idle-interval animations
+   * always play at their default speeds so regular app behaviour is unchanged.
+   */
+  forceAnimDurationMs?: number;
 }
 
-export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
+export default function BadgerLogo({ size = 40, forceAnim, forceAnimDurationMs }: BadgerLogoProps) {
   const uid = useId().replace(/:/g, "");
   const [anim, setAnim] = useState<Anim>(null);
   const intervalRef      = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
@@ -85,7 +91,7 @@ export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
 
           /* ══ Animation 1: WINK (right eye) ══ */
           .blg-wink .blg-eye-r {
-            animation: blg-wink 0.7s ease-in-out forwards;
+            animation: blg-wink var(--blg-anim-dur, 0.7s) ease-in-out forwards;
           }
           @keyframes blg-wink {
             0%   { transform: scaleY(1); }
@@ -101,7 +107,7 @@ export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
              The nose never dips below the resting position — only rises and
              returns. nostrils flare (scaleX) at each peak. */
           .blg-sniff .blg-nose {
-            animation: blg-sniff 1.4s ease-in-out forwards;
+            animation: blg-sniff var(--blg-anim-dur, 1.4s) ease-in-out forwards;
           }
           @keyframes blg-sniff {
             0%   { transform: translateY(0px)    scaleX(1); }
@@ -119,7 +125,7 @@ export default function BadgerLogo({ size = 40, forceAnim }: BadgerLogoProps) {
           .blg-tongue { opacity: 0; }
 
           .blg-lick .blg-tongue {
-            animation: blg-lick 2.4s ease-in-out forwards;
+            animation: blg-lick var(--blg-anim-dur, 2.4s) ease-in-out forwards;
           }
           @keyframes blg-lick {
             /* pop out */
