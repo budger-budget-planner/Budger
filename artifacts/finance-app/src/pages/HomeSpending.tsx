@@ -1583,7 +1583,7 @@ export default function HomeSpending() {
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
                               {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  {hasFromLarder  && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background:"radial-gradient(circle at 72% 28%, #2e2e2e 0%, #080808 55%)", border:"0.5px solid rgba(255,255,255,0.32)", boxShadow:"inset 0 0.5px 0 rgba(255,255,255,0.12)" }} />}
+                                  {hasFromLarder  && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 dot-spark" style={{ background:"radial-gradient(circle at 72% 28%, #2e2e2e 0%, #080808 55%)", border:"0.5px solid rgba(255,255,255,0.32)" }} />}
                                   {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
                                   {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
                                   {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}

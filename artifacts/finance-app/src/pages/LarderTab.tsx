@@ -217,19 +217,29 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         ref={ref}
         className="relative overflow-hidden rounded-3xl"
         style={{
-          background: "linear-gradient(135deg, #080808 0%, #161616 35%, #0e0e0e 60%, #0a0a0a 100%)",
-          border: revealed ? "1px solid rgba(255,255,255,0.28)" : "1px solid rgba(255,255,255,0.10)",
+          background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
+          border: revealed ? "1px solid rgba(255,255,255,0.32)" : "1px solid rgba(255,255,255,0.10)",
           boxShadow: revealed
-            ? "0 0 0px 0px rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,0.12)"
+            ? "0 0 0px 0px rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,0.14)"
             : "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
           transition: "border-color 0.8s ease, box-shadow 0.8s ease",
         }}
       >
-        {/* Border edge wave glow */}
-        <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none" style={{ zIndex:12 }}>
+        {/* Border edge wave glow — faint at rest, full intensity when card revealed */}
+        <div
+          className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
+          style={{ zIndex:12, opacity: revealed ? 1 : 0.45, transition: "opacity 0.9s ease" }}
+        >
           <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"110px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.65), transparent)", animation:"larderEdge1 6s ease-in-out 0s infinite" }} />
           <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"75px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.40), transparent)", animation:"larderEdge2 8.5s ease-in-out 1.5s infinite" }} />
           <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"60px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.50), transparent)", animation:"larderEdge3 5s ease-in-out 3s infinite" }} />
+          {/* Extra intense top-border beams at full reveal */}
+          {revealed && <>
+            <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"130px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.88), transparent)", animation:"larderEdge1 3.8s ease-in-out 0.4s infinite" }} />
+            <div style={{ position:"absolute", top:0, left:0, height:"1px", width:"90px",  background:"linear-gradient(to right, transparent, rgba(255,255,255,0.60), transparent)", animation:"larderEdge2 5.5s ease-in-out 0s infinite" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, height:"1px", width:"100px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.50), transparent)", animation:"larderEdge3 6.5s ease-in-out 2s infinite" }} />
+            <div style={{ position:"absolute", top:0, left:0, width:"1px", height:"100%", background:"linear-gradient(to bottom, rgba(255,255,255,0.45) 0%, transparent 60%)", animation:"larderEdge2 7s ease-in-out 1s infinite" }} />
+          </>}
         </div>
         {/* Gem sparkles — appear when revealed */}
         {revealed && (

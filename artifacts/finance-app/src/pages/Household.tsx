@@ -664,6 +664,11 @@ export default function HouseholdPage() {
     return () => obs.disconnect();
   }, [canSeeGreatLarder]);
 
+  // Signal Layout's nav wave to fade when GL card enters/leaves view
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent('larder-reached', { detail: { visible: glVisible } }));
+  }, [glVisible]);
+
   const createHousehold = useCreateHousehold({
     mutation: {
       onSuccess: () => {
@@ -1459,7 +1464,7 @@ export default function HouseholdPage() {
           {canSeeGreatLarder && (
             <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl border border-white/10"
               style={{
-                background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 40%, #111 60%, #0d0d0d 100%)",
+                background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
                 boxShadow: "0 0 40px 6px rgba(255,255,255,0.04), 0 0 80px 10px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.08)",
               }}
             >

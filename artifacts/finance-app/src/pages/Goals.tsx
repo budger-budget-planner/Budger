@@ -975,6 +975,11 @@ export default function GoalsPage() {
     return () => obs.disconnect();
   }, []);
 
+  // Signal Layout's nav wave to fade when Larder card enters/leaves view
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent('larder-reached', { detail: { visible: larderVisible } }));
+  }, [larderVisible]);
+
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
     fetchRates().then(setRates);

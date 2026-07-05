@@ -49,11 +49,39 @@ function PrefsSwitchSplash() {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location]     = useLocation();
+  const mainRef        = useRef<HTMLDivElement>(null);
+  const [waveIntensity, setWaveIntensity] = useState(0);
+  const [larderReached, setLarderReached] = useState(false);
 
   // Scroll to top on every tab/route change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
+
+  // Reset wave state when switching tabs
+  useEffect(() => {
+    setWaveIntensity(0);
+    setLarderReached(false);
+  }, [location]);
+
+  // Intensify wave as user scrolls down within the page
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const max = el.scrollHeight - el.clientHeight;
+      setWaveIntensity(max > 0 ? el.scrollTop / max : 0);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Listen for Larder / GL card becoming visible — wave fades to card borders
+  useEffect(() => {
+    const handler = (e: Event) => setLarderReached((e as CustomEvent<{ visible: boolean }>).detail.visible);
+    document.addEventListener('larder-reached', handler);
+    return () => document.removeEventListener('larder-reached', handler);
+  }, []);
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
   const { data: incomingInvites } = useListIncomingInvites();
@@ -644,11 +672,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ── Page content ── */}
-      <main className="flex-1 overflow-auto pb-24">
+      <main ref={mainRef} className="flex-1 overflow-auto pb-24">
         {children}
       </main>
 
-      {/* Ocean wave glow — rendered outside the flex nav so it doesn't become a flex child */}
+      {/* Ocean wave glow — Goals & Household tabs only; opacity scales with scroll, fades when Larder/GL card reached */}
       <style>{`
         @keyframes nw1{0%{transform:translateX(-120px);opacity:0}12%{opacity:.85}88%{opacity:.85}100%{transform:translateX(110vw);opacity:0}}
         @keyframes nw2{0%{transform:translateX(110vw);opacity:0}15%{opacity:.60}85%{opacity:.60}100%{transform:translateX(-90px);opacity:0}}
@@ -658,7 +686,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         @keyframes nw6{0%{transform:translateX(80vw);opacity:.15}45%{opacity:.55;transform:translateX(20vw)}100%{transform:translateX(80vw);opacity:.15}}
       `}</style>
       {/* Wave beams — fixed, sit just above the nav bar top border */}
-      <div className="fixed bottom-16 inset-x-0 overflow-visible pointer-events-none" style={{ height:0, zIndex:41 }}>
+      <div
+        className="fixed bottom-16 inset-x-0 overflow-visible pointer-events-none"
+        style={{
+          height: 0,
+          zIndex: 41,
+          opacity: (location === '/goals' || location === '/household') && !larderReached
+            ? Math.min(1, 0.4 + 0.6 * waveIntensity)
+            : 0,
+          transition: "opacity 0.8s ease",
+        }}
+      >
         <div style={{ position:"absolute", top:"-5px", left:0, width:"110px", height:"10px", background:"radial-gradient(ellipse 55px 5px at center, rgba(255,255,255,0.78) 0%, transparent 100%)", animation:"nw1 7s ease-in-out 0s infinite" }} />
         <div style={{ position:"absolute", top:"-4px", left:0, width:"80px",  height:"8px",  background:"radial-gradient(ellipse 40px 4px at center, rgba(255,255,255,0.50) 0%, transparent 100%)", animation:"nw2 9s ease-in-out 1.2s infinite" }} />
         <div style={{ position:"absolute", top:"-5px", left:0, width:"95px",  height:"10px", background:"radial-gradient(ellipse 47px 5px at center, rgba(255,255,255,0.42) 0%, transparent 100%)", animation:"nw3 5.5s ease-in-out 0s infinite" }} />
