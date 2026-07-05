@@ -1781,41 +1781,6 @@ export default function HouseholdPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Great Larder: Send from personal Larder ── */}
-      <Dialog open={glSendOpen} onOpenChange={setGlSendOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowRightCircle className="w-5 h-5 text-white/60" /> Send to Great Larder
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleGlSend} className="space-y-4">
-            <p className="text-sm text-white/50">Transfer from your personal Larder into the household Great Larder.</p>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-                value={glSendAmt}
-                onChange={e => setGlSendAmt(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlSendOpen(false); setGlSendAmt(""); }}>
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1" disabled={glLoading}>
-                {glLoading ? "Sending…" : "Send"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* ── Great Larder: Fund (requires head approval if parent) ── */}
       <Dialog open={glFundOpen} onOpenChange={setGlFundOpen}>
         <DialogContent className="max-w-sm">

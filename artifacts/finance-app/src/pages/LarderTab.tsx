@@ -30,6 +30,7 @@ type LarderSummary = {
 function sourceLabel(sourceType: string): string {
   if (sourceType === "recurring_payment") return t("larder.source_recurring");
   if (sourceType === "larder_fund")       return t("larder.source_fund");
+  if (sourceType === "larder_spend")      return t("larder.source_fund");
   if (sourceType === "goal_dedication")   return t("larder.source_dedication");
   if (sourceType === "great_larder_transfer") return t("larder.source_transfer");
   return t("larder.source_manual");
@@ -38,6 +39,7 @@ function sourceLabel(sourceType: string): string {
 function EntryIcon({ sourceType, positive }: { sourceType: string; positive: boolean }) {
   if (sourceType === "recurring_payment") return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
   if (sourceType === "larder_fund")       return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
+  if (sourceType === "larder_spend")      return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
   if (sourceType === "goal_dedication")   return <Target className="w-3.5 h-3.5 text-white/40" />;
   if (sourceType === "great_larder_transfer") return <ArrowRightCircle className="w-3.5 h-3.5 text-white/40" />;
   return positive
@@ -327,33 +329,73 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
         </div>
       </div>
 
-      {/* ── Fund Larder sheet ── */}
-      <Sheet title={t("larder.fund_sheet_title")} open={fundOpen} onClose={() => setFundOpen(false)}>
-        <form onSubmit={handleFund} className="space-y-4">
+      {/* ── Fund (spend from Larder into a transaction) sheet ── */}
+      <Sheet title={t("larder.spend_sheet_title")} open={spendOpen} onClose={() => setSpendOpen(false)}>
+        <form onSubmit={handleSpend} className="space-y-4">
           <div className="space-y-1.5">
             <label className={labelCls}>{t("larder.description")}</label>
-            <input type="text" required value={fundDesc} onChange={e => setFundDesc(e.target.value)}
+            <input type="text" required value={spendDesc} onChange={e => setSpendDesc(e.target.value)}
               placeholder={t("larder.description")} className={inputCls} />
           </div>
           <div className="space-y-1.5">
-            <label className={labelCls}>{t("larder.amount_label")} ({prefs.currency})</label>
-            <input type="number" step="0.01" min="0.01" required value={fundTotal}
-              onChange={e => setFundTotal(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>{t("larder.larder_portion")} ({prefs.currency})</label>
-            <input type="number" step="0.01" min="0.01" required value={fundPortion}
-              onChange={e => setFundPortion(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
+            <label className={labelCls}>
+              {t("larder.amount_label")} ({prefs.currency}) · Balance: {sym}{total.toFixed(2)}
+            </label>
+            <input type="number" step="0.01" min="0.01" max={total} required value={spendAmt}
+              onChange={e => setSpendAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
             <p className="text-xs text-white/25 leading-relaxed">
-              Full amount appears in your transactions; only this portion is saved to the Larder.
+              Creates a transaction from your Larder, marked with a "From Larder" badge.
             </p>
           </div>
-          <button type="submit" disabled={fundLoading}
+          <button type="submit" disabled={spendLoading || total <= 0}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
-            {fundLoading ? "…" : t("larder.fund")}
+            {spendLoading ? "…" : t("larder.fund")}
           </button>
         </form>
       </Sheet>
+
+      {/* ── Send to Great Larder sheet ── */}
+      {inHousehold && (
+        <Sheet title={t("larder.send_gl_sheet_title")} open={sendGlOpen} onClose={() => setSendGlOpen(false)}>
+          <form onSubmit={handleSendToGL} className="space-y-4">
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setSendGlMode("amount")}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition ${
+                  sendGlMode === "amount" ? "border-white/40 bg-white/10 text-white" : "border-white/10 bg-white/3 text-white/50"
+                }`}>
+                {t("larder.amount_label")}
+              </button>
+              <button type="button" onClick={() => setSendGlMode("percent")}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition ${
+                  sendGlMode === "percent" ? "border-white/40 bg-white/10 text-white" : "border-white/10 bg-white/3 text-white/50"
+                }`}>
+                {t("larder.percent_label")}
+              </button>
+            </div>
+            {sendGlMode === "amount" ? (
+              <div className="space-y-1.5">
+                <label className={labelCls}>
+                  {t("larder.amount_label")} ({prefs.currency}) · Balance: {sym}{total.toFixed(2)}
+                </label>
+                <input type="number" step="0.01" min="0.01" max={total} required value={sendGlAmt}
+                  onChange={e => setSendGlAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className={labelCls}>
+                  {t("larder.percent_label")} · {sym}{((total * (parseFloat(sendGlPct) || 0)) / 100).toFixed(2)}
+                </label>
+                <input type="number" step="1" min="1" max="100" required value={sendGlPct}
+                  onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="0" className={inputCls} />
+              </div>
+            )}
+            <button type="submit" disabled={sendGlLoading || total <= 0}
+              className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
+              {sendGlLoading ? "…" : t("larder.send")}
+            </button>
+          </form>
+        </Sheet>
+      )}
 
       {/* ── Dedicate to goal sheet ── */}
       <Sheet title={t("larder.dedicate_sheet_title")} open={dedicateOpen} onClose={() => setDedicateOpen(false)}>
