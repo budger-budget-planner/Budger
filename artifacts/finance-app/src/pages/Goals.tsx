@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
-import LarderTab from "@/pages/LarderTab";
+import LarderCard from "@/pages/LarderTab";
 import {
   useListGoals,
   useListPastGoals,
@@ -755,7 +755,19 @@ export default function GoalsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
 
-  const [activeTab, setActiveTab] = useState<"goals" | "larder">("goals");
+  const larderRef = useRef<HTMLDivElement>(null);
+  const [larderInView, setLarderInView] = useState(false);
+
+  useEffect(() => {
+    const el = larderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setLarderInView(true);
+      else setLarderInView(false);
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const [rates, setRates] = useState<Record<string, number>>(EMPTY_RATES);
   useEffect(() => {
@@ -977,28 +989,21 @@ export default function GoalsPage() {
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
 
-      {/* ── Tab bar ── */}
-      <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-5">
-        {(["goals", "larder"] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
-              activeTab === tab
-                ? "bg-foreground text-background shadow"
-                : "text-muted-foreground"
-            }`}
-          >
-            {tab === "goals" ? t("goals.tab_goals") : t("goals.tab_larder")}
-          </button>
-        ))}
-      </div>
+      {/* ── Glowing Larder pulse — visible until user scrolls to Larder card ── */}
+      {!larderInView && (
+        <div className="fixed bottom-24 inset-x-0 z-20 pointer-events-none flex justify-center">
+          <div
+            className="w-20 h-1 rounded-full animate-pulse"
+            style={{
+              background: "rgba(255,255,255,0.35)",
+              boxShadow: "0 0 18px 6px rgba(255,255,255,0.18), 0 0 40px 14px rgba(255,255,255,0.08)",
+            }}
+          />
+        </div>
+      )}
 
-      {/* ── Larder tab ── */}
-      {activeTab === "larder" && <LarderTab />}
-
-      {/* ── Goals tab content ── */}
-      {activeTab === "goals" && <>
+      {/* ── Goals content ── */}
+      <>
 
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -1419,6 +1424,11 @@ export default function GoalsPage() {
         </div>
       )}
 
+      {/* ── Larder card — personal savings, below goals ── */}
+      <div className="mt-5 mb-2">
+        <LarderCard ref={larderRef} />
+      </div>
+
       {/* Edit dialog */}
       {editGoal && (
         <EditGoalDialog
@@ -1477,7 +1487,7 @@ export default function GoalsPage() {
           </form>
         </DialogContent>
       </Dialog>
-      </>}
+      </>
     </div>
   );
 }
