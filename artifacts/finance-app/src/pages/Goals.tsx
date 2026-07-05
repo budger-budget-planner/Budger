@@ -999,26 +999,37 @@ export default function GoalsPage() {
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
 
-      {/* ── Tab-strip shimmer hint — sweeps across the gap above the nav bar ── */}
+      {/* ── Tab-strip beacon — a small spark travels a thin line above the
+           nav bar, luring the eye toward the Larder. Grows brighter and
+           quicker as the Larder card gets closer, like a treasure chest
+           glinting to say "come find me". ── */}
       {!larderInView && (
         <div
           className="fixed bottom-16 inset-x-0 z-20 pointer-events-none overflow-hidden"
-          style={{ height: 52 }}
+          style={{ height: 30 }}
         >
-          {/* Subtle vignette so the strip blends into the page */}
-          <div className="absolute inset-0"
-            style={{ background: "linear-gradient(to top, rgba(255,255,255,0.015) 0%, transparent 100%)" }} />
-          {/* The sweeping shimmer band — speed and opacity grow with proximity */}
+          {/* The line itself — barely-there, brightens slightly with proximity */}
           <div
-            className="absolute top-0 bottom-0"
+            className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-px"
+            style={{ background: `rgba(255,255,255,${0.06 + larderProximity * 0.14})` }}
+          />
+          {/* Soft heartbeat bloom behind the spark */}
+          <div
+            className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-6 rounded-full"
             style={{
-              width: "42%",
-              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)",
-              opacity: 0.18 + larderProximity * 0.82,
-              animationName: "tabShimmer",
-              animationDuration: `${Math.max(0.55, 2.2 - larderProximity * 1.65)}s`,
-              animationTimingFunction: "linear",
-              animationIterationCount: "infinite",
+              background: "radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 72%)",
+              animation: `beaconPulse ${Math.max(0.9, 2.4 - larderProximity * 1.7)}s ease-in-out infinite`,
+            }}
+          />
+          {/* The traveling spark — a tiny glinting orb */}
+          <div
+            className="absolute top-1/2 rounded-full"
+            style={{
+              width: 5,
+              height: 5,
+              background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 72%)",
+              boxShadow: `0 0 ${6 + larderProximity * 12}px ${2 + larderProximity * 4}px rgba(255,255,255,${0.45 + larderProximity * 0.45})`,
+              animation: `beaconTravel ${Math.max(1.3, 3.2 - larderProximity * 2.2)}s ease-in-out infinite`,
             }}
           />
         </div>

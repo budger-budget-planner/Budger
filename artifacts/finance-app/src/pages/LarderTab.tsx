@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect, useRef } from "react";
+import { forwardRef, useState, useEffect, useRef, useMemo } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe } from "@workspace/api-client-react";
@@ -79,12 +79,25 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
     let cleanup: (() => void) | undefined;
     if (nearness >= 1 && prevNearness.current < 1) {
       setBursting(true);
-      const t = setTimeout(() => setBursting(false), 1400);
+      const t = setTimeout(() => setBursting(false), 1700);
       cleanup = () => clearTimeout(t);
     }
     prevNearness.current = nearness;
     return cleanup;
   }, [nearness]);
+
+  // Randomized sparkle positions — computed once, reused for every reveal.
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        id: i,
+        left: 8 + Math.random() * 84,
+        top: 6 + Math.random() * 82,
+        size: 2 + Math.random() * 3,
+        delay: Math.random() * 0.55,
+      })),
+    []
+  );
 
   const prefs = loadPrefs();
   const sym = currencySymbol(prefs.currency);
@@ -210,30 +223,61 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
     <>
       <div
         ref={ref}
-        className="relative overflow-hidden rounded-3xl border border-white/10"
+        className="larder-card-glow relative overflow-hidden rounded-3xl border border-white/10"
         style={{
           background: "linear-gradient(135deg, #080808 0%, #161616 35%, #0e0e0e 60%, #0a0a0a 100%)",
-          boxShadow: "0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09)",
         }}
       >
-        {/* Periodic glisten sweep */}
+        {/* Ambient living shine — slow rotating sheen, like light raking a
+            polished surface. This is the constant "why is it glinting?" cue
+            that carries through from the tab-strip beacon. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
           <div
-            className="absolute top-0 bottom-0"
+            className="absolute"
             style={{
-              width: "55%",
-              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.09) 50%, transparent 100%)",
-              animation: "larderGlisten 7s ease-in-out infinite",
+              inset: "-60%",
+              background:
+                "conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.05) 12deg, transparent 30deg, transparent 180deg, rgba(255,255,255,0.035) 196deg, transparent 220deg, transparent 360deg)",
+              animation: "treasureSheen 16s linear infinite",
             }}
           />
         </div>
 
-        {/* Entry burst — white flash that fades when card first scrolls into view */}
+        {/* The treasure unveiling — plays once, the moment the card first
+            scrolls fully into view. */}
         {bursting && (
-          <div
-            className="pointer-events-none absolute inset-0 rounded-3xl"
-            style={{ animation: "larderBurst 1.4s ease-out forwards" }}
-          />
+          <>
+            {/* A thin ring of light expanding from the border */}
+            <div
+              className="pointer-events-none absolute inset-0 rounded-3xl border border-white/40"
+              style={{ animation: "treasureRing 1.1s ease-out forwards" }}
+            />
+            {/* The chest opens: radial flash from the center */}
+            <div
+              className="pointer-events-none absolute inset-0 rounded-3xl"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 42%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.22) 32%, transparent 66%)",
+                animation: "treasureFlash 1.7s cubic-bezier(0.16,1,0.3,1) forwards",
+              }}
+            />
+            {/* Star-struck sparkle — glints twinkle outward across the card */}
+            {sparkles.map((s) => (
+              <div
+                key={s.id}
+                className="pointer-events-none absolute rounded-full bg-white"
+                style={{
+                  left: `${s.left}%`,
+                  top: `${s.top}%`,
+                  width: s.size,
+                  height: s.size,
+                  boxShadow: "0 0 6px 2px rgba(255,255,255,0.9), 0 0 12px 4px rgba(255,255,255,0.35)",
+                  animation: `treasureSparkle 1.5s ease-out ${s.delay}s forwards`,
+                  opacity: 0,
+                }}
+              />
+            ))}
+          </>
         )}
 
         <div className="relative z-10 px-5 pt-5 pb-5 space-y-5">
@@ -253,8 +297,8 @@ const LarderCard = forwardRef<HTMLDivElement, { nearness?: number }>(({ nearness
           {/* Balance */}
           <div className="text-center py-1">
             <p
-              className="text-5xl font-bold tracking-tight text-white tabular-nums"
-              style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
+              className={`text-5xl font-bold tracking-tight text-white tabular-nums ${bursting ? "treasure-number-pop" : ""}`}
+              style={!bursting ? { textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" } : undefined}
             >
               {sym}{fmtAmt(total, prefs.currency).replace(/^[^0-9-]*/,"").replace(sym,"")}
             </p>

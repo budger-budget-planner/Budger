@@ -326,33 +326,77 @@
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
-/* ── Larder card: periodic glisten — long idle, then a fast bright sweep ── */
-@keyframes larderGlisten {
-  0%, 72%  { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
-  76%      { opacity: 0; }
-  80%      { transform: translateX(-60%) skewX(-12deg); opacity: 1; }
-  90%      { transform: translateX(160%) skewX(-12deg); opacity: 0.6; }
-  93%      { opacity: 0; }
-  100%     { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+/* ══════════════════════════════════════════════════════════════════════════
+   Treasure-chest motif — used by the Larder card + its tab-strip beacon.
+   Palette stays monochrome (white/silver on black) per brand rules; the
+   "precious" feeling comes from light, glow and sparkle, not color.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Ambient living shine — a slow rotating sheen, like light raking a polished
+   surface. Always-on, very subtle. This is the "why is it glinting?" cue. */
+@keyframes treasureSheen {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* ── Tab strip shimmer — sweeps left→right ── */
-@keyframes tabShimmer {
-  0%   { transform: translateX(-120%) skewX(-12deg); }
-  100% { transform: translateX(320%) skewX(-12deg); }
+/* Ambient breathing glow on the card border/shadow — the surface feels alive. */
+@keyframes treasureGlow {
+  0%, 100% {
+    box-shadow: 0 0 60px 8px rgba(255,255,255,0.03), 0 0 120px 20px rgba(255,255,255,0.015), inset 0 1px 0 rgba(255,255,255,0.09);
+  }
+  50% {
+    box-shadow: 0 0 84px 16px rgba(255,255,255,0.06), 0 0 160px 34px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.16);
+  }
+}
+.larder-card-glow {
+  animation: treasureGlow 5.5s ease-in-out infinite;
 }
 
-/* ── Larder card burst — white flash on entry, then settles ── */
-@keyframes larderBurst {
-  0%   { opacity: 0.22; }
-  60%  { opacity: 0.08; }
-  100% { opacity: 0; }
+/* Beacon: a small spark that travels along the tab-strip hint line, luring
+   the eye downward — replaces the old hard skewed shimmer bar. */
+@keyframes beaconTravel {
+  0%   { left: 4%;  opacity: 0; transform: translateY(-50%) scale(0.6); }
+  12%  { opacity: 1; transform: translateY(-50%) scale(1); }
+  50%  { left: 96%; opacity: 1; transform: translateY(-50%) scale(1); }
+  88%  { opacity: 1; transform: translateY(-50%) scale(1); }
+  100% { left: 96%; opacity: 0; transform: translateY(-50%) scale(0.6); }
 }
 
-/* keep old name as alias in case any other file still references it */
-@keyframes larderShine {
-  0%, 72%  { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
-  80%      { transform: translateX(-60%) skewX(-12deg); opacity: 1; }
-  90%      { transform: translateX(160%) skewX(-12deg); opacity: 0.6; }
-  100%     { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+/* Beacon: a soft bloom that pulses like a heartbeat behind the spark. */
+@keyframes beaconPulse {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  50%      { opacity: 0.55; transform: scale(1.2); }
+}
+
+/* The chest opens: a soft radial flash blooms from the center and fades —
+   the "eyes behold the treasure" moment. */
+@keyframes treasureFlash {
+  0%   { opacity: 0; transform: scale(0.4); }
+  22%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+/* Individual glints/sparkles that twinkle outward on reveal. */
+@keyframes treasureSparkle {
+  0%   { opacity: 0; transform: scale(0) rotate(0deg); }
+  30%  { opacity: 1; transform: scale(1.15) rotate(45deg); }
+  60%  { opacity: 0.65; transform: scale(0.85) rotate(70deg); }
+  100% { opacity: 0; transform: scale(0.2) rotate(90deg); }
+}
+
+/* The balance number catches the light and pops as the treasure is revealed. */
+@keyframes treasureNumberPop {
+  0%   { transform: scale(0.86); text-shadow: 0 0 10px rgba(255,255,255,0.1); }
+  38%  { transform: scale(1.14); text-shadow: 0 0 70px rgba(255,255,255,0.95), 0 0 120px rgba(255,255,255,0.5); }
+  70%  { transform: scale(0.97); }
+  100% { transform: scale(1); text-shadow: 0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08); }
+}
+.treasure-number-pop {
+  animation: treasureNumberPop 1.3s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+/* A thin ring of light that expands outward once from the card border. */
+@keyframes treasureRing {
+  0%   { opacity: 0.9; transform: scale(0.94); }
+  100% { opacity: 0;   transform: scale(1.08); }
 }
