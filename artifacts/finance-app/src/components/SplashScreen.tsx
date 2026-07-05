@@ -135,6 +135,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   return (
     /* Layer 1 — full-screen gradient overlay; only this carries the opacity fade */
     <div
+      className="splash-screen"
       style={{
         position: "fixed",
         inset: 0,

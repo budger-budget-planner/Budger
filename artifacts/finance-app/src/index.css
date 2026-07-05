@@ -2,9 +2,11 @@
 @import "tailwindcss";
 
 /* ── Animation kill-switch (disable-animations pref) ── */
-html.no-animations *,
-html.no-animations *::before,
-html.no-animations *::after {
+/* Kills all animations/transitions site-wide EXCEPT the splash screen,
+   which the user always sees and must be exempted. */
+html.no-animations *:not(.splash-screen):not(.splash-screen *),
+html.no-animations *:not(.splash-screen):not(.splash-screen *)::before,
+html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   animation: none !important;
   transition: none !important;
 }

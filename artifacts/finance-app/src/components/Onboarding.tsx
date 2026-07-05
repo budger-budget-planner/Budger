@@ -96,7 +96,7 @@ export default function Onboarding({
     } finally {
       setFinishing(false);
     }
-    onComplete({ currency, language, totalBudget, staySignedIn });
+    onComplete({ currency, language, totalBudget, staySignedIn, disableAnimations: false });
   }
 
   function handleLetsStart() {
