@@ -22,7 +22,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Check, X, History,
   ChevronDown, ChevronRight, Target, Users, Lock, ArrowUpRight,
-  Bell, CheckCircle2, Clock, Star,
+  Bell, CheckCircle2, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -405,7 +405,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
         {/* Stored in Larder badge — shown on completed goals */}
         {_pctEarly >= 100 && savedToLarderActive > 0 && (
           <div className="relative flex items-center gap-1.5 mt-1 mb-1">
-            <Star className="w-3 h-3 text-muted-foreground" />
+            <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0 text-muted-foreground" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
             <span className="text-xs text-muted-foreground">
               {t("larder.stored_badge")} {fmtAmt(savedToLarderActive, currency)}
             </span>
@@ -450,7 +450,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                            bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
               >
-                <Star className="w-3.5 h-3.5" /> {t("larder.save_short")}
+                <svg viewBox="0 0 12 12" width="14" height="14" className="flex-shrink-0" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg> {t("larder.save_short")}
               </button>
               {canDelete && (
                 <button onClick={() => setConfirmDelete(true)}
@@ -944,7 +944,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
                 <button onClick={() => setSaveOpen(true)}
                   className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground"
                   title={t("larder.save_from_goal")}>
-                  <Star className="w-3.5 h-3.5" />
+                  <svg viewBox="0 0 12 12" width="14" height="14" className="flex-shrink-0" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
                 </button>
               )}
               <button onClick={() => setConfirmDelete(true)}
@@ -956,7 +956,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
         </div>
         {savedToLarder > 0 && (
           <div className="relative flex items-center gap-1.5 mt-1">
-            <Star className="w-3 h-3 text-muted-foreground" />
+            <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0 text-muted-foreground" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
             <span className="text-xs text-muted-foreground">
               {t("larder.stored_badge")} {fmtAmt(savedToLarder, currency)}
             </span>
