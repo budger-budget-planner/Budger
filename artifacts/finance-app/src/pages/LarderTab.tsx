@@ -56,6 +56,39 @@ function orderedBreakdown(
   return acct ? [acct, ...rest] : rest;
 }
 
+/** Currencies with a usable (>0) balance, for the "Asset" source-of-funds dropdown. */
+function assetOptions(breakdown: CurrencySubtotal[]): CurrencySubtotal[] {
+  return breakdown.filter(b => b.rawTotal > 0.005);
+}
+
+function AssetSelect({
+  options, value, onChange,
+}: { options: CurrencySubtotal[]; value: string; onChange: (v: string) => void }) {
+  if (options.length === 0) return null;
+  if (options.length === 1) {
+    return (
+      <div className="space-y-1.5">
+        <label className={labelCls}>{t("larder.asset_label")}</label>
+        <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 text-sm">
+          {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <label className={labelCls}>{t("larder.asset_label")}</label>
+      <select value={value} onChange={e => onChange(e.target.value)} className={inputCls}>
+        {options.map(o => (
+          <option key={o.currency} value={o.currency} className="bg-[#111]">
+            {o.currency} · {fmtAmt(o.rawTotal, o.currency)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function sourceLabel(sourceType: string): string {
   if (sourceType === "recurring_payment") return t("larder.source_recurring");
   if (sourceType === "larder_fund")       return t("larder.source_fund");
@@ -126,16 +159,19 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [spendOpen,    setSpendOpen]    = useState(false);
   const [spendDesc,    setSpendDesc]    = useState("");
   const [spendAmt,     setSpendAmt]     = useState("");
+  const [spendAsset,   setSpendAsset]   = useState("");
   const [spendLoading, setSpendLoading] = useState(false);
 
   const [sendGlOpen,    setSendGlOpen]    = useState(false);
   const [sendGlMode,    setSendGlMode]    = useState<"amount" | "percent">("amount");
   const [sendGlAmt,     setSendGlAmt]     = useState("");
   const [sendGlPct,     setSendGlPct]     = useState("");
+  const [sendGlAsset,   setSendGlAsset]   = useState("");
   const [sendGlLoading, setSendGlLoading] = useState(false);
 
   const [dedGoalId,  setDedGoalId]  = useState<number | null>(null);
   const [dedAmount,  setDedAmount]  = useState("");
+  const [dedAsset,   setDedAsset]   = useState("");
   const [dedLoading, setDedLoading] = useState(false);
 
   const { data: me } = useGetMe();
@@ -146,6 +182,27 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const totalGLSent = entries
     .filter(e => e.sourceType === "great_larder_transfer")
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+  const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
+  const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
+  const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? total;
+  const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? total;
+
+  useEffect(() => {
+    if (spendOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === spendAsset)) {
+      setSpendAsset(assetOpts[0].currency);
+    }
+  }, [spendOpen, assetOpts]);
+  useEffect(() => {
+    if (sendGlOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === sendGlAsset)) {
+      setSendGlAsset(assetOpts[0].currency);
+    }
+  }, [sendGlOpen, assetOpts]);
+  useEffect(() => {
+    if (dedicateOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === dedAsset)) {
+      setDedAsset(assetOpts[0].currency);
+    }
+  }, [dedicateOpen, assetOpts]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
@@ -170,13 +227,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     e.preventDefault();
     const amount = parseFloat(spendAmt.replace(",", "."));
     if (isNaN(amount) || amount <= 0) return;
+    if (amount > spendAssetBalance + 0.005) {
+      toast({ title: t("larder.insufficient_asset", { code: spendAsset || prefs.currency }), variant: "destructive" }); return;
+    }
     setSpendLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ description: spendDesc.trim(), amount }),
+        body: JSON.stringify({ description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
@@ -196,16 +256,19 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       if (sendGlMode === "percent") {
         const pct = parseFloat(sendGlPct.replace(",", "."));
         if (isNaN(pct) || pct < 1 || pct > 99) throw new Error("Enter a percentage between 1 and 99");
-        amount = (pct / 100) * total;
+        amount = (pct / 100) * sendGlAssetBalance;
         if (amount <= 0) throw new Error("Niewystarczające saldo Spiżarni");
       } else {
         amount = parseFloat(sendGlAmt.replace(",", "."));
+      }
+      if (amount > sendGlAssetBalance + 0.005) {
+        throw new Error(t("larder.insufficient_asset", { code: sendGlAsset || prefs.currency }));
       }
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, assetCurrency: sendGlAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       toast({ title: t("larder.sent_to_gl_toast") });
@@ -222,8 +285,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     if (!dedGoalId) return;
     const amt = parseFloat(dedAmount.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
-    if (amt > total + 0.001) {
-      toast({ title: t("larder.insufficient"), variant: "destructive" }); return;
+    if (amt > dedAssetBalance + 0.005) {
+      toast({ title: t("larder.insufficient_asset", { code: dedAsset || prefs.currency }), variant: "destructive" }); return;
     }
     setDedLoading(true);
     try {
@@ -231,7 +294,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ goalId: dedGoalId, amount: amt }),
+        body: JSON.stringify({ goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
@@ -453,9 +516,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             <input type="text" required value={spendDesc} onChange={e => setSpendDesc(e.target.value)}
               placeholder={t("larder.description")} className={inputCls} />
           </div>
+          <AssetSelect options={assetOpts} value={spendAsset} onChange={setSpendAsset} />
           <div className="space-y-1.5">
             <label className={labelCls}>
-              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(spendAssetBalance, spendAsset || prefs.currency)}
             </label>
             <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={spendAmt}
               onChange={e => setSpendAmt(e.target.value)} placeholder="0.00" className={inputCls} />
@@ -488,10 +552,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 {t("larder.percent_label")}
               </button>
             </div>
+            <AssetSelect options={assetOpts} value={sendGlAsset} onChange={setSendGlAsset} />
             {sendGlMode === "amount" ? (
               <div className="space-y-1.5">
                 <label className={labelCls}>
-                  {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
+                  {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(sendGlAssetBalance, sendGlAsset || prefs.currency)}
                 </label>
                 <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={sendGlAmt}
                   onChange={e => setSendGlAmt(e.target.value)} placeholder="0.00" className={inputCls} />
@@ -499,7 +564,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             ) : (
               <div className="space-y-1.5">
                 <label className={labelCls}>
-                  {t("larder.percent_label")}{sendGlPct ? ` · ${fmtAmt((total * (parseFloat(sendGlPct) || 0)) / 100, prefs.currency)} ${t("larder.will_be_sent")}` : ""}
+                  {t("larder.percent_label")}{sendGlPct ? ` · ${fmtAmt((sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100, sendGlAsset || prefs.currency)} ${t("larder.will_be_sent")}` : ""}
                 </label>
                 <input type="text" inputMode="numeric" pattern="[0-9]*" required value={sendGlPct}
                   onChange={e => setSendGlPct(e.target.value)} placeholder="np. 25" className={inputCls} />
@@ -539,9 +604,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               </div>
             )}
           </div>
+          <AssetSelect options={assetOpts} value={dedAsset} onChange={setDedAsset} />
           <div className="space-y-1.5">
             <label className={labelCls}>
-              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(dedAssetBalance, dedAsset || prefs.currency)}
             </label>
             <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required
               value={dedAmount} onChange={e => setDedAmount(e.target.value)}

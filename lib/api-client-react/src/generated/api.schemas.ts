@@ -728,6 +728,8 @@ export type LarderDedicateToGoalBody = {
   goalId: number;
   /** @minimum 0.01 */
   amount: number;
+  /** Which currency sub-balance ("Asset") in the Larder to debit. Optional if only one currency has a balance. */
+  assetCurrency?: string;
 };
 
 export type LarderDedicateToGoal201 = {
@@ -761,6 +763,8 @@ export type SendToGreatLarderBody = {
    * @maximum 100
    */
   percent?: number;
+  /** Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance. */
+  assetCurrency?: string;
 };
 
 export type FundGreatLarderBody = {

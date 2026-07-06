@@ -1374,6 +1374,9 @@ paths:
                 amount:
                   type: number
                   minimum: 0.01
+                assetCurrency:
+                  type: string
+                  description: Which currency sub-balance ("Asset") in the Larder to debit. Optional if only one currency has a balance.
       responses:
         "201":
           description: Contribution created
@@ -1463,6 +1466,9 @@ paths:
                   type: number
                   minimum: 1
                   maximum: 100
+                assetCurrency:
+                  type: string
+                  description: Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance.
       responses:
         "201":
           description: Great Larder entry created

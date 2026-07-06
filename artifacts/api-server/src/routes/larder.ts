@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, larderEntriesTable, goalsTable, goalContributionsTable, transactionsTable, usersTable, greatLarderEntriesTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
+import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
 
 const router: IRouter = Router();
 
@@ -254,7 +255,7 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { goalId, amount } = req.body;
+  const { goalId, amount, assetCurrency: assetCurrencyInput } = req.body;
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }
@@ -265,41 +266,51 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
-  // Verify user has enough in Larder (currency-aware: entries may be in multiple currencies)
+  // Verify user has enough in the selected Asset (currency sub-balance) —
+  // entries may span multiple currencies when the account currency changed over time.
   const entries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId));
   const total = await convertedLarderTotal(entries, currency);
-  if (amount > total + 0.001) {
-    res.status(400).json({ error: "Insufficient Larder balance" }); return;
+  const balances = currencyBalances(entries);
+  let assetCurrency: string;
+  const nativeAmount = round2(amount);
+  try {
+    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Larder balance" }); return;
   }
 
   // Verify goal exists and user can contribute
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
 
-  // Deduct from Larder as a negative entry in account currency
+  const rates = await fetchRates();
+  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
+
+  // Deduct from Larder — from the specific Asset (currency) the user picked
   await db.insert(larderEntriesTable).values({
     userId,
-    amount: String(-amount),
-    currency,
+    amount: String(-nativeAmount),
+    currency: assetCurrency,
     sourceType: "goal_dedication",
     goalId,
     note: `Dedicated to goal: ${goal.name}`,
   });
 
-  // Add goal contribution
+  // Add goal contribution — always tracked in account currency
   const [contrib] = await db.insert(goalContributionsTable).values({
     goalId,
-    amount: String(amount),
+    amount: String(accountAmount),
     currency,
-    accountAmount: String(amount),
+    accountAmount: String(accountAmount),
     accountCurrency: currency,
     month: currentMonth(),
     userId,
     householdId: goal.householdId ?? null,
   }).returning();
 
-  res.status(201).json({ success: true, contributionId: contrib.id, newLarderTotal: total - amount });
+  res.status(201).json({ success: true, contributionId: contrib.id, newLarderTotal: total - accountAmount });
 });
 
 // POST /larder/spend — spend FROM the Larder: deducts balance, creates a transaction tagged "From Larder"
@@ -308,7 +319,7 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { description, amount, categoryId, date } = req.body;
+  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput } = req.body;
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }
@@ -319,12 +330,22 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
-  // Verify balance (currency-aware: entries may span multiple currencies)
+  // Verify balance in the selected Asset (currency sub-balance) — entries may
+  // span multiple currencies when the account currency changed over time.
   const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
   const balance = await convertedLarderTotal(entries, currency);
-  if (amount > balance + 0.001) {
-    res.status(400).json({ error: "Insufficient Larder balance" }); return;
+  const balances = currencyBalances(entries);
+  let assetCurrency: string;
+  const nativeAmount = round2(amount);
+  try {
+    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Larder balance" }); return;
   }
+
+  const rates = await fetchRates();
+  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
 
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
@@ -332,26 +353,26 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   // No transactionCurrency so bulk currency conversion includes this row.
   const [tx] = await db.insert(transactionsTable).values({
     userId,
-    amount: String(amount),
+    amount: String(accountAmount),
     description: description.trim(),
     categoryId: categoryId ?? null,
     date: dateStr,
     paymentMethod: "card",
     isLarderFund: true,
-    larderAmount: String(amount),
+    larderAmount: String(accountAmount),
   }).returning();
 
-  // Deduct from Larder
+  // Deduct from Larder — from the specific Asset (currency) the user picked
   const [entry] = await db.insert(larderEntriesTable).values({
     userId,
-    amount: String(-amount),
-    currency,
+    amount: String(-nativeAmount),
+    currency: assetCurrency,
     sourceType: "larder_spend",
     sourceId: tx.id,
     note: description.trim(),
   }).returning();
 
-  res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, newBalance: balance - amount });
+  res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, newBalance: balance - accountAmount });
 });
 
 // POST /larder/fund — create a "fund" transaction and credit the Larder with larderAmount

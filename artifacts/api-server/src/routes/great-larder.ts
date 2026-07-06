@@ -6,6 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
+import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
 
 const router: IRouter = Router();
 
@@ -117,58 +118,60 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
-  const { amount: rawAmount, percent } = req.body;
+  const { amount: rawAmount, percent, assetCurrency: assetCurrencyInput } = req.body;
 
-  // Resolve account currency early — needed for the currency-aware balance check below.
+  // Resolve account currency early — needed for currency-aware defaults below.
   const currency = user.currency ?? "USD";
 
   const personalEntries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId));
-  // Currency-aware total: entries may be stored in different currencies when the user
-  // has switched account currencies since the entries were created.
   const rates = await fetchRates();
-  const personalCurrencyMap = new Map<string, number>();
-  for (const e of personalEntries) {
-    const c = e.currency || currency;
-    personalCurrencyMap.set(c, (personalCurrencyMap.get(c) ?? 0) + parseFloat(e.amount));
-  }
-  const personalTotal = Array.from(personalCurrencyMap.entries()).reduce(
-    (sum, [curr, amt]) => sum + convertAmount(amt, curr, currency, rates),
-    0,
-  );
+  const balances = currencyBalances(personalEntries);
 
-  let amount: number;
+  let assetCurrency: string;
+  try {
+    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient personal Larder balance" }); return;
+  }
+  const assetBalance = balances.find(b => b.currency === assetCurrency)!.amount;
+
+  // Amount/percent are denominated in the selected Asset's own currency.
+  let nativeAmount: number;
   if (typeof percent === "number") {
     if (percent <= 0 || percent > 100) {
       res.status(400).json({ error: "percent must be between 1 and 100" }); return;
     }
-    amount = parseFloat((personalTotal * percent / 100).toFixed(2));
+    nativeAmount = round2(assetBalance * percent / 100);
   } else if (typeof rawAmount === "number") {
-    amount = rawAmount;
+    nativeAmount = round2(rawAmount);
   } else {
     res.status(400).json({ error: "amount or percent is required" }); return;
   }
 
-  if (amount <= 0) { res.status(400).json({ error: "amount must be positive" }); return; }
-  if (amount > personalTotal + 0.001) {
-    res.status(400).json({ error: "Insufficient personal Larder balance" }); return;
+  if (nativeAmount <= 0) { res.status(400).json({ error: "amount must be positive" }); return; }
+  try {
+    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient personal Larder balance" }); return;
   }
 
-  // Deduct from personal Larder
+  // Deduct from personal Larder — from the specific Asset (currency) the user picked
   await db.insert(larderEntriesTable).values({
     userId,
-    amount: String(-amount),
-    currency,
+    amount: String(-nativeAmount),
+    currency: assetCurrency,
     sourceType: "great_larder_transfer",
     note: "Sent to Great Larder",
   });
 
-  // Credit Great Larder (auto-approved — no approval needed for member transfers)
+  // Credit Great Larder in the same currency (moves that Asset's value across
+  // ledgers 1:1, avoiding conversion drift) — auto-approved, no head needed.
   const [entry] = await db.insert(greatLarderEntriesTable).values({
     householdId: user.householdId,
     contributedByUserId: userId,
-    amount: String(amount),
-    currency,
+    amount: String(nativeAmount),
+    currency: assetCurrency,
     sourceType: "member_transfer",
     status: "approved",
     note: "From personal Larder",
@@ -351,7 +354,7 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Only parents and the head can spend from the Great Larder" }); return;
   }
 
-  const { description, amount, categoryId, date } = req.body;
+  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput } = req.body;
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }
@@ -361,23 +364,31 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
 
   const allEntries = await db.select().from(greatLarderEntriesTable)
     .where(eq(greatLarderEntriesTable.householdId, user.householdId));
-  const balance = allEntries.filter(e => e.status === "approved").reduce((s, e) => s + parseFloat(e.amount), 0);
-  if (amount > balance + 0.001) {
-    res.status(400).json({ error: "Insufficient Great Larder balance" }); return;
+  const approvedEntries = allEntries.filter(e => e.status === "approved");
+  const balances = currencyBalances(approvedEntries);
+  let assetCurrency: string;
+  const nativeAmount = round2(amount);
+  try {
+    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Great Larder balance" }); return;
   }
 
   const currency = user.currency ?? "USD";
+  const rates = await fetchRates();
+  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
   const [tx] = await db.insert(transactionsTable).values({
     userId,
-    amount: String(amount),
+    amount: String(accountAmount),
     description: description.trim(),
     categoryId: categoryId ?? null,
     date: dateStr,
     paymentMethod: "card",
     isLarderFund: true,
-    larderAmount: String(amount),
+    larderAmount: String(accountAmount),
     transactionCurrency: currency,
   }).returning();
 
@@ -386,8 +397,8 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
   const [entry] = await db.insert(greatLarderEntriesTable).values({
     householdId: user.householdId,
     contributedByUserId: userId,
-    amount: String(-amount),
-    currency,
+    amount: String(-nativeAmount),
+    currency: assetCurrency,
     sourceType: "spend",
     status,
     transactionId: tx.id,
@@ -402,8 +413,8 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
         type: "great_larder_fund_pending",
         titleEn: "Great Larder spend request",
         titlePl: "Wniosek o wydatek z Wielkiej Spiżarni",
-        bodyEn: `${user.name} wants to spend ${amount} ${currency} from the Great Larder`,
-        bodyPl: `${user.name} chce wydać ${amount} ${currency} z Wielkiej Spiżarni`,
+        bodyEn: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
+        bodyPl: `${user.name} chce wydać ${nativeAmount} ${assetCurrency} z Wielkiej Spiżarni`,
         dedupKey: `great-larder-spend-pending-${entry.id}`,
       }).onConflictDoNothing();
     }
@@ -427,7 +438,7 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
     res.status(403).json({ error: "Only the head can dedicate Great Larder funds to a goal" }); return;
   }
 
-  const { goalId, amount } = req.body;
+  const { goalId, amount, assetCurrency: assetCurrencyInput } = req.body;
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }
@@ -437,9 +448,16 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
 
   const allEntries = await db.select().from(greatLarderEntriesTable)
     .where(eq(greatLarderEntriesTable.householdId, user.householdId));
-  const balance = allEntries.filter(e => e.status === "approved").reduce((s, e) => s + parseFloat(e.amount), 0);
-  if (amount > balance + 0.001) {
-    res.status(400).json({ error: "Insufficient Great Larder balance" }); return;
+  const approvedEntries = allEntries.filter(e => e.status === "approved");
+  const balance = approvedEntries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const balances = currencyBalances(approvedEntries);
+  let assetCurrency: string;
+  const nativeAmount = round2(amount);
+  try {
+    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Great Larder balance" }); return;
   }
 
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
@@ -449,13 +467,15 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
   }
 
   const currency = user.currency ?? "USD";
+  const rates = await fetchRates();
+  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
   const currentMonth = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })();
 
   await db.insert(greatLarderEntriesTable).values({
     householdId: user.householdId,
     contributedByUserId: userId,
-    amount: String(-amount),
-    currency,
+    amount: String(-nativeAmount),
+    currency: assetCurrency,
     sourceType: "goal_dedication",
     status: "approved",
     note: `Dedicated to goal: ${goal.name}`,
@@ -463,16 +483,16 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
 
   const [contrib] = await db.insert(goalContributionsTable).values({
     goalId,
-    amount: String(amount),
+    amount: String(accountAmount),
     currency,
-    accountAmount: String(amount),
+    accountAmount: String(accountAmount),
     accountCurrency: currency,
     month: currentMonth,
     userId,
     householdId: user.householdId,
   }).returning();
 
-  res.status(201).json({ success: true, contributionId: contrib.id, newBalance: balance - amount });
+  res.status(201).json({ success: true, contributionId: contrib.id, newBalance: balance - accountAmount });
 });
 
 // POST /great-larder/save-from-goal — move money from a completed household goal into the Great Larder

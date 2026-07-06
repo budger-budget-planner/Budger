@@ -1530,6 +1530,12 @@ export const larderDedicateToGoalBodyAmountMin = 0.01;
 export const LarderDedicateToGoalBody = zod.object({
   goalId: zod.number(),
   amount: zod.number().min(larderDedicateToGoalBodyAmountMin),
+  assetCurrency: zod
+    .string()
+    .optional()
+    .describe(
+      'Which currency sub-balance (\"Asset\") in the Larder to debit. Optional if only one currency has a balance.',
+    ),
 });
 
 /**
@@ -1589,6 +1595,12 @@ export const sendToGreatLarderBodyPercentMax = 100;
 export const SendToGreatLarderBody = zod.object({
   amount: zod.number().min(sendToGreatLarderBodyAmountMin).optional(),
   percent: zod.number().min(1).max(sendToGreatLarderBodyPercentMax).optional(),
+  assetCurrency: zod
+    .string()
+    .optional()
+    .describe(
+      'Which currency sub-balance (\"Asset\") in the personal Larder to debit. Optional if only one currency has a balance.',
+    ),
 });
 
 /**

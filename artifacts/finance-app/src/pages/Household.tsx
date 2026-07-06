@@ -64,6 +64,43 @@ function orderedBreakdown(
   return acct ? [acct, ...rest] : rest;
 }
 
+/** Currencies with a usable (>0) balance, for the "Asset" source-of-funds dropdown. */
+function assetOptions(breakdown: { currency: string; rawTotal: number }[]): { currency: string; rawTotal: number }[] {
+  return breakdown.filter(b => b.rawTotal > 0.005);
+}
+
+function AssetSelect({
+  options, value, onChange,
+}: { options: { currency: string; rawTotal: number }[]; value: string; onChange: (v: string) => void }) {
+  if (options.length === 0) return null;
+  if (options.length === 1) {
+    return (
+      <div className="space-y-1.5">
+        <Label>{t("larder.asset_label")}</Label>
+        <div className="px-3 py-2 rounded-md bg-white/5 border border-white/10 text-white/70 text-sm">
+          {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <Label>{t("larder.asset_label")}</Label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20"
+      >
+        {options.map(o => (
+          <option key={o.currency} value={o.currency} className="bg-[#111]">
+            {o.currency} · {fmtAmt(o.rawTotal, o.currency)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
   qc.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
@@ -577,26 +614,46 @@ export default function HouseholdPage() {
   const [glFundOpen,        setGlFundOpen]        = useState(false);
   const [glFundDesc,        setGlFundDesc]        = useState("");
   const [glFundAmt,         setGlFundAmt]         = useState("");
+  const [glFundAsset,       setGlFundAsset]       = useState("");
   const [glLoading,         setGlLoading]         = useState(false);
   const [glApproving,       setGlApproving]       = useState<number | null>(null);
   const [glDedicateOpen,    setGlDedicateOpen]    = useState(false);
   const [glDedicateGoalId,  setGlDedicateGoalId]  = useState<number | null>(null);
   const [glDedicateAmt,     setGlDedicateAmt]     = useState("");
+  const [glDedicateAsset,   setGlDedicateAsset]   = useState("");
   const [glDedicateLoading, setGlDedicateLoading] = useState(false);
 
   const greatLarderRef = useRef<HTMLDivElement>(null);
   const [glVisible, setGlVisible] = useState(false);
 
+  const glAssetOpts = assetOptions(greatLarder?.currencyBreakdown ?? []);
+  const glFundAssetBalance = glAssetOpts.find(a => a.currency === glFundAsset)?.rawTotal ?? (greatLarder?.total ?? 0);
+  const glDedicateAssetBalance = glAssetOpts.find(a => a.currency === glDedicateAsset)?.rawTotal ?? (greatLarder?.total ?? 0);
+
+  useEffect(() => {
+    if (glFundOpen && glAssetOpts.length > 0 && !glAssetOpts.some(a => a.currency === glFundAsset)) {
+      setGlFundAsset(glAssetOpts[0].currency);
+    }
+  }, [glFundOpen, glAssetOpts]);
+  useEffect(() => {
+    if (glDedicateOpen && glAssetOpts.length > 0 && !glAssetOpts.some(a => a.currency === glDedicateAsset)) {
+      setGlDedicateAsset(glAssetOpts[0].currency);
+    }
+  }, [glDedicateOpen, glAssetOpts]);
+
   async function handleGlFund(e: React.FormEvent) {
     e.preventDefault();
     const amt = parseFloat(glFundAmt);
     if (!glFundDesc.trim() || isNaN(amt) || amt <= 0) return;
+    if (amt > glFundAssetBalance + 0.005) {
+      alert(t("larder.insufficient_asset", { code: glFundAsset || (greatLarder?.currency ?? "") })); return;
+    }
     setGlLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: glFundDesc.trim(), amount: amt }),
+        body: JSON.stringify({ description: glFundDesc.trim(), amount: amt, assetCurrency: glFundAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt("");
@@ -611,15 +668,15 @@ export default function HouseholdPage() {
     if (!glDedicateGoalId) return;
     const amt = parseFloat(glDedicateAmt);
     if (isNaN(amt) || amt <= 0) return;
-    if (amt > (greatLarder?.total ?? 0) + 0.001) {
-      alert("Insufficient Great Larder balance"); return;
+    if (amt > glDedicateAssetBalance + 0.005) {
+      alert(t("larder.insufficient_asset", { code: glDedicateAsset || (greatLarder?.currency ?? "") })); return;
     }
     setGlDedicateLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt }),
+        body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt, assetCurrency: glDedicateAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt("");
@@ -1889,8 +1946,11 @@ export default function HouseholdPage() {
                 autoFocus
               />
             </div>
+            <AssetSelect options={glAssetOpts} value={glFundAsset} onChange={setGlFundAsset} />
             <div className="space-y-1.5">
-              <Label>{t("larder.amount_label")}</Label>
+              <Label>
+                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glFundAssetBalance, glFundAsset || (greatLarder?.currency ?? ""))}
+              </Label>
               <Input
                 type="number"
                 min="0.01"
@@ -1994,15 +2054,16 @@ export default function HouseholdPage() {
                 </div>
               </div>
             )}
+            <AssetSelect options={glAssetOpts} value={glDedicateAsset} onChange={setGlDedicateAsset} />
             <div className="space-y-1.5">
               <Label>
-                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {greatLarder ? fmtAmtRound(greatLarder.total, greatLarder.currency) : "—"}
+                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glDedicateAssetBalance, glDedicateAsset || (greatLarder?.currency ?? ""))}
               </Label>
               <Input
                 type="number"
                 min="0.01"
                 step="0.01"
-                max={greatLarder?.total ?? undefined}
+                max={glDedicateAssetBalance || undefined}
                 placeholder="0.00"
                 value={glDedicateAmt}
                 onChange={e => setGlDedicateAmt(e.target.value)}

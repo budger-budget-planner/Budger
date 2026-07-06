@@ -14,4 +14,6 @@ export type SendToGreatLarderBody = {
    * @maximum 100
    */
   percent?: number;
+  /** Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance. */
+  assetCurrency?: string;
 };
