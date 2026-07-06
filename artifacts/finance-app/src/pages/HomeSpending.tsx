@@ -1537,10 +1537,22 @@ export default function HomeSpending() {
                               {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasFromLarder && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
+                                    <span className="relative inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
                                       style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}>
                                       <Warehouse className="w-2 h-2" />
                                       ze Spiżarni
+                                      {/* bottom-left diamond */}
+                                      <div style={{ position:"absolute", bottom:-6, left:-5, width:10, height:10, pointerEvents:"none", animation:"gemFlash 3.2s ease-in-out 0s infinite" }}>
+                                        <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
+                                        <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
+                                        <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.75)" }} />
+                                      </div>
+                                      {/* top-right diamond */}
+                                      <div style={{ position:"absolute", top:-6, right:-5, width:9, height:9, pointerEvents:"none", animation:"gemFlash 2.8s ease-in-out 1.5s infinite" }}>
+                                        <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                                        <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                                        <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
+                                      </div>
                                     </span>
                                   )}
                                   {hasSplit && (
