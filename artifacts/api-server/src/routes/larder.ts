@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, larderEntriesTable, goalsTable, goalContributionsTable, transactionsTable, usersTable, greatLarderEntriesTable } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, ne, desc, sql } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
 
@@ -471,7 +471,10 @@ router.delete("/larder/history", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
   await db.update(larderEntriesTable)
     .set({ hidden: true })
-    .where(eq(larderEntriesTable.userId, userId));
+    .where(and(
+      eq(larderEntriesTable.userId, userId),
+      ne(larderEntriesTable.sourceType, "great_larder_transfer"),
+    ));
   res.sendStatus(204);
 });
 
