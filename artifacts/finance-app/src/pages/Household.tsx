@@ -668,9 +668,7 @@ export default function HouseholdPage() {
     e.preventDefault();
     const amt = parseFloat(glFundAmt);
     if (!glFundDesc.trim() || isNaN(amt) || amt <= 0) return;
-    if (amt > glFundAssetBalance + 0.005) {
-      alert(t("larder.insufficient_asset", { code: glFundAsset || (greatLarder?.currency ?? "") })); return;
-    }
+    if (amt > glFundAssetBalance + 0.005) return;
     setGlLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
@@ -691,9 +689,7 @@ export default function HouseholdPage() {
     if (!glDedicateGoalId) return;
     const amt = parseFloat(glDedicateAmt);
     if (isNaN(amt) || amt <= 0) return;
-    if (amt > glDedicateAssetBalance + 0.005) {
-      alert(t("larder.insufficient_asset", { code: glDedicateAsset || (greatLarder?.currency ?? "") })); return;
-    }
+    if (amt > glDedicateAssetBalance + 0.005) return;
     setGlDedicateLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
@@ -1990,11 +1986,22 @@ export default function HouseholdPage() {
                 rates={splitRates}
               />
             </div>
+            {(() => {
+              const amt = parseFloat(glFundAmt);
+              if (!isNaN(amt) && amt > 0 && amt > glFundAssetBalance + 0.005) {
+                return (
+                  <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                    <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glFundAsset || (greatLarder?.currency ?? "") })}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" className="flex-1" disabled={glLoading}>
+              <Button type="submit" className="flex-1" disabled={glLoading || (() => { const a = parseFloat(glFundAmt); return !isNaN(a) && a > 0 && a > glFundAssetBalance + 0.005; })()}>
                 {glLoading ? t("gl.submitting") : iAmHead ? t("gl.fund_btn") : t("gl.request_btn")}
               </Button>
             </div>
@@ -2105,6 +2112,17 @@ export default function HouseholdPage() {
                 rates={splitRates}
               />
             </div>
+            {(() => {
+              const amt = parseFloat(glDedicateAmt);
+              if (!isNaN(amt) && amt > 0 && amt > glDedicateAssetBalance + 0.005) {
+                return (
+                  <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                    <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glDedicateAsset || (greatLarder?.currency ?? "") })}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -2117,7 +2135,7 @@ export default function HouseholdPage() {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0}
+                disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0 || (() => { const a = parseFloat(glDedicateAmt); return !isNaN(a) && a > 0 && a > glDedicateAssetBalance + 0.005; })()}
               >
                 {glDedicateLoading ? "…" : t("larder.support_btn")}
               </Button>

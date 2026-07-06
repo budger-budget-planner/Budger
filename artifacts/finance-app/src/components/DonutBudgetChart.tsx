@@ -674,21 +674,26 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   <g
                     key={`larder-spark-${gb.catKey}-${i}`}
                     transform={`translate(${sx}, ${sy})`}
-                    style={{
-                      pointerEvents:   "none",
-                      transformBox:    "fill-box" as any,
-                      transformOrigin: "center",
-                      animation: `donutGemFlash ${cycleDur}s ease-in-out ${delay} infinite`,
-                    }}
+                    style={{ pointerEvents: "none" }}
                   >
-                    {/* horizontal gradient arm */}
-                    <rect x={-hs} y={-0.5} width={hs * 2} height={1} fill={`url(#sp-h-${uid})`} />
-                    {/* vertical gradient arm */}
-                    <rect x={-0.5} y={-hs} width={1} height={hs * 2} fill={`url(#sp-v-${uid})`} />
-                    {/* glow halo */}
-                    <circle cx={0} cy={0} r={3} fill="white" opacity={0.25} filter={`url(#sp-glow-${uid})`} />
-                    {/* sharp centre dot */}
-                    <circle cx={0} cy={0} r={1.5} fill="white" />
+                    {/* Inner g handles scale/rotate animation independently from the
+                        outer SVG transform so CSS transforms don't override the position. */}
+                    <g
+                      style={{
+                        transformBox:    "fill-box" as any,
+                        transformOrigin: "center",
+                        animation: `donutGemFlash ${cycleDur}s ease-in-out ${delay} infinite`,
+                      }}
+                    >
+                      {/* horizontal gradient arm */}
+                      <rect x={-hs} y={-0.5} width={hs * 2} height={1} fill={`url(#sp-h-${uid})`} />
+                      {/* vertical gradient arm */}
+                      <rect x={-0.5} y={-hs} width={1} height={hs * 2} fill={`url(#sp-v-${uid})`} />
+                      {/* glow halo */}
+                      <circle cx={0} cy={0} r={3} fill="white" opacity={0.25} filter={`url(#sp-glow-${uid})`} />
+                      {/* sharp centre dot */}
+                      <circle cx={0} cy={0} r={1.5} fill="white" />
+                    </g>
                   </g>,
                 );
               });

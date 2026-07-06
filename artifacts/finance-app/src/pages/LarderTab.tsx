@@ -248,7 +248,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setHistoryOpen(false);
       toast({ title: t("larder.history_cleared") });
     } catch {
-      toast({ title: t("larder.clear_failed"), variant: "destructive" });
+      toast({ title: t("larder.clear_failed") });
     }
   }
 
@@ -256,9 +256,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     e.preventDefault();
     const amount = parseFloat(spendAmt.replace(",", "."));
     if (isNaN(amount) || amount <= 0) return;
-    if (amount > spendAssetBalance + 0.005) {
-      toast({ title: t("larder.insufficient_asset", { code: spendAsset || prefs.currency }), variant: "destructive" }); return;
-    }
+    if (amount > spendAssetBalance + 0.005) return;
     setSpendLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
@@ -273,7 +271,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setSpendDesc(""); setSpendAmt("");
       toast({ title: t("larder.tx_created") });
     } catch (err: any) {
-      toast({ title: err.message ?? "Failed", variant: "destructive" });
+      toast({ title: err.message ?? "Failed" });
     } finally { setSpendLoading(false); }
   }
 
@@ -290,9 +288,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       } else {
         amount = parseFloat(sendGlAmt.replace(",", "."));
       }
-      if (amount > sendGlAssetBalance + 0.005) {
-        throw new Error(t("larder.insufficient_asset", { code: sendGlAsset || prefs.currency }));
-      }
+      if (amount > sendGlAssetBalance + 0.005) { setSendGlLoading(false); return; }
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,7 +301,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setSendGlOpen(false);
       setSendGlAmt(""); setSendGlPct("");
     } catch (err: any) {
-      toast({ title: err.message ?? "Failed", variant: "destructive" });
+      toast({ title: err.message ?? "Failed" });
     } finally { setSendGlLoading(false); }
   }
 
@@ -314,9 +310,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     if (!dedGoalId) return;
     const amt = parseFloat(dedAmount.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
-    if (amt > dedAssetBalance + 0.005) {
-      toast({ title: t("larder.insufficient_asset", { code: dedAsset || prefs.currency }), variant: "destructive" }); return;
-    }
+    if (amt > dedAssetBalance + 0.005) return;
     setDedLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {
@@ -333,7 +327,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setDedGoalId(null); setDedAmount("");
       toast({ title: t("larder.dedicate_success") });
     } catch (err: any) {
-      toast({ title: err.message ?? "Failed", variant: "destructive" });
+      toast({ title: err.message ?? "Failed" });
     } finally { setDedLoading(false); }
   }
 
@@ -587,7 +581,19 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               {t("larder.from_larder_desc")}
             </p>
           </div>
-          <button type="submit" disabled={spendLoading || total <= 0}
+          {(() => {
+            const amt = parseFloat(spendAmt.replace(",", "."));
+            if (!isNaN(amt) && amt > 0 && amt > spendAssetBalance + 0.005) {
+              return (
+                <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                  <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: spendAsset || prefs.currency })}</p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          <button type="submit"
+            disabled={spendLoading || total <= 0 || (() => { const a = parseFloat(spendAmt.replace(",", ".")); return !isNaN(a) && a > 0 && a > spendAssetBalance + 0.005; })()}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {spendLoading ? "…" : t("larder.fund")}
           </button>
@@ -651,7 +657,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               }
               return null;
             })()}
-            <button type="submit" disabled={sendGlLoading || total <= 0}
+            <button type="submit"
+              disabled={sendGlLoading || total <= 0 || (() => { const a = sendGlMode === "amount" ? parseFloat(sendGlAmt.replace(",", ".")) : (sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100; return !isNaN(a) && a > 0 && a > sendGlAssetBalance + 0.005; })()}
               className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
               {sendGlLoading ? "…" : t("larder.send")}
             </button>
@@ -703,7 +710,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             }
             return null;
           })()}
-          <button type="submit" disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0}
+          <button type="submit"
+            disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0 || (() => { const a = parseFloat(dedAmount.replace(",", ".")); return !isNaN(a) && a > 0 && a > dedAssetBalance + 0.005; })()}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {dedLoading ? "…" : t("larder.dedicate")}
           </button>
