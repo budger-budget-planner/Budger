@@ -77,7 +77,7 @@ function AssetSelect({
     return (
       <div className="space-y-1.5">
         <Label>{t("larder.asset_label")}</Label>
-        <div className="px-3 py-2 rounded-md bg-white/5 border border-white/10 text-white/70 text-sm">
+        <div className="px-3 py-2 rounded-md bg-white/3 border border-white/6 text-white/20 text-sm opacity-50 select-none cursor-default">
           {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
         </div>
       </div>

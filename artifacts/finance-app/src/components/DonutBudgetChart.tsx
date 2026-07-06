@@ -43,6 +43,27 @@ if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
   document.head.appendChild(s);
 }
 
+// Gem-flash keyframe for larder-designated donut segments.
+// The flash occupies only the first 25 % of the animation duration so that
+// sequential delays (idx * step) produce non-overlapping one-by-one firing
+// regardless of how many designated segments there are.
+const GEM_KF_ID = "donut-gem-kf";
+if (typeof document !== "undefined" && !document.getElementById(GEM_KF_ID)) {
+  const s = document.createElement("style");
+  s.id = GEM_KF_ID;
+  s.textContent = `
+    @keyframes donutGemFlash {
+      0%   { opacity: 0; }
+      6%   { opacity: 1; }
+      12%  { opacity: 0.5; }
+      18%  { opacity: 0.9; }
+      25%  { opacity: 0; }
+      100% { opacity: 0; }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 // Circle A / B keyframe names indexed by pulse (0-based)
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
@@ -60,6 +81,8 @@ export type SpendingItem = {
   _catKey?: string;
   /** True when this item represents a recurring payment that has been applied this month */
   isRecurringApplied?: boolean;
+  /** True when this recurring payment is designated to also add to the user's Larder */
+  isLarderDesignated?: boolean;
 };
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
@@ -119,6 +142,7 @@ type LegendItem = {
   catKey: string; color: string; name: string;
   spent: number; budget: number; isOverBudget: boolean;
   isRecurringApplied: boolean;
+  isLarderDesignated: boolean;
 };
 
 function buildChart(
@@ -140,6 +164,7 @@ function buildChart(
   type Group = {
     catKey: string; color: string; name: string; spent: number; budget: number;
     isRecurringApplied: boolean;
+    isLarderDesignated: boolean;
     parts: Array<{ id: string; fraction: number; fill: string; isOverBudget: boolean }>;
   };
 
@@ -155,8 +180,9 @@ function buildChart(
       ? t("common.uncategorized") : s.categoryName;
 
     const isRecurringApplied = s.isRecurringApplied ?? false;
+    const isLarderDesignated = s.isLarderDesignated ?? false;
     if (over) {
-      groups.push({ catKey, color, name, spent, budget, isRecurringApplied,
+      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, isLarderDesignated,
         parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
@@ -164,7 +190,7 @@ function buildChart(
       const parts = [];
       if (spentFrac  > 0.001) parts.push({ id: `${catKey}-spent`,  fraction: spentFrac,  fill: color,                    isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52),   isOverBudget: false });
-      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, parts });
+      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, isLarderDesignated, parts });
     }
   }
 
@@ -184,7 +210,7 @@ function buildChart(
     }
     if (parts.length > 0) {
       groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
-        spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, parts });
+        spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, isLarderDesignated: false, parts });
     }
   }
 
@@ -229,7 +255,7 @@ function buildChart(
     .filter(g => g.spent > 0 || g.budget > 0)
     .map(g => ({ catKey: g.catKey, color: g.color, name: g.name, spent: g.spent,
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
-      isRecurringApplied: g.isRecurringApplied }));
+      isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
 
   return { segs, groupBorders, legend, sumBudgets };
 }
@@ -577,6 +603,54 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 {restBorders}
               </>
             );
+          })()}
+
+          {/* ── Larder-designated segment sparkles ─────────────────────────
+              One diamond cross per segment where isLarderDesignated is true,
+              centred in the donut ring at the segment's mid-angle.
+              Sequential: cycle = count × 1.5 s, delay = idx × 1.5 s.
+              The keyframe fires only in its first 25 % so sparkles never
+              overlap regardless of how many designated segments exist.
+              Position accounts for the selected-state arc expansion.         */}
+          {(() => {
+            if (loadPrefs().disableAnimations) return null;
+            const larderSegs = groupBorders.filter(
+              gb => legend.find(l => l.catKey === gb.catKey)?.isLarderDesignated,
+            );
+            if (!larderSegs.length) return null;
+            const STEP = 1.5; // seconds per sparkle slot
+            const cycleDur = Math.max(larderSegs.length, 1) * STEP;
+            const hs = 11;
+            return larderSegs.map((gb, idx) => {
+              const isSelected = selectedCat === gb.catKey;
+              const outerR     = isSelected ? RO + EXPAND : RO;
+              const midRad     = ((gb.midDeg - 90) * Math.PI) / 180;
+              // Centre of the ring arc in SVG user-unit space
+              const r  = (RI + outerR) / 2;
+              // The <path> CSS transform uses `${EXPAND * cos}px` units; at SVG
+              // scale factor (displayWidth / 320) those pixels map back to SVG
+              // units. We use EXPAND directly as an SVG-unit approximation —
+              // exact at 320 px display width, slightly off elsewhere, but
+              // close enough for a decorative element.
+              const offsetX = isSelected ? EXPAND * Math.cos(midRad) : 0;
+              const offsetY = isSelected ? EXPAND * Math.sin(midRad) : 0;
+              const sx = CX + r * Math.cos(midRad) + offsetX;
+              const sy = CY + r * Math.sin(midRad) + offsetY;
+              return (
+                <g
+                  key={`larder-spark-${gb.catKey}`}
+                  transform={`translate(${sx}, ${sy})`}
+                  style={{
+                    pointerEvents: "none",
+                    animation: `donutGemFlash ${cycleDur}s ease-in-out ${idx * STEP}s infinite`,
+                  }}
+                >
+                  <line x1={-hs} y1={0} x2={hs} y2={0} stroke="rgba(255,255,255,0.88)" strokeWidth="0.9" />
+                  <line x1={0} y1={-hs} x2={0} y2={hs} stroke="rgba(255,255,255,0.88)" strokeWidth="0.9" />
+                  <circle cx={0} cy={0} r={1.6} fill="white" style={{ filter: "drop-shadow(0 0 3px rgba(255,255,255,0.9))" }} />
+                </g>
+              );
+            });
           })()}
 
           {/* ── Hint pulse ─────────────────────────────────────────────────

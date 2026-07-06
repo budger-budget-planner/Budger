@@ -72,7 +72,12 @@ export default function DashboardPage() {
     // the "uncategorized" bucket.
     const enrichedBase = base.map(item =>
       item.recurringPaymentId
-        ? { ...item, _catKey: `rp-${item.recurringPaymentId}`, isRecurringApplied: true }
+        ? {
+            ...item,
+            _catKey: `rp-${item.recurringPaymentId}`,
+            isRecurringApplied: true,
+            isLarderDesignated: (recurringPayments ?? []).find((rp: any) => rp.id === item.recurringPaymentId)?.addToLarder ?? false,
+          }
         : item
     );
     const unapplied = (recurringPayments ?? []).filter(rp => !rp.appliedThisMonth);
@@ -87,6 +92,7 @@ export default function DashboardPage() {
       recurringPaymentId: rp.id,
       _catKey: `rp-${rp.id}`,
       isRecurringApplied: false,
+      isLarderDesignated: rp.addToLarder,
     }));
     const merged = [...enrichedBase, ...rpItems];
     return merged.length ? merged : undefined;

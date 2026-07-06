@@ -70,7 +70,7 @@ function AssetSelect({
     return (
       <div className="space-y-1.5">
         <label className={labelCls}>{t("larder.asset_label")}</label>
-        <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 text-sm">
+        <div className="px-4 py-3 rounded-2xl bg-white/3 border border-white/6 text-white/20 text-sm opacity-50 select-none cursor-default">
           {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
         </div>
       </div>
@@ -330,6 +330,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     <>
       <style>{`
         @keyframes gemFlash { 0%{opacity:0;transform:scale(0.15) rotate(0deg)} 25%{opacity:1;transform:scale(1) rotate(0deg)} 55%{opacity:0.45;transform:scale(0.8) rotate(45deg)} 75%{opacity:0.9;transform:scale(1) rotate(0deg)} 100%{opacity:0;transform:scale(0.15) rotate(0deg)} }
+        @keyframes glGemFlash { 0%{opacity:0;transform:scale(0.2) rotate(0deg)} 10%{opacity:1;transform:scale(1) rotate(0deg)} 20%{opacity:0.7;transform:scale(0.9) rotate(45deg)} 28%{opacity:0;transform:scale(0.2) rotate(0deg)} 100%{opacity:0;transform:scale(0.2) rotate(0deg)} }
         @keyframes larderEdge1 { 0%{transform:translateX(-110px);opacity:0} 12%{opacity:1} 88%{opacity:1} 100%{transform:translateX(100vw);opacity:0} }
         @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.85} 85%{opacity:0.85} 100%{transform:translateX(-80px);opacity:0} }
         @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.45} 40%{opacity:0.95;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.45} }
@@ -436,12 +437,41 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               );
             })()}
             {totalGLSent > 0 && (
-              <div className="mt-3 flex items-center justify-center rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
-                <div className="text-center">
-                  <p className="text-[10px] text-white/30 uppercase tracking-widest">{t("larder.source_fund")}</p>
-                  <p className="text-sm font-semibold text-white/55 tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</p>
-                  <p className="text-[10px] text-white/25">{t("larder.transferred_gl")}</p>
-                </div>
+              <div className="mt-3 flex justify-center">
+                <span
+                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80"
+                  style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
+                >
+                  <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
+                  <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
+                  <span className="text-white/40">GL</span>
+                  {!noAnim && <>
+                    {/* top-left */}
+                    <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>
+                      <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
+                    </div>
+                    {/* top-right */}
+                    <div style={{ position:"absolute", top:-7, right:-6, width:10, height:10, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 1.5s infinite" }}>
+                      <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.85), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.75)" }} />
+                    </div>
+                    {/* bottom-right */}
+                    <div style={{ position:"absolute", bottom:-7, right:-6, width:10, height:10, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 3s infinite" }}>
+                      <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.82), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.82), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.7)" }} />
+                    </div>
+                    {/* bottom-left */}
+                    <div style={{ position:"absolute", bottom:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 4.5s infinite" }}>
+                      <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.88), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.88), transparent)" }} />
+                      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.78)" }} />
+                    </div>
+                  </>}
+                </span>
               </div>
             )}
           </div>
