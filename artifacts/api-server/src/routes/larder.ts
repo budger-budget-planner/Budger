@@ -53,6 +53,26 @@ async function syncGLRule(userId: number): Promise<void> {
   });
 }
 
+/** Compute the user's larder balance converted to their account currency.
+ *  Entries may be stored in different currencies when the user has switched
+ *  account currencies — each entry keeps its original currency.
+ */
+async function convertedLarderTotal(
+  entries: (typeof larderEntriesTable.$inferSelect)[],
+  accountCurrency: string,
+): Promise<number> {
+  const rates = await fetchRates();
+  const map = new Map<string, number>();
+  for (const e of entries) {
+    const c = e.currency || accountCurrency;
+    map.set(c, (map.get(c) ?? 0) + parseFloat(e.amount));
+  }
+  return Array.from(map.entries()).reduce(
+    (sum, [curr, amt]) => sum + convertAmount(amt, curr, accountCurrency, rates),
+    0,
+  );
+}
+
 function currentMonth(): string {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
@@ -245,10 +265,10 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
-  // Verify user has enough in Larder
+  // Verify user has enough in Larder (currency-aware: entries may be in multiple currencies)
   const entries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId));
-  const total = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const total = await convertedLarderTotal(entries, currency);
   if (amount > total + 0.001) {
     res.status(400).json({ error: "Insufficient Larder balance" }); return;
   }
@@ -257,7 +277,7 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
 
-  // Deduct from Larder as a negative entry (same-currency withdrawal)
+  // Deduct from Larder as a negative entry in account currency
   await db.insert(larderEntriesTable).values({
     userId,
     amount: String(-amount),
@@ -299,9 +319,9 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
-  // Verify balance
+  // Verify balance (currency-aware: entries may span multiple currencies)
   const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
-  const balance = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const balance = await convertedLarderTotal(entries, currency);
   if (amount > balance + 0.001) {
     res.status(400).json({ error: "Insufficient Larder balance" }); return;
   }

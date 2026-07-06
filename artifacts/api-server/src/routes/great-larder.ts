@@ -119,9 +119,23 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
 
   const { amount: rawAmount, percent } = req.body;
 
+  // Resolve account currency early — needed for the currency-aware balance check below.
+  const currency = user.currency ?? "USD";
+
   const personalEntries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId));
-  const personalTotal = personalEntries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  // Currency-aware total: entries may be stored in different currencies when the user
+  // has switched account currencies since the entries were created.
+  const rates = await fetchRates();
+  const personalCurrencyMap = new Map<string, number>();
+  for (const e of personalEntries) {
+    const c = e.currency || currency;
+    personalCurrencyMap.set(c, (personalCurrencyMap.get(c) ?? 0) + parseFloat(e.amount));
+  }
+  const personalTotal = Array.from(personalCurrencyMap.entries()).reduce(
+    (sum, [curr, amt]) => sum + convertAmount(amt, curr, currency, rates),
+    0,
+  );
 
   let amount: number;
   if (typeof percent === "number") {
@@ -139,8 +153,6 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   if (amount > personalTotal + 0.001) {
     res.status(400).json({ error: "Insufficient personal Larder balance" }); return;
   }
-
-  const currency = user.currency ?? "USD";
 
   // Deduct from personal Larder
   await db.insert(larderEntriesTable).values({

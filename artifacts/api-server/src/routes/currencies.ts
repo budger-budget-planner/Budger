@@ -64,16 +64,9 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     converted++;
   }
 
-  // Convert personal Larder entries — amounts are always stored in the user's
-  // account currency (per schema design) and must be bulk-converted here.
-  const larderEntries = await db.select().from(larderEntriesTable)
-    .where(eq(larderEntriesTable.userId, userId));
-  for (const entry of larderEntries) {
-    const newAmt = roundMoney(parseFloat(entry.amount) * rate);
-    await db.update(larderEntriesTable)
-      .set({ amount: newAmt, currency: to })
-      .where(eq(larderEntriesTable.id, entry.id));
-  }
+  // Larder entries intentionally NOT converted here — they retain their original
+  // currency so the breakdown display can show per-currency sub-totals. The GET
+  // /larder endpoint uses fetchRates() to convert each entry's currency on the fly.
 
   const cats = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   for (const cat of cats) {

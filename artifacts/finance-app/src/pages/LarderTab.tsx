@@ -332,14 +332,21 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             >
               {fmtAmt(total, prefs.currency)}
             </p>
-            {/* Currency breakdown — shown when savings span multiple currencies */}
+            {/* Currency breakdown — shown when savings span multiple currencies,
+                or a subtle label when all contributions share one currency */}
             {(() => {
               const breakdown = larder?.currencyBreakdown ?? [];
               const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
-              // Show breakdown whenever there's something to decompose — i.e. there are savings in
-              // any currency OTHER than the account currency, or multiple currencies in play.
-              const hasMultiCurrency = ordered.length > 1 || (ordered.length === 1 && ordered[0].currency !== prefs.currency);
-              if (!hasMultiCurrency) return null;
+              if (ordered.length === 0) return null;
+              if (ordered.length === 1) {
+                // Single currency — show a muted "all in X" label instead of a lone sub-sum
+                return (
+                  <p className="mt-2 text-[11px] text-white/25 tabular-nums">
+                    {t("larder.all_in_currency", { code: ordered[0].currency })}
+                  </p>
+                );
+              }
+              // Multiple currencies — show each raw sub-total
               return (
                 <div className="mt-2.5 flex flex-col items-center gap-0.5">
                   {ordered.map(item => (

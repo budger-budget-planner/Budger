@@ -954,6 +954,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.calc_sent_gl":     { en: "Calculated amount will be immediately sent to the Great Larder.", pl: "Obliczona kwota zostanie natychmiast przekazana do Wielkiej Spiżarni." },
   "larder.save_error":       { en: "Couldn't save to Larder",         pl: "Nie udało się zapisać do Spiżarni"  },
   "larder.stored_badge":     { en: "Stored in Larder:",               pl: "Zapisano w Spiżarni:"               },
+  "larder.all_in_currency":  { en: "All contributions in {code}",    pl: "Wszystkie wpłaty w {code}"          },
 
   // ── Great Larder (Wielka Spiżarnia) ──
   "gl.title":                { en: "Great Larder",                    pl: "Wielka Spiżarnia"                   },
