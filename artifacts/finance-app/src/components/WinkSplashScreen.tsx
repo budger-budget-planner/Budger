@@ -1,62 +1,72 @@
 import { useEffect, useRef, useState } from "react";
 import BadgerLogo from "@/components/BadgerLogo";
 
-const LOGO_SIZE = 96;
-const TARGET_SIZE = 42;
-const STILL_MS = 900;
-const WINK_MS = 700;
-const FLY_MS = 550;
-const FADE_MS = 260;
+// Must match SplashScreen.tsx so the logo lands at the same size
+const SPLASH_SIZE = 120;
+
+const STILL_MS    = 900;   // float before wink
+const WINK_MS     = 700;   // wink duration
+const FLY_MS      = 1000;  // translate+scale transition
+const FADE_DELAY  = 650;   // start fading this far into the fly (ms)
+const FADE_MS     = 350;   // overlay fade-out duration
 
 type Phase = "float" | "wink" | "fly" | "fade";
 
 export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
-  const [phase, setPhase] = useState<Phase>("float");
-  const flyRef = useRef<{ tx: number; ty: number; scale: number } | null>(null);
+  const [phase,     setPhase]     = useState<Phase>("float");
+  const [translate, setTranslate] = useState("none");
+  const [scale,     setScale]     = useState(1);
+
+  // Store onDone in a ref so the effect (which runs once) always calls the
+  // latest version — avoids the "new inline function = timer reset" trap.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = [];
 
+    // Float → Wink
     ids.push(setTimeout(() => setPhase("wink"), STILL_MS));
 
+    // Wink done → compute target → fly
     ids.push(setTimeout(() => {
       const el = document.querySelector("[data-splash-logo-home]") as HTMLElement | null;
       if (el) {
-        const rect = el.getBoundingClientRect();
-        const targetCX = rect.left + rect.width / 2;
-        const targetCY = rect.top + rect.height / 2;
-        const startCX = window.innerWidth / 2;
-        const startCY = window.innerHeight / 2;
-        flyRef.current = {
-          tx: targetCX - startCX,
-          ty: targetCY - startCY,
-          scale: TARGET_SIZE / LOGO_SIZE,
-        };
+        const rect    = el.getBoundingClientRect();
+        const targetCX = rect.left + rect.width  / 2;
+        const targetCY = rect.top  + rect.height / 2;
+        const tx = targetCX - window.innerWidth  / 2;
+        const ty = targetCY - window.innerHeight / 2;
+        setTranslate(`translate(${tx}px, ${ty}px)`);
+        setScale(rect.width / SPLASH_SIZE);
+      } else {
+        // Fallback if header isn't mounted yet
+        setTranslate("translate(calc(-50vw + 34px), calc(-50vh + 28px))");
+        setScale(0.35);
       }
       setPhase("fly");
     }, STILL_MS + WINK_MS));
 
-    if (onDone) {
-      ids.push(setTimeout(() => setPhase("fade"), STILL_MS + WINK_MS + FLY_MS));
-      ids.push(setTimeout(onDone, STILL_MS + WINK_MS + FLY_MS + FADE_MS));
-    }
+    // Start fading mid-flight so the logo is visibly moving before it disappears
+    ids.push(setTimeout(() => setPhase("fade"), STILL_MS + WINK_MS + FADE_DELAY));
+
+    // Notify caller after everything is done
+    ids.push(setTimeout(
+      () => onDoneRef.current?.(),
+      STILL_MS + WINK_MS + FLY_MS + FADE_MS,
+    ));
 
     return () => ids.forEach(clearTimeout);
-  }, [onDone]);
+  }, []); // empty — run once on mount, use ref for onDone
 
-  const fly = flyRef.current;
-  const isFly = phase === "fly" || phase === "fade";
-
-  const logoStyle: React.CSSProperties = {
-    transition: isFly ? `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
-    transform: isFly && fly
-      ? `translate(${fly.tx}px, ${fly.ty}px) scale(${fly.scale})`
-      : "translate(0, 0) scale(1)",
-    transformOrigin: "center center",
-  };
+  const isMoving = phase === "fly" || phase === "fade";
+  const isFading = phase === "fade";
+  // Keep pulse during wink so there's no scale-snap when the phase changes
+  const showPulse = phase === "float" || phase === "wink";
 
   return (
     <div
+      className="splash-screen"
       style={{
         position: "fixed",
         inset: 0,
@@ -66,20 +76,41 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        opacity: phase === "fade" ? 0 : 1,
-        transition: phase === "fade" ? `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
-        pointerEvents: phase === "fade" ? "none" : "auto",
+        opacity: isFading ? 0 : 1,
+        transition: isFading ? `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+        pointerEvents: isMoving ? "none" : "auto",
       }}
     >
+      {/* Translate layer — separate from scale so the browser interpolates each
+          independently (combined matrix interpolation warps the logo mid-flight) */}
       <div
-        className={phase === "float" ? "splash-pulse" : undefined}
-        style={logoStyle}
+        style={{
+          transform: isMoving ? translate : "none",
+          transition: isMoving ? `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+          willChange: "transform",
+          lineHeight: 0,
+        }}
       >
-        <BadgerLogo
-          size={LOGO_SIZE}
-          forceAnim={phase === "wink" ? "wink" : null}
-          forceAnimDurationMs={phase === "wink" ? WINK_MS : undefined}
-        />
+        {/* Scale layer */}
+        <div
+          style={{
+            transform: isMoving ? `scale(${scale})` : "none",
+            transition: isMoving ? `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+            willChange: "transform",
+            transformOrigin: "center center",
+            lineHeight: 0,
+          }}
+        >
+          {/* Pulse layer — active during float + wink, stopped on fly so the
+              glide isn't fighting against a competing transform */}
+          <div className={showPulse ? "splash-pulse" : ""}>
+            <BadgerLogo
+              size={SPLASH_SIZE}
+              forceAnim={phase === "wink" ? "wink" : null}
+              forceAnimDurationMs={phase === "wink" ? WINK_MS : undefined}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
