@@ -24,7 +24,7 @@ function navItems() {
 
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [location]     = useLocation();
+  const [location, navigate] = useLocation();
   const mainRef        = useRef<HTMLDivElement>(null);
   const [waveIntensity, setWaveIntensity] = useState(0);
   const [larderReached, setLarderReached] = useState(false);
@@ -318,11 +318,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   async function changeCurrency(code: string) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
-    // Show wink splash immediately — the highlight flip and conversion happen
-    // underneath. Flag tells App.tsx to skip the full splash after reload.
-    // Pass the reload as afterDone so it only fires once the wink animation
-    // has fully played — if we reload immediately the animation never runs.
-    showWinkSplash(() => { window.location.href = import.meta.env.BASE_URL; });
+    // Close the profile sheet and navigate home BEFORE showing the wink so
+    // the home screen is already rendered underneath the overlay. When the
+    // animation ends and the overlay fades, the user sees Home — not the sheet.
+    // React 18 batches these state updates with setWinkActive(true) inside
+    // showWinkSplash, so all three happen in a single paint.
+    setShowProfile(false);
+    navigate("/");
+    showWinkSplash(() => window.location.reload());
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setCurrSwitchTarget(code);
     setConverting(true);
@@ -369,9 +372,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
-    // Pass the reload as afterDone so it only fires once the wink animation
-    // has fully played — if we reload immediately the animation never runs.
-    showWinkSplash(() => { window.location.href = import.meta.env.BASE_URL; });
+    // Close the profile sheet and navigate home BEFORE showing the wink —
+    // same batching logic as changeCurrency above.
+    setShowProfile(false);
+    navigate("/");
+    showWinkSplash(() => window.location.reload());
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setLangSwitchTarget(code);
     const next = { ...prefs, language: code };
