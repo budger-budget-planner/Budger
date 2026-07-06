@@ -864,14 +864,10 @@ export default function TransactionsPage() {
                       <>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
-                          {((tx as any).isLarderFund || larderRecurringMap.has(tx.id)) && (
-                            <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-white/85 tracking-wide flex-shrink-0">
-                              {t("larder.source_fund")}
-                            </span>
-                          )}
-                          {larderDedicatedMap.has(tx.id) && (
-                            <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-emerald-400 tracking-wide flex-shrink-0">
-                              {t("larder.tab")} +{fmtAmt(larderDedicatedMap.get(tx.id)!, prefs.currency)}
+                          {((tx as any).isLarderFund || larderRecurringMap.has(tx.id) || larderDedicatedMap.has(tx.id)) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-500/40 bg-indigo-500/15 text-indigo-300 tracking-wide flex-shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
+                              {t("larder.dedicated_badge")}
                             </span>
                           )}
                           {tx.receiptImage && (

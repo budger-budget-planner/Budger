@@ -455,12 +455,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
                   <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
-                  {!glBadgeCollapsed && (
-                    <>
-                      <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
-                      <span className="text-white/50">{t("larder.source_transfer")}</span>
-                    </>
-                  )}
+                  <span
+                    className="flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{
+                      maxWidth: glBadgeCollapsed ? "0px" : "200px",
+                      opacity: glBadgeCollapsed ? 0 : 1,
+                    }}
+                  >
+                    <span className="tabular-nums whitespace-nowrap">{fmtAmt(totalGLSent, prefs.currency)}</span>
+                    <span className="text-white/50 whitespace-nowrap">{t("larder.source_transfer")}</span>
+                  </span>
                   {!noAnim && <>
                     {/* top-left */}
                     <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>

@@ -1969,15 +1969,11 @@ export default function HouseholdPage() {
       {/* ── Great Larder: Fund (spend from GL into a transaction) ── */}
       <GlSheet title={t("gl.fund_sheet")} open={glFundOpen} onClose={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
         <form onSubmit={handleGlFund} className="space-y-4">
-          <p className="text-sm text-white/50">
-            {t("gl.fund_desc")}
-            {!iAmHead && <span className="text-amber-400/80"> {t("gl.fund_requires_approval")}</span>}
-          </p>
           <div className="space-y-1.5">
             <label className={glLabelCls}>{t("larder.description")}</label>
             <input
               className={glInputCls}
-              placeholder={t("gl.fund_placeholder")}
+              placeholder={t("larder.description")}
               value={glFundDesc}
               onChange={e => setGlFundDesc(e.target.value)}
               required
@@ -2005,6 +2001,10 @@ export default function HouseholdPage() {
               to={prefs.currency}
               rates={splitRates}
             />
+            {!iAmHead && (
+              <p className="text-xs text-amber-400/70 leading-relaxed">{t("gl.fund_requires_approval")}</p>
+            )}
+            <p className="text-xs text-white/25 leading-relaxed">{t("gl.from_gl_desc")}</p>
           </div>
           {(() => {
             const amt = parseFloat(glFundAmt.replace(",", "."));
