@@ -450,7 +450,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 <button
                   type="button"
                   onClick={() => setGlBadgeCollapsed(c => !c)}
-                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95"
+                  className="relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95"
                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
                   title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
