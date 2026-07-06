@@ -81,6 +81,10 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
       date: dateStr,
       paymentMethod: "card",
       recurringPaymentId: rp.id,
+      // NOTE: isLarderFund is intentionally NOT set here. Recurring payments that
+      // contribute to Larder are real spending events and must not be excluded from
+      // spending totals. The Larder badge for these transactions is derived on the
+      // frontend by cross-referencing larder_entries (sourceType: "recurring_payment").
     }).returning();
 
     // Log the application — onConflictDoNothing guards against concurrent duplicate inserts
@@ -323,6 +327,8 @@ router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => 
     date: dateStr,
     paymentMethod: "card",
     recurringPaymentId: rp.id,
+    // NOTE: isLarderFund is intentionally NOT set here — same reason as auto-apply.
+    // The Larder badge is derived from larder_entries on the frontend.
   }).returning();
 
   // onConflictDoNothing guards against race-condition duplicate inserts

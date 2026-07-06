@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable, larderEntriesTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import {
@@ -189,10 +189,12 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
   await db.delete(goalContributionsTable)
     .where(eq(goalContributionsTable.transactionId, params.data.id));
 
-  // Remove any Larder entry created by dedicating this transaction straight
-  // to the Larder, so the Larder balance stays accurate.
-  await db.delete(larderEntriesTable)
-    .where(and(eq(larderEntriesTable.sourceType, "transaction_dedication"), eq(larderEntriesTable.sourceId, params.data.id)));
+  // NOTE: Larder entries whose sourceId points at this transaction are intentionally
+  // NOT deleted here. Larder is a conceptual "jar" — putting money in (via dedicating
+  // a transaction) is a one-way action. Deleting the source transaction does not
+  // reverse the Larder deposit; the money stays in the jar. This matches the stated
+  // product rule: "if I delete a transaction that was funded from larder, that money
+  // is gone — larder does NOT revert."
 
   // If this transaction was created by a recurring payment auto-apply, remove
   // the log entry so the recurring payment becomes applicable again this month.

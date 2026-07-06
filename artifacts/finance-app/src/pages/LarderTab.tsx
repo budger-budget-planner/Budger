@@ -452,7 +452,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 >
                   <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
                   <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
-                  <span className="text-white/50">{t("larder.send_gl_btn")}</span>
+                  <span className="text-white/50">{t("larder.source_transfer")}</span>
                   {!noAnim && <>
                     {/* top-left */}
                     <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>

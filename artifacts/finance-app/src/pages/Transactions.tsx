@@ -564,6 +564,26 @@ export default function TransactionsPage() {
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
   const { data: larderSummary } = useGetLarder();
+
+  // Map of transactionId → total larder amount for transactions whose amount was
+  // dedicated to the Larder (e.g. user selected "Larder" category/goal on a transaction).
+  // We aggregate (sum) in case multiple larder entries reference the same transaction.
+  const larderDedicatedMap = new Map<number, number>();
+  for (const e of ((larderSummary as any)?.entries ?? []) as any[]) {
+    if (e.sourceType === "transaction_dedication" && e.sourceId != null && Number(e.amount) > 0) {
+      larderDedicatedMap.set(e.sourceId, (larderDedicatedMap.get(e.sourceId) ?? 0) + Number(e.amount));
+    }
+  }
+
+  // Set of transactionIds that have a matching larder_entry with sourceType
+  // "recurring_payment" — used to show a "From Larder" badge on those transactions
+  // without setting isLarderFund (which would wrongly exclude them from spending totals).
+  const larderRecurringSet = new Set<number>(
+    ((larderSummary as any)?.entries ?? [])
+      .filter((e: any) => e.sourceType === "recurring_payment" && e.sourceId != null)
+      .map((e: any) => e.sourceId as number)
+  );
+
   const [isSaving, setIsSaving] = useState(false);
 
   const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
@@ -843,9 +863,14 @@ export default function TransactionsPage() {
                       <>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
-                          {(tx as any).isLarderFund && (
+                          {((tx as any).isLarderFund || larderRecurringSet.has(tx.id)) && (
                             <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-white/85 tracking-wide flex-shrink-0">
-                              ze Spiżarni
+                              {t("larder.source_fund")}
+                            </span>
+                          )}
+                          {larderDedicatedMap.has(tx.id) && (
+                            <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-emerald-400 tracking-wide flex-shrink-0">
+                              {t("larder.tab")} +{fmtAmt(larderDedicatedMap.get(tx.id)!, prefs.currency)}
                             </span>
                           )}
                           {tx.receiptImage && (
