@@ -2599,6 +2599,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LarderEntry"
+        currencyBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              currency:
+                type: string
+              rawTotal:
+                type: number
+            required: [currency, rawTotal]
       required: [total, currency, entries]
 
     GreatLarderEntry:
@@ -2642,4 +2652,14 @@ components:
             $ref: "#/components/schemas/GreatLarderEntry"
         pendingCount:
           type: integer
+        currencyBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              currency:
+                type: string
+              rawTotal:
+                type: number
+            required: [currency, rawTotal]
       required: [total, currency, entries, pendingCount]

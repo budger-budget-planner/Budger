@@ -5,6 +5,7 @@ import {
   notificationItemsTable, goalsTable, goalContributionsTable,
 } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
+import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -77,13 +78,32 @@ router.get("/great-larder", async (req, res): Promise<void> => {
   const nameMap = new Map(members.map(m => [m.id, m.name]));
 
   const approved = entries.filter(e => e.status === "approved");
-  const total = approved.reduce((s, e) => s + parseFloat(e.amount), 0);
+
+  // Group approved amounts by currency for breakdown display
+  const currencyMap = new Map<string, number>();
+  for (const e of approved) {
+    const c = e.currency || currency;
+    currencyMap.set(c, (currencyMap.get(c) ?? 0) + parseFloat(e.amount));
+  }
+
+  // Convert each currency sub-total to the account currency and sum
+  const rates = await fetchRates();
+  const total = Array.from(currencyMap.entries()).reduce((sum, [curr, amt]) => {
+    return sum + convertAmount(amt, curr, currency, rates);
+  }, 0);
+
+  // Build breakdown: only non-zero sub-totals
+  const currencyBreakdown = Array.from(currencyMap.entries())
+    .filter(([, amt]) => Math.abs(amt) >= 0.005)
+    .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) }));
+
   const pendingCount = entries.filter(e => e.status === "pending").length;
 
   res.json({
-    total,
+    total: parseFloat(total.toFixed(2)),
     currency,
     pendingCount,
+    currencyBreakdown,
     entries: entries.map(e => fmtEntry(e, nameMap.get(e.contributedByUserId) ?? "Unknown")),
   });
 });

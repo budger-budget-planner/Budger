@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, larderEntriesTable, goalsTable, goalContributionsTable, transactionsTable, usersTable, greatLarderEntriesTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -89,7 +90,24 @@ router.get("/larder", async (req, res): Promise<void> => {
     .where(eq(larderEntriesTable.userId, userId))
     .orderBy(desc(larderEntriesTable.createdAt));
 
-  const total = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+  // Group amounts by currency for breakdown display
+  const currencyMap = new Map<string, number>();
+  for (const e of entries) {
+    const c = e.currency || currency;
+    currencyMap.set(c, (currencyMap.get(c) ?? 0) + parseFloat(e.amount));
+  }
+
+  // Convert each currency sub-total to the account currency and sum for the grand total
+  const rates = await fetchRates();
+  const total = Array.from(currencyMap.entries()).reduce((sum, [curr, amt]) => {
+    return sum + convertAmount(amt, curr, currency, rates);
+  }, 0);
+
+  // Build breakdown: only non-zero sub-totals
+  const currencyBreakdown = Array.from(currencyMap.entries())
+    .filter(([, amt]) => Math.abs(amt) >= 0.005)
+    .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) }));
+
   const glRuleSynced = entries
     .filter(e => e.sourceType === "gl_rule_sync")
     .reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
@@ -98,7 +116,14 @@ router.get("/larder", async (req, res): Promise<void> => {
   // balance is always computed from all entries regardless of visibility.
   const visibleEntries = entries.filter(e => !e.hidden);
 
-  res.json({ total, currency, entries: visibleEntries.map(fmtEntry), glPercent, glRuleSynced });
+  res.json({
+    total: parseFloat(total.toFixed(2)),
+    currency,
+    entries: visibleEntries.map(fmtEntry),
+    glPercent,
+    glRuleSynced,
+    currencyBreakdown,
+  });
 });
 
 // POST /larder/entries — add a raw entry (used internally by recurring-payment auto-apply

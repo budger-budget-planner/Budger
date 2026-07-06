@@ -2,7 +2,7 @@ import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey } from "@workspace/api-client-react";
-import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
+import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
@@ -21,13 +21,40 @@ type LarderEntry = {
   createdAt: string;
 };
 
+type CurrencySubtotal = {
+  currency: string;
+  rawTotal: number;
+};
+
 type LarderSummary = {
   total: number;
   currency: string;
   entries: LarderEntry[];
   glPercent: number | null;
   glRuleSynced: number;
+  currencyBreakdown?: CurrencySubtotal[];
 };
+
+/** Order breakdown items: account currency first, then language-based order. */
+function orderedBreakdown(
+  breakdown: CurrencySubtotal[],
+  accountCurrency: string,
+  language: string
+): CurrencySubtotal[] {
+  const langOrder = language === "pl"
+    ? ["PLN", "EUR", "USD", "GBP"]
+    : ["EUR", "USD", "GBP", "PLN"];
+  const nonZero = breakdown.filter(b => Math.abs(b.rawTotal) >= 0.005);
+  const acct = nonZero.find(b => b.currency === accountCurrency);
+  const rest = nonZero
+    .filter(b => b.currency !== accountCurrency)
+    .sort((a, b) => {
+      const ai = langOrder.indexOf(a.currency);
+      const bi = langOrder.indexOf(b.currency);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+  return acct ? [acct, ...rest] : rest;
+}
 
 function sourceLabel(sourceType: string): string {
   if (sourceType === "recurring_payment") return t("larder.source_recurring");
@@ -305,6 +332,21 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             >
               {fmtAmt(total, prefs.currency)}
             </p>
+            {/* Currency breakdown — shown when savings span multiple currencies */}
+            {(() => {
+              const breakdown = larder?.currencyBreakdown ?? [];
+              const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
+              if (ordered.length < 2) return null;
+              return (
+                <div className="mt-2.5 flex flex-col items-center gap-0.5">
+                  {ordered.map(item => (
+                    <p key={item.currency} className="text-[11px] text-white/30 tabular-nums">
+                      {fmtAmt(item.rawTotal, item.currency)}
+                    </p>
+                  ))}
+                </div>
+              );
+            })()}
             {totalGLSent > 0 && (
               <div className="mt-3 flex items-center justify-center rounded-2xl border border-white/8 bg-white/3 px-4 py-2.5">
                 <div className="text-center">

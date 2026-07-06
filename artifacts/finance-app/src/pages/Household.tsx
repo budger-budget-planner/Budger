@@ -43,6 +43,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 
+/** Order breakdown items: account currency first, then language-based order. */
+function orderedBreakdown(
+  breakdown: { currency: string; rawTotal: number }[],
+  accountCurrency: string,
+  language: string
+): { currency: string; rawTotal: number }[] {
+  const langOrder = language === "pl"
+    ? ["PLN", "EUR", "USD", "GBP"]
+    : ["EUR", "USD", "GBP", "PLN"];
+  const nonZero = breakdown.filter(b => Math.abs(b.rawTotal) >= 0.005);
+  const acct = nonZero.find(b => b.currency === accountCurrency);
+  const rest = nonZero
+    .filter(b => b.currency !== accountCurrency)
+    .sort((a, b) => {
+      const ai = langOrder.indexOf(a.currency);
+      const bi = langOrder.indexOf(b.currency);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+  return acct ? [acct, ...rest] : rest;
+}
+
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
   qc.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
@@ -1530,10 +1551,28 @@ export default function HouseholdPage() {
                 {/* Total */}
                 <div className="text-center py-2">
                   {greatLarder ? (
-                    <p className="text-4xl font-bold tracking-tight text-white"
-                      style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
-                      {fmtAmtRound(greatLarder.total, greatLarder.currency)}
-                    </p>
+                    <>
+                      <p className="text-4xl font-bold tracking-tight text-white"
+                        style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
+                        {fmtAmtRound(greatLarder.total, greatLarder.currency)}
+                      </p>
+                      {/* Currency breakdown — shown when savings span multiple currencies */}
+                      {(() => {
+                        const prefs = loadPrefs();
+                        const breakdown: { currency: string; rawTotal: number }[] = greatLarder.currencyBreakdown ?? [];
+                        const ordered = orderedBreakdown(breakdown, greatLarder.currency, prefs.language);
+                        if (ordered.length < 2) return null;
+                        return (
+                          <div className="mt-2 flex flex-col items-center gap-0.5">
+                            {ordered.map((item: { currency: string; rawTotal: number }) => (
+                              <p key={item.currency} className="text-[11px] text-white/30 tabular-nums">
+                                {fmtAmtRound(item.rawTotal, item.currency)}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </>
                   ) : (
                     <p className="text-4xl font-bold text-white/20">—</p>
                   )}
