@@ -1060,7 +1060,7 @@ export default function HomeSpending() {
     && !tx.currencyUnavailable;
 
   const total = sorted
-    .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency) && !(tx as any).foundedWithRealizedGoal)
+    .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency) && !(tx as any).foundedWithRealizedGoal && !(tx as any).isLarderFund)
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
   const realizedGoalExcluded = sorted

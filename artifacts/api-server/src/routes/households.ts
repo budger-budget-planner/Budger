@@ -144,7 +144,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
     const txs = await db.select().from(transactionsTable)
       .where(eq(transactionsTable.userId, m.userId));
     const monthlySpent = txs
-      .filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal)
+      .filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal && !t.isLarderFund)
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     return {
@@ -219,7 +219,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const categories = await db.select().from(categoriesTable);
   const catMap = new Map(categories.map(c => [c.id, c]));
 
-  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal);
+  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal && !t.isLarderFund);
 
   const grouped = new Map<string, { total: number; count: number; category: any }>();
   for (const tx of filtered) {
