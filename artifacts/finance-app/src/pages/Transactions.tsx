@@ -29,7 +29,7 @@ import {
   useDeleteLarderEntry,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,7 +100,7 @@ function TxForm({
             </div>
             <SelectItem value="goal_larder">
               <span className="flex items-center gap-2">
-                <Star className="w-3 h-3 flex-shrink-0" />
+                <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
                 {t("larder.tab")}
               </span>
             </SelectItem>
@@ -237,7 +237,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
           {txLarderEntries.map(e => (
             <div key={`larder-${e.id}`} className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-xl">
               <div className="flex items-center gap-2">
-                <Star className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0 text-muted-foreground" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
                 <span className="text-sm text-muted-foreground">{t("larder.tab")}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
           <SelectContent>
             <SelectItem value="larder">
               <span className="flex items-center gap-2">
-                <Star className="w-3 h-3 flex-shrink-0" />
+                <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg>
                 {t("larder.tab")}
               </span>
             </SelectItem>
