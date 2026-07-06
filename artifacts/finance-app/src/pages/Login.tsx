@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { LEGAL } from "@/lib/legal";
 import { useLocation, useSearch } from "wouter";
 import { useLogin, useRegister, useRegisterStart, useVerifyEmail, useForgotPin, useResetPin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -49,6 +50,9 @@ export default function LoginPage() {
   const [confirmPin, setConfirmPin]   = useState("");
   const [signupError, setSignupError] = useState("");
   const [verifyError, setVerifyError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
 
   // Forgot / reset PIN state
   const [forgotEmail, setForgotEmail]     = useState("");
@@ -351,6 +355,8 @@ export default function LoginPage() {
             data: {
               email: signupEmail.trim(),
               password: pin,
+              termsAccepted: true,
+              privacyAccepted: true,
             },
           });
         } else {

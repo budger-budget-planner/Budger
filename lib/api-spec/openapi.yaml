@@ -1663,6 +1663,10 @@ components:
         password:
           type: string
           minLength: 4
+        termsAccepted:
+          type: boolean
+        privacyAccepted:
+          type: boolean
 
     RegisterStartInput:
       type: object

@@ -1,0 +1,38 @@
+MOBILE APPLICATION PRIVACY POLICY
+As of: July 6, 2026
+
+1. DATA CONTROLLER
+The data controller for the personal data of the Application Users is Filip Snopek, contact email: Budger.general@gmail.com (hereinafter referred to as the "Controller").
+
+2. WHAT DATA WE COLLECT AND FOR WHAT PURPOSE
+In accordance with the data minimization principle (Article 5(1)(c) of the GDPR), our Application limits data collection to the necessary minimum:
+* Technical data: To ensure stability and the proper functioning of the application, anonymous diagnostic data (e.g., device model, operating system version, error/crash logs) may be collected automatically.
+* Transactions and payments: When making purchases (e.g., subscriptions), the payment process takes place entirely within the Apple Pay or Google Pay ecosystems. The Controller receives only a payment status confirmation (success/error) and a transaction ID from these systems to unlock premium features.
+* The Application DOES NOT collect, store, or have access to: Your credit card numbers, bank accounts, PIN codes, or personal online banking login history.
+
+3. LEGAL BASIS FOR PROCESSING
+Data is processed on the basis of:
+* Article 6(1)(b) of the GDPR – for the performance of a contract (provision of electronic services, i.e., the proper functioning of the application).
+* Article 6(1)(f) of the GDPR – the legitimate interest of the Controller (technical error analysis aimed at improving the application). [1]
+
+4. DATA RECIPIENTS
+Technical and transactional data may be processed by trusted third parties providing the technical infrastructure for the application:
+* Google LLC (for Android devices)
+* Apple Inc. (for iOS devices)
+
+5. DATA RETENTION PERIOD
+Diagnostic data and transaction IDs are stored only for the period necessary to fulfill technical and billing purposes, or until the User deletes the Application from their mobile device.
+
+6. USER RIGHTS (GDPR)
+The User has the right to:
+1. Access their data and receive a copy thereof.
+2. Rectify (correct) their data.
+3. Request erasure of data ("the right to be forgotten").
+4. Lodge a complaint with a supervisory authority – the President of the Personal Data Protection Office (UODO) in Poland.
+
+7. SECURITY
+1. The Controller applies modern technical and organizational measures to protect data against unauthorized access, in compliance with GDPR security requirements.
+
+8. DATA TRANSFER OUTSIDE THE EUROPEAN ECONOMIC AREA (EEA)
+1. Transaction processing via Apple Pay and Google Pay may involve transferring limited technical data outside the EEA territory (e.g., to the USA).
+2. These entities (Apple Inc., Google LLC) guarantee an adequate level of personal data protection by applying standard contractual clauses approved by the European Commission and participating in the Data Privacy Framework program.

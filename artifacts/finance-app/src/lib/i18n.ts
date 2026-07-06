@@ -423,6 +423,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "login.verify_link_invalid":  { en: "This link is invalid or has expired. Please sign up again.",
                                  pl: "Ten link jest nieprawidłowy lub wygasł. Zarejestruj się ponownie." },
   "login.start_over":           { en: "Start over", pl: "Zacznij od nowa" },
+  "login.terms_title":          { en: "Terms of Use",    pl: "Regulamin"               },
+  "login.privacy_title":        { en: "Privacy Policy",  pl: "Polityka Prywatności"    },
+  "login.terms_checkbox":       { en: "* I have read and accept the", pl: "* Zapoznałem/am się i akceptuję" },
+  "login.terms_link":           { en: "Terms of Use",    pl: "Regulamin"               },
+  "login.privacy_checkbox":     { en: "* I have read and accept the", pl: "* Zapoznałem/am się i akceptuję" },
+  "login.privacy_link":         { en: "Privacy Policy",  pl: "Politykę Prywatności"    },
 
   // ── Onboarding ──
   "ob.welcome":              { en: "Welcome to Budger!",              pl: "Witaj w Budger!"                   },

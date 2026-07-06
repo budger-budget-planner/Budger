@@ -1,0 +1,40 @@
+MOBILE APPLICATION TERMS AND CONDITIONS
+As of: July 6, 2026
+
+§ 1. GENERAL PROVISIONS
+1. These Terms and Conditions define the rules for using the mobile application Budger: the Budget Planner (hereinafter referred to as the "Application").
+2. The owner and publisher of the Application is Filip Snopek, contact email: Budger.general@gmail.com(hereinafter referred to as the "Service Provider").
+3. Using the Application constitutes acceptance of these Terms and Conditions. Any User who does not agree to these provisions should uninstall the Application.
+
+§ 2. TECHNICAL REQUIREMENTS AND AVAILABILITY
+1. The Application is available for download in official stores: Google Play (for Android) and the App Store (for iOS).
+2. The Application has been developed to function correctly on iOS 26.5 and Android 17. Support for later versions is planned but not guaranteed. Compatibility with previous versions is not guaranteed.
+3. Downloading and using the basic features of the Application is entirely free of charge. Data transmission costs are borne by the User in accordance with their mobile operator's tariff.
+
+§ 3. FUNCTIONALITY AND EXTERNAL PAYMENTS
+1. The Application serves informational and financial purposes (e.g., budget planning, statistics) and does not connect to the User's electronic banking systems.
+2. Any in-app payments (e.g., future subscriptions) are processed exclusively through external, secure mobile payment providers: Apple Wallet (Apple Pay) and Google Pay.
+3. The Service Provider does not process, collect, or store payment/credit card data, PIN codes, or the User's banking login credentials.
+
+§ 4. RIGHTS AND OBLIGATIONS OF THE USER
+1. The User is obliged to use the Application in accordance with its intended purpose, applicable law, and the provisions of these Terms and Conditions.
+2. The User is prohibited from providing unlawful content or taking any actions that could disrupt the proper functioning of the Application.
+
+§ 5. LIABILITY
+1. The Service Provider makes every effort to ensure that the Application operates continuously and without errors, but does not guarantee complete faultlessness.
+2. The Service Provider shall not be held liable for damages resulting from interruptions in the Application's operation caused by force majeure, technical failures on the part of internet service providers, or operating systems.
+3. Financial data presented in the Application is for auxiliary purposes only and does not constitute official financial analysis, investment advice, or accounting services.
+
+§ 6. COMPLAINTS AND AMENDMENTS TO THE TERMS
+1. Any complaints regarding the operation of the Application may be submitted by the User to the following email address: Budger.support@gmail.com.
+2. The Service Provider shall review complaints within 14 days of receipt.
+3. The Service Provider reserves the right to amend these Terms and Conditions. Users will be informed of any changes via an update to the content of the Terms and Conditions within the Application.
+
+§ 7. RIGHT OF WITHDRAWAL
+1. In the event of purchasing a subscription, the Consumer has the right to withdraw from the contract for the provision of electronic services (using the Application) within 14 days without giving any reason.
+2. In the case of purchasing future paid services (premium subscriptions), the User, by consenting to the immediate delivery of digital content before the expiry of the withdrawal period, acknowledges that they lose their right of withdrawal once the service has been fully performed (the premium features are unlocked).
+
+§ 8. CONTACT POINT AND COMPLAINTS (DSA Compliance)
+1. The Service Provider designates the email address: Budger.support@gmail.com as the single point of contact for direct communication with Users and authorities of European Union member states.
+2. Communication with the point of contact is conducted in Polish and English.
+3. The Service Provider commits to not using deceptive interfaces (so-called dark patterns) in the process of canceling services or account management.

@@ -255,7 +255,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { email, password } = parsed.data;
+  const { email, password, termsAccepted, privacyAccepted } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
@@ -280,7 +280,13 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   const passwordHash = await bcryptjs.hash(password, 10);
   const [updated] = await db.update(usersTable)
-    .set({ passwordHash, pinLength: password.length, signupExpiresAt: null })
+    .set({
+      passwordHash,
+      pinLength: password.length,
+      signupExpiresAt: null,
+      termsAccepted: termsAccepted ?? false,
+      privacyAccepted: privacyAccepted ?? false,
+    })
     .where(eq(usersTable.id, user.id))
     .returning();
 

@@ -30,6 +30,11 @@ export const usersTable = pgTable("users", {
   // PIN reset flow — token is single-use and expires in 30 minutes.
   pinResetToken: text("pin_reset_token"),
   pinResetTokenExpiresAt: timestamp("pin_reset_token_expires_at", { withTimezone: true }),
+  /** True once the user has accepted the Terms of Use. Defaulted to true for all
+   *  pre-existing accounts (they implicitly accepted during account creation). */
+  termsAccepted: boolean("terms_accepted").notNull().default(true),
+  /** True once the user has accepted the Privacy Policy. Same default rationale. */
+  privacyAccepted: boolean("privacy_accepted").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

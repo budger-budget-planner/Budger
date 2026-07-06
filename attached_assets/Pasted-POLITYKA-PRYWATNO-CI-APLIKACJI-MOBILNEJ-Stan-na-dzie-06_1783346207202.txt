@@ -1,0 +1,38 @@
+POLITYKA PRYWATNOŚCI APLIKACJI MOBILNEJ
+Stan na dzień: 06.07.2026
+
+1. ADMINISTRATOR DANYCH OSOBOWYCH
+Administratorem danych osobowych Użytkowników Aplikacji jest Filip Snopek, kontakt: Budger.general@gmail.com (dalej jako „Administrator”).
+
+2. JAKIE DANE ZBIERAMY I W JAKIM CELU?
+Zgodnie z zasadą minimalizacji danych (art. 5 ust. 1 lit. c RODO), nasza Aplikacja ogranicza zbieranie danych do niezbędnego minimum:
+* Dane techniczne: W celu zapewnienia stabilności i poprawnego działania aplikacji, automatycznie zbierane mogą być anonimowe dane diagnostyczne (np. model urządzenia, wersja systemu operacyjnego, raporty o błędach / crash-logi).
+* Transakcje i płatności: W przypadku dokonywania zakupów (np. subskrypcji) proces płatności odbywa się w całości wewnątrz ekosystemów Apple Pay lub Google Pay. Administrator otrzymuje od tych systemów wyłącznie potwierdzenie statusu płatności (sukces/błąd) oraz identyfikator transakcji w celu odblokowania funkcji premium.
+* Aplikacja NIE zbiera, NIE przechowuje i NIE ma wglądu do: Twoich numerów kart kredytowych, kont bankowych, numerów PIN oraz historii logowania do bankowości osobistej.
+
+3. PODSTAWA PRAWNA PRZETWARZANIA
+Dane przetwarzane są na podstawie:
+* Art. 6 ust. 1 lit. b RODO – w celu wykonania umowy (świadczenia usług drogą elektroniczną, czyli poprawnego działania aplikacji).
+* Art. 6 ust. 1 lit. f RODO – prawnie uzasadniony interes Administratora (analiza techniczna błędów w celu ulepszania aplikacji).
+
+4. ODBIORCY DANYCH
+Dane techniczne i transakcyjne mogą być przetwarzane przez zaufane podmioty trzecie dostarczające infrastrukturę techniczną aplikacji:
+* Google LLC (w przypadku urządzeń z systemem Android)
+* Apple Inc. (w przypadku urządzeń z systemem iOS)
+
+5. OKRES PRZECHOWYWANIA DANYCH
+Dane diagnostyczne i identyfikatory transakcji przechowywane są wyłącznie przez okres niezbędny do realizacji celów technicznych i rozliczeniowych lub do czasu usunięcia Aplikacji przez Użytkownika z urządzenia mobilnego.
+
+6. PRAWA UŻYTKOWNIKA (RODO)
+Użytkownikowi przysługuje prawo do:
+1. Wglądu w swoje dane oraz otrzymania ich kopii.
+2. Sprostowania (poprawiania) swoich danych.
+3. Żądania usunięcia danych ("prawo do bycia zapomnianym").
+4. Wniesienia skargi do organu nadzorczego – Prezesa Urzędu Ochrony Danych Osobowych (UODO).
+
+7. BEZPIECZEŃSTWO
+1. Administrator stosuje nowoczesne środki techniczne i organizacyjne chroniące dane przed nieuprawnionym dostępem, zgodnie z wymogami bezpieczeństwa RODO.
+
+8. TRANSFER DANYCH POZA EUROPEJSKI OBSZAR GOSPODARCZY (EOG)
+1. Przetwarzanie transakcji przez Apple Pay oraz Google Pay może wiązać się z przekazywaniem ograniczonych danych technicznych poza terytorium EOG (np. do USA).
+2. Podmioty te (Apple Inc., Google LLC) gwarantują odpowiedni poziom ochrony danych osobowych poprzez stosowanie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską oraz uczestnictwo w programie Data Privacy Framework.

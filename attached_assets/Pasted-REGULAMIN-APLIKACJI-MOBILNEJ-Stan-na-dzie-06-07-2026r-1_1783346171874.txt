@@ -1,0 +1,40 @@
+REGULAMIN APLIKACJI MOBILNEJ
+Stan na dzień: 06.07.2026r
+
+§ 1. POSTANOWIENIA OGÓLNE
+1. Niniejszy Regulamin określa zasady korzystania z aplikacji mobilnej Budger: the Budget Planner (dalej: „Aplikacja”).
+2. Właścicielem i wydawcą Aplikacji jest Filip Snopek, kontakt: Budger.general@gmail.com (dalej: „Usługodawca”).
+3. Korzystanie z Aplikacji oznacza akceptację niniejszego Regulaminu. Użytkownik, który nie zgadza się na jego postanowienia, powinien odinstalować Aplikację.
+
+§ 2. WYMAGANIA TECHNICZNE I DOSTĘPNOŚĆ
+1. Aplikacja jest dostępna do pobrania w oficjalnych sklepach: Google Play (dla systemu Android) oraz App Store (dla systemu iOS).
+2. Aplikacja została stworzona by poprawnie działać na iOS 26.5 i Android 17. Późniejsze wsparcie jest planowane, ale nie gwarantowane. kompatybilność z poprzednimi wersjami nie jest gwarantowana. 
+3. Pobranie i korzystanie z podstawowych funkcji Aplikacji jest całkowicie darmowe. Koszty transmisji danych ponosi Użytkownik zgodnie z taryfą swojego operatora.
+
+§ 3. FUNKCJONALNOŚĆ I PŁATNOŚCI ZEWNĘTRZNE
+1. Aplikacja służy do celów informacyjno-finansowych (np. planowanie budżetu, statystyki) i nie łączy sięz systemami bankowości elektronicznej Użytkownika.
+2. Ewentualne płatności wewnątrz Aplikacji (np. przyszłe subskrypcje) realizowane są wyłącznie za pośrednictwem zewnętrznych, bezpiecznych dostawców płatności mobilnych: Apple Wallet (Apple Pay) oraz Google Pay.
+3. Usługodawca nie przetwarza, nie pobiera ani nie przechowuje danych kart płatniczych, kredytowych, kodów PIN ani danych dostępowych do banku Użytkownika.
+
+§ 4. PRAWA I OBOWIĄZKI UŻYTKOWNIKA
+1. Użytkownik zobowiązany jest do korzystania z Aplikacji zgodnie z jej przeznaczeniem, prawem oraz postanowieniami niniejszego Regulaminu.
+2. Zabrania się dostarczania przez Użytkownika treści o charakterze bezprawnym oraz podejmowania działań mogących zakłócić poprawne funkcjonowanie Aplikacji.
+
+§ 5. ODPOWIEDZIALNOŚĆ
+1. Usługodawca dokłada wszelkich starań, aby Aplikacja działała w sposób ciągły i bezbłędny, jednak nie gwarantuje jej pełnej bezawaryjności.
+2. Usługodawca nie ponosi odpowiedzialności za szkody wynikłe z przerw w działaniu Aplikacji spowodowane siłą wyższą, awariami technicznymi po stronie dostawców Internetu lub systemów operacyjnych.
+3. Dane finansowe prezentowane w Aplikacji mają charakter wyłącznie pomocniczy i nie stanowią oficjalnych analiz finansowych, porad inwestycyjnych ani księgowych.
+
+§ 6. REKLAMACJE I ZMIANY REGULAMINU
+1. Wszelkie reklamacje dotyczące działania Aplikacji Użytkownik może zgłaszać na adres e-mail: Budger.support@gmail.com.
+2. Usługodawca rozpatruje reklamacje w terminie 14 dni od ich otrzymania.
+3. Usługodawca zastrzega sobie prawo do zmiany Regulaminu. O zmianach Użytkownicy zostaną poinformowani poprzez aktualizację treści Regulaminu wewnątrz Aplikacji.
+
+§ 7. PRAWO DO ODSTĄPIENIA OD UMOWY
+1. W przypadku wykupienia subskrypcji, Konsumentowi przysługuje prawo do odstąpienia od umowy o świadczenie usług drogą elektroniczną (korzystanie z Aplikacji) w terminie 14 dni bez podawania przyczyny.
+2. W przypadku zakupu przyszłych usług płatnych (subskrypcji premium), Użytkownik, wyrażając zgodę na natychmiastowe dostarczenie treści cyfrowej przed upływem terminu do odstąpienia od umowy, przyjmuje do wiadomości, że traci przysługujące mu prawo do odstąpienia od umowy z momentem pełnego wykonania usługi (odblokowania funkcji premium).
+
+§ 8. PUNKT KONTAKTOWY I REKLAMACJE
+1. Usługodawca wyznacza adres e-mail: Budger.support@gmail.com jako pojedynczy punkt kontaktowy do bezpośredniej komunikacji z Użytkownikami oraz organami państw unijnych.
+2. Komunikacja z punktem kontaktowym odbywa się w języku polskim oraz angielskim.
+3. Usługodawca zobowiązuje się do nieużywania zwodniczych interfejsów (tzw. dark patterns) w procesie rezygnacji z usług lub zarządzania kontem.
