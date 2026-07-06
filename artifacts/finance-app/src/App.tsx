@@ -195,9 +195,13 @@ function AppWithSplash() {
     return false;
   });
   const [winkActive,   setWinkActive]   = useState(false);
+  const afterWinkRef = useRef<(() => void) | undefined>(undefined);
 
   const resetSplash  = useCallback(() => setSplashDone(false), []);
-  const showWinkSplash = useCallback(() => setWinkActive(true), []);
+  const showWinkSplash = useCallback((afterDone?: () => void) => {
+    afterWinkRef.current = afterDone;
+    setWinkActive(true);
+  }, []);
 
   return (
     <SplashResetContext.Provider value={resetSplash}>
@@ -207,7 +211,12 @@ function AppWithSplash() {
           {/* Full 3-animation splash: only on app open or logout */}
           {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
           {/* Wink-only splash: for all other transitions */}
-          {winkActive && <WinkSplashScreen onDone={() => setWinkActive(false)} />}
+          {winkActive && <WinkSplashScreen onDone={() => {
+            setWinkActive(false);
+            const cb = afterWinkRef.current;
+            afterWinkRef.current = undefined;
+            cb?.();
+          }} />}
         </AppReadyContext.Provider>
       </WinkSplashContext.Provider>
     </SplashResetContext.Provider>

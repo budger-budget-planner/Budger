@@ -320,7 +320,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
     // Show wink splash immediately — the highlight flip and conversion happen
     // underneath. Flag tells App.tsx to skip the full splash after reload.
-    showWinkSplash();
+    // Pass the reload as afterDone so it only fires once the wink animation
+    // has fully played — if we reload immediately the animation never runs.
+    showWinkSplash(() => window.location.reload());
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setCurrSwitchTarget(code);
     setConverting(true);
@@ -358,7 +360,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     } catch {
     } finally {
       setConverting(false);
-      window.location.reload();
+      // reload is deferred to the wink animation's onDone callback — do not
+      // call window.location.reload() here or it kills the animation mid-flight
     }
   }
 
@@ -366,25 +369,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
-    // Show wink splash immediately — the highlight flip and translation happen
-    // underneath. Flag tells App.tsx to skip the full splash after reload.
-    showWinkSplash();
+    // Pass the reload as afterDone so it only fires once the wink animation
+    // has fully played — if we reload immediately the animation never runs.
+    showWinkSplash(() => window.location.reload());
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setLangSwitchTarget(code);
     const next = { ...prefs, language: code };
     setPrefsState(next);
     savePrefs(next);
-    // Reloading before the server has actually persisted the new language
-    // is a race: App.tsx re-fetches the user on boot and treats the server
-    // value as the source of truth, so if the PATCH request gets cancelled
-    // mid-flight by the reload, it comes back with the OLD language and
-    // stomps the local pref we just saved — this is why the fix felt flaky.
-    // Waiting for the mutation to settle (success or failure) before
-    // reloading guarantees the server agrees with localStorage every time.
-    updateMe.mutate(
-      { data: { language: code } },
-      { onSettled: () => window.location.reload() }
-    );
+    // Fire-and-forget the persist — the animation takes ~3 s which is more
+    // than enough for the PATCH to settle before the reload fires.
+    updateMe.mutate({ data: { language: code } });
   }
 
   async function handleRefreshRates() {

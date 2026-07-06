@@ -26,8 +26,8 @@ export function useSplashReset(): () => void {
  * Use for any transition that isn't an app open or logout
  * (e.g. language/currency switching, future in-app transitions).
  */
-export const WinkSplashContext = createContext<() => void>(() => {});
+export const WinkSplashContext = createContext<(afterDone?: () => void) => void>(() => {});
 
-export function useWinkSplash(): () => void {
+export function useWinkSplash(): (afterDone?: () => void) => void {
   return useContext(WinkSplashContext);
 }
