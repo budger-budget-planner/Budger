@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw, FileText, ShieldCheck } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
@@ -11,6 +11,7 @@ import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } fr
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
+import { LEGAL } from "@/lib/legal";
 
 function navItems() {
   return [
@@ -288,6 +289,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const [showProfile, setShowProfile] = useState(false);
   const [showMission, setShowMission] = useState(false);
+  const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
@@ -652,6 +654,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="h-px bg-border" />
 
+            {/* Legal section */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {prefs.language === "pl" ? "Prawne" : "Legal"}
+              </p>
+              <button
+                onClick={() => { setShowProfile(false); setLegalModal("terms"); }}
+                className="flex items-center gap-3 w-full py-2.5 px-3 rounded-xl bg-muted/40 border border-border text-sm text-foreground transition active:opacity-70"
+              >
+                <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{t("login.terms_title")}</span>
+              </button>
+              <button
+                onClick={() => { setShowProfile(false); setLegalModal("privacy"); }}
+                className="flex items-center gap-3 w-full py-2.5 px-3 rounded-xl bg-muted/40 border border-border text-sm text-foreground transition active:opacity-70"
+              >
+                <ShieldCheck className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{t("login.privacy_title")}</span>
+              </button>
+            </div>
+
+            <div className="h-px bg-border" />
+
             <button
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
@@ -666,6 +691,44 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </>
+      )}
+
+      {/* ── Legal text overlay ── */}
+      {legalModal !== null && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-background">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border shrink-0">
+            <h2 className="text-base font-semibold text-foreground">
+              {legalModal === "terms" ? t("login.terms_title") : t("login.privacy_title")}
+            </h2>
+            <button
+              onClick={() => setLegalModal(null)}
+              className="text-muted-foreground text-2xl leading-none px-2 py-1"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">
+              {legalModal === "terms"
+                ? LEGAL.terms[(prefs.language as "en" | "pl")] ?? LEGAL.terms.en
+                : LEGAL.privacy[(prefs.language as "en" | "pl")] ?? LEGAL.privacy.en}
+            </pre>
+          </div>
+
+          {/* Close button */}
+          <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border">
+            <button
+              onClick={() => setLegalModal(null)}
+              className="w-full py-4 rounded-2xl bg-muted text-sm font-semibold text-foreground transition active:opacity-70"
+            >
+              {prefs.language === "pl" ? "Zamknij" : "Close"}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Page content ── */}
