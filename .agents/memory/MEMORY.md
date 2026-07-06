@@ -7,3 +7,4 @@
 - [Recurring payments feature](recurring-payments.md) — full DB/API/frontend architecture for manual+scheduled recurring payments with auto-apply and idempotency guarantees
 - [Duplicate workflow port conflicts](duplicate-workflow-port-conflicts.md) — legacy .replit workflows can coexist with artifact-managed ones on the same port, causing EADDRINUSE; check listWorkflows() for dupes
 - [Login PIN UX fix & session persistence](login-pin-ux-fix.md) — 15s submit-button timer + in-memory sessions caused recurring "can't log in"; fixes: immediate submit button + connect-pg-simple store
+- [Remix fresh-DB schema auto-push](remix-fresh-db.md) — after remix, DB is empty with no schema; fixed by running drizzle-kit push --force at every API server startup
