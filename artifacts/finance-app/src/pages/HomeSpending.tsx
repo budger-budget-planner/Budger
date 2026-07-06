@@ -588,7 +588,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   // Recurring payments: re-evaluate appliedThisMonth after any tx change
   qc.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
   // Larder: manual recurring-payment apply with "Add to Larder" credits the Larder
-  qc.invalidateQueries({ queryKey: ["larder"] });
+  qc.invalidateQueries({ queryKey: getGetLarderQueryKey() });
 }
 
 function dateToMonth(dateStr: string): string {
