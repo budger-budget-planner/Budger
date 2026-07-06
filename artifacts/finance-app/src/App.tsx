@@ -31,7 +31,7 @@ import {
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
-import { AppReadyContext, SplashResetContext, WinkSplashContext, useSplashReset } from "@/lib/appReady";
+import { AppReadyContext, SplashResetContext, WinkSplashContext, AppRefreshContext, useSplashReset } from "@/lib/appReady";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
@@ -185,20 +185,19 @@ function AppRoutes() {
 }
 
 function AppWithSplash() {
-  // If a lang/currency reload just happened, skip the full splash — the wink
-  // was already shown before the reload. The flag is set in Layout.tsx.
-  const [splashDone,   setSplashDone]   = useState(() => {
-    if (sessionStorage.getItem("budger_skip_full_splash")) {
-      sessionStorage.removeItem("budger_skip_full_splash");
-      return true;
-    }
-    return false;
-  });
+  const [splashDone,   setSplashDone]   = useState(false);
   const [winkActive,   setWinkActive]   = useState(false);
-  const afterWinkRef = useRef<(() => void) | undefined>(undefined);
+  // appVersion is a key for <AppRoutes> — bumping it remounts the entire route
+  // tree so components re-render with updated language/currency from prefs/cache,
+  // without a full page reload (which would empty React Query caches).
+  const [appVersion,   setAppVersion]   = useState(0);
+  const afterWinkRef = useRef<(() => void | Promise<void>) | undefined>(undefined);
 
   const resetSplash  = useCallback(() => setSplashDone(false), []);
-  const showWinkSplash = useCallback((afterDone?: () => void) => {
+  // Remount routes so all t() calls and currency formatters pick up new values.
+  // Callers must pre-warm the query cache before invoking this.
+  const softRefresh  = useCallback(() => setAppVersion(v => v + 1), []);
+  const showWinkSplash = useCallback((afterDone?: () => void | Promise<void>) => {
     afterWinkRef.current = afterDone;
     setWinkActive(true);
   }, []);
@@ -206,18 +205,23 @@ function AppWithSplash() {
   return (
     <SplashResetContext.Provider value={resetSplash}>
       <WinkSplashContext.Provider value={showWinkSplash}>
-        <AppReadyContext.Provider value={splashDone}>
-          <AppRoutes />
-          {/* Full 3-animation splash: only on app open or logout */}
-          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-          {/* Wink-only splash: for all other transitions */}
-          {winkActive && <WinkSplashScreen onDone={() => {
-            setWinkActive(false);
-            const cb = afterWinkRef.current;
-            afterWinkRef.current = undefined;
-            cb?.();
-          }} />}
-        </AppReadyContext.Provider>
+        <AppRefreshContext.Provider value={softRefresh}>
+          <AppReadyContext.Provider value={splashDone}>
+            {/* key=appVersion remounts routes after language/currency change */}
+            <AppRoutes key={appVersion} />
+            {/* Full 3-animation splash: only on app open or logout */}
+            {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+            {/* Wink-only splash: afterDone may be async — overlay stays (invisible,
+                non-blocking) until the promise resolves so callers can pre-warm
+                caches before the route tree becomes visible. */}
+            {winkActive && <WinkSplashScreen onDone={async () => {
+              const cb = afterWinkRef.current;
+              afterWinkRef.current = undefined;
+              if (cb) await cb();
+              setWinkActive(false);
+            }} />}
+          </AppReadyContext.Provider>
+        </AppRefreshContext.Provider>
       </WinkSplashContext.Provider>
     </SplashResetContext.Provider>
   );

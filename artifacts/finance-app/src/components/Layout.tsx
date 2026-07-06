@@ -6,9 +6,9 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
-import { useSplashReset, useWinkSplash } from "@/lib/appReady";
+import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
-import { t } from "@/lib/i18n";
+import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
 
@@ -301,6 +301,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const resetSplash = useSplashReset();
   const showWinkSplash = useWinkSplash();
+  const softRefresh = useAppRefresh();
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
@@ -316,75 +317,87 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return location.startsWith(href);
   }
 
-  async function changeCurrency(code: string) {
+  function changeCurrency(code: string) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
     // Close the profile sheet and navigate home BEFORE showing the wink so
-    // the home screen is already rendered underneath the overlay. When the
-    // animation ends and the overlay fades, the user sees Home — not the sheet.
-    // React 18 batches these state updates with setWinkActive(true) inside
-    // showWinkSplash, so all three happen in a single paint.
+    // the home screen renders underneath the overlay. All async work below runs
+    // during the ~3 s animation; when the animation ends the overlay awaits the
+    // work promise (usually already resolved) then does a soft route-remount so
+    // the app is immediately ready — no page reload, no empty-cache loading states.
     setShowProfile(false);
     navigate("/");
-    showWinkSplash(() => window.location.reload());
-    sessionStorage.setItem("budger_skip_full_splash", "1");
     setCurrSwitchTarget(code);
     setConverting(true);
-    try {
-      const rates = await fetchRates();
-      const rate  = getConversionRate(prefs.currency, code, rates);
 
-      // The server converts and persists the user's *current* totalBudget (as
-      // stored in the DB right now) and returns the resulting value. We must use
-      // that response instead of recomputing from our own local `prefs` cache —
-      // this component's `prefs` state can be stale relative to the DB (e.g. the
-      // user just edited their budget on another page that keeps its own prefs
-      // state), and overwriting with a value derived from stale local state would
-      // silently revert the budget the user just set.
-      const convertRes = await fetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ from: prefs.currency, to: code, rate }),
-      });
-      const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
-      const newBudget: number | null = convertData && "totalBudget" in convertData
-        ? convertData.totalBudget
-        : prefs.totalBudget != null
-          ? Math.round(prefs.totalBudget * rate * 100) / 100
-          : null;
+    // Kick off every async operation immediately so they run in parallel with
+    // the animation. By the time the wink ends (~3.29 s) they are typically done.
+    const workPromise = (async () => {
+      try {
+        const rates = await fetchRates();
+        const rate  = getConversionRate(prefs.currency, code, rates);
 
-      const next = { ...prefs, currency: code, totalBudget: newBudget };
-      savePrefs(next);
-      setPrefsState(next);
-      // Only persist currency here — the server already persisted the converted
-      // totalBudget as part of /api/convert-currency above, so sending it again
-      // from local state would risk re-overwriting it with a stale value.
-      await updateMe.mutateAsync({ data: { currency: code } });
-    } catch {
-    } finally {
-      setConverting(false);
-      // reload is deferred to the wink animation's onDone callback — do not
-      // call window.location.reload() here or it kills the animation mid-flight
-    }
+        // The server converts and persists the user's *current* totalBudget (as
+        // stored in the DB right now) and returns the resulting value. We must use
+        // that response instead of recomputing from our own local `prefs` cache —
+        // this component's `prefs` state can be stale relative to the DB (e.g. the
+        // user just edited their budget on another page that keeps its own prefs
+        // state), and overwriting with a value derived from stale local state would
+        // silently revert the budget the user just set.
+        const convertRes = await fetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ from: prefs.currency, to: code, rate }),
+        });
+        const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
+        const newBudget: number | null = convertData && "totalBudget" in convertData
+          ? convertData.totalBudget
+          : prefs.totalBudget != null
+            ? Math.round(prefs.totalBudget * rate * 100) / 100
+            : null;
+
+        const next = { ...prefs, currency: code, totalBudget: newBudget };
+        savePrefs(next);
+        setPrefsState(next);
+        // Only persist currency here — the server already persisted the converted
+        // totalBudget as part of /api/convert-currency above.
+        await updateMe.mutateAsync({ data: { currency: code } });
+
+        // Pre-warm the query cache while the overlay is still visible so that
+        // when routes remount they read fresh converted data from cache instantly.
+        queryClient.invalidateQueries();
+        await queryClient.refetchQueries({ type: "active" });
+      } catch {
+        // swallow — the overlay will still lift cleanly
+      } finally {
+        setConverting(false);
+      }
+    })();
+
+    showWinkSplash(async () => {
+      await workPromise; // almost always a no-op (already resolved by now)
+      softRefresh();     // remount routes; cache is warm → zero loading states
+    });
   }
 
   const updateMe = useUpdateMe();
 
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
-    // Close the profile sheet and navigate home BEFORE showing the wink —
-    // same batching logic as changeCurrency above.
+    // Close the profile sheet and navigate home BEFORE showing the wink.
+    // Language change is pure local state — no API awaiting needed.
+    // setLang() updates the module-level override so t() returns new strings
+    // immediately; softRefresh() remounts routes so every component re-renders.
     setShowProfile(false);
     navigate("/");
-    showWinkSplash(() => window.location.reload());
-    sessionStorage.setItem("budger_skip_full_splash", "1");
     setLangSwitchTarget(code);
     const next = { ...prefs, language: code };
     setPrefsState(next);
     savePrefs(next);
-    // Fire-and-forget the persist — the animation takes ~3 s which is more
-    // than enough for the PATCH to settle before the reload fires.
+    setLang(code as "en" | "pl");
+    // Fire-and-forget the persist — animation takes ~3 s, plenty of time.
     updateMe.mutate({ data: { language: code } });
+    showWinkSplash(() => softRefresh()); // remount routes → all t() pick up new lang
   }
 
   async function handleRefreshRates() {
