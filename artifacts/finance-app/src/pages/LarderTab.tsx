@@ -141,7 +141,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   async function handleSpend(e: React.FormEvent) {
     e.preventDefault();
-    const amount = parseFloat(spendAmt);
+    const amount = parseFloat(spendAmt.replace(",", "."));
     if (isNaN(amount) || amount <= 0) return;
     setSpendLoading(true);
     try {
@@ -167,12 +167,12 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     try {
       let amount: number;
       if (sendGlMode === "percent") {
-        const pct = parseFloat(sendGlPct);
+        const pct = parseFloat(sendGlPct.replace(",", "."));
         if (isNaN(pct) || pct < 1 || pct > 99) throw new Error("Enter a percentage between 1 and 99");
         amount = (pct / 100) * total;
         if (amount <= 0) throw new Error("Niewystarczające saldo Spiżarni");
       } else {
-        amount = parseFloat(sendGlAmt);
+        amount = parseFloat(sendGlAmt.replace(",", "."));
       }
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
@@ -193,7 +193,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   async function handleDedicate(e: React.FormEvent) {
     e.preventDefault();
     if (!dedGoalId) return;
-    const amt = parseFloat(dedAmount);
+    const amt = parseFloat(dedAmount.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
     if (amt > total + 0.001) {
       toast({ title: t("larder.insufficient"), variant: "destructive" }); return;
@@ -405,8 +405,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             <label className={labelCls}>
               {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
             </label>
-            <input type="number" step="0.01" min="0.01" max={total} required value={spendAmt}
-              onChange={e => setSpendAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
+            <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={spendAmt}
+              onChange={e => setSpendAmt(e.target.value)} placeholder="0.00" className={inputCls} />
             <p className="text-xs text-white/25 leading-relaxed">
               {t("larder.from_larder_desc")}
             </p>
@@ -441,16 +441,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 <label className={labelCls}>
                   {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
                 </label>
-                <input type="number" step="0.01" min="0.01" max={total} required value={sendGlAmt}
-                  onChange={e => setSendGlAmt(e.target.value)} inputMode="decimal" placeholder="0.00" className={inputCls} />
+                <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={sendGlAmt}
+                  onChange={e => setSendGlAmt(e.target.value)} placeholder="0.00" className={inputCls} />
               </div>
             ) : (
               <div className="space-y-1.5">
                 <label className={labelCls}>
                   {t("larder.percent_label")}{sendGlPct ? ` · ${fmtAmt((total * (parseFloat(sendGlPct) || 0)) / 100, prefs.currency)} ${t("larder.will_be_sent")}` : ""}
                 </label>
-                <input type="number" step="1" min="1" max="99" required value={sendGlPct}
-                  onChange={e => setSendGlPct(e.target.value)} inputMode="decimal" placeholder="np. 25" className={inputCls} />
+                <input type="text" inputMode="numeric" pattern="[0-9]*" required value={sendGlPct}
+                  onChange={e => setSendGlPct(e.target.value)} placeholder="np. 25" className={inputCls} />
                 <p className="text-xs text-white/30 leading-relaxed">
                   {t("larder.calc_sent_gl")}
                 </p>
@@ -491,9 +491,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             <label className={labelCls}>
               {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(total, prefs.currency)}
             </label>
-            <input type="number" step="0.01" min="0.01" max={total} required
+            <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required
               value={dedAmount} onChange={e => setDedAmount(e.target.value)}
-              inputMode="decimal" placeholder="0.00" className={inputCls} />
+              placeholder="0.00" className={inputCls} />
           </div>
           <button type="submit" disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
