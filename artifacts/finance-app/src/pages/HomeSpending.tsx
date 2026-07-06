@@ -1478,14 +1478,16 @@ export default function HomeSpending() {
                   const isExpanded = actionTx === tx.id;
 
                   // Badge presence flags
-                  const hasSplit       = !!(tx as any).splitRole;
-                  const hasGoal        = !!contrib;
-                  const isRealizedGoal = !!(tx as any).foundedWithRealizedGoal;
-                  const hasReceipt     = !!tx.receiptImage;
-                  const hasLocked      = !!(tx.currencyLocked && tx.transactionCurrency);
-                  const hasUnavailable = !!(tx as any).currencyUnavailable;
-                  const hasForeign     = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && !hasUnavailable);
-                  const hasFromLarder  = !!(tx as any).isLarderFund;
+                  const larderDedication = !contrib ? larderByTxId.get(tx.id) : undefined;
+                  const hasSplit            = !!(tx as any).splitRole;
+                  const hasGoal             = !!contrib;
+                  const hasLarderDedication = !!larderDedication;
+                  const isRealizedGoal      = !!(tx as any).foundedWithRealizedGoal;
+                  const hasReceipt          = !!tx.receiptImage;
+                  const hasLocked           = !!(tx.currencyLocked && tx.transactionCurrency);
+                  const hasUnavailable      = !!(tx as any).currencyUnavailable;
+                  const hasForeign          = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && !hasUnavailable);
+                  const hasFromLarder       = !!(tx as any).isLarderFund;
 
                   // Truncated name (30 chars max in collapsed view)
                   const shortName = tx.description.length > 30
@@ -1537,7 +1539,7 @@ export default function HomeSpending() {
                                   {t("tx.name_it")}
                                 </button>
                               )}
-                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
+                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasFromLarder && (
                                     <span className="relative inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
@@ -1571,6 +1573,12 @@ export default function HomeSpending() {
                                       {contrib!.name} {fmtAmt(contribAmountInUserCurrency(contrib!), prefs.currency)}
                                     </span>
                                   )}
+                                  {hasLarderDedication && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400">
+                                      <Target className="w-2 h-2 flex-shrink-0" />
+                                      {t("larder.tab")} {fmtAmt(contribAmountInUserCurrency({ amount: larderDedication!.amount, currency: larderDedication!.currency }), prefs.currency)}
+                                    </span>
+                                  )}
                                   {isRealizedGoal && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-teal-400/60 bg-teal-400/10 text-[10px] font-medium text-teal-300">
                                       <CheckCircle className="w-2 h-2 flex-shrink-0" />
@@ -1596,7 +1604,7 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
+                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasFromLarder  && (
                                     <span className="relative flex-shrink-0 inline-block" style={{ width:10, height:10, animation:"gemFlash 2.6s ease-in-out infinite" }}>
@@ -1605,8 +1613,8 @@ export default function HomeSpending() {
                                       <span style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2.5, height:2.5, borderRadius:"50%", background:"white", boxShadow:"0 0 5px 2px rgba(255,255,255,0.85)" }} />
                                     </span>
                                   )}
-                                  {hasSplit       && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
-                                  {hasGoal        && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
+                                  {hasSplit             && <span className="w-1.5 h-1.5 rounded-full bg-pink-500"    />}
+                                  {(hasGoal || hasLarderDedication) && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
                                   {isRealizedGoal && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}
                                   {hasReceipt     && <span className="w-1.5 h-1.5 rounded-full bg-white"       />}
                                   {hasLocked      && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"    />}
