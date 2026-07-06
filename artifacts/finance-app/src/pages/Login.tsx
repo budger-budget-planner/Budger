@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { useLogin, useRegister, useRegisterStart, useVerifyEmail } from "@workspace/api-client-react";
+import { useLogin, useRegister, useRegisterStart, useVerifyEmail, useForgotPin, useResetPin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,11 @@ type Screen =
   | "signup-check-email"  // new user: confirm the (simulated) verification email
   | "signup-verifying"    // new user: auto-verifying token from real email link
   | "signup-pin"          // new user: set PIN
-  | "signup-confirm";     // new user: confirm PIN
+  | "signup-confirm"      // new user: confirm PIN
+  | "forgot-pin"          // forgot PIN: email entry
+  | "forgot-pin-sent"     // forgot PIN: check email message
+  | "reset-pin"           // reset PIN: new PIN keyboard (from email link)
+  | "reset-pin-confirm";  // reset PIN: confirm new PIN
 
 export default function LoginPage() {
   const [location, setLocation] = useLocation();
@@ -46,6 +50,15 @@ export default function LoginPage() {
   const [signupError, setSignupError] = useState("");
   const [verifyError, setVerifyError] = useState("");
 
+  // Forgot / reset PIN state
+  const [forgotEmail, setForgotEmail]     = useState("");
+  const [forgotError, setForgotError]     = useState("");
+  const [resetToken, setResetToken]       = useState("");
+  const [resetPin, setResetPin]           = useState("");
+  const [confirmResetPin, setConfirmResetPin] = useState("");
+  const [resetError, setResetError]       = useState("");
+  const [justPinReset, setJustPinReset]   = useState(false);
+
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [loginChecking, setLoginChecking] = useState(false);
   const [loginPinLength, setLoginPinLength] = useState<number | null>(null);
@@ -69,6 +82,27 @@ export default function LoginPage() {
     vv.addEventListener("resize", onResize);
     return () => vv.removeEventListener("resize", onResize);
   }, []);
+
+  // Auto-handle /reset-pin?token=xxx from the PIN reset email link.
+  const autoResetRef = useRef(false);
+  useEffect(() => {
+    if (autoResetRef.current) return;
+    if (location !== "/reset-pin") return;
+    const params = new URLSearchParams(search);
+    const token = params.get("token");
+    autoResetRef.current = true;
+    if (!token) {
+      setResetError(t("login.reset_link_invalid"));
+      setScreen("reset-pin"); // will show the error in the PIN screen header
+      return;
+    }
+    setResetToken(token);
+    setResetPin("");
+    setConfirmResetPin("");
+    setResetError("");
+    setScreen("reset-pin");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, search]);
 
   // Auto-verify when landing on /verify-email?token=xxx from the real email link.
   // Gated to the /verify-email pathname so a stray ?token= on /login never consumes a token.
@@ -165,6 +199,40 @@ export default function LoginPage() {
         } else {
           setSignupError(t("login.register_failed"));
         }
+      },
+    },
+  });
+
+  const forgotPinMutation = useForgotPin({
+    mutation: {
+      onSuccess: () => {
+        setForgotError("");
+        setScreen("forgot-pin-sent");
+      },
+      onError: () => {
+        // Always advance to sent screen — don't leak whether email exists
+        setForgotError("");
+        setScreen("forgot-pin-sent");
+      },
+    },
+  });
+
+  const resetPinMutation = useResetPin({
+    mutation: {
+      onSuccess: () => {
+        // Do NOT auto-login — user must sign in with their new PIN.
+        setJustPinReset(true);
+        setResetPin("");
+        setConfirmResetPin("");
+        setScreen("start");
+        setLocation("/login");
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.error ?? err?.message ?? "";
+        setResetError(msg.includes("expired") || msg.includes("invalid") || msg.includes("Invalid")
+          ? t("login.reset_link_invalid")
+          : t("login.reset_failed"));
+        setConfirmResetPin("");
       },
     },
   });
@@ -308,6 +376,13 @@ export default function LoginPage() {
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
           )}
+          {/* PIN-reset success banner */}
+          {justPinReset && (
+            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
+              <p className="text-sm font-semibold text-green-400">{t("login.pin_reset_success")}</p>
+              <p className="text-xs text-green-400/70 mt-0.5">{t("login.pin_reset_success_sub")}</p>
+            </div>
+          )}
 
           {/*
             Centered square container — side ≈ phone width, content spread evenly.
@@ -403,7 +478,7 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground text-center">{loginEmail}</p>
             <button
               type="button"
-              onClick={() => setLoginError(t("login.forgot_placeholder"))}
+              onClick={() => { setForgotEmail(loginEmail); setForgotError(""); setScreen("forgot-pin"); }}
               className="text-xs text-muted-foreground underline underline-offset-4 mt-1"
             >
               {t("login.forgot")}
@@ -589,6 +664,156 @@ export default function LoginPage() {
           >
             {t("login.next")}
           </Button>
+        </div>
+      )}
+
+      {/* ── Forgot PIN: email entry ── */}
+      {screen === "forgot-pin" && (
+        <div key="forgot-pin" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+          <button
+            onClick={() => { setForgotError(""); setScreen("login-pin"); }}
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
+          >
+            ← {t("common.back")}
+          </button>
+
+          <div className="login-enter login-enter-d2 flex flex-col items-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Mail className="w-7 h-7 text-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">{t("login.forgot_title")}</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">{t("login.forgot_sub")}</p>
+          </div>
+
+          <form
+            className="login-enter login-enter-d3 w-full max-w-sm space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!forgotEmail.trim()) return;
+              setForgotError("");
+              forgotPinMutation.mutate({ data: { email: forgotEmail.trim() } });
+            }}
+          >
+            <div className="space-y-1.5">
+              <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
+              <Input
+                type="email"
+                placeholder="alex@example.com"
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                autoComplete="email"
+                required
+                className="h-14 rounded-2xl bg-muted border-border text-base px-4"
+              />
+            </div>
+            {forgotError && <p className="text-sm text-destructive text-center">{forgotError}</p>}
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-2xl text-base font-semibold"
+              disabled={forgotPinMutation.isPending}
+            >
+              {forgotPinMutation.isPending ? t("login.sending_reset") : t("login.send_reset")}
+            </Button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Forgot PIN: check email ── */}
+      {screen === "forgot-pin-sent" && (
+        <div key="forgot-pin-sent" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+          <button
+            onClick={() => setScreen("forgot-pin")}
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
+          >
+            ← {t("common.back")}
+          </button>
+
+          <div className="login-enter login-enter-d2 flex flex-col items-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Mail className="w-7 h-7 text-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">{t("login.reset_sent_title")}</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {t("login.reset_sent_sub").replace("{email}", forgotEmail.trim())}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset PIN: new PIN entry (from email link) ── */}
+      {screen === "reset-pin" && (
+        <div key="reset-pin" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+          <div className="login-enter login-enter-d2 text-center">
+            <h2 className="text-2xl font-bold text-foreground">{t("login.new_pin")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("login.new_pin_sub")}</p>
+            {resetError && <p className="text-sm text-destructive mt-2">{resetError}</p>}
+          </div>
+
+          <div className="login-enter login-enter-d3 w-full">
+            <PinKeyboard
+              value={resetPin}
+              onChange={(pin) => {
+                setResetPin(pin);
+                setResetError("");
+              }}
+              minLength={4}
+              maxLength={8}
+            />
+          </div>
+
+          <Button
+            onClick={() => {
+              if (resetPin.length < 4) return;
+              setConfirmResetPin("");
+              setResetError("");
+              setScreen("reset-pin-confirm");
+            }}
+            disabled={resetPin.length < 4}
+            className="login-enter login-enter-d4 w-full h-14 rounded-2xl text-base font-semibold"
+          >
+            {t("login.next")}
+          </Button>
+        </div>
+      )}
+
+      {/* ── Reset PIN: confirm new PIN ── */}
+      {screen === "reset-pin-confirm" && (
+        <div key="reset-pin-confirm" className="flex flex-col items-center justify-start min-h-screen px-6 pt-[5vh] pb-10 gap-8">
+          <button
+            onClick={() => { setConfirmResetPin(""); setResetError(""); setScreen("reset-pin"); }}
+            className="login-enter login-enter-d1 self-start text-sm text-muted-foreground flex items-center gap-1"
+          >
+            ← {t("common.back")}
+          </button>
+
+          <div className="login-enter login-enter-d2 text-center">
+            <h2 className="text-2xl font-bold text-foreground">{t("login.confirm_new_pin")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("login.confirm_new_pin_sub")}</p>
+            {resetError && <p className="text-sm text-destructive mt-2">{resetError}</p>}
+          </div>
+
+          <div className="login-enter login-enter-d3 w-full">
+            <PinKeyboard
+              value={confirmResetPin}
+              onChange={(pin) => {
+                setConfirmResetPin(pin);
+                setResetError("");
+                if (pin.length >= resetPin.length) {
+                  setTimeout(() => {
+                    if (pin === resetPin) {
+                      resetPinMutation.mutate({ data: { token: resetToken, password: pin } });
+                    } else {
+                      setResetError(t("login.pin_mismatch"));
+                      setConfirmResetPin("");
+                    }
+                  }, 200);
+                }
+              }}
+              minLength={resetPin.length}
+              maxLength={resetPin.length}
+              label={resetPinMutation.isPending ? t("login.resetting") : undefined}
+            />
+          </div>
         </div>
       )}
 

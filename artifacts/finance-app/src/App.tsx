@@ -159,6 +159,7 @@ function AppRoutes() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/verify-email" component={LoginPage} />
+      <Route path="/reset-pin" component={LoginPage} />
       <Route path="/invite/:token" component={InvitePage} />
       {/*
         wouter v3: <Route> with NO path is an unconditional catch-all (always matches).

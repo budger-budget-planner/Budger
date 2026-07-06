@@ -84,6 +84,22 @@ export interface VerifyEmailOutput {
   lastName: string;
 }
 
+export interface ForgotPinInput {
+  /** @minLength 1 */
+  email: string;
+}
+
+export interface ForgotPinOutput {
+  sent: boolean;
+}
+
+export interface ResetPinInput {
+  /** @minLength 1 */
+  token: string;
+  /** @minLength 4 */
+  password: string;
+}
+
 export interface Category {
   id: number;
   name: string;

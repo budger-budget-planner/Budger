@@ -110,6 +110,25 @@ export const RegisterBody = zod.object({
 });
 
 /**
+ * @summary Request a PIN reset email
+ */
+export const ForgotPinBody = zod.object({
+  email: zod.string().min(1),
+});
+
+export const ForgotPinResponse = zod.object({
+  sent: zod.boolean(),
+});
+
+/**
+ * @summary Reset PIN using a token from the reset email
+ */
+export const ResetPinBody = zod.object({
+  token: zod.string().min(1),
+  password: zod.string().min(4),
+});
+
+/**
  * @summary Login with email and password
  */
 

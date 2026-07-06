@@ -13,10 +13,14 @@ import {
   RegisterStartResponse,
   VerifyEmailBody,
   VerifyEmailResponse,
+  ForgotPinBody,
+  ForgotPinResponse,
+  ResetPinBody,
   GetMeResponse,
   UpdateMeBody,
   UpdateMeResponse,
 } from "@workspace/api-zod";
+import { sendPinResetEmail } from "../lib/email-sender";
 
 // Verification links expire after 30 minutes.
 const VERIFICATION_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -323,6 +327,96 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   // firstLoginDone:true before onboarding even runs, which was causing the language sync to
   // overwrite the user's locally-chosen language with the server's default "en".
   res.json(LoginResponse.parse(serializeUser(user)));
+});
+
+// POST /auth/forgot-pin — generate a token and send a PIN reset email.
+// Always returns 200 so callers cannot enumerate registered emails.
+const PIN_RESET_TTL_MS = 30 * 60 * 1000;
+
+router.post("/auth/forgot-pin", async (req, res): Promise<void> => {
+  const parsed = ForgotPinBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const email = parsed.data.email.toLowerCase().trim();
+
+  const [user] = await db.select({
+    id: usersTable.id,
+    firstName: usersTable.firstName,
+    passwordHash: usersTable.passwordHash,
+  }).from(usersTable).where(eq(usersTable.email, email));
+
+  // Always return {sent:true} — never reveal whether the email is registered.
+  if (!user || !user.passwordHash) {
+    res.json(ForgotPinResponse.parse({ sent: true }));
+    return;
+  }
+
+  // Generate a cryptographically random plaintext token for the email link.
+  // Only the SHA-256 hash is stored in the DB so a DB leak cannot be replayed.
+  const plaintextToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(plaintextToken).digest("hex");
+  const expiresAt = new Date(Date.now() + PIN_RESET_TTL_MS);
+
+  await db.update(usersTable)
+    .set({ pinResetToken: tokenHash, pinResetTokenExpiresAt: expiresAt })
+    .where(eq(usersTable.id, user.id));
+
+  const domain = process.env.REPLIT_DEV_DOMAIN ?? req.get("host");
+  const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
+  const resetUrl = `${origin}/reset-pin?token=${plaintextToken}`;
+
+  const sent = await sendPinResetEmail({
+    to: email,
+    firstName: user.firstName ?? "",
+    resetUrl,
+  });
+
+  logger.info({ to: email, sent }, "forgot-pin: reset email dispatched");
+  res.json(ForgotPinResponse.parse({ sent: true }));
+});
+
+// POST /auth/reset-pin — verify the token and set a new PIN.
+router.post("/auth/reset-pin", async (req, res): Promise<void> => {
+  const parsed = ResetPinBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { token, password } = parsed.data;
+
+  // Hash the incoming plaintext token and look up by hash (token is never stored plaintext).
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const [user] = await db.select().from(usersTable)
+    .where(eq(usersTable.pinResetToken, tokenHash));
+
+  if (!user) {
+    res.status(400).json({ error: "Invalid or expired reset link" });
+    return;
+  }
+  if (!user.pinResetTokenExpiresAt || user.pinResetTokenExpiresAt.getTime() < Date.now()) {
+    // Clear the expired token to keep the DB tidy
+    await db.update(usersTable)
+      .set({ pinResetToken: null, pinResetTokenExpiresAt: null })
+      .where(eq(usersTable.id, user.id));
+    res.status(400).json({ error: "Reset link has expired" });
+    return;
+  }
+
+  const passwordHash = await bcryptjs.hash(password, 10);
+  await db.update(usersTable)
+    .set({
+      passwordHash,
+      pinLength: password.length,
+      pinResetToken: null,
+      pinResetTokenExpiresAt: null,
+    })
+    .where(eq(usersTable.id, user.id));
+
+  // Do NOT establish a session — user must log in with their new PIN.
+  res.json({ success: true });
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {

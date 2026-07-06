@@ -1523,10 +1523,7 @@ export default function HouseholdPage() {
                 <div className="flex items-center gap-2">
                   <Warehouse className="w-5 h-5 text-white/60" />
                   <div>
-                    <p className="text-xs font-semibold tracking-widest uppercase text-white/40">
-                      Wielka Spiżarnia
-                    </p>
-                    <p className="text-[11px] text-white/25 -mt-0.5">{t("gl.subtitle_card")}</p>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-white/40">{t("gl.subtitle_card")}</p>
                   </div>
                 </div>
 

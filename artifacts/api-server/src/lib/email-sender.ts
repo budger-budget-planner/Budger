@@ -154,6 +154,111 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
 </html>`;
 }
 
+export type PinResetEmailInput = {
+  to: string;
+  firstName: string;
+  resetUrl: string;
+};
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function buildPinResetHtml(firstName: string, resetUrl: string): string {
+  const greetingName = escapeHtml(firstName || "there");
+  let appOrigin = "";
+  try { appOrigin = new URL(resetUrl).origin; } catch { /* leave empty */ }
+  const logoSrc = appOrigin ? `${appOrigin}/favicon.svg` : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Reset your Budger PIN</title>
+</head>
+<body style="margin:0;padding:0;background-color:${C.outerBg};" bgcolor="${C.outerBg}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" bgcolor="${C.outerBg}" style="background-color:${C.outerBg};padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:440px;border-radius:20px;overflow:hidden;border:1px solid ${C.divider};">
+          <tr>
+            <td align="center" bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:36px 32px 24px;">
+              ${logoSrc
+                ? `<img src="${logoSrc}" width="72" height="72" alt="Budger" style="display:block;margin:0 auto;border:0;border-radius:16px;"/>`
+                : `<div style="width:72px;height:72px;background:#2a2a2a;border-radius:16px;line-height:72px;text-align:center;margin:0 auto;">
+                     <span style="font-size:32px;font-weight:700;color:${C.textHero};">B</span>
+                   </div>`}
+              <p style="margin:16px 0 0;font-size:22px;font-weight:700;letter-spacing:-0.3px;color:${C.textHero};line-height:1.2;">Budger</p>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:0 32px 28px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:24px;">&nbsp;</div>
+              <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:${C.textHero};line-height:1.3;">Reset your PIN, ${greetingName}</p>
+              <p style="margin:0 0 24px;font-size:14px;color:${C.textSub};line-height:1.6;">
+                We received a request to reset the PIN for your Budger account.<br/>
+                Click the button below to set a new PIN. This link expires in 30 minutes.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                <tr>
+                  <td align="center" bgcolor="${C.btnBg}" style="background-color:${C.btnBg};border-radius:12px;">
+                    <a href="${resetUrl}" target="_blank"
+                       style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;
+                              color:${C.btnText};text-decoration:none;letter-spacing:0.2px;">
+                      Reset PIN
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;font-size:12px;color:${C.textFaint};line-height:1.6;word-break:break-all;">
+                Or copy this link: <a href="${resetUrl}" style="color:${C.textFaint};">${resetUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:16px 32px 32px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:20px;">&nbsp;</div>
+              <p style="margin:0;font-size:11px;color:${C.textFaint};line-height:1.7;">
+                If you didn't request a PIN reset, you can safely ignore this email.
+                Your PIN will not change.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export async function sendPinResetEmail({ to, firstName, resetUrl }: PinResetEmailInput): Promise<boolean> {
+  if (!resend) {
+    logger.info({ to, resetUrl }, "email-sender: RESEND_API_KEY not set, PIN reset link logged only");
+    return false;
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: "Reset your Budger PIN",
+      html: buildPinResetHtml(firstName, resetUrl),
+    });
+    if (error) {
+      logger.warn({ to, error }, "email-sender: Resend error sending PIN reset email");
+      return false;
+    }
+    logger.info({ to }, "email-sender: PIN reset email sent via Resend");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: failed to send PIN reset email");
+    return false;
+  }
+}
+
 // Sends the real verification email via Resend when RESEND_API_KEY is configured.
 // Returns true if a real email was sent, false if it was only simulated/logged
 // (e.g. missing key or a delivery failure) so the caller can fall back gracefully.
