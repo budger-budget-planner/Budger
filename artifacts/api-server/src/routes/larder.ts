@@ -283,7 +283,8 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
 
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
-  // Create transaction — isLarderFund marks it as "From Larder" in the UI
+  // Create transaction — isLarderFund marks it as "From Larder" in the UI.
+  // No transactionCurrency so bulk currency conversion includes this row.
   const [tx] = await db.insert(transactionsTable).values({
     userId,
     amount: String(amount),
@@ -293,7 +294,6 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
     paymentMethod: "card",
     isLarderFund: true,
     larderAmount: String(amount),
-    transactionCurrency: currency,
   }).returning();
 
   // Deduct from Larder
@@ -332,7 +332,8 @@ router.post("/larder/fund", async (req, res): Promise<void> => {
 
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
-  // Create the transaction
+  // Create the transaction — no transactionCurrency so it participates in
+  // bulk currency conversion when the user changes their account currency.
   const [tx] = await db.insert(transactionsTable).values({
     userId,
     amount: String(amount),
@@ -342,7 +343,6 @@ router.post("/larder/fund", async (req, res): Promise<void> => {
     paymentMethod: "card",
     isLarderFund: true,
     larderAmount: String(larderAmount),
-    transactionCurrency: currency,
   }).returning();
 
   // Credit the Larder

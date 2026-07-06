@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable, larderEntriesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -21,19 +21,46 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   for (const tx of txs) {
     // Skip rows permanently locked in their original currency
     if (tx.currencyLocked) continue;
-    // Skip undecided foreign-currency rows — amount and currency must stay
-    // unchanged until the user explicitly converts or locks them
-    if (tx.transactionCurrency) continue;
+
+    // Larder fund/spend transactions created before a previous bug-fix may
+    // have transactionCurrency mistakenly set to the account currency.
+    // Treat them as account-currency rows: convert + clear the flag.
+    const isMistakenLarderLock = tx.isLarderFund && tx.transactionCurrency != null;
+
+    // Skip genuine foreign-currency rows (not a larder mistake)
+    if (tx.transactionCurrency && !isMistakenLarderLock) continue;
+
     const newAmt = (parseFloat(tx.amount) * rate).toFixed(2);
-    const updates: Record<string, string> = { amount: newAmt };
-    // Also convert the pre-split snapshot so it stays in the same currency as amount
+    const updates: Record<string, unknown> = { amount: newAmt };
+
+    // Keep the pre-split snapshot in the same currency as amount
     if (tx.preSplitAmount != null) {
       updates.preSplitAmount = (parseFloat(tx.preSplitAmount) * rate).toFixed(2);
     }
+    // Scale larderAmount so it stays proportional to amount after conversion
+    if (tx.larderAmount != null) {
+      updates.larderAmount = (parseFloat(tx.larderAmount) * rate).toFixed(2);
+    }
+    // Clear the mistaken currency lock so future conversions include this row
+    if (isMistakenLarderLock) {
+      updates.transactionCurrency = null;
+    }
+
     await db.update(transactionsTable)
       .set(updates as any)
       .where(eq(transactionsTable.id, tx.id));
     converted++;
+  }
+
+  // Convert personal Larder entries — amounts are always stored in the user's
+  // account currency (per schema design) and must be bulk-converted here.
+  const larderEntries = await db.select().from(larderEntriesTable)
+    .where(eq(larderEntriesTable.userId, userId));
+  for (const entry of larderEntries) {
+    const newAmt = (parseFloat(entry.amount) * rate).toFixed(2);
+    await db.update(larderEntriesTable)
+      .set({ amount: newAmt, currency: to })
+      .where(eq(larderEntriesTable.id, entry.id));
   }
 
   const cats = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
