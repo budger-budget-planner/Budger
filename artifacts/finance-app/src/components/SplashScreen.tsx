@@ -4,20 +4,20 @@ import BadgerLogo from "@/components/BadgerLogo";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
 // ── Startup animation sequence ────────────────────────────────────────────────
-// sniff at 2× speed → lick at 1.5× speed → wink at normal speed
-// Total sequence duration before the exit glide begins: ~3 400 ms
-const SNIFF_MS  = Math.round(1400 / 2);    // 700 ms  (2× speed)
-const LICK_MS   = Math.round(2400 / 1.5);  // 1600 ms (1.5× speed)
-const WINK_MS   = 700;                      // normal speed
-const SETTLE_MS = 200;                      // short pause after wink before gliding away
-const GAP_MS    = 100;                      // idle gap between animations (lets CSS reset)
+// sniff at 2× speed → lick at 2.25× speed → wink at normal speed
+// Total sequence duration before the exit glide begins: ~2 774 ms
+const SNIFF_MS  = Math.round(1400 / 2);      //  700 ms (2× speed)
+const LICK_MS   = Math.round(2400 / 2.25);  // 1067 ms (2.25× speed)
+const WINK_MS   = 700;                       //  700 ms (normal speed)
+const SETTLE_MS = 200;                       //  short pause after wink before gliding away
+const GAP_MS    = 100;                       //  idle gap between animations (lets CSS reset)
 
 // Absolute timeouts from mount (t = 0 → sniff starts)
 const T_SNIFF_END  = SNIFF_MS;                                   //  700
 const T_LICK_START = T_SNIFF_END  + GAP_MS;                     //  800
-const T_LICK_END   = T_LICK_START + LICK_MS;                    // 2400
-const T_WINK_START = T_LICK_END   + GAP_MS;                     // 2500
-const T_SEQ_DONE   = T_WINK_START + WINK_MS + SETTLE_MS;        // 3400
+const T_LICK_END   = T_LICK_START + LICK_MS;                    // 1867
+const T_WINK_START = T_LICK_END   + GAP_MS;                     // 1967
+const T_SEQ_DONE   = T_WINK_START + WINK_MS + SETTLE_MS;        // 2867
 
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
@@ -118,8 +118,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
     // Fade starts near the end of the glide; removing the splash too early flashes
     // the destination screen while the logo is still mid-flight (looks jarring).
-    setTimeout(() => setPhase("fading"), 950);
-    setTimeout(onDone,                   1400);
+    const t1 = setTimeout(() => setPhase("fading"), 950);
+    const t2 = setTimeout(onDone,                   1400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [seqDone, isLoading, user, onDone]);
 
   const isMoving = phase === "moving" || phase === "fading";

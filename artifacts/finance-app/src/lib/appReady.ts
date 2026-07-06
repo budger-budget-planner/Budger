@@ -12,12 +12,22 @@ export function useAppReady(): boolean {
 }
 
 /**
- * Call this to re-show the splash screen (e.g. on logout).
- * The splash will play its full animation sequence, detect no user,
- * and glide to the login screen — no hard page reload needed.
+ * Call this to re-show the full splash screen (sniff → lick → wink).
+ * Only for app open and logout — use useWinkSplash() for all other cases.
  */
 export const SplashResetContext = createContext<() => void>(() => {});
 
 export function useSplashReset(): () => void {
   return useContext(SplashResetContext);
+}
+
+/**
+ * Call this to show the wink-only splash screen.
+ * Use for any transition that isn't an app open or logout
+ * (e.g. language/currency switching, future in-app transitions).
+ */
+export const WinkSplashContext = createContext<() => void>(() => {});
+
+export function useWinkSplash(): () => void {
+  return useContext(WinkSplashContext);
 }

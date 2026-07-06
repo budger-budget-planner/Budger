@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import SplashScreen from "@/components/SplashScreen";
+import WinkSplashScreen from "@/components/WinkSplashScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,7 +31,7 @@ import {
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
-import { AppReadyContext, SplashResetContext, useSplashReset } from "@/lib/appReady";
+import { AppReadyContext, SplashResetContext, WinkSplashContext, useSplashReset } from "@/lib/appReady";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
@@ -184,14 +185,31 @@ function AppRoutes() {
 }
 
 function AppWithSplash() {
-  const [splashDone, setSplashDone] = useState(false);
-  const resetSplash = useCallback(() => setSplashDone(false), []);
+  // If a lang/currency reload just happened, skip the full splash — the wink
+  // was already shown before the reload. The flag is set in Layout.tsx.
+  const [splashDone,   setSplashDone]   = useState(() => {
+    if (sessionStorage.getItem("budger_skip_full_splash")) {
+      sessionStorage.removeItem("budger_skip_full_splash");
+      return true;
+    }
+    return false;
+  });
+  const [winkActive,   setWinkActive]   = useState(false);
+
+  const resetSplash  = useCallback(() => setSplashDone(false), []);
+  const showWinkSplash = useCallback(() => setWinkActive(true), []);
+
   return (
     <SplashResetContext.Provider value={resetSplash}>
-      <AppReadyContext.Provider value={splashDone}>
-        <AppRoutes />
-        {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-      </AppReadyContext.Provider>
+      <WinkSplashContext.Provider value={showWinkSplash}>
+        <AppReadyContext.Provider value={splashDone}>
+          <AppRoutes />
+          {/* Full 3-animation splash: only on app open or logout */}
+          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+          {/* Wink-only splash: for all other transitions */}
+          {winkActive && <WinkSplashScreen onDone={() => setWinkActive(false)} />}
+        </AppReadyContext.Provider>
+      </WinkSplashContext.Provider>
     </SplashResetContext.Provider>
   );
 }

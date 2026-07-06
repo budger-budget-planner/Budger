@@ -6,7 +6,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
-import { useSplashReset } from "@/lib/appReady";
+import { useSplashReset, useWinkSplash } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
@@ -22,30 +22,6 @@ function navItems() {
   ];
 }
 
-/**
- * Full-screen splash shown the instant a language or currency is picked. It
- * has no timer of its own — it just covers the screen (hiding the highlight
- * flip and any values re-rendering underneath) until the page actually
- * reloads. On reload, App.tsx's own SplashScreen takes over with the same
- * look, so the two read as one continuous "long" splash rather than two
- * separate ones, and the user lands directly on the updated home tab when
- * it's done.
- */
-function PrefsSwitchSplash() {
-  return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{
-        background:
-          "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
-      }}
-    >
-      <div className="splash-pulse">
-        <BadgerLogo size={120} />
-      </div>
-    </div>
-  );
-}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location]     = useLocation();
@@ -324,6 +300,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const resetSplash = useSplashReset();
+  const showWinkSplash = useWinkSplash();
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
@@ -341,10 +318,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   async function changeCurrency(code: string) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
-    // Cover the screen immediately, same as language switching — the highlight
-    // flip and the actual conversion both happen underneath this splash, so
-    // the user only ever sees one continuous splash from click to landing
-    // back on the home tab with the new currency applied.
+    // Show wink splash immediately — the highlight flip and conversion happen
+    // underneath. Flag tells App.tsx to skip the full splash after reload.
+    showWinkSplash();
+    sessionStorage.setItem("budger_skip_full_splash", "1");
     setCurrSwitchTarget(code);
     setConverting(true);
     try {
@@ -389,9 +366,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
-    // Cover the screen immediately — the highlight flip and the actual
-    // translation both happen underneath this splash, so the user only ever
-    // sees one continuous splash from click to landing on the home tab.
+    // Show wink splash immediately — the highlight flip and translation happen
+    // underneath. Flag tells App.tsx to skip the full splash after reload.
+    showWinkSplash();
+    sessionStorage.setItem("budger_skip_full_splash", "1");
     setLangSwitchTarget(code);
     const next = { ...prefs, language: code };
     setPrefsState(next);
@@ -744,12 +722,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      {/* ── Language/currency switch splash — covers the highlight flip and
-          the update/reload underneath, so it reads as one continuous splash
-          from click to landing back on the home tab. ── */}
-      {(langSwitchTarget || currSwitchTarget) && (
-        <PrefsSwitchSplash />
-      )}
     </div>
   );
 }
