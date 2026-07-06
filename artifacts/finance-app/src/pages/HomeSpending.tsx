@@ -221,7 +221,10 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                   <SelectContent>
                     <SelectItem value="larder">
                       <span className="flex items-center gap-2">
-                        <Star className="w-3 h-3 flex-shrink-0" />
+                        {/* 4-point diamond spark — matches the gem-flash animation shape */}
+                        <svg viewBox="0 0 12 12" width="12" height="12" className="flex-shrink-0" fill="currentColor" aria-hidden="true">
+                          <polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" />
+                        </svg>
                         {t("larder.tab")}
                       </span>
                     </SelectItem>
