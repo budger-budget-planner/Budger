@@ -43,6 +43,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 
+function GlSheet({
+  title, open, onClose, children,
+}: { title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed bottom-0 inset-x-0 z-50 bg-[#111] border-t border-white/10 rounded-t-3xl px-5 pt-6 pb-10 max-h-[88vh] overflow-y-auto">
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-lg font-bold text-white">{title}</p>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center transition active:scale-95">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </>
+  );
+}
+
+const glInputCls = "w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20 placeholder:text-white/25";
+const glLabelCls = "text-xs text-white/40 font-medium";
+
 /** Order breakdown items: account currency first, then language-based order. */
 function orderedBreakdown(
   breakdown: { currency: string; rawTotal: number }[],
@@ -666,7 +690,7 @@ export default function HouseholdPage() {
 
   async function handleGlFund(e: React.FormEvent) {
     e.preventDefault();
-    const amt = parseFloat(glFundAmt);
+    const amt = parseFloat(glFundAmt.replace(",", "."));
     if (!glFundDesc.trim() || isNaN(amt) || amt <= 0) return;
     if (amt > glFundAssetBalance + 0.005) return;
     setGlLoading(true);
@@ -687,7 +711,7 @@ export default function HouseholdPage() {
   async function handleGlDedicate(e: React.FormEvent) {
     e.preventDefault();
     if (!glDedicateGoalId) return;
-    const amt = parseFloat(glDedicateAmt);
+    const amt = parseFloat(glDedicateAmt.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
     if (amt > glDedicateAssetBalance + 0.005) return;
     setGlDedicateLoading(true);
@@ -1942,72 +1966,66 @@ export default function HouseholdPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Great Larder: Fund (requires head approval if parent) ── */}
-      <Dialog open={glFundOpen} onOpenChange={setGlFundOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-white/60" /> {t("gl.fund_sheet")}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleGlFund} className="space-y-4">
-            <p className="text-sm text-white/50">
-              {t("gl.fund_desc")}
-              {!iAmHead && <span className="text-amber-400/80"> {t("gl.fund_requires_approval")}</span>}
-            </p>
-            <div className="space-y-1.5">
-              <Label>{t("larder.description")}</Label>
-              <Input
-                placeholder={t("gl.fund_placeholder")}
-                value={glFundDesc}
-                onChange={e => setGlFundDesc(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-            <AssetSelect options={glAssetOpts} value={glFundAsset} onChange={setGlFundAsset} />
-            <div className="space-y-1.5">
-              <Label>
-                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glFundAssetBalance, glFundAsset || (greatLarder?.currency ?? ""))}
-              </Label>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-                value={glFundAmt}
-                onChange={e => setGlFundAmt(e.target.value)}
-                required
-              />
-              <ConversionPreview
-                amount={parseFloat(glFundAmt)}
-                from={glFundAsset || (greatLarder?.currency ?? "")}
-                to={prefs.currency}
-                rates={splitRates}
-              />
-            </div>
-            {(() => {
-              const amt = parseFloat(glFundAmt);
-              if (!isNaN(amt) && amt > 0 && amt > glFundAssetBalance + 0.005) {
-                return (
-                  <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
-                    <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glFundAsset || (greatLarder?.currency ?? "") })}</p>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" className="flex-1" disabled={glLoading || (() => { const a = parseFloat(glFundAmt); return !isNaN(a) && a > 0 && a > glFundAssetBalance + 0.005; })()}>
-                {glLoading ? t("gl.submitting") : iAmHead ? t("gl.fund_btn") : t("gl.request_btn")}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* ── Great Larder: Fund (spend from GL into a transaction) ── */}
+      <GlSheet title={t("gl.fund_sheet")} open={glFundOpen} onClose={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
+        <form onSubmit={handleGlFund} className="space-y-4">
+          <p className="text-sm text-white/50">
+            {t("gl.fund_desc")}
+            {!iAmHead && <span className="text-amber-400/80"> {t("gl.fund_requires_approval")}</span>}
+          </p>
+          <div className="space-y-1.5">
+            <label className={glLabelCls}>{t("larder.description")}</label>
+            <input
+              className={glInputCls}
+              placeholder={t("gl.fund_placeholder")}
+              value={glFundDesc}
+              onChange={e => setGlFundDesc(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <AssetSelect options={glAssetOpts} value={glFundAsset} onChange={setGlFundAsset} />
+          <div className="space-y-1.5">
+            <label className={glLabelCls}>
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glFundAssetBalance, glFundAsset || (greatLarder?.currency ?? ""))}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="0.00"
+              value={glFundAmt}
+              onChange={e => setGlFundAmt(e.target.value)}
+              required
+              className={glInputCls}
+            />
+            <ConversionPreview
+              amount={parseFloat(glFundAmt.replace(",", "."))}
+              from={glFundAsset || (greatLarder?.currency ?? "")}
+              to={prefs.currency}
+              rates={splitRates}
+            />
+          </div>
+          {(() => {
+            const amt = parseFloat(glFundAmt.replace(",", "."));
+            if (!isNaN(amt) && amt > 0 && amt > glFundAssetBalance + 0.005) {
+              return (
+                <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                  <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glFundAsset || (greatLarder?.currency ?? "") })}</p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          <button
+            type="submit"
+            disabled={glLoading || (() => { const a = parseFloat(glFundAmt.replace(",", ".")); return !isNaN(a) && a > 0 && a > glFundAssetBalance + 0.005; })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {glLoading ? t("gl.submitting") : iAmHead ? t("gl.fund_btn") : t("gl.request_btn")}
+          </button>
+        </form>
+      </GlSheet>
 
       {/* ── Delete household confirmation dialog ── */}
       <Dialog open={deleteHouseholdOpen} onOpenChange={open => { if (!deletingHousehold) setDeleteHouseholdOpen(open); }}>
@@ -2053,96 +2071,79 @@ export default function HouseholdPage() {
       </Dialog>
 
       {/* ── Great Larder: Dedicate to household goal ── */}
-      <Dialog open={glDedicateOpen} onOpenChange={setGlDedicateOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-white/60" /> {t("gl.support_title")}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleGlDedicate} className="space-y-4">
-            <p className="text-sm text-white/50">
-              {t("gl.support_desc")}
+      <GlSheet title={t("gl.support_title")} open={glDedicateOpen} onClose={() => { setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt(""); }}>
+        <form onSubmit={handleGlDedicate} className="space-y-4">
+          <p className="text-sm text-white/50">
+            {t("gl.support_desc")}
+          </p>
+          {sharedGoals.length === 0 ? (
+            <p className="text-sm text-amber-400/80 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3">
+              {t("gl.no_shared_goals")}
             </p>
-            {sharedGoals.length === 0 ? (
-              <p className="text-sm text-amber-400/80 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3">
-                {t("gl.no_shared_goals")}
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                <Label>{t("gl.goal_label")}</Label>
-                <div className="space-y-2">
-                  {sharedGoals.map((g: any) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => setGlDedicateGoalId(g.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition ${
-                        glDedicateGoalId === g.id
-                          ? "border-white/40 bg-white/10"
-                          : "border-white/10 bg-white/3 text-white/60 hover:bg-white/5"
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: g.color ?? "#818cf8" }} />
-                      <p className="text-sm font-medium truncate text-left">{g.name}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <AssetSelect options={glAssetOpts} value={glDedicateAsset} onChange={setGlDedicateAsset} />
+          ) : (
             <div className="space-y-1.5">
-              <Label>
-                {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glDedicateAssetBalance, glDedicateAsset || (greatLarder?.currency ?? ""))}
-              </Label>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                max={glDedicateAssetBalance || undefined}
-                placeholder="0.00"
-                value={glDedicateAmt}
-                onChange={e => setGlDedicateAmt(e.target.value)}
-                required
-              />
-              <ConversionPreview
-                amount={parseFloat(glDedicateAmt)}
-                from={glDedicateAsset || (greatLarder?.currency ?? "")}
-                to={prefs.currency}
-                rates={splitRates}
-              />
+              <label className={glLabelCls}>{t("gl.goal_label")}</label>
+              <div className="space-y-2">
+                {sharedGoals.map((g: any) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setGlDedicateGoalId(g.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition ${
+                      glDedicateGoalId === g.id
+                        ? "border-white/40 bg-white/10"
+                        : "border-white/10 bg-white/3 text-white/60 hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: g.color ?? "#818cf8" }} />
+                    <p className="text-sm font-medium truncate text-left text-white/80">{g.name}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-            {(() => {
-              const amt = parseFloat(glDedicateAmt);
-              if (!isNaN(amt) && amt > 0 && amt > glDedicateAssetBalance + 0.005) {
-                return (
-                  <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
-                    <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glDedicateAsset || (greatLarder?.currency ?? "") })}</p>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => { setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt(""); }}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0 || (() => { const a = parseFloat(glDedicateAmt); return !isNaN(a) && a > 0 && a > glDedicateAssetBalance + 0.005; })()}
-              >
-                {glDedicateLoading ? "…" : t("larder.support_btn")}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          )}
+          <AssetSelect options={glAssetOpts} value={glDedicateAsset} onChange={setGlDedicateAsset} />
+          <div className="space-y-1.5">
+            <label className={glLabelCls}>
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(glDedicateAssetBalance, glDedicateAsset || (greatLarder?.currency ?? ""))}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="0.00"
+              value={glDedicateAmt}
+              onChange={e => setGlDedicateAmt(e.target.value)}
+              required
+              className={glInputCls}
+            />
+            <ConversionPreview
+              amount={parseFloat(glDedicateAmt.replace(",", "."))}
+              from={glDedicateAsset || (greatLarder?.currency ?? "")}
+              to={prefs.currency}
+              rates={splitRates}
+            />
+          </div>
+          {(() => {
+            const amt = parseFloat(glDedicateAmt.replace(",", "."));
+            if (!isNaN(amt) && amt > 0 && amt > glDedicateAssetBalance + 0.005) {
+              return (
+                <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                  <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: glDedicateAsset || (greatLarder?.currency ?? "") })}</p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          <button
+            type="submit"
+            disabled={glDedicateLoading || !glDedicateGoalId || sharedGoals.length === 0 || (() => { const a = parseFloat(glDedicateAmt.replace(",", ".")); return !isNaN(a) && a > 0 && a > glDedicateAssetBalance + 0.005; })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {glDedicateLoading ? "…" : t("larder.support_btn")}
+          </button>
+        </form>
+      </GlSheet>
     </div>
   );
 }

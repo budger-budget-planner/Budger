@@ -996,7 +996,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "gl.support_title":        { en: "Support a Household Goal",        pl: "Wesprzyj Cel Gospodarstwa Domowego" },
   "gl.support_desc":         { en: "Move funds from the Great Larder into a shared household goal.", pl: "Przekaż środki z Wielkiej Spiżarni na wspólny Cel Gospodarstwa." },
   "gl.no_shared_goals":      { en: "No shared goals found. Create a household goal first.", pl: "Brak wspólnych celów. Najpierw utwórz cel gospodarstwa." },
-  "gl.goal_label":           { en: "Goal",                            pl: "Cel"                                },
+  "gl.goal_label":           { en: "Household Goal",                  pl: "Cel Gospodarstwa Domowego"          },
 
   // ── Goals tab bar ──
   "goals.tab_goals":         { en: "Goals",                           pl: "Cele"                               },

@@ -184,6 +184,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
   const [historyOpen,  setHistoryOpen]  = useState(false);
+  const [glBadgeCollapsed, setGlBadgeCollapsed] = useState(true);
 
   const [spendOpen,    setSpendOpen]    = useState(false);
   const [spendDesc,    setSpendDesc]    = useState("");
@@ -446,13 +447,20 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             })()}
             {totalGLSent > 0 && (
               <div className="mt-3 flex justify-center">
-                <span
-                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80"
+                <button
+                  type="button"
+                  onClick={() => setGlBadgeCollapsed(c => !c)}
+                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95"
                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
+                  title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
                   <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
-                  <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
-                  <span className="text-white/50">{t("larder.source_transfer")}</span>
+                  {!glBadgeCollapsed && (
+                    <>
+                      <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
+                      <span className="text-white/50">{t("larder.source_transfer")}</span>
+                    </>
+                  )}
                   {!noAnim && <>
                     {/* top-left */}
                     <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>
@@ -479,7 +487,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                       <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.78)" }} />
                     </div>
                   </>}
-                </span>
+                </button>
               </div>
             )}
           </div>

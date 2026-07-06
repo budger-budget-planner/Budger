@@ -575,14 +575,15 @@ export default function TransactionsPage() {
     }
   }
 
-  // Set of transactionIds that have a matching larder_entry with sourceType
-  // "recurring_payment" — used to show a "From Larder" badge on those transactions
-  // without setting isLarderFund (which would wrongly exclude them from spending totals).
-  const larderRecurringSet = new Set<number>(
-    ((larderSummary as any)?.entries ?? [])
-      .filter((e: any) => e.sourceType === "recurring_payment" && e.sourceId != null)
-      .map((e: any) => e.sourceId as number)
-  );
+  // Map of transactionId → amount for recurring-payment transactions that credit the
+  // Larder (sourceType: "recurring_payment", sourceId = tx.id). Built the same way as
+  // larderDedicatedMap so both share the same collapsible purple badge.
+  const larderRecurringMap = new Map<number, number>();
+  for (const e of ((larderSummary as any)?.entries ?? []) as any[]) {
+    if (e.sourceType === "recurring_payment" && e.sourceId != null && Number(e.amount) > 0) {
+      larderRecurringMap.set(e.sourceId, (larderRecurringMap.get(e.sourceId) ?? 0) + Number(e.amount));
+    }
+  }
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -863,7 +864,7 @@ export default function TransactionsPage() {
                       <>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className={`text-sm font-medium truncate ${tx.description === "Unknown, Captured Online" ? "text-yellow-400" : ""}`}>{tx.description}</p>
-                          {((tx as any).isLarderFund || larderRecurringSet.has(tx.id)) && (
+                          {((tx as any).isLarderFund || larderRecurringMap.has(tx.id)) && (
                             <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 bg-zinc-800 text-white/85 tracking-wide flex-shrink-0">
                               {t("larder.source_fund")}
                             </span>
