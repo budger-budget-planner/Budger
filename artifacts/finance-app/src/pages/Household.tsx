@@ -73,30 +73,40 @@ function AssetSelect({
   options, value, onChange,
 }: { options: { currency: string; rawTotal: number }[]; value: string; onChange: (v: string) => void }) {
   if (options.length === 0) return null;
-  if (options.length === 1) {
-    return (
-      <div className="space-y-1.5">
-        <Label>{t("larder.asset_label")}</Label>
-        <div className="px-3 py-2 rounded-md bg-white/3 border border-white/6 text-white/20 text-sm opacity-50 select-none cursor-default">
-          {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
-        </div>
-      </div>
-    );
-  }
+  const locked = options.length === 1;
   return (
     <div className="space-y-1.5">
       <Label>{t("larder.asset_label")}</Label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20"
-      >
-        {options.map(o => (
-          <option key={o.currency} value={o.currency} className="bg-[#111]">
-            {o.currency} · {fmtAmt(o.rawTotal, o.currency)}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-2">
+        {options.map(o => {
+          const isActive = !locked && value === o.currency;
+          return locked ? (
+            <div
+              key={o.currency}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/6 bg-white/3 opacity-40 cursor-default select-none"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] font-bold text-white/50 leading-none">{o.currency[0]}</span>
+              </div>
+              <p className="text-sm text-white/40">{o.currency} · {fmtAmt(o.rawTotal, o.currency)}</p>
+            </div>
+          ) : (
+            <button
+              key={o.currency}
+              type="button"
+              onClick={() => onChange(o.currency)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition ${
+                isActive ? "border-white/40 bg-white/10" : "border-white/10 bg-white/3"
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] font-bold text-white/60 leading-none">{o.currency[0]}</span>
+              </div>
+              <p className="text-sm font-medium truncate text-left text-white/80">{o.currency} · {fmtAmt(o.rawTotal, o.currency)}</p>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

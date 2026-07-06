@@ -53,12 +53,12 @@ if (typeof document !== "undefined" && !document.getElementById(GEM_KF_ID)) {
   s.id = GEM_KF_ID;
   s.textContent = `
     @keyframes donutGemFlash {
-      0%   { opacity: 0; }
-      6%   { opacity: 1; }
-      12%  { opacity: 0.5; }
-      18%  { opacity: 0.9; }
-      25%  { opacity: 0; }
-      100% { opacity: 0; }
+      0%   { opacity: 0;    transform: scale(0.1)  rotate(0deg);  }
+      6%   { opacity: 1;    transform: scale(1)    rotate(0deg);  }
+      12%  { opacity: 0.5;  transform: scale(0.85) rotate(45deg); }
+      18%  { opacity: 0.9;  transform: scale(1)    rotate(0deg);  }
+      25%  { opacity: 0;    transform: scale(0.1)  rotate(0deg);  }
+      100% { opacity: 0;    transform: scale(0.1)  rotate(0deg);  }
     }
   `;
   document.head.appendChild(s);
@@ -136,6 +136,7 @@ type Seg = {
 type GroupBorder = {
   catKey: string; d: string; groupColor: string;
   isOverBudget: boolean; midDeg: number;
+  startDeg: number; endDeg: number; groupFraction: number;
 };
 
 type LegendItem = {
@@ -246,6 +247,9 @@ function buildChart(
       groupColor: g.color,
       isOverBudget: g.spent > g.budget && g.budget > 0,
       midDeg: groupMidDeg,
+      startDeg: groupStartDeg,
+      endDeg: groupEndDeg,
+      groupFraction: groupDeg / 360,
     });
 
     cursor += groupDeg + CAT_GAP;
@@ -491,6 +495,20 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             <filter id={idHintBlur} x="-25%" y="-25%" width="150%" height="150%">
               <feGaussianBlur stdDeviation="10" />
             </filter>
+            {/* Larder-designated sparkle gradients — shared by all spark <rect> arms */}
+            <linearGradient id={`sp-h-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stopColor="white" stopOpacity="0" />
+              <stop offset="50%"  stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id={`sp-v-${uid}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%"   stopColor="white" stopOpacity="0" />
+              <stop offset="50%"  stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <filter id={`sp-glow-${uid}`} x="-150%" y="-150%" width="400%" height="400%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" />
+            </filter>
           </defs>
 
           {/* Fill + border paths.
@@ -606,12 +624,15 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
           })()}
 
           {/* ── Larder-designated segment sparkles ─────────────────────────
-              One diamond cross per segment where isLarderDesignated is true,
-              centred in the donut ring at the segment's mid-angle.
-              Sequential: cycle = count × 1.5 s, delay = idx × 1.5 s.
-              The keyframe fires only in its first 25 % so sparkles never
-              overlap regardless of how many designated segments exist.
-              Position accounts for the selected-state arc expansion.         */}
+              Diamond count scales with segment size:
+                ≥51 % → 5, ≥33 % → 4, ≥25 % → 3, ≥15 % → 2, else → 1.
+              Sparkles within a segment share the same animation delay.
+              Sequential firing across segments: cycle = segCount × 1.5 s,
+              delay per segment = segIdx × 1.5 s; the keyframe flashes only
+              in its first 25 % so segments never overlap.
+              Arms use gradient <rect> elements; centre has a glow layer.
+              transform-box:fill-box + transform-origin:center ensure the
+              scale/rotate keyframe pivots on each sparkle's own centre.   */}
           {(() => {
             if (loadPrefs().disableAnimations) return null;
             const larderSegs = groupBorders.filter(
@@ -620,37 +641,60 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             if (!larderSegs.length) return null;
             const STEP = 1.5; // seconds per sparkle slot
             const cycleDur = Math.max(larderSegs.length, 1) * STEP;
-            const hs = 11;
-            return larderSegs.map((gb, idx) => {
-              const isSelected = selectedCat === gb.catKey;
-              const outerR     = isSelected ? RO + EXPAND : RO;
-              const midRad     = ((gb.midDeg - 90) * Math.PI) / 180;
-              // Centre of the ring arc in SVG user-unit space
-              const r  = (RI + outerR) / 2;
-              // The <path> CSS transform uses `${EXPAND * cos}px` units; at SVG
-              // scale factor (displayWidth / 320) those pixels map back to SVG
-              // units. We use EXPAND directly as an SVG-unit approximation —
-              // exact at 320 px display width, slightly off elsewhere, but
-              // close enough for a decorative element.
-              const offsetX = isSelected ? EXPAND * Math.cos(midRad) : 0;
-              const offsetY = isSelected ? EXPAND * Math.sin(midRad) : 0;
-              const sx = CX + r * Math.cos(midRad) + offsetX;
-              const sy = CY + r * Math.sin(midRad) + offsetY;
-              return (
-                <g
-                  key={`larder-spark-${gb.catKey}`}
-                  transform={`translate(${sx}, ${sy})`}
-                  style={{
-                    pointerEvents: "none",
-                    animation: `donutGemFlash ${cycleDur}s ease-in-out ${idx * STEP}s infinite`,
-                  }}
-                >
-                  <line x1={-hs} y1={0} x2={hs} y2={0} stroke="rgba(255,255,255,0.88)" strokeWidth="0.9" />
-                  <line x1={0} y1={-hs} x2={0} y2={hs} stroke="rgba(255,255,255,0.88)" strokeWidth="0.9" />
-                  <circle cx={0} cy={0} r={1.6} fill="white" style={{ filter: "drop-shadow(0 0 3px rgba(255,255,255,0.9))" }} />
-                </g>
-              );
+            const hs = 11; // half-arm length in SVG user units
+
+            const allSparkles: React.ReactElement[] = [];
+
+            larderSegs.forEach((gb, segIdx) => {
+              // Use share of drawable arc (excluding gaps) so thresholds match
+              // visual proportion regardless of how many categories exist.
+              const drawDegTotal = 360 - groupBorders.length * 2.5;
+              const pct = drawDegTotal > 0 ? (gb.groupFraction * 360 / drawDegTotal) * 100 : 0;
+              const sparkleCount = pct >= 51 ? 5 : pct >= 33 ? 4 : pct >= 25 ? 3 : pct >= 15 ? 2 : 1;
+              const isSelected   = selectedCat === gb.catKey;
+              const outerR       = isSelected ? RO + EXPAND : RO;
+              const delay        = `${segIdx * STEP}s`;
+
+              // Distribute sparkles evenly along the segment arc (10 % margin each side)
+              const angles = Array.from({ length: sparkleCount }, (_, i) => {
+                if (sparkleCount === 1) return gb.midDeg;
+                const margin  = (gb.endDeg - gb.startDeg) * 0.1;
+                const usable  = (gb.endDeg - gb.startDeg) - 2 * margin;
+                return gb.startDeg + margin + (i / (sparkleCount - 1)) * usable;
+              });
+
+              angles.forEach((angleDeg, i) => {
+                const rad     = ((angleDeg - 90) * Math.PI) / 180;
+                const r       = (RI + outerR) / 2;
+                const offsetX = isSelected ? EXPAND * Math.cos(rad) : 0;
+                const offsetY = isSelected ? EXPAND * Math.sin(rad) : 0;
+                const sx      = CX + r * Math.cos(rad) + offsetX;
+                const sy      = CY + r * Math.sin(rad) + offsetY;
+                allSparkles.push(
+                  <g
+                    key={`larder-spark-${gb.catKey}-${i}`}
+                    transform={`translate(${sx}, ${sy})`}
+                    style={{
+                      pointerEvents:   "none",
+                      transformBox:    "fill-box" as any,
+                      transformOrigin: "center",
+                      animation: `donutGemFlash ${cycleDur}s ease-in-out ${delay} infinite`,
+                    }}
+                  >
+                    {/* horizontal gradient arm */}
+                    <rect x={-hs} y={-0.5} width={hs * 2} height={1} fill={`url(#sp-h-${uid})`} />
+                    {/* vertical gradient arm */}
+                    <rect x={-0.5} y={-hs} width={1} height={hs * 2} fill={`url(#sp-v-${uid})`} />
+                    {/* glow halo */}
+                    <circle cx={0} cy={0} r={3} fill="white" opacity={0.25} filter={`url(#sp-glow-${uid})`} />
+                    {/* sharp centre dot */}
+                    <circle cx={0} cy={0} r={1.5} fill="white" />
+                  </g>,
+                );
+              });
             });
+
+            return allSparkles;
           })()}
 
           {/* ── Hint pulse ─────────────────────────────────────────────────

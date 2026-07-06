@@ -66,26 +66,40 @@ function AssetSelect({
   options, value, onChange,
 }: { options: CurrencySubtotal[]; value: string; onChange: (v: string) => void }) {
   if (options.length === 0) return null;
-  if (options.length === 1) {
-    return (
-      <div className="space-y-1.5">
-        <label className={labelCls}>{t("larder.asset_label")}</label>
-        <div className="px-4 py-3 rounded-2xl bg-white/3 border border-white/6 text-white/20 text-sm opacity-50 select-none cursor-default">
-          {options[0].currency} · {fmtAmt(options[0].rawTotal, options[0].currency)}
-        </div>
-      </div>
-    );
-  }
+  const locked = options.length === 1;
   return (
     <div className="space-y-1.5">
       <label className={labelCls}>{t("larder.asset_label")}</label>
-      <select value={value} onChange={e => onChange(e.target.value)} className={inputCls}>
-        {options.map(o => (
-          <option key={o.currency} value={o.currency} className="bg-[#111]">
-            {o.currency} · {fmtAmt(o.rawTotal, o.currency)}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-2">
+        {options.map(o => {
+          const isActive = !locked && value === o.currency;
+          return locked ? (
+            <div
+              key={o.currency}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/6 bg-white/3 opacity-40 cursor-default select-none"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] font-bold text-white/50 leading-none">{o.currency[0]}</span>
+              </div>
+              <p className="text-sm text-white/40">{o.currency} · {fmtAmt(o.rawTotal, o.currency)}</p>
+            </div>
+          ) : (
+            <button
+              key={o.currency}
+              type="button"
+              onClick={() => onChange(o.currency)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition ${
+                isActive ? "border-white/40 bg-white/10" : "border-white/10 bg-white/3"
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] font-bold text-white/60 leading-none">{o.currency[0]}</span>
+              </div>
+              <p className="text-sm font-medium truncate text-left text-white/80">{o.currency} · {fmtAmt(o.rawTotal, o.currency)}</p>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -444,7 +458,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 >
                   <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
                   <span className="tabular-nums">{fmtAmt(totalGLSent, prefs.currency)}</span>
-                  <span className="text-white/40">GL</span>
+                  <span className="text-white/50">{t("larder.send_gl_btn")}</span>
                   {!noAnim && <>
                     {/* top-left */}
                     <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>
@@ -624,6 +638,19 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 </p>
               </div>
             )}
+            {(() => {
+              const amt = sendGlMode === "amount"
+                ? parseFloat(sendGlAmt.replace(",", "."))
+                : (sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100;
+              if (!isNaN(amt) && amt > 0 && amt > sendGlAssetBalance + 0.005) {
+                return (
+                  <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                    <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: sendGlAsset || prefs.currency })}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <button type="submit" disabled={sendGlLoading || total <= 0}
               className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
               {sendGlLoading ? "…" : t("larder.send")}
@@ -665,6 +692,17 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               placeholder="0.00" className={inputCls} />
             <ConversionPreview amount={parseFloat(dedAmount.replace(",", "."))} from={dedAsset || prefs.currency} to={prefs.currency} rates={rates} />
           </div>
+          {(() => {
+            const amt = parseFloat(dedAmount.replace(",", "."));
+            if (!isNaN(amt) && amt > 0 && amt > dedAssetBalance + 0.005) {
+              return (
+                <div className="px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                  <p className="text-xs text-amber-300">{t("larder.insufficient_asset", { code: dedAsset || prefs.currency })}</p>
+                </div>
+              );
+            }
+            return null;
+          })()}
           <button type="submit" disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {dedLoading ? "…" : t("larder.dedicate")}
