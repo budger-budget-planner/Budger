@@ -1540,7 +1540,6 @@ export default function HouseholdPage() {
                   ) : (
                     <p className="text-4xl font-bold text-white/20">—</p>
                   )}
-                  <p className="text-xs text-white/30 mt-1">{t("gl.collective_savings")}</p>
                 </div>
 
                 {/* Action buttons — Fund for parents+head; Dedicate to HH goal for head only */}
