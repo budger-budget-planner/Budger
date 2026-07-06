@@ -1561,7 +1561,8 @@ export default function HouseholdPage() {
                         const prefs = loadPrefs();
                         const breakdown: { currency: string; rawTotal: number }[] = greatLarder.currencyBreakdown ?? [];
                         const ordered = orderedBreakdown(breakdown, greatLarder.currency, prefs.language);
-                        if (ordered.length < 2) return null;
+                        const hasMultiCurrency = ordered.length > 1 || (ordered.length === 1 && ordered[0].currency !== greatLarder.currency);
+                        if (!hasMultiCurrency) return null;
                         return (
                           <div className="mt-2 flex flex-col items-center gap-0.5">
                             {ordered.map((item: { currency: string; rawTotal: number }) => (

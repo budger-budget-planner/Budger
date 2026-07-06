@@ -336,7 +336,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             {(() => {
               const breakdown = larder?.currencyBreakdown ?? [];
               const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
-              if (ordered.length < 2) return null;
+              // Show breakdown whenever there's something to decompose — i.e. there are savings in
+              // any currency OTHER than the account currency, or multiple currencies in play.
+              const hasMultiCurrency = ordered.length > 1 || (ordered.length === 1 && ordered[0].currency !== prefs.currency);
+              if (!hasMultiCurrency) return null;
               return (
                 <div className="mt-2.5 flex flex-col items-center gap-0.5">
                   {ordered.map(item => (
