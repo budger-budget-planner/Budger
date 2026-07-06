@@ -6,9 +6,9 @@ const SPLASH_SIZE = 120;
 
 const STILL_MS    = 900;   // float before wink
 const WINK_MS     = 700;   // wink duration
-const FLY_MS      = 1000;  // translate+scale transition
-const FADE_DELAY  = 650;   // start fading this far into the fly (ms)
-const FADE_MS     = 350;   // overlay fade-out duration
+const FLY_MS      = 1240;  // translate+scale transition — matches SplashScreen exactly
+const FADE_DELAY  = 950;   // start fading this far into the fly (ms) — logo nearly arrived
+const FADE_MS     = 450;   // overlay fade-out duration
 
 type Phase = "float" | "wink" | "fly" | "fade";
 
@@ -77,7 +77,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         alignItems: "center",
         justifyContent: "center",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+        transition: isFading ? "opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
@@ -86,7 +86,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
       <div
         style={{
           transform: isMoving ? translate : "none",
-          transition: isMoving ? `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+          transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
           willChange: "transform",
           lineHeight: 0,
         }}
@@ -95,7 +95,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         <div
           style={{
             transform: isMoving ? `scale(${scale})` : "none",
-            transition: isMoving ? `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+            transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
             willChange: "transform",
             transformOrigin: "center center",
             lineHeight: 0,
