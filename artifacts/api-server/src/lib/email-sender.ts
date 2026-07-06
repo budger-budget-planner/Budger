@@ -262,6 +262,216 @@ export async function sendPinResetEmail({ to, firstName, resetUrl }: PinResetEma
 // Sends the real verification email via Resend when RESEND_API_KEY is configured.
 // Returns true if a real email was sent, false if it was only simulated/logged
 // (e.g. missing key or a delivery failure) so the caller can fall back gracefully.
+export type DeletionRequestEmailInput = {
+  userEmail: string;
+  userName: string;
+};
+
+export async function sendDeletionRequestEmail({ userEmail, userName }: DeletionRequestEmailInput): Promise<boolean> {
+  const SUPPORT_ADDRESS = "Budger.support@gmail.com";
+  const safeName  = escapeHtml(userName  || "unknown");
+  const safeEmail = escapeHtml(userEmail || "unknown");
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>Account Deletion Request</title></head>
+<body style="margin:0;padding:0;background-color:${C.outerBg};" bgcolor="${C.outerBg}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" bgcolor="${C.outerBg}" style="background-color:${C.outerBg};padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:440px;border-radius:20px;overflow:hidden;border:1px solid ${C.divider};">
+          <tr>
+            <td align="center" bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:32px 32px 20px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:${C.textHero};">Budger</p>
+              <p style="margin:6px 0 0;font-size:13px;color:${C.textFaint};letter-spacing:0.6px;text-transform:uppercase;">Account Deletion Request</p>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:0 32px 28px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:24px;">&nbsp;</div>
+              <p style="margin:0 0 16px;font-size:14px;color:${C.textSub};line-height:1.75;">
+                A user has requested deletion of their Budger account and all associated data (GDPR right to erasure).
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#1f1f1f;border-radius:12px;padding:16px;">
+                <tr><td style="padding:8px 16px;">
+                  <p style="margin:0;font-size:12px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">Name</p>
+                  <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:${C.textHero};">${safeName}</p>
+                </td></tr>
+                <tr><td style="padding:8px 16px;">
+                  <p style="margin:0;font-size:12px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">Email</p>
+                  <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:${C.textHero};">${safeEmail}</p>
+                </td></tr>
+                <tr><td style="padding:8px 16px;">
+                  <p style="margin:0;font-size:12px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">Requested at</p>
+                  <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:${C.textHero};">${new Date().toISOString()}</p>
+                </td></tr>
+              </table>
+              <p style="margin:20px 0 0;font-size:13px;color:${C.textFaint};line-height:1.7;">
+                Please process this request within 30 days as required by GDPR Article 17.
+                Reply to the user at <a href="mailto:${safeEmail}" style="color:${C.textFaint};">${safeEmail}</a> once erasure is complete.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  if (!resend) {
+    logger.info({ userEmail }, "email-sender: RESEND_API_KEY not set, deletion request logged only");
+    return false;
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: SUPPORT_ADDRESS,
+      replyTo: userEmail,
+      subject: `[Budger] Account deletion request — ${userEmail}`,
+      html,
+    });
+    if (error) {
+      logger.warn({ userEmail, error }, "email-sender: error sending deletion request email");
+      return false;
+    }
+    logger.info({ userEmail }, "email-sender: deletion request email sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, userEmail }, "email-sender: failed to send deletion request email");
+    return false;
+  }
+}
+
+export type DeletionAckEmailInput = {
+  to: string;
+  firstName: string;
+  language: "en" | "pl";
+};
+
+export async function sendDeletionAckEmail({ to, firstName, language }: DeletionAckEmailInput): Promise<boolean> {
+  const name = escapeHtml(firstName || "there");
+  const isPl = language === "pl";
+
+  const subject = isPl
+    ? "Budger — otrzymaliśmy Twoje żądanie usunięcia konta"
+    : "Budger — we received your account deletion request";
+
+  const html = `<!DOCTYPE html>
+<html lang="${isPl ? "pl" : "en"}">
+<head><meta charset="UTF-8"/><title>${subject}</title></head>
+<body style="margin:0;padding:0;background-color:${C.outerBg};" bgcolor="${C.outerBg}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" bgcolor="${C.outerBg}" style="background-color:${C.outerBg};padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:440px;border-radius:20px;overflow:hidden;border:1px solid ${C.divider};">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:32px 32px 20px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:${C.textHero};">Budger</p>
+              <p style="margin:6px 0 0;font-size:11px;color:${C.textFaint};letter-spacing:0.8px;text-transform:uppercase;">
+                ${isPl ? "Potwierdzenie żądania usunięcia" : "Deletion Request Confirmation"}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:0 32px 28px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:24px;">&nbsp;</div>
+
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:${C.textHero};">
+                ${isPl ? `Cześć, ${name}` : `Hi ${name}`}
+              </p>
+              <p style="margin:0 0 20px;font-size:14px;color:${C.textSub};line-height:1.75;">
+                ${isPl
+                  ? "Otrzymaliśmy Twoje żądanie usunięcia konta Budger oraz wszystkich powiązanych danych osobowych."
+                  : "We have received your request to delete your Budger account and all associated personal data."}
+              </p>
+
+              <!-- Details box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#1f1f1f;border-radius:12px;margin-bottom:20px;">
+                <tr><td style="padding:14px 18px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">
+                    ${isPl ? "Adres e-mail" : "Email address"}
+                  </p>
+                  <p style="margin:0;font-size:14px;font-weight:600;color:${C.textHero};">${escapeHtml(to)}</p>
+                </td></tr>
+                <tr><td style="padding:0 18px 14px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">
+                    ${isPl ? "Data i godzina żądania" : "Request timestamp"}
+                  </p>
+                  <p style="margin:0;font-size:14px;font-weight:600;color:${C.textHero};">${new Date().toISOString()}</p>
+                </td></tr>
+                <tr><td style="padding:0 18px 14px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:${C.textFaint};text-transform:uppercase;letter-spacing:0.5px;">
+                    ${isPl ? "Podstawa prawna" : "Legal basis"}
+                  </p>
+                  <p style="margin:0;font-size:14px;font-weight:600;color:${C.textHero};">GDPR Article 17 — ${isPl ? "Prawo do bycia zapomnianym" : "Right to erasure"}</p>
+                </td></tr>
+              </table>
+
+              <p style="margin:0 0 12px;font-size:14px;color:${C.textSub};line-height:1.75;">
+                ${isPl
+                  ? "Nasz zespół przetworzy Twoje żądanie w ciągu <strong style='color:#ffffff;'>30 dni</strong> zgodnie z wymogami RODO. Po zakończeniu procesu wyślemy potwierdzenie na ten adres e-mail."
+                  : "Our team will process your request within <strong style='color:#ffffff;'>30 days</strong> as required by GDPR. Once complete, we will send a final confirmation to this email address."}
+              </p>
+              <p style="margin:0;font-size:14px;color:${C.textSub};line-height:1.75;">
+                ${isPl
+                  ? `Jeśli masz pytania, skontaktuj się z nami: <a href="mailto:Budger.support@gmail.com" style="color:${C.textFaint};">Budger.support@gmail.com</a>`
+                  : `If you have any questions, contact us at <a href="mailto:Budger.support@gmail.com" style="color:${C.textFaint};">Budger.support@gmail.com</a>`}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:16px 32px 28px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:16px;">&nbsp;</div>
+              <p style="margin:0;font-size:11px;color:${C.textFaint};line-height:1.7;">
+                ${isPl
+                  ? "Jeśli nie składałeś/aś tego żądania, zignoruj tę wiadomość lub skontaktuj się z nami niezwłocznie."
+                  : "If you did not submit this request, please ignore this email or contact us immediately."}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  if (!resend) {
+    logger.info({ to }, "email-sender: RESEND_API_KEY not set, deletion ack email logged only");
+    return false;
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    if (error) {
+      logger.warn({ to, error }, "email-sender: error sending deletion ack email");
+      return false;
+    }
+    logger.info({ to }, "email-sender: deletion ack email sent to user");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: failed to send deletion ack email");
+    return false;
+  }
+}
+
 export async function sendVerificationEmail({ to, firstName, verifyUrl }: VerificationEmailInput): Promise<boolean> {
   if (!resend) {
     logger.info({ to }, "email-sender: RESEND_API_KEY not set, skipping real send (simulated)");

@@ -3,7 +3,7 @@ import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable } from "@workspace/db";
 import { eq, and, count, isNull, lt } from "drizzle-orm";
-import { sendVerificationEmail } from "../lib/email-sender";
+import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger } from "../lib/logger";
 import {
   LoginBody,
@@ -434,6 +434,28 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
   req.session.destroy(() => {
     res.json({ success: true });
   });
+});
+
+// POST /api/auth/request-deletion
+// Authenticated. Sends a GDPR erasure-request email to support and logs the request.
+router.post("/auth/request-deletion", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  req.log.info({ userId, email: user.email }, "auth: account deletion requested");
+
+  const language = req.body?.language === "pl" ? "pl" : "en";
+  const firstName = (user.name ?? "").split(" ")[0] || user.name || "there";
+
+  await Promise.all([
+    sendDeletionRequestEmail({ userEmail: user.email, userName: user.name }),
+    sendDeletionAckEmail({ to: user.email, firstName, language }),
+  ]);
+
+  res.json({ success: true });
 });
 
 export default router;
