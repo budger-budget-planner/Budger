@@ -959,7 +959,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "gl.empty":                { en: "Great Larder is empty yet.",      pl: "Wielka Spiżarnia jest jeszcze pusta." },
   "gl.no_access":            { en: "Only parents and the head can view the Great Larder.", pl: "Tylko rodzice i głowa domu mogą widzieć Wielką Spiżarnię." },
   "gl.requires_approval":    { en: "Awaiting head approval",          pl: "Oczekuje zatwierdzenia"             },
-  "gl.subtitle_card":        { en: "Great Larder · Household Savings", pl: "Wielka Spiżarnia · Oszczędności Gospodarstwa Domowego" },
+  "gl.subtitle_card":        { en: "Household Savings",                pl: "Oszczędności Gospodarstwa Domowego"                    },
   "gl.collective_savings":   { en: "Household Savings",               pl: "Oszczędności Gospodarstwa Domowego" },
   "gl.pending_approvals":    { en: "Pending approvals ({n})",         pl: "Oczekuje zatwierdzenia ({n})"       },
   "gl.fund_request":         { en: "Fund request",                    pl: "Prośba o wpłatę"                   },
