@@ -150,12 +150,15 @@ export default function LoginPage() {
         const msg = err?.response?.data?.error ?? err?.message ?? t("login.failed");
         if (msg.includes("No account") || msg.includes("404")) {
           setLoginError(t("login.no_account"));
+          setLoginPin(""); // clear: no account — email step should be retried
         } else if (msg.includes("Incorrect") || msg.includes("401")) {
           setLoginError(t("login.wrong_pin"));
+          setLoginPin(""); // clear on wrong PIN so the user retypes deliberately
         } else {
+          // Network / server error — keep the PIN so the user can retry via Continue
+          // without having to retype. The Continue button stays enabled.
           setLoginError(t("login.failed"));
         }
-        setLoginPin("");
       },
     },
   });
@@ -498,18 +501,12 @@ export default function LoginPage() {
               maxLength={loginPinLength ?? 8}
               label={login.isPending ? t("login.signing_in") : undefined}
               error={loginError || undefined}
+              showSubmit={showPinSubmit}
+              onSubmit={handleLoginSubmit}
+              submitLabel={login.isPending ? t("login.signing_in") : t("login.continue")}
+              submitDisabled={loginPin.length < 4 || login.isPending}
             />
           </div>
-
-          {showPinSubmit && (
-            <Button
-              className="w-full h-14 rounded-2xl text-base font-semibold"
-              disabled={loginPin.length < 4 || login.isPending}
-              onClick={handleLoginSubmit}
-            >
-              {login.isPending ? t("login.signing_in") : t("login.continue")}
-            </Button>
-          )}
         </div>
       )}
 

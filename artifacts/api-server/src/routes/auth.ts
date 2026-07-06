@@ -296,6 +296,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
 
   (req.session as any).userId = updated.id;
+  await new Promise<void>((resolve, reject) =>
+    req.session.save(err => (err ? reject(err) : resolve())),
+  );
   res.status(201).json(LoginResponse.parse(serializeUser(updated)));
 });
 
@@ -332,6 +335,14 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   (req.session as any).userId = user.id;
+  // Explicitly persist the session to PostgreSQL BEFORE sending the response.
+  // Without this, express-session writes the session asynchronously in a res.end hook,
+  // so a fast client (e.g. React Query's invalidateQueries → /auth/me) can arrive
+  // before the session row is committed and gets a 401 — causing the recurring
+  // "login succeeds but app stays on login screen" bug.
+  await new Promise<void>((resolve, reject) =>
+    req.session.save(err => (err ? reject(err) : resolve())),
+  );
   // firstLoginDone: false means this is their first login — the client triggers onboarding.
   // We do NOT set firstLoginDone=true here; the Onboarding component does that once complete.
   // This prevents the /auth/me refetch (after queryClient.invalidateQueries) from returning

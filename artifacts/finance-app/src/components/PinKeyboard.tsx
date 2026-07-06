@@ -7,6 +7,11 @@ interface PinKeyboardProps {
   minLength?: number;
   label?: string;
   error?: string;
+  /** When true, renders a Continue/submit button in the bottom-left keyboard slot */
+  showSubmit?: boolean;
+  onSubmit?: () => void;
+  submitLabel?: string;
+  submitDisabled?: boolean;
 }
 
 const KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"] as const;
@@ -18,6 +23,10 @@ export default function PinKeyboard({
   minLength = 4,
   label,
   error,
+  showSubmit = false,
+  onSubmit,
+  submitLabel = "Continue",
+  submitDisabled = false,
 }: PinKeyboardProps) {
   const [shakeKey, setShakeKey] = useState(0);
   const prevError = useRef<string | undefined>(undefined);
@@ -82,6 +91,22 @@ export default function PinKeyboard({
         {KEYS.map((key, idx) => {
           const isSpacer = key === "";
           const isBackspace = key === "⌫";
+
+          // Bottom-left slot: render the submit button when showSubmit is true
+          if (isSpacer && showSubmit && onSubmit) {
+            return (
+              <button
+                key={idx}
+                onClick={onSubmit}
+                disabled={submitDisabled}
+                className="h-20 rounded-2xl text-sm font-semibold transition-all duration-100 bg-foreground text-background active:scale-90 disabled:opacity-40 shadow-sm"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                {submitLabel}
+              </button>
+            );
+          }
+
           return (
             <button
               key={idx}
