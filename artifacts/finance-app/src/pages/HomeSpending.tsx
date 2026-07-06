@@ -1042,7 +1042,7 @@ export default function HomeSpending() {
   // created by dedicating a transaction straight to the Larder instead of a goal.
   const larderByTxId = new Map<number, { id: number; amount: number; currency: string }>();
   for (const e of larderSummary?.entries ?? []) {
-    if (e.sourceType === "transaction_dedication" && e.sourceId != null && e.amount > 0) {
+    if ((e.sourceType === "transaction_dedication" || e.sourceType === "recurring_payment") && e.sourceId != null && e.amount > 0) {
       larderByTxId.set(e.sourceId, { id: e.id, amount: e.amount, currency: e.currency });
     }
   }
