@@ -15,7 +15,9 @@ description: Root cause analysis and fixes for recurring "can't log in" issue wi
 ### 2. In-memory session store (backend)
 `express-session` used default `MemoryStore`. Every API server restart (esbuild rebuild, workflow restart) wiped ALL sessions. Users were constantly kicked to login screen and had to re-authenticate.
 
-**Fix:** Added `connect-pg-simple` store backed by PostgreSQL. Sessions now persist across restarts. Falls back to MemoryStore if `DATABASE_URL` is absent. Table `sessions` is auto-created on first session write.
+**Fix:** Added `connect-pg-simple` store backed by PostgreSQL. Sessions now persist across restarts. Falls back to MemoryStore if `DATABASE_URL` is absent.
+
+**Important gotcha:** `connect-pg-simple`'s `createTableIfMissing: true` reads a `table.sql` file relative to its module using `__dirname`. After esbuild bundling, `__dirname` resolves to `dist/` and the file isn't there, so the table is never created and sessions silently fail. The fix: set `createTableIfMissing: false` and manually run `CREATE TABLE IF NOT EXISTS "sessions" ...` in `index.ts` startup using the exported `pool` from `@workspace/db` before calling `app.listen`.
 
 ### 3. signupExpiresAt not cleared after registration
 `POST /auth/register` set `passwordHash` + `pinLength` but left `signupExpiresAt` from the original `register-start`. Fully registered users still had a past timestamp in that column. Not immediately dangerous (purge only deletes `passwordHash IS NULL` rows), but defensive cleanup warranted.
