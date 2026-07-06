@@ -322,7 +322,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // underneath. Flag tells App.tsx to skip the full splash after reload.
     // Pass the reload as afterDone so it only fires once the wink animation
     // has fully played — if we reload immediately the animation never runs.
-    showWinkSplash(() => window.location.reload());
+    showWinkSplash(() => { window.location.href = import.meta.env.BASE_URL; });
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setCurrSwitchTarget(code);
     setConverting(true);
@@ -371,7 +371,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (code === prefs.language || langSwitchTarget) return;
     // Pass the reload as afterDone so it only fires once the wink animation
     // has fully played — if we reload immediately the animation never runs.
-    showWinkSplash(() => window.location.reload());
+    showWinkSplash(() => { window.location.href = import.meta.env.BASE_URL; });
     sessionStorage.setItem("budger_skip_full_splash", "1");
     setLangSwitchTarget(code);
     const next = { ...prefs, language: code };
