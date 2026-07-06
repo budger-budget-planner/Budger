@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
-import { db, usersTable, householdMembersTable } from "@workspace/db";
-import { eq, and, count, isNull, lt } from "drizzle-orm";
+import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "@workspace/db";
+import { eq, and, count, isNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger } from "../lib/logger";
 import {
@@ -437,7 +437,10 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
 });
 
 // POST /api/auth/request-deletion
-// Authenticated. Sends a GDPR erasure-request email to support and logs the request.
+// Authenticated. Sends a GDPR erasure-request email to support + ack to user.
+// Also handles household side-effects:
+//   - If user is the household head, transfers headship to a random parent.
+//   - Notifies all remaining household members via the notification centre.
 router.post("/auth/request-deletion", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
@@ -449,7 +452,96 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
 
   const language = req.body?.language === "pl" ? "pl" : "en";
   const firstName = (user.name ?? "").split(" ")[0] || user.name || "there";
+  const displayName = user.name || user.email;
 
+  // ── Household side-effects ──────────────────────────────────────────────────
+  const myMembership = await db
+    .select()
+    .from(householdMembersTable)
+    .where(eq(householdMembersTable.userId, userId))
+    .limit(1)
+    .then(r => r[0] ?? null);
+
+  if (myMembership) {
+    const householdId = myMembership.householdId;
+    const isHead = myMembership.role === "head" || myMembership.role === "owner";
+
+    // All other members of this household (everyone except the deleting user)
+    const otherMembers = await db
+      .select()
+      .from(householdMembersTable)
+      .where(and(
+        eq(householdMembersTable.householdId, householdId),
+        ne(householdMembersTable.userId, userId),
+      ));
+
+    // ── If head: transfer headship to a random parent ──────────────────────
+    if (isHead) {
+      const parents = otherMembers.filter(m => m.role === "parent");
+      if (parents.length > 0) {
+        const newHead = parents[Math.floor(Math.random() * parents.length)];
+        await Promise.all([
+          // Update the household owner record
+          db.update(householdsTable)
+            .set({ ownerId: newHead.userId })
+            .where(eq(householdsTable.id, householdId)),
+          // Promote the new head's member role
+          db.update(householdMembersTable)
+            .set({ role: "head" })
+            .where(and(
+              eq(householdMembersTable.householdId, householdId),
+              eq(householdMembersTable.userId, newHead.userId),
+            )),
+        ]);
+        req.log.info(
+          { householdId, oldHead: userId, newHead: newHead.userId },
+          "auth: household headship transferred on deletion request",
+        );
+
+        // Notify ALL other members: new head promoted + departing member leaving
+        await db.insert(notificationItemsTable).values(
+          otherMembers.map(m => ({
+            userId: m.userId,
+            type: "household_head_transferred",
+            titleEn: "Household leadership changed",
+            titlePl: "Zmiana lidera gospodarstwa",
+            bodyEn: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
+            bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zarządzanie gospodarstwem zostało przekazane nowemu liderowi.`,
+          }))
+        ).onConflictDoNothing();
+      } else {
+        // No parents to hand off to — notify remaining members anyway
+        if (otherMembers.length > 0) {
+          await db.insert(notificationItemsTable).values(
+            otherMembers.map(m => ({
+              userId: m.userId,
+              type: "household_member_deletion_request",
+              titleEn: "Member leaving household",
+              titlePl: "Członek opuszcza gospodarstwo",
+              bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
+              bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
+            }))
+          ).onConflictDoNothing();
+        }
+      }
+    } else {
+      // ── Not head: just notify other members ─────────────────────────────
+      if (otherMembers.length > 0) {
+        await db.insert(notificationItemsTable).values(
+          otherMembers.map(m => ({
+            userId: m.userId,
+            type: "household_member_deletion_request",
+            titleEn: "Member leaving household",
+            titlePl: "Członek opuszcza gospodarstwo",
+            bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
+            bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
+          }))
+        ).onConflictDoNothing();
+      }
+    }
+  }
+
+  // ── Emails ──────────────────────────────────────────────────────────────────
   await Promise.all([
     sendDeletionRequestEmail({ userEmail: user.email, userName: user.name }),
     sendDeletionAckEmail({ to: user.email, firstName, language }),
