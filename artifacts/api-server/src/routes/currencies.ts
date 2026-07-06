@@ -4,6 +4,18 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+/**
+ * Rounds to 2 decimal places using precise integer-cents math instead of
+ * float `.toFixed(2)`, which can drift by a cent when the multiplication
+ * result lands exactly on a rounding boundary (e.g. x.xx49999999999).
+ * Repeated currency conversions (switching back and forth) compound this
+ * kind of float error, which is what caused stored PLN amounts to creep by
+ * a couple of grosze over several conversions.
+ */
+function roundMoney(amount: number): string {
+  return (Math.round((amount + Number.EPSILON) * 100) / 100).toFixed(2);
+}
+
 router.post("/convert-currency", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -30,16 +42,16 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     // Skip genuine foreign-currency rows (not a larder mistake)
     if (tx.transactionCurrency && !isMistakenLarderLock) continue;
 
-    const newAmt = (parseFloat(tx.amount) * rate).toFixed(2);
+    const newAmt = roundMoney(parseFloat(tx.amount) * rate);
     const updates: Record<string, unknown> = { amount: newAmt };
 
     // Keep the pre-split snapshot in the same currency as amount
     if (tx.preSplitAmount != null) {
-      updates.preSplitAmount = (parseFloat(tx.preSplitAmount) * rate).toFixed(2);
+      updates.preSplitAmount = roundMoney(parseFloat(tx.preSplitAmount) * rate);
     }
     // Scale larderAmount so it stays proportional to amount after conversion
     if (tx.larderAmount != null) {
-      updates.larderAmount = (parseFloat(tx.larderAmount) * rate).toFixed(2);
+      updates.larderAmount = roundMoney(parseFloat(tx.larderAmount) * rate);
     }
     // Clear the mistaken currency lock so future conversions include this row
     if (isMistakenLarderLock) {
@@ -57,7 +69,7 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   const larderEntries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId));
   for (const entry of larderEntries) {
-    const newAmt = (parseFloat(entry.amount) * rate).toFixed(2);
+    const newAmt = roundMoney(parseFloat(entry.amount) * rate);
     await db.update(larderEntriesTable)
       .set({ amount: newAmt, currency: to })
       .where(eq(larderEntriesTable.id, entry.id));
@@ -66,7 +78,7 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   const cats = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   for (const cat of cats) {
     if (cat.budget != null) {
-      const newBudget = (parseFloat(cat.budget) * rate).toFixed(2);
+      const newBudget = roundMoney(parseFloat(cat.budget) * rate);
       await db.update(categoriesTable)
         .set({ budget: newBudget })
         .where(eq(categoriesTable.id, cat.id));
@@ -75,7 +87,7 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
 
   const rps = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
   for (const rp of rps) {
-    const newAmount = (parseFloat(rp.amount) * rate).toFixed(2);
+    const newAmount = roundMoney(parseFloat(rp.amount) * rate);
     await db.update(recurringPaymentsTable)
       .set({ amount: newAmount })
       .where(eq(recurringPaymentsTable.id, rp.id));
@@ -89,7 +101,7 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   // changed their budget moments earlier on another page/tab.
   let newTotalBudget: string | null = user?.totalBudget ?? null;
   if (user?.totalBudget != null) {
-    newTotalBudget = (parseFloat(user.totalBudget) * rate).toFixed(2);
+    newTotalBudget = roundMoney(parseFloat(user.totalBudget) * rate);
     await db.update(usersTable)
       .set({ totalBudget: newTotalBudget })
       .where(eq(usersTable.id, userId));
@@ -99,7 +111,7 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     const [household] = await db.select().from(householdsTable)
       .where(eq(householdsTable.id, user.householdId));
     if (household && household.ownerId === userId && household.budget != null) {
-      const newHhBudget = (parseFloat(household.budget) * rate).toFixed(2);
+      const newHhBudget = roundMoney(parseFloat(household.budget) * rate);
       await db.update(householdsTable)
         .set({ budget: newHhBudget })
         .where(eq(householdsTable.id, household.id));
