@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 import {
   CreateHouseholdBody,
   UpdateHouseholdBody,
@@ -423,6 +423,156 @@ router.delete("/households", async (req, res): Promise<void> => {
   await db.update(categoriesTable).set({ householdId: null }).where(eq(categoriesTable.householdId, householdId));
   await db.delete(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
   await db.delete(householdsTable).where(eq(householdsTable.id, householdId));
+
+  res.json({ success: true });
+});
+
+// POST /households/request-head — member requests to be appointed head
+router.post("/households/request-head", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || isHead(myMembership.role)) {
+    res.status(400).json({ error: "Already head or not a member" }); return;
+  }
+
+  const members = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.householdId, user.householdId));
+  const headMember = members.find(m => isHead(m.role));
+  if (!headMember) { res.status(400).json({ error: "No head found in household" }); return; }
+
+  const requesterName = user.name ?? "A member";
+
+  await db.insert(notificationItemsTable).values({
+    userId: headMember.userId,
+    type: "head_request",
+    titleEn: `${requesterName} wants to become Head`,
+    titlePl: `${requesterName} chce zostać Głową Rodziny`,
+    bodyEn: String(userId),
+    bodyPl: String(userId),
+  });
+
+  res.json({ success: true });
+});
+
+// GET /households/head-requests — head fetches pending head-role requests
+router.get("/households/head-requests", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.json([]); return; }
+
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) { res.json([]); return; }
+
+  const items = await db.select().from(notificationItemsTable)
+    .where(and(
+      eq(notificationItemsTable.userId, userId),
+      eq(notificationItemsTable.type, "head_request"),
+      eq(notificationItemsTable.dismissed, false),
+    ))
+    .orderBy(desc(notificationItemsTable.createdAt));
+
+  // Deduplicate by requesterId — keep only the latest per requester
+  const seen = new Set<number>();
+  const result = [];
+  for (const item of items) {
+    const requesterId = parseInt(item.bodyEn);
+    if (isNaN(requesterId) || seen.has(requesterId)) continue;
+    seen.add(requesterId);
+    const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, requesterId));
+    if (!requester) continue;
+    result.push({ id: item.id, requesterId, requesterName: requester.name ?? "Unknown" });
+  }
+
+  res.json(result);
+});
+
+// POST /households/head-requests/:notifId/approve — head approves; roles swap
+router.post("/households/head-requests/:notifId/approve", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const notifId = parseInt(req.params.notifId);
+  if (isNaN(notifId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only head can approve" }); return;
+  }
+
+  const [notif] = await db.select().from(notificationItemsTable)
+    .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
+  if (!notif) { res.status(404).json({ error: "Request not found" }); return; }
+
+  const requesterId = parseInt(notif.bodyEn);
+  if (isNaN(requesterId)) { res.status(400).json({ error: "Invalid request data" }); return; }
+
+  const [requesterMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!requesterMembership) { res.status(404).json({ error: "Requester not in household" }); return; }
+
+  // Swap roles: requester becomes head, current head becomes member
+  await db.update(householdMembersTable)
+    .set({ role: "head" })
+    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, user.householdId)));
+  await db.update(householdMembersTable)
+    .set({ role: "parent" })
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+
+  // Transfer household ownership
+  await db.update(householdsTable)
+    .set({ ownerId: requesterId })
+    .where(eq(householdsTable.id, user.householdId));
+
+  // Hard-delete all pending head-requests addressed to the current head (they are now member)
+  await db.delete(notificationItemsTable)
+    .where(and(eq(notificationItemsTable.userId, userId), eq(notificationItemsTable.type, "head_request")));
+
+  // Notify the requester that they have been promoted
+  await db.insert(notificationItemsTable).values({
+    userId: requesterId,
+    type: "share_approved",
+    titleEn: "You are now Head of Household",
+    titlePl: "Jesteś teraz Głową Rodziny",
+    bodyEn: "Your request to become Head was approved.",
+    bodyPl: "Twoja prośba o zostanie Głową Rodziny została zaakceptowana.",
+  });
+
+  res.json({ success: true });
+});
+
+// POST /households/head-requests/:notifId/decline — head declines; hard-delete so user can re-request
+router.post("/households/head-requests/:notifId/decline", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const notifId = parseInt(req.params.notifId);
+  if (isNaN(notifId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+
+  const [myMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+  if (!myMembership || !isHead(myMembership.role)) {
+    res.status(403).json({ error: "Only head can decline" }); return;
+  }
+
+  // Hard-delete so the user can re-request later (soft-dismiss would block re-insertion via dedup)
+  await db.delete(notificationItemsTable)
+    .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
 
   res.json({ success: true });
 });

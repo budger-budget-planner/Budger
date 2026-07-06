@@ -477,28 +477,27 @@ function MemberSheet({
           {canEditRole && (
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("hh.role_label")}</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(["head", "parent", "child"] as const).map(r => (
+              <div className="grid grid-cols-2 gap-1.5">
+                {(["head", "parent"] as const).map(r => (
                   <button
                     key={r}
                     onClick={() => setSelectedRole(r)}
                     className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 border transition-colors text-xs font-medium ${
                       selectedRole === r
                         ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                          : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
-                          : "border-white/30 bg-white/10 text-white"
+                          : "border-sky-400 bg-sky-400/10 text-sky-300"
                         : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
                     }`}
                   >
-                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
-                    {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
+                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                    {r === "head" ? t("hh.role_head") : t("hh.role_parent")}
                   </button>
                 ))}
               </div>
               <div className="text-[11px] text-white/30 leading-relaxed">
                 {selectedRole === "head" && t("hh.role_head_desc_editor")}
                 {selectedRole === "parent" && t("hh.role_parent_desc_editor")}
-                {selectedRole === "child" && t("hh.role_child_desc_editor")}
+                {/* child/ward kept in code, hidden from UI */}
               </div>
               {selectedRole !== member.role && (
                 <Button
@@ -647,6 +646,17 @@ export default function HouseholdPage() {
   // _glEnabled is computed before iAmChild; canSeeGreatLarder is finalised after.
   const _glEnabled = !!household;
 
+  const { data: pendingHeadRequests, refetch: refetchHeadRequests } = useQuery<{ id: number; requesterId: number; requesterName: string }[]>({
+    queryKey: ["pending-head-requests"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/households/head-requests`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isHeadRole(members?.find(m => m.userId === (me as any)?.id)?.role ?? "") && !!household,
+    staleTime: 30_000,
+  });
+
   const { data: greatLarder, refetch: refetchGL } = useQuery<any>({
     queryKey: ["great-larder"],
     queryFn: async () => {
@@ -749,6 +759,31 @@ export default function HouseholdPage() {
     } finally { setGlApproving(null); }
   }
 
+  async function handleRequestHead() {
+    setHeadRequestLoading(true);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/households/request-head`, { method: "POST", credentials: "include" });
+      setHeadRequestSent(true);
+    } finally { setHeadRequestLoading(false); }
+  }
+
+  async function handleApproveHeadRequest(notifId: number) {
+    setHeadActionLoading(notifId);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/approve`, { method: "POST", credentials: "include" });
+      refetchHeadRequests();
+      invalidateHousehold(queryClient);
+    } finally { setHeadActionLoading(null); }
+  }
+
+  async function handleDeclineHeadRequest(notifId: number) {
+    setHeadActionLoading(notifId);
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/decline`, { method: "POST", credentials: "include" });
+      refetchHeadRequests();
+    } finally { setHeadActionLoading(null); }
+  }
+
   const [createOpen, setCreateOpen]           = useState(false);
   const [budgetWarnDismissed, setBudgetWarnDismissed] = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
@@ -761,7 +796,10 @@ export default function HouseholdPage() {
   const [editBudgetVal, setEditBudgetVal]   = useState("");
   const [budgetBreakdownOpen, setBudgetBreakdownOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"head" | "parent" | "child">("child");
+  const [inviteRole, setInviteRole] = useState<"head" | "parent">("parent");
+  const [headRequestSent, setHeadRequestSent] = useState(false);
+  const [headRequestLoading, setHeadRequestLoading] = useState(false);
+  const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
@@ -1332,18 +1370,33 @@ export default function HouseholdPage() {
           )}
 
           {/* ── My role badge ── */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs text-white/40">{t("hh.your_role")}</p>
-              <div className="mt-1">
-                <RoleBadge role={myRole} />
+          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="text-xs text-white/40">{t("hh.your_role")}</p>
+                <div className="mt-1">
+                  <RoleBadge role={myRole} />
+                </div>
+              </div>
+              <div className="text-xs text-white/30 text-right max-w-[60%]">
+                {isHeadRole(myRole) && t("hh.your_role_head_desc")}
+                {myRole === "parent" && t("hh.your_role_parent_desc")}
+                {isChildRole(myRole) && t("hh.your_role_child_desc")}
               </div>
             </div>
-            <div className="text-xs text-white/30 text-right max-w-[60%]">
-              {isHeadRole(myRole) && t("hh.your_role_head_desc")}
-              {myRole === "parent" && t("hh.your_role_parent_desc")}
-              {isChildRole(myRole) && t("hh.your_role_child_desc")}
-            </div>
+            {myRole === "parent" && (
+              headRequestSent ? (
+                <p className="text-xs text-emerald-400/70 text-center py-1">{t("hh.request_head_sent")}</p>
+              ) : (
+                <button
+                  onClick={handleRequestHead}
+                  disabled={headRequestLoading}
+                  className="w-full py-2 rounded-xl text-xs font-medium border border-amber-400/20 bg-amber-400/5 text-amber-300/60 hover:bg-amber-400/15 hover:text-amber-300 transition-colors disabled:opacity-40"
+                >
+                  {headRequestLoading ? t("common.saving") : t("hh.request_head_btn")}
+                </button>
+              )
+            )}
           </div>
 
           {/* ── Members ── */}
@@ -1575,6 +1628,44 @@ export default function HouseholdPage() {
                     >
                       <X className="w-4 h-4" />
                     </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Pending head-role requests — head only ── */}
+          {iAmHead && !!pendingHeadRequests && pendingHeadRequests.length > 0 && (
+            <div className="rounded-2xl bg-white/5 border border-amber-400/20 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <Crown className="w-3.5 h-3.5 text-amber-400/60" />
+                <p className="text-sm font-semibold">{t("hh.pending_head_requests")} <span className="text-white/40 font-normal">({pendingHeadRequests.length})</span></p>
+              </div>
+              <div className="divide-y divide-white/5">
+                {pendingHeadRequests.map(req => (
+                  <div key={req.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-400/10 flex items-center justify-center flex-shrink-0">
+                      <Crown className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <p className="text-sm flex-1 truncate">
+                      {t("hh.head_request_wants_head").replace("{name}", req.requesterName)}
+                    </p>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => handleDeclineHeadRequest(req.id)}
+                        disabled={headActionLoading === req.id}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/5 text-white/50 hover:bg-white/10 transition-colors disabled:opacity-40"
+                      >
+                        {t("hh.head_request_decline")}
+                      </button>
+                      <button
+                        onClick={() => handleApproveHeadRequest(req.id)}
+                        disabled={headActionLoading === req.id}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors disabled:opacity-40"
+                      >
+                        {t("hh.head_request_approve")}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1859,7 +1950,7 @@ export default function HouseholdPage() {
       {/* ── Invite dialog (head only) ── */}
       <Dialog open={inviteOpen} onOpenChange={open => {
         setInviteOpen(open);
-        if (!open) { setInviteEmail(""); setInviteResult(null); setInviteRole("child"); }
+        if (!open) { setInviteEmail(""); setInviteResult(null); setInviteRole("parent"); }
       }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{t("hh.invite_title")}</DialogTitle></DialogHeader>
@@ -1874,7 +1965,7 @@ export default function HouseholdPage() {
                 <p className="text-sm text-white/50 mt-1">{inviteEmail}</p>
                 <p className="text-xs text-white/30 mt-0.5">{t("hh.invite_as_role", { role: roleLabelShort(inviteRole) })}</p>
               </div>
-              <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); setInviteRole("child"); }}>
+              <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); setInviteRole("parent"); }}>
                 {t("common.done")}
               </Button>
             </div>
@@ -1927,8 +2018,8 @@ export default function HouseholdPage() {
 
               <div className="space-y-1.5">
                 <Label>{t("hh.role_invite_label")}</Label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(["head", "parent", "child"] as const).map(r => (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(["head", "parent"] as const).map(r => (
                     <button
                       key={r}
                       type="button"
@@ -1936,20 +2027,19 @@ export default function HouseholdPage() {
                       className={`flex flex-col items-center gap-1 rounded-lg py-2.5 px-1 border transition-colors text-xs font-medium ${
                         inviteRole === r
                           ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                            : r === "parent" ? "border-sky-400 bg-sky-400/10 text-sky-300"
-                            : "border-white/30 bg-white/10 text-white"
+                            : "border-sky-400 bg-sky-400/10 text-sky-300"
                           : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
                       }`}
                     >
-                      {r === "head" ? <Crown className="w-3.5 h-3.5" /> : r === "parent" ? <ShieldCheck className="w-3.5 h-3.5" /> : <Baby className="w-3.5 h-3.5" />}
-                      {r === "head" ? t("hh.role_head") : r === "parent" ? t("hh.role_parent") : t("hh.role_child")}
+                      {r === "head" ? <Crown className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                      {r === "head" ? t("hh.role_head") : t("hh.role_parent")}
                     </button>
                   ))}
                 </div>
                 <p className="text-[11px] text-white/30 leading-relaxed">
                   {inviteRole === "head" && t("hh.invite_role_head_desc")}
                   {inviteRole === "parent" && t("hh.invite_role_parent_desc")}
-                  {inviteRole === "child" && t("hh.invite_role_child_desc")}
+                  {/* child/ward kept in code, hidden from UI */}
                 </p>
               </div>
 

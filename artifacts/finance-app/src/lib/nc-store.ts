@@ -13,7 +13,8 @@ export type NCNotifType =
   | "share_approved" | "share_declined"
   | "edit_approved" | "edit_declined"
   | "goal_created" | "goal_changed"
-  | "goal_realized";
+  | "goal_realized"
+  | "head_request";
 
 export type NCNotification = {
   id: string;
