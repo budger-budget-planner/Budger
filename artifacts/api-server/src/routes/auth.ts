@@ -498,7 +498,7 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           "auth: household headship transferred on deletion request",
         );
 
-        // Notify ALL other members: new head promoted + departing member leaving
+        // Notify ALL other members: departing member + leadership change
         await db.insert(notificationItemsTable).values(
           otherMembers.map(m => ({
             userId: m.userId,
@@ -509,6 +509,16 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
             bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zarządzanie gospodarstwem zostało przekazane nowemu liderowi.`,
           }))
         ).onConflictDoNothing();
+
+        // Personal notification for the newly-promoted head specifically
+        await db.insert(notificationItemsTable).values({
+          userId: newHead.userId,
+          type: "household_you_are_now_head",
+          titleEn: "You are now the household head",
+          titlePl: "Zostałeś(-aś) liderem gospodarstwa",
+          bodyEn: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household and now have full management access.`,
+          bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) losowo wybrany(-a) na nowego lidera gospodarstwa i masz teraz pełny dostęp do zarządzania.`,
+        }).onConflictDoNothing();
       } else {
         // No parents to hand off to — notify remaining members anyway
         if (otherMembers.length > 0) {
