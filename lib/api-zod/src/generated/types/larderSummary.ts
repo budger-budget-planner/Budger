@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LarderEntry } from "./larderEntry";
+import type { LarderSummaryCurrencyBreakdownItem } from "./larderSummaryCurrencyBreakdownItem";
 
 export interface LarderSummary {
   total: number;
   currency: string;
   entries: LarderEntry[];
+  currencyBreakdown?: LarderSummaryCurrencyBreakdownItem[];
 }

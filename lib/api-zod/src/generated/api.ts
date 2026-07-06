@@ -107,25 +107,8 @@ export const registerBodyPasswordMin = 4;
 export const RegisterBody = zod.object({
   email: zod.string().min(1),
   password: zod.string().min(registerBodyPasswordMin),
-});
-
-/**
- * @summary Request a PIN reset email
- */
-export const ForgotPinBody = zod.object({
-  email: zod.string().min(1),
-});
-
-export const ForgotPinResponse = zod.object({
-  sent: zod.boolean(),
-});
-
-/**
- * @summary Reset PIN using a token from the reset email
- */
-export const ResetPinBody = zod.object({
-  token: zod.string().min(1),
-  password: zod.string().min(4),
+  termsAccepted: zod.boolean().optional(),
+  privacyAccepted: zod.boolean().optional(),
 });
 
 /**
@@ -152,6 +135,29 @@ export const LoginResponse = zod.object({
   currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Request a PIN reset email
+ */
+
+export const ForgotPinBody = zod.object({
+  email: zod.string().min(1),
+});
+
+export const ForgotPinResponse = zod.object({
+  sent: zod.boolean(),
+});
+
+/**
+ * @summary Reset PIN using a token from the reset email
+ */
+
+export const resetPinBodyPasswordMin = 4;
+
+export const ResetPinBody = zod.object({
+  token: zod.string().min(1),
+  password: zod.string().min(resetPinBodyPasswordMin),
 });
 
 /**
@@ -1475,6 +1481,14 @@ export const GetLarderResponse = zod.object({
       createdAt: zod.string(),
     }),
   ),
+  currencyBreakdown: zod
+    .array(
+      zod.object({
+        currency: zod.string(),
+        rawTotal: zod.number(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -1555,6 +1569,14 @@ export const GetGreatLarderResponse = zod.object({
     }),
   ),
   pendingCount: zod.number(),
+  currencyBreakdown: zod
+    .array(
+      zod.object({
+        currency: zod.string(),
+        rawTotal: zod.number(),
+      }),
+    )
+    .optional(),
 });
 
 /**

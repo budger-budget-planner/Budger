@@ -17,9 +17,6 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
-  ForgotPinInput,
-  ForgotPinOutput,
-  ResetPinInput,
   AddLarderEntryBody,
   ApplyRecurringPaymentBody,
   Category,
@@ -27,6 +24,8 @@ import type {
   CategorySpending,
   CategoryUpdate,
   CurrencyConvertInput,
+  ForgotPinInput,
+  ForgotPinOutput,
   FundGreatLarderBody,
   GetGoalsSummaryParams,
   GetRecentActivityParams,
@@ -76,6 +75,7 @@ import type {
   RegisterInput,
   RegisterStartInput,
   RegisterStartOutput,
+  ResetPinInput,
   SavePushSubscription200,
   SendToGreatLarderBody,
   SetNotificationItemReadBody,
@@ -665,6 +665,178 @@ export const useLogin = <
   TContext
 > => {
   return useMutation(getLoginMutationOptions(options));
+};
+
+/**
+ * @summary Request a PIN reset email
+ */
+export const getForgotPinUrl = () => {
+  return `/api/auth/forgot-pin`;
+};
+
+export const forgotPin = async (
+  forgotPinInput: ForgotPinInput,
+  options?: RequestInit,
+): Promise<ForgotPinOutput> => {
+  return customFetch<ForgotPinOutput>(getForgotPinUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(forgotPinInput),
+  });
+};
+
+export const getForgotPinMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof forgotPin>>,
+    TError,
+    { data: BodyType<ForgotPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof forgotPin>>,
+  TError,
+  { data: BodyType<ForgotPinInput> },
+  TContext
+> => {
+  const mutationKey = ["forgotPin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof forgotPin>>,
+    { data: BodyType<ForgotPinInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return forgotPin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ForgotPinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof forgotPin>>
+>;
+export type ForgotPinMutationBody = BodyType<ForgotPinInput>;
+export type ForgotPinMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a PIN reset email
+ */
+export const useForgotPin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof forgotPin>>,
+    TError,
+    { data: BodyType<ForgotPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof forgotPin>>,
+  TError,
+  { data: BodyType<ForgotPinInput> },
+  TContext
+> => {
+  return useMutation(getForgotPinMutationOptions(options));
+};
+
+/**
+ * @summary Reset PIN using a token from the reset email
+ */
+export const getResetPinUrl = () => {
+  return `/api/auth/reset-pin`;
+};
+
+export const resetPin = async (
+  resetPinInput: ResetPinInput,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getResetPinUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resetPinInput),
+  });
+};
+
+export const getResetPinMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetPin>>,
+    TError,
+    { data: BodyType<ResetPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetPin>>,
+  TError,
+  { data: BodyType<ResetPinInput> },
+  TContext
+> => {
+  const mutationKey = ["resetPin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetPin>>,
+    { data: BodyType<ResetPinInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return resetPin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetPinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetPin>>
+>;
+export type ResetPinMutationBody = BodyType<ResetPinInput>;
+export type ResetPinMutationError = ErrorType<void>;
+
+/**
+ * @summary Reset PIN using a token from the reset email
+ */
+export const useResetPin = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetPin>>,
+    TError,
+    { data: BodyType<ResetPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetPin>>,
+  TError,
+  { data: BodyType<ResetPinInput> },
+  TContext
+> => {
+  return useMutation(getResetPinMutationOptions(options));
 };
 
 /**
@@ -6592,154 +6764,6 @@ export type UpdateMerchantCategoryRuleMutationResult = NonNullable<
 export type UpdateMerchantCategoryRuleMutationBody =
   BodyType<UpdateMerchantCategoryRuleInput>;
 export type UpdateMerchantCategoryRuleMutationError = ErrorType<unknown>;
-
-/**
- * @summary Request a PIN reset email
- */
-export const getForgotPinUrl = () => `/api/auth/forgot-pin`;
-
-export const forgotPin = async (
-  input: ForgotPinInput,
-  options?: RequestInit,
-): Promise<ForgotPinOutput> => {
-  return customFetch<ForgotPinOutput>(getForgotPinUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(input),
-  });
-};
-
-export const getForgotPinMutationOptions = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof forgotPin>>,
-    TError,
-    { data: BodyType<ForgotPinInput> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof forgotPin>>,
-  TError,
-  { data: BodyType<ForgotPinInput> },
-  TContext
-> => {
-  const mutationKey = ["forgotPin"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof forgotPin>>,
-    { data: BodyType<ForgotPinInput> }
-  > = (props) => {
-    const { data } = props ?? {};
-    return forgotPin(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useForgotPin = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof forgotPin>>,
-    TError,
-    { data: BodyType<ForgotPinInput> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof forgotPin>>,
-  TError,
-  { data: BodyType<ForgotPinInput> },
-  TContext
-> => {
-  return useMutation(getForgotPinMutationOptions(options));
-};
-
-/**
- * @summary Reset PIN using a token from the reset email
- */
-export const getResetPinUrl = () => `/api/auth/reset-pin`;
-
-export const resetPin = async (
-  input: ResetPinInput,
-  options?: RequestInit,
-): Promise<import("./api.schemas").User> => {
-  return customFetch<import("./api.schemas").User>(getResetPinUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(input),
-  });
-};
-
-export const getResetPinMutationOptions = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof resetPin>>,
-    TError,
-    { data: BodyType<ResetPinInput> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof resetPin>>,
-  TError,
-  { data: BodyType<ResetPinInput> },
-  TContext
-> => {
-  const mutationKey = ["resetPin"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof resetPin>>,
-    { data: BodyType<ResetPinInput> }
-  > = (props) => {
-    const { data } = props ?? {};
-    return resetPin(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useResetPin = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof resetPin>>,
-    TError,
-    { data: BodyType<ResetPinInput> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof resetPin>>,
-  TError,
-  { data: BodyType<ResetPinInput> },
-  TContext
-> => {
-  return useMutation(getResetPinMutationOptions(options));
-};
 
 /**
  * @summary Update a merchant rule (e.g. disable auto-apply)

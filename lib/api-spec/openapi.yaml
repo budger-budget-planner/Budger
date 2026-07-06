@@ -164,6 +164,42 @@ paths:
         "404":
           description: No account found for this email
 
+  /auth/forgot-pin:
+    post:
+      operationId: forgotPin
+      tags: [auth]
+      summary: Request a PIN reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPinInput"
+      responses:
+        "200":
+          description: Reset email sent if the account exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForgotPinOutput"
+
+  /auth/reset-pin:
+    post:
+      operationId: resetPin
+      tags: [auth]
+      summary: Reset PIN using a token from the reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPinInput"
+      responses:
+        "200":
+          description: PIN reset successfully
+        "400":
+          description: Invalid or expired reset link
+
   /auth/logout:
     post:
       operationId: logout
@@ -1667,6 +1703,36 @@ components:
           type: boolean
         privacyAccepted:
           type: boolean
+
+    ForgotPinInput:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          minLength: 1
+
+    ForgotPinOutput:
+      type: object
+      required:
+        - sent
+      properties:
+        sent:
+          type: boolean
+
+    ResetPinInput:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 4
 
     RegisterStartInput:
       type: object

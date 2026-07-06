@@ -56,6 +56,24 @@ export interface RegisterInput {
   email: string;
   /** @minLength 4 */
   password: string;
+  termsAccepted?: boolean;
+  privacyAccepted?: boolean;
+}
+
+export interface ForgotPinInput {
+  /** @minLength 1 */
+  email: string;
+}
+
+export interface ForgotPinOutput {
+  sent: boolean;
+}
+
+export interface ResetPinInput {
+  /** @minLength 1 */
+  token: string;
+  /** @minLength 4 */
+  password: string;
 }
 
 export interface RegisterStartInput {
@@ -82,22 +100,6 @@ export interface VerifyEmailOutput {
   email: string;
   firstName: string;
   lastName: string;
-}
-
-export interface ForgotPinInput {
-  /** @minLength 1 */
-  email: string;
-}
-
-export interface ForgotPinOutput {
-  sent: boolean;
-}
-
-export interface ResetPinInput {
-  /** @minLength 1 */
-  token: string;
-  /** @minLength 4 */
-  password: string;
 }
 
 export interface Category {
@@ -599,10 +601,16 @@ export interface LarderEntry {
   createdAt: string;
 }
 
+export type LarderSummaryCurrencyBreakdownItem = {
+  currency: string;
+  rawTotal: number;
+};
+
 export interface LarderSummary {
   total: number;
   currency: string;
   entries: LarderEntry[];
+  currencyBreakdown?: LarderSummaryCurrencyBreakdownItem[];
 }
 
 export type GreatLarderEntryStatus =
@@ -630,11 +638,17 @@ export interface GreatLarderEntry {
   createdAt: string;
 }
 
+export type GreatLarderSummaryCurrencyBreakdownItem = {
+  currency: string;
+  rawTotal: number;
+};
+
 export interface GreatLarderSummary {
   total: number;
   currency: string;
   entries: GreatLarderEntry[];
   pendingCount: number;
+  currencyBreakdown?: GreatLarderSummaryCurrencyBreakdownItem[];
 }
 
 export type ListTransactionsParams = {

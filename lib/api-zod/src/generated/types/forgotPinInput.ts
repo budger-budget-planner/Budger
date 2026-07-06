@@ -6,11 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RegisterInput {
+export interface ForgotPinInput {
   /** @minLength 1 */
   email: string;
-  /** @minLength 4 */
-  password: string;
-  termsAccepted?: boolean;
-  privacyAccepted?: boolean;
 }

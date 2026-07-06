@@ -442,7 +442,7 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
 //   - If user is the household head, transfers headship to a random parent.
 //   - Notifies all remaining household members via the notification centre.
 router.post("/auth/request-deletion", async (req, res): Promise<void> => {
-  const userId = req.session?.userId;
+  const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);

@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GreatLarderEntry } from "./greatLarderEntry";
+import type { GreatLarderSummaryCurrencyBreakdownItem } from "./greatLarderSummaryCurrencyBreakdownItem";
 
 export interface GreatLarderSummary {
   total: number;
   currency: string;
   entries: GreatLarderEntry[];
   pendingCount: number;
+  currencyBreakdown?: GreatLarderSummaryCurrencyBreakdownItem[];
 }
