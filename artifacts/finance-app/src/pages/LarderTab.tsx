@@ -3,6 +3,7 @@ import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
+import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
@@ -89,6 +90,19 @@ function AssetSelect({
   );
 }
 
+/** Small "≈ 12.50 USD" preview when the asset currency differs from the account currency. */
+function ConversionPreview({
+  amount, from, to, rates,
+}: { amount: number; from: string; to: string; rates: Record<string, number> | undefined }) {
+  if (!rates || !from || from === to || isNaN(amount) || amount <= 0) return null;
+  const converted = convertAmount(amount, from, to, rates);
+  return (
+    <p className="text-xs text-white/35 tabular-nums">
+      ≈ {fmtAmt(converted, to)}
+    </p>
+  );
+}
+
 function sourceLabel(sourceType: string): string {
   if (sourceType === "recurring_payment") return t("larder.source_recurring");
   if (sourceType === "larder_fund")       return t("larder.source_fund");
@@ -152,6 +166,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   });
 
   const { data: goals } = useListGoals({ query: { retry: false } } as any);
+  const { data: rates } = useQuery({ queryKey: ["fx-rates"], queryFn: fetchRates, staleTime: 60 * 60 * 1000 });
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
   const [historyOpen,  setHistoryOpen]  = useState(false);
@@ -523,6 +538,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </label>
             <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={spendAmt}
               onChange={e => setSpendAmt(e.target.value)} placeholder="0.00" className={inputCls} />
+            <ConversionPreview amount={parseFloat(spendAmt.replace(",", "."))} from={spendAsset || prefs.currency} to={prefs.currency} rates={rates} />
             <p className="text-xs text-white/25 leading-relaxed">
               {t("larder.from_larder_desc")}
             </p>
@@ -560,6 +576,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 </label>
                 <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={sendGlAmt}
                   onChange={e => setSendGlAmt(e.target.value)} placeholder="0.00" className={inputCls} />
+                <ConversionPreview amount={parseFloat(sendGlAmt.replace(",", "."))} from={sendGlAsset || prefs.currency} to={prefs.currency} rates={rates} />
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -568,6 +585,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 </label>
                 <input type="text" inputMode="numeric" pattern="[0-9]*" required value={sendGlPct}
                   onChange={e => setSendGlPct(e.target.value)} placeholder="np. 25" className={inputCls} />
+                <ConversionPreview
+                  amount={(sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100}
+                  from={sendGlAsset || prefs.currency} to={prefs.currency} rates={rates}
+                />
                 <p className="text-xs text-white/30 leading-relaxed">
                   {t("larder.calc_sent_gl")}
                 </p>
@@ -612,6 +633,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required
               value={dedAmount} onChange={e => setDedAmount(e.target.value)}
               placeholder="0.00" className={inputCls} />
+            <ConversionPreview amount={parseFloat(dedAmount.replace(",", "."))} from={dedAsset || prefs.currency} to={prefs.currency} rates={rates} />
           </div>
           <button type="submit" disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">

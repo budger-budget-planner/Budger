@@ -101,6 +101,19 @@ function AssetSelect({
   );
 }
 
+/** Small "≈ 12.50 USD" preview when the asset currency differs from the account currency. */
+function ConversionPreview({
+  amount, from, to, rates,
+}: { amount: number; from: string; to: string; rates: Record<string, number> | null }) {
+  if (!rates || !from || from === to || isNaN(amount) || amount <= 0) return null;
+  const converted = convertAmount(amount, from, to, rates);
+  return (
+    <p className="text-xs text-muted-foreground tabular-nums">
+      ≈ {fmtAmt(converted, to)}
+    </p>
+  );
+}
+
 function invalidateHousehold(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
   qc.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
@@ -1960,6 +1973,12 @@ export default function HouseholdPage() {
                 onChange={e => setGlFundAmt(e.target.value)}
                 required
               />
+              <ConversionPreview
+                amount={parseFloat(glFundAmt)}
+                from={glFundAsset || (greatLarder?.currency ?? "")}
+                to={prefs.currency}
+                rates={splitRates}
+              />
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => { setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt(""); }}>
@@ -2068,6 +2087,12 @@ export default function HouseholdPage() {
                 value={glDedicateAmt}
                 onChange={e => setGlDedicateAmt(e.target.value)}
                 required
+              />
+              <ConversionPreview
+                amount={parseFloat(glDedicateAmt)}
+                from={glDedicateAsset || (greatLarder?.currency ?? "")}
+                to={prefs.currency}
+                rates={splitRates}
               />
             </div>
             <div className="flex gap-2">
