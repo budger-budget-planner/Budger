@@ -30,6 +30,7 @@ import {
   getListRecurringPaymentsQueryKey,
   useGetLarder,
   getGetLarderQueryKey,
+  useDeleteLarderEntry,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse } from "lucide-react";
@@ -975,6 +976,11 @@ export default function HomeSpending() {
   const [renameValue, setRenameValue] = useState("");
   const [rpSheetOpen,  setRpSheetOpen]  = useState(false);
   const [rpExpanded,   setRpExpanded]   = useState<number | null>(null);
+  const [larderClearConfirm, setLarderClearConfirm] = useState<number | null>(null); // larder entry id
+  const larderLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (larderLongPressTimer.current) clearTimeout(larderLongPressTimer.current);
+  }, []);
   // Occurrence rule for the swipe hint wiggle: only due on first login after onboarding,
   // or after a week of inactivity — computed once when this page first mounts.
   const [swipeHintDue] = useState(() => checkSwipeHintDue());
@@ -1051,6 +1057,14 @@ export default function HomeSpending() {
   const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
   const remove = useDeleteTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setActionTx(null); } } });
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
+  const deleteLarderEntry = useDeleteLarderEntry({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+        setLarderClearConfirm(null);
+      },
+    },
+  });
 
   const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -1574,7 +1588,36 @@ export default function HomeSpending() {
                                     </span>
                                   )}
                                   {hasLarderDedication && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400">
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400 select-none touch-none cursor-pointer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onPointerDown={(e) => {
+                                        e.stopPropagation();
+                                        if (larderLongPressTimer.current) clearTimeout(larderLongPressTimer.current);
+                                        larderLongPressTimer.current = setTimeout(() => {
+                                          larderLongPressTimer.current = null;
+                                          setLarderClearConfirm(larderDedication!.id);
+                                        }, 500);
+                                      }}
+                                      onPointerUp={() => {
+                                        if (larderLongPressTimer.current) {
+                                          clearTimeout(larderLongPressTimer.current);
+                                          larderLongPressTimer.current = null;
+                                        }
+                                      }}
+                                      onPointerLeave={() => {
+                                        if (larderLongPressTimer.current) {
+                                          clearTimeout(larderLongPressTimer.current);
+                                          larderLongPressTimer.current = null;
+                                        }
+                                      }}
+                                      onPointerCancel={() => {
+                                        if (larderLongPressTimer.current) {
+                                          clearTimeout(larderLongPressTimer.current);
+                                          larderLongPressTimer.current = null;
+                                        }
+                                      }}
+                                    >
                                       <Target className="w-2 h-2 flex-shrink-0" />
                                       {t("larder.tab")} {fmtAmt(contribAmountInUserCurrency({ amount: larderDedication!.amount, currency: larderDedication!.currency }), prefs.currency)}
                                     </span>
@@ -2010,6 +2053,31 @@ export default function HomeSpending() {
           <div className="pointer-events-auto flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4">
             <Scissors className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-medium">{t("split.request_sent")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Larder badge clear confirm ── */}
+      {larderClearConfirm !== null && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-sm mx-4 mb-24 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4">
+            <p className="text-sm font-medium text-white mb-1">{t("larder.clear_confirm_title")}</p>
+            <p className="text-xs text-zinc-400 mb-4">{t("larder.clear_confirm_desc")}</p>
+            <div className="flex gap-2">
+              <button
+                className="flex-1 py-2 rounded-xl bg-zinc-800 text-sm text-zinc-300 hover:bg-zinc-700 transition-colors"
+                onClick={() => setLarderClearConfirm(null)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                className="flex-1 py-2 rounded-xl bg-violet-600 text-sm text-white font-medium hover:bg-violet-700 transition-colors disabled:opacity-40"
+                disabled={deleteLarderEntry.isPending}
+                onClick={() => deleteLarderEntry.mutate({ id: larderClearConfirm })}
+              >
+                {t("larder.clear_confirm_action")}
+              </button>
+            </div>
           </div>
         </div>
       )}
