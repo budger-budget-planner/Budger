@@ -1540,7 +1540,7 @@ export default function HomeSpending() {
                                     <span className="relative inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
                                       style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}>
                                       <Warehouse className="w-2 h-2" />
-                                      ze Spiżarni
+                                      {t("larder.source_fund")}
                                       {/* bottom-left diamond */}
                                       <div style={{ position:"absolute", bottom:-6, left:-5, width:10, height:10, pointerEvents:"none", animation:"gemFlash 3.2s ease-in-out 0s infinite" }}>
                                         <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.85), transparent)" }} />
