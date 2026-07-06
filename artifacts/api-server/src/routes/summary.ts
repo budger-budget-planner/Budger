@@ -30,7 +30,7 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
   const userRPs = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
   const rpMap = new Map(userRPs.map(rp => [rp.id, rp]));
 
-  const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && isNativeCurrency(tx, userCurrency));
+  const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && !tx.isLarderFund && isNativeCurrency(tx, userCurrency));
   const filtered = filterFn ? unlocked.filter(filterFn) : unlocked;
 
   const grouped = new Map<string, { total: number; count: number; category: any; rp: any }>();
@@ -135,7 +135,7 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
     const monthTxs = txs.filter(t => t.date.startsWith(prefix));
     const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
-    const total = monthTxs.filter(t => !t.currencyLocked && !t.currencyUnavailable && !t.foundedWithRealizedGoal && isNativeCurrency(t, userCurrency)).reduce((s, t) => s + parseFloat(t.amount), 0);
+    const total = monthTxs.filter(t => !t.currencyLocked && !t.currencyUnavailable && !t.foundedWithRealizedGoal && !t.isLarderFund && isNativeCurrency(t, userCurrency)).reduce((s, t) => s + parseFloat(t.amount), 0);
     results.push({ month: monthNames[month], year, total: Math.round(total * 100) / 100, count: monthTxs.length });
   }
 
@@ -172,7 +172,7 @@ router.get("/summary/history", async (req, res): Promise<void> => {
       const grouped = new Map<string, { total: number; count: number; category: any }>();
       const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
       for (const tx of monthTxs) {
-        if (tx.currencyLocked || tx.currencyUnavailable || tx.foundedWithRealizedGoal || !isNativeCurrency(tx, userCurrency)) continue;
+        if (tx.currencyLocked || tx.currencyUnavailable || tx.foundedWithRealizedGoal || tx.isLarderFund || !isNativeCurrency(tx, userCurrency)) continue;
         const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
         const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
         if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
