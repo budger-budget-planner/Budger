@@ -280,9 +280,14 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   const passwordHash = await bcryptjs.hash(password, 10);
   const [updated] = await db.update(usersTable)
-    .set({ passwordHash, pinLength: password.length })
+    .set({ passwordHash, pinLength: password.length, signupExpiresAt: null })
     .where(eq(usersTable.id, user.id))
     .returning();
+
+  if (!updated) {
+    res.status(500).json({ error: "Registration failed — please try again" });
+    return;
+  }
 
   (req.session as any).userId = updated.id;
   res.status(201).json(LoginResponse.parse(serializeUser(updated)));

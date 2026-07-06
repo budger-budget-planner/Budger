@@ -62,15 +62,16 @@ export default function LoginPage() {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [loginChecking, setLoginChecking] = useState(false);
   const [loginPinLength, setLoginPinLength] = useState<number | null>(null);
-  const [showPinSubmit, setShowPinSubmit] = useState(false);
-
-  // Show a manual submit button after 15 s on the PIN screen in case auto-submit
-  // doesn't fire (e.g. pinLength unknown, network hiccup, or mobile keyboard quirk).
-  useEffect(() => {
-    if (screen !== "login-pin") { setShowPinSubmit(false); return; }
-    const t = setTimeout(() => setShowPinSubmit(true), 15_000);
-    return () => clearTimeout(t);
-  }, [screen]);
+  // Show the submit button once the user has typed enough digits.
+  // - If the server told us the exact PIN length, wait until that exact count
+  //   (auto-submit fires at the same moment, so this is just a visible fallback).
+  // - If pinLength is unknown (check-email failed / never set), show the button
+  //   as soon as 4 digits have been typed so the user is never left stuck.
+  const showPinSubmit =
+    screen === "login-pin" &&
+    (loginPinLength !== null
+      ? loginPin.length >= loginPinLength
+      : loginPin.length >= 4);
 
   useEffect(() => {
     const vv = window.visualViewport;
