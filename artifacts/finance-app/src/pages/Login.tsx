@@ -355,8 +355,8 @@ export default function LoginPage() {
             data: {
               email: signupEmail.trim(),
               password: pin,
-              termsAccepted: true,
-              privacyAccepted: true,
+              termsAccepted,
+              privacyAccepted,
             },
           });
         } else {
@@ -563,12 +563,53 @@ export default function LoginPage() {
                 className="h-13 rounded-2xl bg-muted border-border text-base px-4"
               />
             </div>
+
+            {/* Legal acceptance checkboxes */}
+            <div className="space-y-3 pt-1">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded accent-foreground cursor-pointer"
+                />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  {t("login.terms_checkbox")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal("terms")}
+                    className="text-foreground underline underline-offset-4"
+                  >
+                    {t("login.terms_link")}
+                  </button>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={e => setPrivacyAccepted(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded accent-foreground cursor-pointer"
+                />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  {t("login.privacy_checkbox")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal("privacy")}
+                    className="text-foreground underline underline-offset-4"
+                  >
+                    {t("login.privacy_link")}
+                  </button>
+                </span>
+              </label>
+            </div>
+
             {signupError && (
               <p className="text-sm text-destructive text-center">{signupError}</p>
             )}
             <Button
               type="submit"
-              disabled={registerStart.isPending}
+              disabled={registerStart.isPending || !termsAccepted || !privacyAccepted}
               className="w-full h-14 rounded-2xl text-base font-semibold mt-2"
             >
               {registerStart.isPending ? t("login.sending_email") : t("login.next")}
@@ -848,6 +889,51 @@ export default function LoginPage() {
               maxLength={signupPin.length}
               label={register.isPending ? t("login.creating") : undefined}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── Legal text modal ── */}
+      {legalModal !== null && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-background"
+          onClick={(e) => { if (e.target === e.currentTarget) setLegalModal(null); }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 border-b border-border shrink-0">
+            <h2 className="text-base font-semibold text-foreground">
+              {legalModal === "terms" ? t("login.terms_title") : t("login.privacy_title")}
+            </h2>
+            <button
+              onClick={() => setLegalModal(null)}
+              className="text-muted-foreground text-2xl leading-none px-2 py-1"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">
+              {legalModal === "terms"
+                ? LEGAL.terms[lang as "en" | "pl"] ?? LEGAL.terms.en
+                : LEGAL.privacy[lang as "en" | "pl"] ?? LEGAL.privacy.en}
+            </pre>
+          </div>
+
+          {/* Accept / close button */}
+          <div className="shrink-0 px-5 pb-safe-bottom pb-6 pt-3 border-t border-border">
+            <Button
+              className="w-full h-14 rounded-2xl text-base font-semibold"
+              onClick={() => {
+                if (legalModal === "terms") setTermsAccepted(true);
+                if (legalModal === "privacy") setPrivacyAccepted(true);
+                setLegalModal(null);
+              }}
+            >
+              {legalModal === "terms" ? t("login.terms_link") : t("login.privacy_link")} — {t("login.continue")}
+            </Button>
           </div>
         </div>
       )}
