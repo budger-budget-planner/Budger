@@ -61,13 +61,16 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
   try {
     const vapidRes = await fetch("/api/notifications/vapid-public-key", { credentials: "include" });
     if (!vapidRes.ok) return false;
-    const { publicKey } = await vapidRes.json();
+    const { publicKey } = await vapidRes.json() as { publicKey?: string };
     if (!publicKey) return false;
 
-    const reg = await registerServiceWorker();
-    if (!reg) return false;
-
-    await navigator.serviceWorker.ready;
+    // vite-plugin-pwa handles registration; wait for the SW to be ready,
+    // but give up after 10 s to avoid a silent hang on slow devices.
+    if (!("serviceWorker" in navigator)) return false;
+    const readyTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("SW ready timeout")), 10_000)
+    );
+    const reg = await Promise.race([navigator.serviceWorker.ready, readyTimeout]);
 
     const sub = await getOrCreatePushSubscription(publicKey, reg);
     if (!sub) return false;

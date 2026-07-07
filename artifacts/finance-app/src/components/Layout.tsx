@@ -11,6 +11,7 @@ import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } fr
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
+import OfflineBanner from "@/components/OfflineBanner";
 
 
 function navItems() {
@@ -465,6 +466,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
+
+      {/* ── Offline indicator ── */}
+      <OfflineBanner />
 
       {/* ── Mission bottom sheet ── */}
       {showMission && (

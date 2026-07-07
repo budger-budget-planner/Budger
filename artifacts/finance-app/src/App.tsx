@@ -34,7 +34,15 @@ import { useLogout } from "@workspace/api-client-react";
 import { AppReadyContext, SplashResetContext, WinkSplashContext, AppRefreshContext, useSplashReset } from "@/lib/appReady";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: true } },
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: true,
+      // Run queries against the SW cache even when offline so the app
+      // stays readable without a network connection.
+      networkMode: "offlineFirst",
+    },
+  },
 });
 
 function SmartNotificationsRunner() {
