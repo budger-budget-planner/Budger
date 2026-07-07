@@ -1327,8 +1327,22 @@ export default function HomeSpending() {
     const d = tx.date || format(new Date(), "yyyy-MM-dd");
     (pendingByDate[d] ??= []).push(tx);
   }
+
+  // Pending RP applies: reconstruct display entries from the RP data we already have.
+  // Group by today's date (apply-RP always targets today).
+  type PendingRpEntry = { id: string; name: string; amount: number; color: string };
+  const pendingRpEntries: PendingRpEntry[] = [];
+  for (const rpId of pendingRpIds) {
+    const rp = manualRPs.find(r => r.id === rpId);
+    if (rp) pendingRpEntries.push({ id: `pending-rp-${rp.id}`, name: rp.name, amount: Number(rp.amount), color: rp.color });
+  }
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const pendingRpByDate: Record<string, PendingRpEntry[]> = pendingRpEntries.length > 0
+    ? { [todayStr]: pendingRpEntries }
+    : {};
+
   // Merged, de-duped date list (pending dates may not appear in DB yet)
-  const allDates = [...new Set([...Object.keys(pendingByDate), ...dates])].sort((a, b) => b.localeCompare(a));
+  const allDates = [...new Set([...Object.keys(pendingRpByDate), ...Object.keys(pendingByDate), ...dates])].sort((a, b) => b.localeCompare(a));
 
   // Top-most visible transaction ID for the swipe hint wiggle — only wiggled when the
   // occurrence rule below decides it's due (first login after onboarding, or after a
@@ -1539,6 +1553,24 @@ export default function HomeSpending() {
                 {fmtDayDate(date)}
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+                {/* Pending RP-apply rows — greyed out, non-interactive */}
+                {(pendingRpByDate[date] ?? []).map(prp => (
+                  <div key={prp.id} className="flex items-start gap-3 px-4 py-3.5 opacity-40">
+                    <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                      style={{ backgroundColor: prp.color + "33" }}>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: prp.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground leading-snug truncate">
+                        {prp.name.length > 30 ? prp.name.slice(0, 30).trimEnd() + "…" : prp.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("tx.recurring_payment")}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground flex-shrink-0 mt-0.5">
+                      −{fmtAmt(prp.amount, prefs.currency)}
+                    </p>
+                  </div>
+                ))}
                 {/* Pending (offline-queued) rows — greyed out, non-interactive */}
                 {(pendingByDate[date] ?? []).map(ptx => {
                   const cat = (categories ?? []).find(c => c.id === ptx.categoryId);

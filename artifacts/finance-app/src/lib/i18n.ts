@@ -529,6 +529,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "currency.offline_rates": { en: "Offline — using last known rates", pl: "Offline — używam ostatnich kursów"},
   "offline.mask_title":     { en: "Unavailable in Offline Mode",       pl: "Niedostępne w trybie offline"       },
   "offline.mask_subtitle":  { en: "Go to Home to add transactions while offline", pl: "Przejdź do Głównej, aby dodać transakcje offline" },
+  "offline.banner":         { en: "You're offline — viewing saved data", pl: "Jesteś offline — przeglądasz zapisane dane" },
+  "offline.back_online":    { en: "Back online",                        pl: "Powrót do sieci"                    },
 
   // ── Home additional ──
   "home.current_month":       { en: "current month",           pl: "obecny miesiąc"               },
