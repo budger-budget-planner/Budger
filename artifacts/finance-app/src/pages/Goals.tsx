@@ -821,11 +821,11 @@ function EditGoalDialog({
                   type="button"
                   onClick={handleMakeHousehold}
                   disabled={togglingHousehold}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border text-sm text-muted-foreground hover:text-foreground transition active:opacity-70 disabled:opacity-40"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/50 border border-border transition active:opacity-70 disabled:opacity-40"
                 >
-                  <Users className="w-4 h-4 flex-shrink-0" />
+                  <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-foreground">{t("goals.make_household")}</p>
+                    <p className="text-sm font-medium text-foreground">{t("goals.make_household")}</p>
                     <p className="text-xs text-muted-foreground">{t("goals.share_progress")}</p>
                   </div>
                   {togglingHousehold && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
