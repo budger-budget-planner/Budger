@@ -190,6 +190,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [historyOpen,  setHistoryOpen]  = useState(false);
   const [glBadgeCollapsed, setGlBadgeCollapsed] = useState(true);
 
+  // ── GL badge dismiss (long-press to reset the counter) ───────────────────────
+  // Stores the totalGLSent value at the time of last dismissal so the badge only
+  // shows the DELTA since then. New sends reappear; old ones are acknowledged.
+  // Key is namespaced by userId so account-switching doesn't bleed stale state.
+  const [glDismissedAmount, setGlDismissedAmount] = useState<number>(0);
+  const glLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const glWasLongPress   = useRef(false);
+  useEffect(() => () => { if (glLongPressTimer.current) clearTimeout(glLongPressTimer.current); }, []);
+
   const [spendOpen,    setSpendOpen]    = useState(false);
   const [spendDesc,    setSpendDesc]    = useState("");
   const [spendAmt,     setSpendAmt]     = useState("");
@@ -216,6 +225,31 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const totalGLSent = entries
     .filter(e => e.sourceType === "great_larder_transfer")
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  // Only show the delta since the user last dismissed (long-pressed) the badge.
+  // New transfers after a dismiss reappear; already-acknowledged ones are hidden.
+  const displayGLSent = Math.max(0, totalGLSent - glDismissedAmount);
+
+  // me is available from here; compute the user-scoped storage key now.
+  const meId = (me as any)?.id as number | undefined;
+  const glDismissedKey = `larder_gl_badge_dismissed_${meId ?? "x"}`;
+
+  // Load user-scoped dismiss baseline once userId is known.
+  useEffect(() => {
+    if (!meId) return;
+    try {
+      const stored = parseFloat(localStorage.getItem(`larder_gl_badge_dismissed_${meId}`) ?? "0") || 0;
+      setGlDismissedAmount(stored);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meId]);
+
+  // Rebase: if totalGLSent drops below the dismissed baseline (e.g. after history clear),
+  // reset so future new sends are visible immediately without exceeding the stale baseline.
+  useEffect(() => {
+    if (!meId || totalGLSent >= glDismissedAmount) return;
+    setGlDismissedAmount(totalGLSent);
+    try { localStorage.setItem(`larder_gl_badge_dismissed_${meId}`, String(totalGLSent)); } catch { /* ignore */ }
+  }, [totalGLSent, glDismissedAmount, meId]);
 
   const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
   const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
@@ -483,12 +517,28 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 </div>
               );
             })()}
-            {totalGLSent > 0 && (
+            {displayGLSent > 0 && (
               <div className="mt-3 flex justify-center">
                 <button
                   type="button"
-                  onClick={() => setGlBadgeCollapsed(c => !c)}
-                  className="relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95"
+                  onClick={() => { if (!glWasLongPress.current) setGlBadgeCollapsed(c => !c); glWasLongPress.current = false; }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    glWasLongPress.current = false;
+                    if (glLongPressTimer.current) clearTimeout(glLongPressTimer.current);
+                    glLongPressTimer.current = setTimeout(() => {
+                      glLongPressTimer.current = null;
+                      glWasLongPress.current = true;
+                      // Dismiss: record current total; badge only reappears when new sends happen
+                      const dismissed = totalGLSent;
+                      setGlDismissedAmount(dismissed);
+                      try { localStorage.setItem(glDismissedKey, String(dismissed)); } catch { /* ignore */ }
+                    }, 600);
+                  }}
+                  onPointerUp={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
+                  onPointerLeave={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
+                  onPointerCancel={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
+                  className="relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95 select-none touch-none"
                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
                   title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
@@ -500,7 +550,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                       opacity: glBadgeCollapsed ? 0 : 1,
                     }}
                   >
-                    <span className="tabular-nums whitespace-nowrap">{fmtAmt(totalGLSent, prefs.currency)}</span>
+                    <span className="tabular-nums whitespace-nowrap">{fmtAmt(displayGLSent, prefs.currency)}</span>
                     <span className="text-white/50 whitespace-nowrap">{t("larder.source_transfer")}</span>
                   </span>
                   {!noAnim && <>
