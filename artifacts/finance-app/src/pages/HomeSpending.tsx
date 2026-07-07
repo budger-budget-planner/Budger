@@ -1078,7 +1078,7 @@ export default function HomeSpending() {
     }
   }
 
-  const { pendingTxIds } = useOfflinePendingOps();
+  const { pendingTxIds, pendingTransactions } = useOfflinePendingOps();
 
   const create = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/transactions`,
@@ -1324,6 +1324,16 @@ export default function HomeSpending() {
   }
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
+  // Group pending (offline-queued) transactions by date so they merge into
+  // the same date sections as DB transactions, appearing greyed out on top.
+  const pendingByDate: Record<string, typeof pendingTransactions> = {};
+  for (const tx of pendingTransactions) {
+    const d = tx.date || format(new Date(), "yyyy-MM-dd");
+    (pendingByDate[d] ??= []).push(tx);
+  }
+  // Merged, de-duped date list (pending dates may not appear in DB yet)
+  const allDates = [...new Set([...Object.keys(pendingByDate), ...dates])].sort((a, b) => b.localeCompare(a));
+
   // Top-most visible transaction ID for the swipe hint wiggle — only wiggled when the
   // occurrence rule below decides it's due (first login after onboarding, or after a
   // week of inactivity), not on every visit to the home tab, and only once the splash
@@ -1514,26 +1524,59 @@ export default function HomeSpending() {
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-        ) : sorted.length === 0 ? (
+        ) : sorted.length === 0 && pendingTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
             <p className="text-sm">{t("home.no_spending_month")}</p>
             <Button onClick={() => setAddOpen(true)} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" /> {t("home.add_first_entry")}
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && pendingTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
             <Search className="w-8 h-8 opacity-30" />
             <p className="text-sm">{t("home.search_no_results")}</p>
           </div>
         ) : (
-          dates.map(date => (
+          allDates.map(date => (
             <div key={date}>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
                 {fmtDayDate(date)}
               </p>
               <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
-                {grouped[date].map(tx => {
+                {/* Pending (offline-queued) rows — greyed out, non-interactive */}
+                {(pendingByDate[date] ?? []).map(ptx => {
+                  const cat = (categories ?? []).find(c => c.id === ptx.categoryId);
+                  const dotColor   = cat?.color ?? "#666";
+                  const catLabel   = cat?.name ?? t("common.uncategorized");
+                  const shortName  = ptx.description.length > 30
+                    ? ptx.description.slice(0, 30).trimEnd() + "…"
+                    : ptx.description;
+                  return (
+                    <div key={ptx.id} className="flex items-start gap-3 px-4 py-3.5 opacity-40">
+                      {/* Category icon */}
+                      <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                        style={{ backgroundColor: dotColor + "33" }}>
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                      </div>
+                      {/* Name + category */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-foreground leading-snug truncate">{shortName}</p>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
+                            <Clock className="w-2.5 h-2.5" />
+                            {t("tx.pending_sync")}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{catLabel}</p>
+                      </div>
+                      {/* Amount */}
+                      <p className="text-sm font-semibold text-foreground flex-shrink-0 mt-0.5">
+                        −{fmtAmt(ptx.amount, prefs.currency)}
+                      </p>
+                    </div>
+                  );
+                })}
+                {(grouped[date] ?? []).map(tx => {
                   const contrib    = contribByTxId.get(tx.id);
                   const isRP       = !tx.categoryId && !!(tx as any).recurringPaymentId;
                   const dotColor   = tx.categoryColor ?? (tx as any).recurringPaymentColor ?? "#666";
