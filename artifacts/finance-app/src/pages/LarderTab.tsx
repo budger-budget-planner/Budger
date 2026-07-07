@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey } from "@workspace/api-client-react";
+import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
@@ -236,6 +236,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
+    // Also invalidate the generated hook's cache key used by the Goals page for diamond display
+    queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
   }
 
   async function handleClearHistory() {

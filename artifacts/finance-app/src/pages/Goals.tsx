@@ -311,29 +311,30 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
               <Target className="w-4 h-4" style={{ color: goal.color }} />
             </div>
             {/* Diamond sparkles: count 1–4 based on % of goal funded by Larder/GL */}
+            {/* Each diamond is on a different edge at an irregular 1/4–1/3 offset from an end */}
             {diamondCount >= 1 && (
-              <div style={{ position:"absolute", top:-7, right:-7, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+              <div style={{ position:"absolute", top:-7, right:9, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
               </div>
             )}
             {diamondCount >= 2 && (
-              <div style={{ position:"absolute", bottom:-6, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+              <div style={{ position:"absolute", bottom:-6, left:12, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
               </div>
             )}
             {diamondCount >= 3 && (
-              <div style={{ position:"absolute", top:-6, left:-6, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
+              <div style={{ position:"absolute", top:11, left:-6, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.70)" }} />
               </div>
             )}
             {diamondCount >= 4 && (
-              <div style={{ position:"absolute", bottom:-6, right:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
+              <div style={{ position:"absolute", bottom:8, right:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.68)" }} />
@@ -965,12 +966,14 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
               <Target className="w-3.5 h-3.5" style={{ color: goal.color }} />
             </div>
             {savedToLarder > 0 && (<>
-              <div style={{ position:"absolute", top:-7, right:-7, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+              {/* top edge, ~1/4 from right (32px icon → 8px) */}
+              <div style={{ position:"absolute", top:-7, right:8, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
               </div>
-              <div style={{ position:"absolute", bottom:-6, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+              {/* left edge, ~1/3 from bottom (32px icon → 10px) */}
+              <div style={{ position:"absolute", bottom:10, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
@@ -1136,7 +1139,7 @@ export default function GoalsPage() {
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
   // Fetch larder at page level so GoalCard diamonds have data on first render (no late-mount flash)
-  const { data: larderForBadge, isLoading: larderLoading } = useGetLarder({ query: { enabled: true } } as any);
+  const { data: larderForBadge, isLoading: larderLoading } = useGetLarder({ query: { enabled: true, refetchInterval: 15_000, refetchOnWindowFocus: true } } as any);
   const savedToLarderAmounts = new Map<number, number>();
   const larderDedicatedAmounts = new Map<number, number>();
   ((larderForBadge as any)?.entries ?? []).forEach((e: any) => {
