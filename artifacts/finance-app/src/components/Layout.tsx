@@ -56,10 +56,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     clearTimeout(badgerTimerRef.current);
     if (!isOnline) {
       setBadgerMode("falling-asleep");
-      badgerTimerRef.current = setTimeout(() => setBadgerMode("sleeping"), 1_400);
+      badgerTimerRef.current = setTimeout(() => setBadgerMode("sleeping"), 2_000);
     } else {
       setBadgerMode("waking-up");
-      badgerTimerRef.current = setTimeout(() => setBadgerMode("awake"), 1_000);
+      badgerTimerRef.current = setTimeout(() => setBadgerMode("awake"), 2_600);
     }
     return () => clearTimeout(badgerTimerRef.current);
   }, [isOnline]);

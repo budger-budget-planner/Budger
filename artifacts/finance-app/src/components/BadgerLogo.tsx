@@ -158,30 +158,64 @@ export default function BadgerLogo({
             100% { opacity: 0; }
           }
 
-          /* ══ FALLING ASLEEP — both eyes close slowly ══ */
-          .blg-falling-asleep .blg-eye-l {
-            animation: blg-eye-close 1.3s ease-in-out forwards;
+          /* ── Yawn mouth — hidden by default ── */
+          .blg-yawn {
+            opacity: 0;
+            transform-box: fill-box;
+            transform-origin: 50px 71px; /* hinge at top of mouth opening */
           }
-          .blg-falling-asleep .blg-eye-r {
-            animation: blg-eye-close 1.3s ease-in-out forwards 0.18s;
+          /* Smile hides while mouth is open during a yawn */
+          .blg-falling-asleep .blg-smile,
+          .blg-waking-up .blg-smile {
+            animation: blg-smile-yawn 1.6s ease-in-out forwards;
           }
-          @keyframes blg-eye-close {
-            0%   { transform: scaleY(1); }
-            30%  { transform: scaleY(0.55); }
-            60%  { transform: scaleY(0.18); }
-            85%  { transform: scaleY(0.04); }
-            100% { transform: scaleY(0.04); }
+          @keyframes blg-smile-yawn {
+            0%,  8%   { opacity: 1; }
+            18%, 82%  { opacity: 0; }
+            95%, 100% { opacity: 1; }
+          }
+          .blg-falling-asleep .blg-yawn {
+            animation: blg-yawn-open 1.6s ease-in-out forwards;
+          }
+          .blg-waking-up .blg-yawn {
+            animation: blg-yawn-open 1.4s ease-in-out forwards;
+          }
+          @keyframes blg-yawn-open {
+            0%   { opacity: 0; transform: scaleY(0);    }
+            12%  { opacity: 1; transform: scaleY(0.4);  }
+            30%  { opacity: 1; transform: scaleY(1);    }
+            65%  { opacity: 1; transform: scaleY(1);    }
+            88%  { opacity: 0.7; transform: scaleY(0.15); }
+            100% { opacity: 0; transform: scaleY(0);    }
           }
 
-          /* Drawn closed eyelids — hidden by default, visible only when sleeping */
+          /* ══ FALLING ASLEEP — both eyes close slowly, fading to grey ══ */
+          .blg-falling-asleep .blg-eye-l {
+            animation: blg-eye-close 1.4s ease-in-out forwards 0.3s;
+          }
+          .blg-falling-asleep .blg-eye-r {
+            animation: blg-eye-close 1.4s ease-in-out forwards 0.5s;
+          }
+          @keyframes blg-eye-close {
+            0%   { transform: scaleY(1);    opacity: 1;    }
+            30%  { transform: scaleY(0.55); opacity: 0.75; }
+            60%  { transform: scaleY(0.18); opacity: 0.45; }
+            85%  { transform: scaleY(0.05); opacity: 0.25; }
+            100% { transform: scaleY(0.04); opacity: 0.2;  }
+          }
+
+          /* Drawn closed eyelids (grey arc lines) — hidden by default */
           .blg-closed-eye-l,
           .blg-closed-eye-r { opacity: 0; }
 
           /* ══ SLEEPING ══ */
-          /* Hide the open-eye groups so drawn lids take over */
+          /* Eyes stay visible as a faint grey sliver — not hidden, just dim */
           .blg-sleeping .blg-eye-l,
-          .blg-sleeping .blg-eye-r { opacity: 0; }
-          /* Reveal the drawn closed eyelids */
+          .blg-sleeping .blg-eye-r {
+            transform: scaleY(0.04);
+            opacity: 0.2;
+          }
+          /* Grey eyelid arc lines sit on top of the faint sliver */
           .blg-sleeping .blg-closed-eye-l,
           .blg-sleeping .blg-closed-eye-r { opacity: 1; }
           /* Gentle breathing on the whole group */
@@ -189,21 +223,17 @@ export default function BadgerLogo({
             animation: blg-breathe 3.5s ease-in-out infinite;
           }
           @keyframes blg-breathe {
-            0%, 100% { transform: translateY(0px); }
+            0%, 100% { transform: translateY(0px);   }
             35%      { transform: translateY(-1.4px); }
             65%      { transform: translateY(-1.4px); }
           }
 
-          /* Zzz — hidden by default, animated only when sleeping.
-             Italic weight makes them read instantly as sleep-Zzz.
-             Sizes 15/20/25 SVG units → ~6/8/11 px at 42 px display size. */
+          /* Zzz — hidden by default, animated only when sleeping          */
           .blg-zzz {
             opacity: 0;
             transform-box: fill-box;
             transform-origin: center;
           }
-          /* Every-other-breath: 7 s cycle (two 3.5 s breaths).
-             First ≈ 3.5 s active (rise + fade), last ≈ 3.5 s silent. */
           .blg-sleeping .blg-z1 {
             animation: blg-zzz-rise 7s ease-in-out infinite 0.35s;
           }
@@ -214,35 +244,44 @@ export default function BadgerLogo({
             animation: blg-zzz-rise 7s ease-in-out infinite 1.65s;
           }
           @keyframes blg-zzz-rise {
-            0%   { opacity: 0; transform: translate(0px, 0px); }
-            8%   { opacity: 1; }
-            46%  { opacity: 0.85; transform: translate(10px, -20px); }
-            56%  { opacity: 0;   transform: translate(12px, -25px); }
-            100% { opacity: 0;   transform: translate(12px, -25px); }
+            0%   { opacity: 0;    transform: translate(0px,   0px);   }
+            8%   { opacity: 1;                                         }
+            46%  { opacity: 0.85; transform: translate(10px, -20px);  }
+            56%  { opacity: 0;    transform: translate(12px, -25px);  }
+            100% { opacity: 0;    transform: translate(12px, -25px);  }
           }
 
           /* ══ WAKING UP ══ */
-          /* Drawn lids fade out as real eyes open */
+          /* Grey arc lids fade out at the very start of waking */
           .blg-waking-up .blg-closed-eye-l,
           .blg-waking-up .blg-closed-eye-r {
-            animation: blg-closed-fade 0.25s ease-out forwards;
+            animation: blg-closed-fade 0.3s ease-out forwards;
           }
           @keyframes blg-closed-fade {
             from { opacity: 1; }
             to   { opacity: 0; }
           }
-          /* Real eyes: restore opacity and spring open */
+          /* Eyes: yawn → groggy half-open → droop → spring fully open   */
           .blg-waking-up .blg-eye-l,
           .blg-waking-up .blg-eye-r {
-            opacity: 1;
-            animation: blg-eye-open 0.95s ease-out forwards;
+            animation: blg-eye-wake 2.5s ease-in-out forwards;
           }
-          @keyframes blg-eye-open {
-            0%   { transform: scaleY(0.04); }
-            42%  { transform: scaleY(1.18); }
-            65%  { transform: scaleY(0.80); }
-            83%  { transform: scaleY(1.09); }
-            100% { transform: scaleY(1); }
+          @keyframes blg-eye-wake {
+            /* sleeping baseline */
+            0%   { transform: scaleY(0.04); opacity: 0.2;  }
+            /* hold while yawn is in full swing */
+            20%  { transform: scaleY(0.04); opacity: 0.2;  }
+            /* groggy half-open — still bleary */
+            36%  { transform: scaleY(0.45); opacity: 0.6;  }
+            /* droop back shut — too tired yet */
+            53%  { transform: scaleY(0.04); opacity: 0.3;  }
+            /* brief hold */
+            61%  { transform: scaleY(0.04); opacity: 0.3;  }
+            /* spring OPEN with overshoot bounce */
+            76%  { transform: scaleY(1.18); opacity: 1;    }
+            86%  { transform: scaleY(0.82); opacity: 1;    }
+            93%  { transform: scaleY(1.08); opacity: 1;    }
+            100% { transform: scaleY(1);    opacity: 1;    }
           }
         `}</style>
       </defs>
@@ -293,25 +332,23 @@ export default function BadgerLogo({
           <circle cx="72.5" cy="47" r="2.5" fill="white" />
         </g>
 
-        {/* ── Drawn closed eyelids — visible only during sleeping ──────────
-             A filled circle blocks the white sclera; a thick curved arc on
-             top reads instantly as a firmly-shut eyelid at any icon size.  */}
+        {/* ── Drawn closed eyelids — grey arc lines only, no fill blocking ──
+             The open eye sits at opacity 0.2 + scaleY 0.04 during sleep
+             (a faint grey sliver). These arc lines draw on top to complete
+             the firmly-shut look without hiding the eye entirely.          */}
         <g className="blg-closed-eye-l">
-          {/* Block out the open eye beneath */}
-          <circle cx="29" cy="48" r="11" fill="#111" />
           {/* Upper eyelid crease — arches gently upward */}
           <path d="M 18.5 48 Q 29 41.5 39.5 48"
-            stroke="#686868" strokeWidth="3" strokeLinecap="round" fill="none" />
+            stroke="#787878" strokeWidth="3" strokeLinecap="round" fill="none" />
           {/* Lower lid shadow for depth */}
           <path d="M 19.5 50 Q 29 53.5 38.5 50"
-            stroke="#3a3a3a" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.7" />
+            stroke="#484848" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
         </g>
         <g className="blg-closed-eye-r">
-          <circle cx="71" cy="48" r="11" fill="#111" />
           <path d="M 60.5 48 Q 71 41.5 81.5 48"
-            stroke="#686868" strokeWidth="3" strokeLinecap="round" fill="none" />
+            stroke="#787878" strokeWidth="3" strokeLinecap="round" fill="none" />
           <path d="M 61.5 50 Q 71 53.5 80.5 50"
-            stroke="#3a3a3a" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.7" />
+            stroke="#484848" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
         </g>
 
         {/* Nose — SNIFF target */}
@@ -320,14 +357,29 @@ export default function BadgerLogo({
           <ellipse cx="47" cy="65" rx="3"   ry="2.2" fill="#2a2a2a" />
         </g>
 
-        {/* Smile */}
+        {/* Smile — hidden during yawn via CSS */}
         <path
+          className="blg-smile"
           d="M 41 73 Q 50 81 59 73"
           stroke="#999"
           strokeWidth="2.5"
           strokeLinecap="round"
           fill="none"
         />
+
+        {/* ── Yawn mouth ─────────────────────────────────────────────────────
+             Appears at the start of falling-asleep and waking-up. Scales
+             downward from the top of the mouth opening (transform-origin set
+             in CSS). The smile hides while this is visible.                */}
+        <g className="blg-yawn">
+          {/* Dark mouth cavity */}
+          <ellipse cx="50" cy="77" rx="12" ry="8" fill="#1a1a1a" />
+          {/* Upper teeth row */}
+          <rect x="41" y="70.5" width="18" height="2.8" rx="1.4" fill="#f0ede6" opacity="0.88" />
+          {/* Tongue tip just visible inside */}
+          <ellipse cx="50" cy="82" rx="7" ry="4" fill="#e8608a" />
+          <ellipse cx="48.5" cy="80.5" rx="1.6" ry="1" fill="white" opacity="0.25" />
+        </g>
 
         {/* Tongue — LICK target (hidden by default via CSS) */}
         <g className="blg-tongue">
