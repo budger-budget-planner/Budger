@@ -1558,10 +1558,6 @@ export default function HomeSpending() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-sm font-medium text-foreground leading-snug truncate">{shortName}</p>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
-                            <Clock className="w-2.5 h-2.5" />
-                            {t("tx.pending_sync")}
-                          </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">{catLabel}</p>
                       </div>
@@ -1917,10 +1913,7 @@ export default function HomeSpending() {
                           {isApplied ? (
                             <span className="text-xs text-white/30">{t("rp.applied_badge")}</span>
                           ) : isPending ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
-                              <Clock className="w-2.5 h-2.5" />
-                              {t("tx.pending_sync")}
-                            </span>
+                            null
                           ) : (
                             <CheckCircle className={`w-4 h-4 flex-shrink-0 transition-colors ${isExpanded ? "text-white/60" : "text-white/20"}`} />
                           )}

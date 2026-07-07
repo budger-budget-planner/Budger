@@ -861,10 +861,6 @@ export default function TransactionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-sm font-medium truncate text-muted-foreground">{tx.description}</p>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
-                        <Clock className="w-2.5 h-2.5" />
-                        {t("tx.pending_sync")}
-                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{displayName} · {payLabel}</p>
                   </div>
@@ -938,9 +934,6 @@ export default function TransactionsPage() {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
-                  {pendingTxIds.has(tx.id) && (
-                    <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label="Pending sync" />
-                  )}
                   {/* Amount — show original currency for locked rows */}
                   <span className="font-semibold text-sm w-20 text-right flex-shrink-0">
                     {tx.currencyLocked && tx.transactionCurrency
