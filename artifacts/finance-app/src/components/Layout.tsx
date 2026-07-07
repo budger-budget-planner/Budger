@@ -12,6 +12,7 @@ import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
+import { OfflineMask } from "@/components/OfflineMask";
 import { useQueueReplay } from "@/hooks/useQueueReplay";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -727,6 +728,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </>
       )}
 
+
+      {/* ── Offline mask — covers all non-Home tabs ── */}
+      {!isOnline && location !== "/" && <OfflineMask />}
 
       {/* ── Page content ── */}
       <main ref={mainRef} className="flex-1 overflow-auto pb-24">

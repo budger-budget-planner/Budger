@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { OfflineMask } from "@/components/OfflineMask";
 import { t } from "@/lib/i18n";
 import {
   useListCategories,
@@ -907,7 +906,6 @@ export default function CategoriesPage() {
 
   return (
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto">
-      <OfflineMask />
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-xl font-bold">{t("cat.title")}</h1>

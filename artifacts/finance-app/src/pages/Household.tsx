@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { OfflineMask } from "@/components/OfflineMask";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
@@ -986,8 +985,6 @@ export default function HouseholdPage() {
 
   return (
     <div className="pb-28 anim-in">
-      <OfflineMask />
-
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold">{t("hh.title")}</h1>

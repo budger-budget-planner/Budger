@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import LarderCard from "@/pages/LarderTab";
-import { OfflineMask } from "@/components/OfflineMask";
 import {
   useListGoals,
   useListPastGoals,
@@ -1387,8 +1386,6 @@ export default function GoalsPage() {
 
   return (
     <>
-    <OfflineMask />
-
     <div className="px-4 pt-5 pb-4 max-w-2xl mx-auto anim-in">
 
       {/* ── Goals content ── */}
