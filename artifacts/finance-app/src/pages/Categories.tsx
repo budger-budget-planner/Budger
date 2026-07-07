@@ -19,6 +19,7 @@ import {
   getListHouseholdMembersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -461,10 +462,10 @@ function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () =>
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const remove = useDeleteRecurringPayment({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() }),
-    },
+  const remove = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() }),
   });
 
   const typeLabel = rp.type === "scheduled"
@@ -538,12 +539,13 @@ function EditRPDialog({ rp, open, onClose, sym }: {
   const [dayOfMonth, setDayOfMonth] = useState(rp.dayOfMonth != null ? String(rp.dayOfMonth) : "");
   const [addToLarder, setAddToLarder] = useState<boolean>(rp.addToLarder ?? false);
 
-  const update = useUpdateRecurringPayment({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
-        onClose();
-      },
+  const update = useMutationWithQueue({
+    endpoint: (vars: { id: number; data: any }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
+    method: "PATCH",
+    getPayload: (vars: { id: number; data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      onClose();
     },
   });
 
@@ -802,13 +804,14 @@ export default function CategoriesPage() {
   const { data: categories, isLoading } = useListCategories();
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
 
-  const updateMe = useUpdateMe({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-        // Also refresh household members so the Household tab sees the updated member budgets
-        queryClient.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
-      },
+  const updateMe = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/auth/me`,
+    method: "PATCH",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      // Also refresh household members so the Household tab sees the updated member budgets
+      queryClient.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
     },
   });
 
@@ -821,12 +824,13 @@ export default function CategoriesPage() {
     },
   });
 
-  const createRP = useCreateRecurringPayment({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
-        resetAndClose();
-      },
+  const createRP = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/recurring-payments`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      resetAndClose();
     },
   });
 

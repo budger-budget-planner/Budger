@@ -9,3 +9,4 @@
 - [Login PIN UX fix & session persistence](login-pin-ux-fix.md) — session race fix (await session.save before res.json), PIN-clear only on auth errors, Continue button in keyboard grid
 - [Remix fresh-DB schema auto-push](remix-fresh-db.md) — after remix, DB is empty with no schema; fixed by running drizzle-kit push --force at every API server startup
 - [Larder independence rule](larder-independence.md) — Larder is a jar: funding/spending it does not link to transactions; deleting a source transaction must never revert Larder balance
+- [Offline mutation queue](offline-mutation-queue.md) — Phase 2 offline queue: IndexedDB, stop-on-failure ordering, Web Locks for concurrent drain, useMutationWithQueue hook design

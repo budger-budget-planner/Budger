@@ -5,6 +5,8 @@ import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGe
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
   ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users,
@@ -167,6 +169,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const sym = currencySymbol(prefs.currency);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
 
   const { data: larder } = useQuery<LarderSummary>({
     queryKey: ["larder"],
@@ -261,6 +264,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     const amount = parseFloat(spendAmt.replace(",", "."));
     if (isNaN(amount) || amount <= 0) return;
     if (amount > spendAssetBalance + 0.005) return;
+    if (!isOnline) {
+      void enqueue({
+        endpoint: `${import.meta.env.BASE_URL}api/larder/spend`,
+        method: "POST",
+        payload: { description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined },
+      }).then(() => requestBackgroundSync()).catch(console.error);
+      setSpendOpen(false); setSpendDesc(""); setSpendAmt("");
+      toast({ title: "Saved offline — will sync when back online" });
+      return;
+    }
     setSpendLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
@@ -293,6 +306,17 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         amount = parseFloat(sendGlAmt.replace(",", "."));
       }
       if (amount > sendGlAssetBalance + 0.005) { setSendGlLoading(false); return; }
+      if (!isOnline) {
+        void enqueue({
+          endpoint: `${import.meta.env.BASE_URL}api/great-larder/send`,
+          method: "POST",
+          payload: { amount, assetCurrency: sendGlAsset || undefined },
+        }).then(() => requestBackgroundSync()).catch(console.error);
+        toast({ title: "Saved offline — will sync when back online" });
+        setSendGlOpen(false); setSendGlAmt(""); setSendGlPct("");
+        setSendGlLoading(false);
+        return;
+      }
       const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -315,6 +339,16 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     const amt = parseFloat(dedAmount.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
     if (amt > dedAssetBalance + 0.005) return;
+    if (!isOnline) {
+      void enqueue({
+        endpoint: `${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`,
+        method: "POST",
+        payload: { goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined },
+      }).then(() => requestBackgroundSync()).catch(console.error);
+      toast({ title: "Saved offline — will sync when back online" });
+      setDedicateOpen(false); setDedGoalId(null); setDedAmount("");
+      return;
+    }
     setDedLoading(true);
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {

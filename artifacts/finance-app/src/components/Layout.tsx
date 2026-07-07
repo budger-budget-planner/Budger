@@ -12,6 +12,7 @@ import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
+import { useQueueReplay } from "@/hooks/useQueueReplay";
 
 
 function navItems() {
@@ -30,6 +31,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const mainRef        = useRef<HTMLDivElement>(null);
   const [waveIntensity, setWaveIntensity] = useState(0);
   const [larderReached, setLarderReached] = useState(false);
+
+  // Drain queued offline mutations whenever connectivity returns
+  useQueueReplay();
 
   // Scroll to top on every tab/route change
   useEffect(() => {

@@ -29,6 +29,7 @@ import {
   useDeleteLarderEntry,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -164,40 +165,42 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
   const [amount, setAmount]     = useState("");
   const [saving, setSaving]     = useState(false);
 
-  const addContrib = useCreateGoalContribution({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
-        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-        setGoalId(""); setAmount(""); setSaving(false);
-      },
-      onError: () => setSaving(false),
+  const addContrib = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/goal-contributions`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+      setGoalId(""); setAmount(""); setSaving(false);
+    },
+    onError: () => setSaving(false),
+  });
+
+  const removeContrib = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/goal-contributions/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
     },
   });
 
-  const removeContrib = useDeleteGoalContribution({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: currentMonth }) });
-        queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-      },
+  const addLarderEntry = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/larder/entries`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+      setGoalId(""); setAmount(""); setSaving(false);
     },
+    onError: () => setSaving(false),
   });
 
-  const addLarderEntry = useAddLarderEntry({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-        setGoalId(""); setAmount(""); setSaving(false);
-      },
-      onError: () => setSaving(false),
-    },
-  });
-
-  const removeLarderEntry = useDeleteLarderEntry({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() }),
-    },
+  const removeLarderEntry = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/larder/entries/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() }),
   });
 
   function handleAdd(e: React.FormEvent) {
@@ -587,8 +590,17 @@ export default function TransactionsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); } } });
-  const remove = useDeleteTransaction({ mutation: { onSuccess: () => invalidateAll(queryClient) } });
+  const create = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/transactions`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => { invalidateAll(queryClient, currentMonth); setAddOpen(false); },
+  });
+  const remove = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/transactions/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => invalidateAll(queryClient),
+  });
 
   async function saveName(txId: number) {
     const trimmed = nameEditValue.trim();

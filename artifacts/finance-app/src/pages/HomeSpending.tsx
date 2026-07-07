@@ -34,6 +34,7 @@ import {
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1070,16 +1071,35 @@ export default function HomeSpending() {
     }
   }
 
-  const create = useCreateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); } } });
-  const update = useUpdateTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setEditTx(null); } } });
-  const remove = useDeleteTransaction({ mutation: { onSuccess: () => { invalidateAll(queryClient); setActionTx(null); } } });
-  const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
-  const deleteLarderEntry = useDeleteLarderEntry({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-        setLarderClearConfirm(null);
-      },
+  const create = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/transactions`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => { invalidateAll(queryClient); setAddOpen(false); },
+  });
+  const update = useMutationWithQueue({
+    endpoint: (vars: { id: number; data: any }) => `${import.meta.env.BASE_URL}api/transactions/${vars.id}`,
+    method: "PATCH",
+    getPayload: (vars: { id: number; data: any }) => vars.data,
+    onSuccess: () => { invalidateAll(queryClient); setEditTx(null); },
+  });
+  const remove = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/transactions/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => { invalidateAll(queryClient); setActionTx(null); },
+  });
+  const updateMe = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/auth/me`,
+    method: "PATCH",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }),
+  });
+  const deleteLarderEntry = useMutationWithQueue({
+    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/larder/entries/${vars.id}`,
+    method: "DELETE",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+      setLarderClearConfirm(null);
     },
   });
 
