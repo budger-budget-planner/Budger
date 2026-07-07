@@ -358,12 +358,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         body: JSON.stringify({ goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      const data = await r.json().catch(() => ({}));
       invalidate();
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
       setDedicateOpen(false);
       setDedGoalId(null); setDedAmount("");
-      toast({ title: t("larder.dedicate_success") });
+      toast({ title: data.goalCompleted ? t("larder.goal_completed_toast") : t("larder.dedicate_success") });
     } catch (err: any) {
       toast({ title: err.message ?? "Failed" });
     } finally { setDedLoading(false); }
@@ -757,8 +758,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               if (remaining <= 0) return (
                 <p className="text-xs text-emerald-400/80">{t("home.goal_completed")}</p>
               );
+              const enteredAmt = parseFloat(dedAmount.replace(",", "."));
+              const wouldComplete = !isNaN(enteredAmt) && enteredAmt > 0 && enteredAmt >= remaining - 0.005;
               return (
-                <p className="text-xs text-white/45">{t("home.goal_remaining", { amt: fmtAmt(remaining, currency) })}</p>
+                <>
+                  <p className="text-xs text-white/45">{t("home.goal_remaining", { amt: fmtAmt(remaining, currency) })}</p>
+                  {wouldComplete && (
+                    <p className="text-xs text-amber-300/80 mt-0.5">{t("larder.goal_completes_24h")}</p>
+                  )}
+                </>
               );
             })()}
           </div>

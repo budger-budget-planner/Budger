@@ -310,7 +310,19 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
     householdId: goal.householdId ?? null,
   }).returning();
 
-  res.status(201).json({ success: true, contributionId: contrib.id, newLarderTotal: total - accountAmount });
+  // Check whether this dedication completes the goal and set realizedAt if so.
+  // (The same check lives in the goal-contributions route; we mirror it here
+  // because this contribution is created directly, bypassing that route.)
+  let goalCompleted = false;
+  const allContribs = await db.select().from(goalContributionsTable)
+    .where(eq(goalContributionsTable.goalId, goalId));
+  const totalContributed = allContribs.reduce((s, c) => s + parseFloat(String(c.amount)), 0);
+  if (totalContributed >= parseFloat(String(goal.budget)) && !goal.realizedAt) {
+    await db.update(goalsTable).set({ realizedAt: new Date() }).where(eq(goalsTable.id, goalId));
+    goalCompleted = true;
+  }
+
+  res.status(201).json({ success: true, contributionId: contrib.id, newLarderTotal: total - accountAmount, goalCompleted });
 });
 
 // POST /larder/spend — spend FROM the Larder: deducts balance, creates a transaction tagged "From Larder"

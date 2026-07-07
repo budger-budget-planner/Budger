@@ -942,6 +942,14 @@ const translations: Record<string, Record<Lang, string>> = {
   "queue.send_to_gl":            { en: "Send to GL",                 pl: "Przekaż do WS"                      },
 
   "camera.denied":  { en: "Camera access was denied. Please allow camera access in your device settings.", pl: "Dostęp do kamery został zablokowany. Zezwól na dostęp do kamery w ustawieniach urządzenia." },
+
+  "larder.goal_completes_24h":   { en: "This will complete the goal. It will move to Past Goals within 24 hours.", pl: "To zakończy cel. Zostanie przeniesiony do Przeszłych Celów w ciągu 24 godzin." },
+  "larder.goal_completed_toast": { en: "Goal completed! It will move to Past Goals within 24 hours.",            pl: "Cel ukończony! Zostanie przeniesiony do Przeszłych Celów w ciągu 24 godzin."   },
+
+  "offline.connection_detected": { en: "Connection available",                                   pl: "Połączenie dostępne"                                  },
+  "offline.reconnect_ask":       { en: "You're offline by choice. A network connection was detected — go back online?", pl: "Jesteś offline celowo. Wykryto połączenie — wrócić do trybu online?" },
+  "offline.go_online":           { en: "Go Online",                                              pl: "Wróć online"                                          },
+  "offline.stay_offline":        { en: "Stay Offline",                                           pl: "Zostań offline"                                       },
   "larder.source_recurring": { en: "Recurring payment",              pl: "Płatność cykliczna"                 },
   "larder.source_fund":      { en: "From Larder",                    pl: "Ze Spiżarni"                        },
   "larder.dedicated_badge":  { en: "Dedicated to Larder",            pl: "Przeznaczone do Spiżarni"           },

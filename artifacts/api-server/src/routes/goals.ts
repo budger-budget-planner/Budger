@@ -709,32 +709,51 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
     }
   }
 
-  // Refund each contributor's own money into their personal Larder instead of
-  // letting it vanish when the goal (and its contributions) are deleted.
+  // Fetch all contributions for this goal.
   const contribs = await db.select().from(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
-  const refundByUser = new Map<number, { amount: number; currency: string }>();
+
+  // Detect how much each user contributed via Larder (no transactionId = larder path).
+  // Positive no-transactionId rows = larder dedications.
+  // Negative no-transactionId rows = save-from-goal reversals (money already returned).
+  // The NET of these two gives the effective larder exposure that must NOT be refunded.
+  // Key: "userId|currency" so we never subtract EUR larder-net from a USD refund bucket.
+  // Using account amounts (same currency as refund buckets) avoids the asset-currency
+  // vs account-currency mismatch present in the earlier larderEntriesTable approach.
+  const larderNetByKey = new Map<string, number>(); // "userId|currency" → net amount
+  for (const c of contribs) {
+    if (c.transactionId == null) {
+      const amt = parseFloat(String(c.accountAmount ?? c.amount));
+      const cur = c.accountCurrency ?? c.currency ?? goal.currency ?? "USD";
+      const key = `${c.userId}|${cur}`;
+      larderNetByKey.set(key, (larderNetByKey.get(key) ?? 0) + amt);
+    }
+  }
+
+  // Refund each contributor's own money (only the transaction-funded portion) into
+  // their personal Larder instead of letting it vanish when the goal is deleted.
+  // Key: "userId|currency" — one primary bucket per user per currency.
+  const refundByKey = new Map<string, { userId: number; amount: number; currency: string }>();
   for (const c of contribs) {
     const amt = parseFloat(String(c.accountAmount ?? c.amount));
     const currency = c.accountCurrency ?? c.currency ?? goal.currency ?? "USD";
-    const existing = refundByUser.get(c.userId);
-    if (existing && existing.currency === currency) {
+    const key = `${c.userId}|${currency}`;
+    const existing = refundByKey.get(key);
+    if (existing) {
       existing.amount += amt;
-    } else if (!existing) {
-      refundByUser.set(c.userId, { amount: amt, currency });
     } else {
-      // Mixed-currency contributions from the same user: keep the larger bucket,
-      // still refund via a second entry rather than dropping the amount.
-      await db.insert(larderEntriesTable).values({
-        userId: c.userId,
-        amount: String(amt),
-        currency,
-        sourceType: "goal_deleted_refund",
-        goalId: id,
-        note: `Refunded from deleted goal: ${goal.name}`,
-      });
+      refundByKey.set(key, { userId: c.userId, amount: amt, currency });
     }
   }
-  for (const [refundUserId, { amount, currency }] of refundByUser) {
+  // Subtract net larder contribution within the matching currency bucket so that
+  // money dedicated from the Larder is NOT double-credited back.
+  for (const [key, netLarder] of larderNetByKey) {
+    const bucket = refundByKey.get(key);
+    if (bucket && netLarder > 0) {
+      bucket.amount = Math.max(0, bucket.amount - netLarder);
+    }
+  }
+
+  for (const { userId: refundUserId, amount, currency } of refundByKey.values()) {
     if (amount <= 0.001) continue;
     await db.insert(larderEntriesTable).values({
       userId: refundUserId,
