@@ -77,7 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     const onlineTimer = setTimeout(() => {
       window.dispatchEvent(new Event("online"));
-    }, 15_000 + 90_000); // 15 s offline + 90 s sleeping = back online at 105 s
+    }, 15_000 + 60_000); // 15 s offline + 60 s sleeping = back online at 75 s
 
     return () => {
       clearTimeout(offlineTimer);
