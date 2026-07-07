@@ -4,12 +4,14 @@ import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
   Smartphone, ExternalLink, Circle, Sparkles, Crown,
+  FileText, ShieldCheck,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetNotificationSettings,
   useUpdateNotificationSettings,
   getGetNotificationSettingsQueryKey,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -23,6 +25,7 @@ import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
 import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
+import { LEGAL } from "@/lib/legal";
 import { showNotification } from "@/lib/show-notification";
 
 // ─── Alert (alarm) types ──────────────────────────────────────────────────────
@@ -375,6 +378,7 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
 // ─── Sub-panel: Settings ──────────────────────────────────────────────────────
 function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
+  const { data: user } = useGetMe();
   const [animDisabled, setAnimDisabled] = useState(() => loadPrefs().disableAnimations ?? false);
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
@@ -382,6 +386,17 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   });
   const [previewing, setPreviewing] = useState(false);
   const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Legal / Delete state
+  const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"warning" | "type-email" | "final" | "pending" | "done">("warning");
+  const [deleteUnderstood, setDeleteUnderstood] = useState(false);
+  const [deleteEmailInput, setDeleteEmailInput] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
+  const lang = (loadPrefs().language ?? "en") as "en" | "pl";
+
   useEffect(() => () => { if (previewTimeout.current) clearTimeout(previewTimeout.current); }, []);
 
   async function handleSmartToggle(key: keyof SmartAlertPrefs, value: boolean) {
@@ -412,6 +427,34 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     previewTimeout.current = setTimeout(() => setPreviewing(false), 2600);
   }
 
+  function openDeleteFlow() {
+    setDeleteStep("warning");
+    setDeleteUnderstood(false);
+    setDeleteEmailInput("");
+    setDeleteError("");
+    setShowDeleteConfirm(true);
+  }
+
+  async function submitDeletionRequest() {
+    setDeleteStep("pending");
+    setDeleteError("");
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/auth/request-deletion`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang }),
+      });
+      if (!r.ok) throw new Error("failed");
+      setDeleteStep("done");
+    } catch {
+      setDeleteStep("final");
+      setDeleteError(lang === "pl"
+        ? "Coś poszło nie tak. Spróbuj ponownie."
+        : "Something went wrong. Please try again.");
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 mb-5">
@@ -425,7 +468,57 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-5 -mx-1 px-1">
-        {/* Sound & Haptics — first, so user can preview before configuring alerts */}
+
+        {/* 1. Smart alerts */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("notif.smart")}</p>
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-muted-foreground"><TrendingUp className="w-4 h-4" /></div>
+                <div>
+                  <p className="text-sm font-medium">{t("notif.budget_thresh")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.budget_thresh_desc")}</p>
+                </div>
+              </div>
+              <Switch checked={smartPrefs.budgetAlerts} onCheckedChange={v => handleSmartToggle("budgetAlerts", v)} />
+            </div>
+            <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-muted-foreground"><Target className="w-4 h-4" /></div>
+                <div>
+                  <p className="text-sm font-medium">{t("notif.goal_prog")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.goal_prog_desc")}</p>
+                </div>
+              </div>
+              <Switch checked={smartPrefs.goalAlerts} onCheckedChange={v => handleSmartToggle("goalAlerts", v)} />
+            </div>
+          </div>
+        </section>
+
+        {/* 2. Animations toggle */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("prefs.animations")}</p>
+          <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-muted-foreground"><Sparkles className="w-4 h-4" /></div>
+              <div>
+                <p className="text-sm font-medium">{t("prefs.disable_animations")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("prefs.disable_animations_desc")}</p>
+              </div>
+            </div>
+            <Switch
+              checked={animDisabled}
+              onCheckedChange={val => {
+                setAnimDisabled(val);
+                savePrefs({ ...loadPrefs(), disableAnimations: val });
+                document.documentElement.classList.toggle('no-animations', val);
+              }}
+            />
+          </div>
+        </section>
+
+        {/* 3. Sound & Haptics / Preview */}
         <section>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("notif.sound_section")}</p>
           <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
@@ -467,55 +560,331 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           </div>
         </section>
 
-        {/* Animations toggle */}
+        {/* 4. Legal */}
         <section>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("prefs.animations")}</p>
-          <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 text-muted-foreground"><Sparkles className="w-4 h-4" /></div>
-              <div>
-                <p className="text-sm font-medium">{t("prefs.disable_animations")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("prefs.disable_animations_desc")}</p>
-              </div>
-            </div>
-            <Switch
-              checked={animDisabled}
-              onCheckedChange={val => {
-                setAnimDisabled(val);
-                savePrefs({ ...loadPrefs(), disableAnimations: val });
-                document.documentElement.classList.toggle('no-animations', val);
-              }}
-            />
-          </div>
-        </section>
-
-        {/* Smart alerts */}
-        <section>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("notif.smart")}</p>
-          <div className="space-y-3">
-            <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-muted-foreground"><TrendingUp className="w-4 h-4" /></div>
-                <div>
-                  <p className="text-sm font-medium">{t("notif.budget_thresh")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.budget_thresh_desc")}</p>
-                </div>
-              </div>
-              <Switch checked={smartPrefs.budgetAlerts} onCheckedChange={v => handleSmartToggle("budgetAlerts", v)} />
-            </div>
-            <div className="flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-muted-foreground"><Target className="w-4 h-4" /></div>
-                <div>
-                  <p className="text-sm font-medium">{t("notif.goal_prog")}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("notif.goal_prog_desc")}</p>
-                </div>
-              </div>
-              <Switch checked={smartPrefs.goalAlerts} onCheckedChange={v => handleSmartToggle("goalAlerts", v)} />
-            </div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {lang === "pl" ? "Prawne" : "Legal"}
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => setLegalModal("terms")}
+              className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-card border border-border text-sm text-foreground transition active:opacity-70"
+            >
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span>{t("login.terms_title")}</span>
+            </button>
+            <button
+              onClick={() => setLegalModal("privacy")}
+              className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-card border border-border text-sm text-foreground transition active:opacity-70"
+            >
+              <ShieldCheck className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span>{t("login.privacy_title")}</span>
+            </button>
+            <button
+              onClick={openDeleteFlow}
+              className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-sm text-destructive transition active:opacity-70"
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span>{lang === "pl" ? "Usuń konto" : "Delete my account"}</span>
+            </button>
           </div>
         </section>
       </div>
+
+      {/* ── Legal text overlay (portalled) ── */}
+      {legalModal !== null && createPortal(
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border shrink-0">
+            <h2 className="text-base font-semibold text-foreground">
+              {legalModal === "terms" ? t("login.terms_title") : t("login.privacy_title")}
+            </h2>
+            <button
+              onClick={() => setLegalModal(null)}
+              className="text-muted-foreground text-2xl leading-none px-2 py-1"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">
+              {legalModal === "terms"
+                ? LEGAL.terms[lang] ?? LEGAL.terms.en
+                : LEGAL.privacy[lang] ?? LEGAL.privacy.en}
+            </pre>
+          </div>
+          <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border">
+            <button
+              onClick={() => setLegalModal(null)}
+              className="w-full py-4 rounded-2xl bg-muted text-sm font-semibold text-foreground transition active:opacity-70"
+            >
+              {lang === "pl" ? "Zamknij" : "Close"}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Delete account flow (portalled, 3 steps) ── */}
+      {showDeleteConfirm && createPortal(
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+
+          {/* Step 1: Warning + Consequences */}
+          {deleteStep === "warning" && (
+            <>
+              <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-sm text-muted-foreground flex items-center gap-1"
+                >
+                  ← {lang === "pl" ? "Anuluj" : "Cancel"}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {lang === "pl" ? "Krok 1 z 3" : "Step 1 of 3"}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+                <div className="flex flex-col items-center gap-3 text-center pt-2">
+                  <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <Trash2 className="w-7 h-7 text-destructive" />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {lang === "pl" ? "Zanim przejdziesz dalej" : "Before you continue"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                    {lang === "pl"
+                      ? "Żądanie usunięcia konta jest nieodwracalne. Gdy zostanie przetworzone przez nasz zespół, nie będziemy w stanie odzyskać Twoich danych."
+                      : "Requesting account deletion is irreversible. Once processed by our team, we will not be able to recover your data."}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-destructive/25 bg-destructive/5 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-destructive/20">
+                    <p className="text-xs font-semibold text-destructive uppercase tracking-wider">
+                      {lang === "pl" ? "Co zostanie trwale usunięte" : "What will be permanently deleted"}
+                    </p>
+                  </div>
+                  {([
+                    lang === "pl"
+                      ? ["Twoje konto i dane logowania", "Nie będziesz mógł się zalogować po usunięciu"]
+                      : ["Your account and login credentials", "You will not be able to sign in after deletion"],
+                    lang === "pl"
+                      ? ["Wszystkie transakcje", "Każdy wpis finansowy który kiedykolwiek dodałeś"]
+                      : ["All transactions", "Every financial entry you have ever added"],
+                    lang === "pl"
+                      ? ["Wszystkie kategorie i budżety", "Twoje kolory, nazwy i limity miesięczne"]
+                      : ["All categories and budgets", "Your colours, names and monthly limits"],
+                    lang === "pl"
+                      ? ["Cele i wkłady", "Postępy, historię i cele gospodarstwa domowego"]
+                      : ["Goals and contributions", "Progress, history and household goals"],
+                    lang === "pl"
+                      ? ["Członkostwo w gospodarstwie domowym", "Zostaniesz usunięty z każdego wspólnego gospodarstwa"]
+                      : ["Household membership", "You will be removed from any shared household"],
+                    lang === "pl"
+                      ? ["Zdjęcia paragonów i załączniki", "Wszystkie przesłane obrazy transakcji"]
+                      : ["Receipt photos and attachments", "All uploaded transaction images"],
+                    lang === "pl"
+                      ? ["Ustawienia powiadomień i preferencje", "Harmonogramy, waluty, języki i inne"]
+                      : ["Notification settings and preferences", "Schedules, currencies, languages and more"],
+                  ] as [string, string][]).map(([title, sub], i) => (
+                    <div key={i} className="flex items-start gap-3 px-4 py-3 border-b border-destructive/10 last:border-0">
+                      <span className="mt-0.5 text-destructive text-base leading-none">✕</span>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-2xl bg-muted/50 border border-border px-4 py-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {lang === "pl"
+                      ? "Zgodnie z art. 17 RODO Twoje żądanie zostanie przetworzone w ciągu 30 dni. Potwierdzenie e-mailem zostanie wysłane na Twój adres."
+                      : "Under GDPR Article 17 your request will be processed within 30 days. A confirmation email will be sent to your address."}
+                  </p>
+                </div>
+                <label className="flex items-start gap-3 cursor-pointer pb-2">
+                  <input
+                    type="checkbox"
+                    checked={deleteUnderstood}
+                    onChange={e => setDeleteUnderstood(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded accent-destructive cursor-pointer"
+                  />
+                  <span className="text-sm text-foreground leading-snug font-medium">
+                    {lang === "pl"
+                      ? "Rozumiem wszystkie powyższe konsekwencje i chcę trwale usunąć moje konto."
+                      : "I understand all the consequences listed above and want to permanently delete my account."}
+                  </span>
+                </label>
+              </div>
+              <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border space-y-2.5">
+                <button
+                  disabled={!deleteUnderstood}
+                  onClick={() => setDeleteStep("type-email")}
+                  className="w-full py-4 rounded-2xl bg-destructive text-sm font-semibold text-white transition active:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {lang === "pl" ? "Kontynuuj" : "Continue"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-3 rounded-2xl bg-muted text-sm font-medium text-muted-foreground transition active:opacity-70"
+                >
+                  {lang === "pl" ? "Rezygnuję, zachowaj moje konto" : "Never mind, keep my account"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Step 2: Type email to confirm */}
+          {deleteStep === "type-email" && (
+            <>
+              <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
+                <button onClick={() => setDeleteStep("warning")} className="text-sm text-muted-foreground flex items-center gap-1">
+                  ← {lang === "pl" ? "Wróć" : "Back"}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {lang === "pl" ? "Krok 2 z 3" : "Step 2 of 3"}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-8 flex flex-col gap-6">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                    <span className="text-2xl">✉️</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {lang === "pl" ? "Potwierdź swój adres e-mail" : "Confirm your email"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                    {lang === "pl"
+                      ? "Wpisz poniżej swój adres e-mail, aby potwierdzić, że chcesz usunąć konto."
+                      : "Type your email address below to confirm you want to delete this account."}
+                  </p>
+                  <p className="text-sm font-semibold text-foreground bg-muted px-3 py-1.5 rounded-xl">
+                    {user?.email}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                    {lang === "pl" ? "Twój adres e-mail" : "Your email address"}
+                  </label>
+                  <input
+                    type="email"
+                    value={deleteEmailInput}
+                    onChange={e => setDeleteEmailInput(e.target.value)}
+                    placeholder={user?.email ?? ""}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    className="w-full h-14 rounded-2xl bg-muted border border-border text-base px-4 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-destructive"
+                  />
+                  {deleteEmailInput.length > 0 && deleteEmailInput !== user?.email && (
+                    <p className="text-xs text-destructive">
+                      {lang === "pl" ? "Adres e-mail nie pasuje." : "Email address does not match."}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border space-y-2.5">
+                <button
+                  disabled={deleteEmailInput !== user?.email}
+                  onClick={() => setDeleteStep("final")}
+                  className="w-full py-4 rounded-2xl bg-destructive text-sm font-semibold text-white transition active:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {lang === "pl" ? "Kontynuuj" : "Continue"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-3 rounded-2xl bg-muted text-sm font-medium text-muted-foreground transition active:opacity-70"
+                >
+                  {lang === "pl" ? "Rezygnuję, zachowaj moje konto" : "Never mind, keep my account"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Step 3: Final trigger */}
+          {deleteStep === "final" && (
+            <>
+              <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
+                <button onClick={() => setDeleteStep("type-email")} className="text-sm text-muted-foreground flex items-center gap-1">
+                  ← {lang === "pl" ? "Wróć" : "Back"}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {lang === "pl" ? "Krok 3 z 3" : "Step 3 of 3"}
+                </span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center px-5 gap-5 text-center">
+                <div className="w-20 h-20 rounded-full bg-destructive/10 border-2 border-destructive/30 flex items-center justify-center">
+                  <Trash2 className="w-9 h-9 text-destructive" />
+                </div>
+                <div className="space-y-2 max-w-xs">
+                  <h2 className="text-xl font-bold text-foreground">
+                    {lang === "pl" ? "Ostatnia szansa" : "Last chance"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {lang === "pl"
+                      ? "Kliknięcie przycisku poniżej wyśle nieodwołalne żądanie usunięcia konta i wszystkich Twoich danych."
+                      : "Tapping the button below will send an irrevocable request to delete your account and all your data."}
+                  </p>
+                  <p className="text-sm font-semibold text-destructive">
+                    {lang === "pl" ? "Tej operacji nie można cofnąć." : "This action cannot be undone."}
+                  </p>
+                </div>
+                {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+              </div>
+              <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border space-y-2.5">
+                <button
+                  onClick={submitDeletionRequest}
+                  className="w-full py-4 rounded-2xl bg-destructive text-sm font-bold text-white transition active:opacity-80"
+                >
+                  {lang === "pl" ? "Trwale usuń moje konto i dane" : "Permanently delete my account and data"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-3 rounded-2xl bg-muted text-sm font-medium text-muted-foreground transition active:opacity-70"
+                >
+                  {lang === "pl" ? "Rezygnuję, zachowaj moje konto" : "Never mind, keep my account"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Pending */}
+          {deleteStep === "pending" && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-5">
+              <div className="w-12 h-12 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+              <p className="text-sm text-muted-foreground">
+                {lang === "pl" ? "Wysyłanie żądania…" : "Submitting request…"}
+              </p>
+            </div>
+          )}
+
+          {/* Done */}
+          {deleteStep === "done" && (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5 text-center">
+              <div className="w-20 h-20 rounded-full bg-green-900/25 border border-green-700/30 flex items-center justify-center">
+                <span className="text-3xl">✓</span>
+              </div>
+              <div className="space-y-2 max-w-xs">
+                <h2 className="text-xl font-bold text-foreground">
+                  {lang === "pl" ? "Żądanie wysłane" : "Request submitted"}
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {lang === "pl"
+                    ? "Otrzymaliśmy Twoje żądanie. Przetworzymy je w ciągu 30 dni i wyślemy potwierdzenie na Twój adres e-mail."
+                    : "We've received your request. Our team will process it within 30 days and send a confirmation to your email."}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="mt-4 w-full max-w-xs py-4 rounded-2xl bg-muted text-sm font-semibold text-foreground transition active:opacity-70"
+              >
+                {lang === "pl" ? "Zamknij" : "Close"}
+              </button>
+            </div>
+          )}
+
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
