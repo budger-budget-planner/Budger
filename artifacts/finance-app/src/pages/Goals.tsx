@@ -311,30 +311,30 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
               <Target className="w-4 h-4" style={{ color: goal.color }} />
             </div>
             {/* Diamond sparkles: count 1–4 based on % of goal funded by Larder/GL */}
-            {/* Each diamond is on a different edge at an irregular 1/4–1/3 offset from an end */}
+            {/* Each diamond is on a different edge at an irregular 1/7–1/4 offset from the nearest end; one is at the corner */}
             {diamondCount >= 1 && (
-              <div style={{ position:"absolute", top:-7, right:9, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+              <div style={{ position:"absolute", top:-5, right:-5, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
               </div>
             )}
             {diamondCount >= 2 && (
-              <div style={{ position:"absolute", bottom:-6, left:12, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+              <div style={{ position:"absolute", bottom:-4, left:5, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
               </div>
             )}
             {diamondCount >= 3 && (
-              <div style={{ position:"absolute", top:11, left:-6, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
+              <div style={{ position:"absolute", top:9, left:-4, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.70)" }} />
               </div>
             )}
             {diamondCount >= 4 && (
-              <div style={{ position:"absolute", bottom:8, right:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
+              <div style={{ position:"absolute", bottom:7, right:-4, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.68)" }} />
@@ -1129,6 +1129,7 @@ export default function GoalsPage() {
   const [newDivide,             setNewDivide]             = useState(false);
   const [newTbd,                setNewTbd]                = useState(false);
   const [newProposeToHousehold, setNewProposeToHousehold] = useState(false);
+  const [newCreateAsHousehold,  setNewCreateAsHousehold]  = useState(false);
   const [proposingAfterCreate,  setProposingAfterCreate]  = useState(false);
   const [decliningShareId,  setDecliningShareId]  = useState<number | null>(null);
   const [declineShareReason, setDeclineShareReason] = useState("");
@@ -1287,6 +1288,7 @@ export default function GoalsPage() {
         setAddOpen(false);
         setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewDeadline(""); setNewDivide(false); setNewTbd(false);
         setNewProposeToHousehold(false);
+        setNewCreateAsHousehold(false);
       },
     },
   });
@@ -1304,7 +1306,9 @@ export default function GoalsPage() {
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || !newBudget || (!newDeadline && !newTbd)) return;
-    create.mutate({ data: { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newTbd ? "TBD" : newDeadline, divideByMonths: newTbd ? false : newDivide } });
+    const baseData: any = { name: newName.trim(), color: newColor, budget: parseFloat(newBudget), currency: prefs.currency, deadline: newTbd ? "TBD" : newDeadline, divideByMonths: newTbd ? false : newDivide };
+    if (newCreateAsHousehold && householdId) baseData.householdId = householdId;
+    create.mutate({ data: baseData });
   }
 
   // Household goal: head OR original creator can edit (via propose-edit for creator)
@@ -1842,6 +1846,23 @@ export default function GoalsPage() {
                 </div>
                 <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${newProposeToHousehold ? "bg-foreground" : "bg-muted border border-border"}`}>
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${newProposeToHousehold ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
+                </div>
+              </button>
+            )}
+            {/* Create-as-household toggle (head of household only) */}
+            {isInHousehold && isCreator && (
+              <button
+                type="button"
+                onClick={() => setNewCreateAsHousehold(v => !v)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
+              >
+                <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">{t("goals.create_as_hh")}</p>
+                  <p className="text-xs text-muted-foreground">{t("goals.create_as_hh_desc")}</p>
+                </div>
+                <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${newCreateAsHousehold ? "bg-foreground" : "bg-muted border border-border"}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${newCreateAsHousehold ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
                 </div>
               </button>
             )}

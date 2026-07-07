@@ -554,6 +554,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.propose_via_edit":      { en: "Create a goal and propose it as a Household Goal.",  pl: "Stwórz cel i zaproponuj go jako Cel Gospodarstwa."     },
   "goals.propose_on_create":     { en: "Propose as Household Goal",                          pl: "Zaproponuj jako Cel Gospodarstwa"                      },
   "goals.propose_on_create_desc":{ en: "Send to head for approval before sharing",           pl: "Wyślij do głowy do zatwierdzenia przed udostępnieniem" },
+  "goals.create_as_hh":         { en: "Create as Household Goal",                           pl: "Utwórz jako Cel Gospodarstwa"                          },
+  "goals.create_as_hh_desc":    { en: "Visible and shared with all household members",       pl: "Widoczny i udostępniony wszystkim członkom gospodarstwa"},
   "goals.pending_hh_badge":      { en: "Pending approval",                                   pl: "Oczekuje na zatwierdzenie"                             },
   "goals.keep_as_personal":      { en: "Keep as personal",                                   pl: "Zostaw jako prywatny"                                  },
   "goals.delete_goal":           { en: "Delete goal",                                        pl: "Usuń cel"                                              },
