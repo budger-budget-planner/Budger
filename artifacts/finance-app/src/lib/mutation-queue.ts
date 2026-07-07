@@ -15,6 +15,8 @@
  *   the SW Background Sync handler (exported as `withReplayLock`).
  */
 
+import { t } from "./i18n";
+
 const DB_NAME   = "budger-offline";
 const STORE     = "mutation_queue";
 const DB_VER    = 1;
@@ -251,20 +253,21 @@ export const discardOp = dequeue;
 export function opLabel(op: QueuedOp): string {
   const { method, endpoint } = op;
   const api = endpoint.split("/api/")[1] ?? endpoint;
-  if (api === "transactions"                        && method === "POST")   return "Add transaction";
-  if (/^transactions\/\d+$/.test(api)               && method === "PATCH")  return "Edit transaction";
-  if (/^transactions\/\d+$/.test(api)               && method === "DELETE") return "Delete transaction";
-  if (api === "auth/me"                             && method === "PATCH")  return "Update profile";
-  if (api === "goal-contributions"                  && method === "POST")   return "Goal contribution";
-  if (/^goal-contributions\/\d+$/.test(api)         && method === "DELETE") return "Remove contribution";
-  if (api === "recurring-payments"                  && method === "POST")   return "Add recurring payment";
-  if (/^recurring-payments\/\d+$/.test(api)         && method === "PATCH")  return "Edit recurring payment";
-  if (/^recurring-payments\/\d+$/.test(api)         && method === "DELETE") return "Delete recurring payment";
-  if (api === "larder/entries"                      && method === "POST")   return "Fund larder";
-  if (/^larder\/entries\/\d+$/.test(api)            && method === "DELETE") return "Remove larder entry";
-  if (api === "larder/spend"                        && method === "POST")   return "Larder withdrawal";
-  if (api === "larder/dedicate-to-goal"             && method === "POST")   return "Larder → goal";
-  if (api === "great-larder/send"                   && method === "POST")   return "Send to GL";
+  if (api === "transactions"                        && method === "POST")   return t("queue.add_transaction");
+  if (/^transactions\/\d+$/.test(api)               && method === "PATCH")  return t("queue.edit_transaction");
+  if (/^transactions\/\d+$/.test(api)               && method === "DELETE") return t("queue.delete_transaction");
+  if (api === "auth/me"                             && method === "PATCH")  return t("queue.update_profile");
+  if (api === "goal-contributions"                  && method === "POST")   return t("queue.goal_contribution");
+  if (/^goal-contributions\/\d+$/.test(api)         && method === "DELETE") return t("queue.remove_contribution");
+  if (api === "recurring-payments"                  && method === "POST")   return t("queue.add_recurring");
+  if (/^recurring-payments\/\d+$/.test(api)         && method === "PATCH")  return t("queue.edit_recurring");
+  if (/^recurring-payments\/\d+$/.test(api)         && method === "DELETE") return t("queue.delete_recurring");
+  if (/^recurring-payments\/\d+\/apply$/.test(api)  && method === "POST")   return t("queue.apply_recurring");
+  if (api === "larder/entries"                      && method === "POST")   return t("queue.fund_larder");
+  if (/^larder\/entries\/\d+$/.test(api)            && method === "DELETE") return t("queue.remove_larder");
+  if (api === "larder/spend"                        && method === "POST")   return t("queue.larder_withdrawal");
+  if (api === "larder/dedicate-to-goal"             && method === "POST")   return t("queue.larder_to_goal");
+  if (api === "great-larder/send"                   && method === "POST")   return t("queue.send_to_gl");
   return `${method} /${api}`;
 }
 
