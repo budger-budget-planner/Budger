@@ -22,6 +22,8 @@ export interface OfflinePendingOps {
   failedCount: number;
   /** IDs of transactions that have a PATCH or DELETE queued. */
   pendingTxIds: Set<number>;
+  /** IDs of recurring payments that have a pending apply (POST /api/recurring-payments/:id/apply). */
+  pendingRpIds: Set<number>;
   /** IDs of goals that have a pending contribution (POST /api/goal-contributions). */
   pendingGoalIds: Set<number>;
   /**
@@ -82,6 +84,20 @@ export function useOfflinePendingOps(): OfflinePendingOps {
       .filter((id): id is number => id !== null),
   );
 
+  // POST /api/recurring-payments/:id/apply → extract rpId from endpoint URL.
+  const pendingRpIds = new Set<number>(
+    ops
+      .filter((op) => {
+        const api = op.endpoint.split("/api/")[1] ?? "";
+        return op.status === "pending" && op.method === "POST" && /^recurring-payments\/\d+\/apply$/.test(api);
+      })
+      .map((op) => {
+        const m = op.endpoint.match(/\/recurring-payments\/(\d+)\/apply$/);
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter((id): id is number => id !== null),
+  );
+
   // POST /api/goal-contributions → extract goalId from payload.
   // useMutationWithQueue passes `getPayload: vars => vars.data`, so the queued
   // payload is the unwrapped data object: { goalId, amount, ... }.
@@ -131,6 +147,7 @@ export function useOfflinePendingOps(): OfflinePendingOps {
     pendingCount: ops.filter((o) => o.status === "pending").length,
     failedCount:  ops.filter((o) => o.status === "failed").length,
     pendingTxIds,
+    pendingRpIds,
     pendingGoalIds,
     pendingTransactions,
     refresh,

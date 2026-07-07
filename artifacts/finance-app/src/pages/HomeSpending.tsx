@@ -26,7 +26,6 @@ import {
   useListHouseholdMembers,
   getListGoalsQueryKey,
   useListRecurringPayments,
-  useApplyRecurringPayment,
   getListRecurringPaymentsQueryKey,
   useGetLarder,
   getGetLarderQueryKey,
@@ -1041,14 +1040,11 @@ export default function HomeSpending() {
   const { data: recurringPayments } = useListRecurringPayments({
     query: { enabled: isCurrentMonth } as any,
   });
-  const applyRP = useApplyRecurringPayment({
-    mutation: {
-      onSuccess: () => {
-        invalidateAll(queryClient);
-        setRpExpanded(null);
-        setRpSheetOpen(false);
-      },
-    },
+  const applyRP = useMutationWithQueue({
+    endpoint: (vars: { id: number; data: any }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}/apply`,
+    method: "POST",
+    getPayload: (vars: { id: number; data: any }) => vars.data,
+    onSuccess: () => { invalidateAll(queryClient); setRpExpanded(null); setRpSheetOpen(false); },
   });
   const manualRPs = (recurringPayments ?? []).filter(rp => rp.type === "manual");
 
@@ -1078,7 +1074,7 @@ export default function HomeSpending() {
     }
   }
 
-  const { pendingTxIds, pendingTransactions } = useOfflinePendingOps();
+  const { pendingTxIds, pendingRpIds, pendingTransactions } = useOfflinePendingOps();
 
   const create = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/transactions`,
@@ -1891,20 +1887,24 @@ export default function HomeSpending() {
               ) : (
                 <div className="space-y-3">
                   {manualRPs.map(rp => {
-                    const isApplied = rp.appliedThisMonth;
+                    const isApplied  = rp.appliedThisMonth;
+                    const isPending  = pendingRpIds.has(rp.id);
                     const isExpanded = rpExpanded === rp.id;
+                    const isBlocked  = isApplied || isPending;
                     return (
                       <div key={rp.id}
                         className={`rounded-2xl border transition-all ${
                           isApplied
                             ? "bg-white/5 border-white/5 opacity-50"
+                            : isPending
+                            ? "bg-white/5 border-white/10 opacity-50"
                             : "bg-white/5 border-white/10"
                         }`}
                       >
                         <button
                           className="w-full flex items-center gap-3 p-4 text-left disabled:cursor-default"
-                          disabled={isApplied}
-                          onClick={() => !isApplied && setRpExpanded(isExpanded ? null : rp.id)}
+                          disabled={isBlocked}
+                          onClick={() => !isBlocked && setRpExpanded(isExpanded ? null : rp.id)}
                         >
                           <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
                             style={{ backgroundColor: rp.color + "33" }}>
@@ -1916,12 +1916,17 @@ export default function HomeSpending() {
                           </div>
                           {isApplied ? (
                             <span className="text-xs text-white/30">{t("rp.applied_badge")}</span>
+                          ) : isPending ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
+                              <Clock className="w-2.5 h-2.5" />
+                              {t("tx.pending_sync")}
+                            </span>
                           ) : (
                             <CheckCircle className={`w-4 h-4 flex-shrink-0 transition-colors ${isExpanded ? "text-white/60" : "text-white/20"}`} />
                           )}
                         </button>
 
-                        {isExpanded && !isApplied && (
+                        {isExpanded && !isBlocked && (
                           <div className="px-4 pb-4 pt-0 border-t border-white/10">
                             <p className="text-sm text-white/60 mt-3 mb-3">{t("rp.add_question")}</p>
                             <div className="flex gap-2">
