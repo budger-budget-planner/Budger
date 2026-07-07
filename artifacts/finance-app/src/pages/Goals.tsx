@@ -177,10 +177,10 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicated }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
   canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
-  isHousehold?: boolean;
+  isHousehold?: boolean; glDedicated?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -206,11 +206,12 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
     { goalId: goal.id, all: "true" } as any,
     { query: { queryKey: ["goal-contributions-save", goal.id], enabled: saveOpen } },
   );
-  const { data: larderForBadge } = useGetLarder({ query: { enabled: saveOpen || _pctEarly >= 100 } } as any);
+  const { data: larderForBadge } = useGetLarder({ query: { enabled: true } } as any);
   const myTotalForSave = (myContribsForSave ?? []).reduce((s: number, c: any) => s + Number(c.accountAmount ?? c.amount), 0);
   const savedToLarderActive = ((larderForBadge as any)?.entries ?? [])
     .filter((e: any) => e.sourceType === "goal_save" && e.goalId === goal.id)
     .reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const hasLarderSupport = savedToLarderActive > 0 || !!glDedicated;
 
   const saveToLarder = useLarderSaveFromGoal({
     mutation: {
@@ -290,11 +291,23 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
       <div className="h-1.5" style={{ backgroundColor: goal.color }} />
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl flex-shrink-0"
+          <div className="relative w-9 h-9 rounded-xl flex-shrink-0"
             style={{ backgroundColor: goal.color + "33" }}>
             <div className="w-full h-full rounded-xl flex items-center justify-center">
               <Target className="w-4 h-4" style={{ color: goal.color }} />
             </div>
+            {hasLarderSupport && (<>
+              <div style={{ position:"absolute", top:-7, right:-7, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
+              </div>
+              <div style={{ position:"absolute", bottom:-6, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
+              </div>
+            </>)}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
@@ -915,11 +928,23 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
       <div className="h-1.5" style={{ backgroundColor: goal.color }} />
       <div className="p-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-8 h-8 rounded-xl flex-shrink-0"
+          <div className="relative w-8 h-8 rounded-xl flex-shrink-0"
             style={{ backgroundColor: goal.color + "22" }}>
             <div className="w-full h-full rounded-xl flex items-center justify-center">
               <Target className="w-3.5 h-3.5" style={{ color: goal.color }} />
             </div>
+            {savedToLarder > 0 && (<>
+              <div style={{ position:"absolute", top:-7, right:-7, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
+              </div>
+              <div style={{ position:"absolute", bottom:-6, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
+              </div>
+            </>)}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
@@ -1084,6 +1109,24 @@ export default function GoalsPage() {
   const { data: household }                           = useGetHousehold({
     query: { enabled: !!me?.householdId, retry: false },
   } as any);
+
+  const isInHouseholdEarly = !!me?.householdId;
+  const { data: greatLarder } = useQuery<any>({
+    queryKey: ["great-larder"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder`, { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    enabled: isInHouseholdEarly,
+    staleTime: 60_000,
+  });
+  // GL entries now carry goalId for goal_dedication rows; negative amounts = GL spent on that goal
+  const glDedicatedGoalIds = new Set<number>(
+    ((greatLarder?.entries ?? []) as any[])
+      .filter(e => e.sourceType === "goal_dedication" && e.goalId != null)
+      .map(e => e.goalId as number)
+  );
 
   const isInHousehold = !!me?.householdId;
   const isCreator = isInHousehold && !!household && !!me && (household as any).ownerId === me.id;
@@ -1607,7 +1650,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicated={glDedicatedGoalIds.has((g as any).id)} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -1635,7 +1678,7 @@ export default function GoalsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   {pendingHouseholdGoals.map(g => (
                     <div key={`pending-${g.id}`} className="relative opacity-50 pointer-events-none select-none">
-                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} />
+                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} glDedicated={glDedicatedGoalIds.has((g as any).id)} />
                       <div className="absolute inset-0 flex items-start justify-end p-3 pointer-events-none">
                         <span className="text-[10px] font-semibold uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded-full">
                           {t("goals.pending_hh_badge")}
@@ -1648,7 +1691,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicated={glDedicatedGoalIds.has((g as any).id)} />
                   ))}
                 </div>
               ) : pendingHouseholdGoals.length === 0 ? (

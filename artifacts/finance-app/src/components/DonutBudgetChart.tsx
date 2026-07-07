@@ -624,6 +624,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
           })()}
 
           {/* ── Larder-designated segment sparkles ─────────────────────────
+              Disabled: set DONUT_SPARKLES_ENABLED = true to restore.
               Diamond count scales with segment size:
                 ≥51 % → 5, ≥33 % → 4, ≥25 % → 3, ≥15 % → 2, else → 1.
               Sparkles within a segment share the same animation delay.
@@ -634,7 +635,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               transform-box:fill-box + transform-origin:center ensure the
               scale/rotate keyframe pivots on each sparkle's own centre.   */}
           {(() => {
-            if (loadPrefs().disableAnimations) return null;
+            const DONUT_SPARKLES_ENABLED = false; // set true to re-enable
+            if (!DONUT_SPARKLES_ENABLED || loadPrefs().disableAnimations) return null;
             const larderSegs = groupBorders.filter(
               gb => legend.find(l => l.catKey === gb.catKey)?.isLarderDesignated,
             );

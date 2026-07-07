@@ -46,6 +46,7 @@ function fmtEntry(e: typeof greatLarderEntriesTable.$inferSelect, contributorNam
     sourceType: e.sourceType,
     status: e.status,
     transactionId: e.transactionId ?? null,
+    goalId: e.goalId ?? null,
     note: e.note ?? null,
     createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
   };
@@ -478,6 +479,7 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
     currency: assetCurrency,
     sourceType: "goal_dedication",
     status: "approved",
+    goalId,
     note: `Dedicated to goal: ${goal.name}`,
   });
 

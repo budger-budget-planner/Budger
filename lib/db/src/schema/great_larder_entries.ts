@@ -29,6 +29,8 @@ export const greatLarderEntriesTable = pgTable("great_larder_entries", {
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   /** For 'fund' entries: the transaction ID created in the contributor's transaction list */
   transactionId: integer("transaction_id"),
+  /** For 'goal_dedication' entries: the goal that received the funds */
+  goalId: integer("goal_id"),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
