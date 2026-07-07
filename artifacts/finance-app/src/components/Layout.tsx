@@ -66,32 +66,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
   // ────────────────────────────────────────────────────────────────────────────
 
-  // ── One-time offline simulation for filsno@gmail.com ────────────────────────
-  // Runs exactly once (localStorage flag), only for the requested account.
-  // Waits for user data to load, then: 15 s delay → offline → 60 s → online.
-  // Dispatches synthetic window events; real network calls are unaffected.
-  useEffect(() => {
-    const SIM_KEY = "budger_offline_sim_done";
-    if (!user?.email) return;
-    if (user.email !== "filsno@gmail.com") return;
-    if (localStorage.getItem(SIM_KEY)) return;
-    localStorage.setItem(SIM_KEY, "1");
-
-    const offlineTimer = setTimeout(() => {
-      window.dispatchEvent(new Event("offline"));
-    }, 15_000);
-
-    const onlineTimer = setTimeout(() => {
-      window.dispatchEvent(new Event("online"));
-    }, 15_000 + 60_000);
-
-    return () => {
-      clearTimeout(offlineTimer);
-      clearTimeout(onlineTimer);
-    };
-  }, [user?.email]);
-  // ────────────────────────────────────────────────────────────────────────────
-
   // Scroll to top on every tab/route change
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -129,6 +103,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
+
+  // ── One-time offline simulation for filsno@gmail.com ────────────────────────
+  // Runs exactly once (localStorage flag), only for the requested account.
+  // Waits for user data to load, then: 15 s delay → offline → 60 s → online.
+  // Dispatches synthetic window events; real network calls are unaffected.
+  useEffect(() => {
+    const SIM_KEY = "budger_offline_sim_done";
+    if (!user?.email) return;
+    if (user.email !== "filsno@gmail.com") return;
+    if (localStorage.getItem(SIM_KEY)) return;
+    localStorage.setItem(SIM_KEY, "1");
+
+    const offlineTimer = setTimeout(() => {
+      window.dispatchEvent(new Event("offline"));
+    }, 15_000);
+
+    const onlineTimer = setTimeout(() => {
+      window.dispatchEvent(new Event("online"));
+    }, 15_000 + 60_000);
+
+    return () => {
+      clearTimeout(offlineTimer);
+      clearTimeout(onlineTimer);
+    };
+  }, [user?.email]);
+  // ────────────────────────────────────────────────────────────────────────────
+
   const { data: incomingInvites } = useListIncomingInvites();
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
   const hasHouseholdAlert = !!(user as any)?.pendingHouseholdAlert;
