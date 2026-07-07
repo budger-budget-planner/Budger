@@ -31,6 +31,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +148,7 @@ function TxForm({
 
 function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const sym = currencySymbol(loadPrefs().currency);
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -302,7 +304,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
             className="pl-6 h-9 text-sm"
           />
         </div>
-        <Button type="submit" size="sm" disabled={saving || !goalId || !amount} className="h-9 px-3">
+        <Button type="submit" size="sm" disabled={!isOnline || saving || !goalId || !amount} className="h-9 px-3">
           {saving ? "…" : t("tx.add_btn")}
         </Button>
       </form>
@@ -310,7 +312,7 @@ function DedicateToGoalSection({ tx, goals }: { tx: any; goals: any[] }) {
   );
 }
 
-function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
+function FoundedWithRealizedGoalToggle({ tx, isOffline }: { tx: any; isOffline?: boolean }) {
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState(!!tx.foundedWithRealizedGoal);
   const [saving, setSaving] = useState(false);
@@ -347,7 +349,7 @@ function FoundedWithRealizedGoalToggle({ tx }: { tx: any }) {
         <p className="text-sm font-medium">{t("tx.founded_with_realized_goal")}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{t("tx.founded_with_realized_goal_hint")}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={toggle} disabled={saving} data-testid="switch-founded-realized-goal" />
+      <Switch checked={checked} onCheckedChange={toggle} disabled={saving || isOffline} data-testid="switch-founded-realized-goal" />
     </div>
   );
 }
@@ -356,10 +358,12 @@ function ReceiptModal({
   tx,
   open,
   onClose,
+  isOffline,
 }: {
   tx: any;
   open: boolean;
   onClose: () => void;
+  isOffline?: boolean;
 }) {
   const queryClient = useQueryClient();
   const sym = currencySymbol(loadPrefs().currency);
@@ -427,7 +431,7 @@ function ReceiptModal({
                     size="sm"
                     variant="destructive"
                     onClick={() => deleteReceipt.mutate({ id: tx.id })}
-                    disabled={deleteReceipt.isPending}
+                    disabled={isOffline || deleteReceipt.isPending}
                     data-testid="button-delete-receipt"
                     className="gap-1.5"
                   >
@@ -452,7 +456,7 @@ function ReceiptModal({
                 variant="outline"
                 className="gap-2"
                 onClick={() => cameraRef.current?.click()}
-                disabled={uploadReceipt.isPending}
+                disabled={isOffline || uploadReceipt.isPending}
                 data-testid="button-capture-receipt"
               >
                 <Camera className="w-4 h-4" />
@@ -462,7 +466,7 @@ function ReceiptModal({
                 variant="outline"
                 className="gap-2"
                 onClick={() => libraryRef.current?.click()}
-                disabled={uploadReceipt.isPending}
+                disabled={isOffline || uploadReceipt.isPending}
                 data-testid="button-library-receipt"
               >
                 <Image className="w-4 h-4" />
@@ -591,6 +595,7 @@ export default function TransactionsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const isOnline = useOnlineStatus();
   const { pendingTxIds, pendingTransactions } = useOfflinePendingOps();
 
   const create = useMutationWithQueue({
@@ -648,6 +653,7 @@ export default function TransactionsPage() {
   }
 
   function handleCreate(form: TxFormState) {
+    if (!isOnline) return;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -809,7 +815,7 @@ export default function TransactionsPage() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">{t("tx.title")}</h1>
-        <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2">
+        <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2" disabled={!isOnline}>
           <Plus className="w-4 h-4" /> {t("common.add")}
         </Button>
       </div>
@@ -920,7 +926,8 @@ export default function TransactionsPage() {
                         {tx.description === "Unknown, Captured Online" && (
                           <button
                             onClick={() => { setNameEditTxId(tx.id); setNameEditValue(tx.description); }}
-                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors mt-1"
+                            disabled={!isOnline}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors mt-1 disabled:opacity-40"
                           >
                             <Pencil className="w-3 h-3" />
                             {t("tx.name_it")}
@@ -944,8 +951,9 @@ export default function TransactionsPage() {
                   {/* Foreign-currency chip */}
                   {tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && (
                     <button
-                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors"
+                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors disabled:opacity-40"
                       title={t("currency.change_chip_title")}
+                      disabled={!isOnline}
                       onClick={() => setConvertTx(tx)}
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
@@ -971,6 +979,7 @@ export default function TransactionsPage() {
                       title="Receipt"
                       data-testid={`button-receipt-${tx.id}`}
                       onClick={() => setReceiptTx(tx)}
+                      disabled={!isOnline}
                     >
                       <Camera className="w-3.5 h-3.5" />
                     </Button>
@@ -980,6 +989,7 @@ export default function TransactionsPage() {
                       className="w-7 h-7"
                       data-testid={`button-edit-transaction-${tx.id}`}
                       onClick={() => setEditTx(tx)}
+                      disabled={!isOnline}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -989,6 +999,7 @@ export default function TransactionsPage() {
                       className="w-7 h-7 text-destructive hover:text-destructive"
                       data-testid={`button-delete-transaction-${tx.id}`}
                       onClick={() => remove.mutate({ id: tx.id })}
+                      disabled={!isOnline}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -1027,7 +1038,7 @@ export default function TransactionsPage() {
               : existingLarderEntry ? "goal_larder" : "none";
             return (
               <>
-                <FoundedWithRealizedGoalToggle tx={editTx} />
+                <FoundedWithRealizedGoalToggle tx={editTx} isOffline={!isOnline} />
                 <TxForm
                   initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: initCategoryId, date: editTx.date, paymentMethod: editTx.paymentMethod }}
                   categories={categories ?? []}
@@ -1049,6 +1060,7 @@ export default function TransactionsPage() {
           tx={receiptTx}
           open={!!receiptTx}
           onClose={() => setReceiptTx(null)}
+          isOffline={!isOnline}
         />
       )}
 

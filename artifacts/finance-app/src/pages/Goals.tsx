@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -186,6 +187,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   hasPendingContrib?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -483,7 +485,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
                 className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
                 {t("common.cancel")}
               </button>
-              <button onClick={() => remove.mutate({ id: goal.id })} disabled={remove.isPending}
+              <button onClick={() => remove.mutate({ id: goal.id })} disabled={!isOnline || remove.isPending}
                 className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40">
                 {remove.isPending ? t("common.deleting") : t("goals.delete_btn")}
               </button>
@@ -492,22 +494,25 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
             <div className="flex gap-2">
               {canEdit && (
                 <button onClick={onEdit}
+                  disabled={!isOnline}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                             bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                             bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                   <Pencil className="w-3.5 h-3.5" /> {t("goals.edit_btn")}
                 </button>
               )}
               <button
                 onClick={() => setSaveOpen(true)}
+                disabled={!isOnline}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                           bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+                           bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40"
               >
                 <svg viewBox="0 0 12 12" width="14" height="14" className="flex-shrink-0" fill="currentColor" aria-hidden="true"><polygon points="6,0 7,5 12,6 7,7 6,12 5,7 0,6 5,5" /></svg> {t("larder.save_short")}
               </button>
               {canDelete && (
                 <button onClick={() => setConfirmDelete(true)}
+                  disabled={!isOnline}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                             bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70">
+                             bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                   <Trash2 className="w-3.5 h-3.5" /> {t("goals.delete_btn")}
                 </button>
               )}
@@ -1301,6 +1306,7 @@ export default function GoalsPage() {
     },
   });
 
+  const isOnline = useOnlineStatus();
   const deleteGoalForProposal = useDeleteGoal({
     mutation: {
       onSuccess: () => {
@@ -1337,6 +1343,7 @@ export default function GoalsPage() {
   }
 
   async function handleApproveProposal(proposalId: number) {
+    if (!isOnline) return;
     await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
       method: "POST", credentials: "include",
     });
@@ -1346,6 +1353,7 @@ export default function GoalsPage() {
   }
 
   async function handleDeclineProposal(proposalId: number, reason: string) {
+    if (!isOnline) return;
     await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -1391,8 +1399,9 @@ export default function GoalsPage() {
         </div>
         <button
           onClick={() => setAddOpen(true)}
+          disabled={!isOnline}
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
-                     text-sm font-semibold transition active:scale-95"
+                     text-sm font-semibold transition active:scale-95 disabled:opacity-40"
         >
           <Plus className="w-4 h-4" /> {t("goals.new_btn")}
         </button>
@@ -1431,11 +1440,13 @@ export default function GoalsPage() {
                   <div className="flex gap-1.5 flex-shrink-0">
                     <button
                       onClick={() => { setDecliningShareId(p.id); setDeclineShareReason(""); }}
-                      className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                      disabled={!isOnline}
+                      className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                       {t("goals.decline")}
                     </button>
                     <button onClick={() => handleApproveProposal(p.id)}
-                      className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
+                      disabled={!isOnline}
+                      className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70 disabled:opacity-40">
                       {t("goals.approve")}
                     </button>
                   </div>
@@ -1455,7 +1466,8 @@ export default function GoalsPage() {
                         {t("common.cancel")}
                       </button>
                       <button onClick={() => handleDeclineProposal(p.id, declineShareReason)}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70">
+                        disabled={!isOnline}
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                         {t("goals.confirm_decline")}
                       </button>
                     </div>
@@ -1545,11 +1557,13 @@ export default function GoalsPage() {
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button onClick={() => { setDecliningEditId(ep.id); setDeclineEditReason(""); }}
-                        className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                        disabled={!isOnline}
+                        className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                         {t("goals.decline")}
                       </button>
                       <button onClick={() => handleApproveEditProposal(ep.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70">
+                        disabled={!isOnline}
+                        className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70 disabled:opacity-40">
                         {t("goals.approve")}
                       </button>
                     </div>
@@ -1569,7 +1583,8 @@ export default function GoalsPage() {
                           {t("common.cancel")}
                         </button>
                         <button onClick={() => handleDeclineEditProposal(ep.id, declineEditReason)}
-                          className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70">
+                          disabled={!isOnline}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                           {t("goals.confirm_decline")}
                         </button>
                       </div>
@@ -1721,7 +1736,8 @@ export default function GoalsPage() {
                 </div>
                 <p className="text-muted-foreground text-sm">{t("goals.no_active")}</p>
                 <button onClick={() => setAddOpen(true)}
-                  className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
+                  disabled={!isOnline}
+                  className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95 disabled:opacity-40">
                   {t("goals.create_first")}
                 </button>
               </div>
@@ -1876,7 +1892,7 @@ export default function GoalsPage() {
             )}
             <div className="flex gap-2 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
-              <Button type="submit" className="flex-1" disabled={create.isPending || proposingAfterCreate}>
+              <Button type="submit" className="flex-1" disabled={!isOnline || create.isPending || proposingAfterCreate}>
                 {(create.isPending || proposingAfterCreate) ? t("goals.creating_btn") : t("goals.create_btn")}
               </Button>
             </div>

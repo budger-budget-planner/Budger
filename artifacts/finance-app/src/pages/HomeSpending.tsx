@@ -36,6 +36,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -710,6 +711,7 @@ function SwipeableTxRow({
   onSplit,
   onDelete,
   showHint,
+  isOffline,
   children,
 }: {
   txId: number;
@@ -719,6 +721,7 @@ function SwipeableTxRow({
   onSplit: () => void;
   onDelete: () => void;
   showHint?: boolean;
+  isOffline?: boolean;
   children: React.ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
@@ -822,6 +825,8 @@ function SwipeableTxRow({
 
     const off = currentOffset.current;
 
+    if (isOffline) { snapTo(0, null); return; }
+
     if (off < -ACTION_THRESHOLD) {
       // Full left extend → delete: animate off-screen immediately and fire onDelete
       // right away. No snapTo — the row stays hidden until the parent unmounts it,
@@ -903,7 +908,7 @@ function SwipeableTxRow({
             <div
               className="flex flex-col items-center justify-center gap-1.5 text-white overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
               style={{ width: receiptSectionW, opacity: 1 - leftExtend }}
-              onClick={() => { onReceipt(); resetRow(); }}
+              onClick={() => { if (!isOffline) { onReceipt(); resetRow(); } else resetRow(); }}
             >
               <Camera className="w-4 h-4 flex-shrink-0" />
               <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.receipt_btn")}</span>
@@ -913,7 +918,7 @@ function SwipeableTxRow({
           <div
             className="flex flex-col items-center justify-center gap-1.5 text-white cursor-pointer active:brightness-75 overflow-hidden"
             style={{ width: editSectionW, minWidth: deleteSnapW }}
-            onClick={() => { onEdit(); resetRow(); }}
+            onClick={() => { if (!isOffline) { onEdit(); resetRow(); } else resetRow(); }}
           >
             <Pencil className="w-4 h-4 flex-shrink-0" />
             <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.edit_btn")}</span>
@@ -933,7 +938,7 @@ function SwipeableTxRow({
             <div
               className="flex flex-col items-center justify-center gap-1.5 text-white bg-zinc-800 overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
               style={{ width: splitSectionW, opacity: 1 - rightExtend }}
-              onClick={() => { onSplit(); resetRow(); }}
+              onClick={() => { if (!isOffline) { onSplit(); resetRow(); } else resetRow(); }}
             >
               <Scissors className="w-4 h-4 flex-shrink-0" />
               <span className="text-[10px] font-semibold whitespace-nowrap">{t("split.btn")}</span>
@@ -943,7 +948,7 @@ function SwipeableTxRow({
           <div
             className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75 bg-card text-destructive"
             style={{ width: deleteSectionW, minWidth: deleteSnapW }}
-            onClick={() => { onDelete(); resetRow(); }}
+            onClick={() => { if (!isOffline) { onDelete(); resetRow(); } else resetRow(); }}
           >
             <div className="absolute inset-0 bg-destructive/10 pointer-events-none" />
             <Trash2 className="w-4 h-4 flex-shrink-0 relative z-10" />
@@ -973,6 +978,7 @@ function SwipeableTxRow({
 
 export default function HomeSpending() {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
 
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym = currencySymbol(prefs.currency);
@@ -1337,7 +1343,8 @@ export default function HomeSpending() {
               {/* No budget: CTA row */}
               <button
                 onClick={() => { setBudgetInput(""); setBudgetOpen(true); }}
-                className="w-full flex items-center gap-3 py-1 text-left transition active:opacity-70"
+                disabled={!isOnline}
+                className="w-full flex items-center gap-3 py-1 text-left transition active:opacity-70 disabled:opacity-40"
                 data-testid="button-set-budget"
               >
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -1359,7 +1366,8 @@ export default function HomeSpending() {
                   </p>
                   <button
                     onClick={() => saveTotalBudget(Math.ceil(combinedBudgetSum))}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
+                    disabled={!isOnline}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 disabled:opacity-40"
                   >
                     <Target className="w-3 h-3" />
                     {prefs.language === "pl"
@@ -1398,7 +1406,8 @@ export default function HomeSpending() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("home.monthly_budget")}</p>
                 <button
-                  className="text-xs text-white/40 hover:text-white/70 transition"
+                  className="text-xs text-white/40 hover:text-white/70 transition disabled:opacity-40"
+                  disabled={!isOnline}
                   onClick={() => { setBudgetInput(String(totalBudget)); setBudgetOpen(true); }}
                 >
                   {t("common.edit")}
@@ -1561,6 +1570,7 @@ export default function HomeSpending() {
                       onSplit={() => { setSplitTx(tx); setActionTx(null); }}
                       onDelete={() => remove.mutate({ id: tx.id })}
                       showHint={tx.id === topTxId}
+                      isOffline={!isOnline}
                     >
                       {/* ── Main row ── */}
                       <div
@@ -1740,7 +1750,7 @@ export default function HomeSpending() {
                           {isExpanded && hasForeign && (
                             <button
                               className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 active:bg-yellow-500/20"
-                              onClick={e => { e.stopPropagation(); setConvertTx(tx); setActionTx(null); }}
+                              onClick={e => { e.stopPropagation(); if (!isOnline) return; setConvertTx(tx); setActionTx(null); }}
                             >
                               <RefreshCw className="w-2 h-2" />
                               {t("currency.change_chip")}
@@ -1753,27 +1763,30 @@ export default function HomeSpending() {
                       {isExpanded && (
                         <div className="flex gap-2 px-3 pb-3 flex-wrap">
                           <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
+                            disabled={!isOnline}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                             <Camera className="w-3.5 h-3.5" /> {t("home.receipt_btn")}
                           </button>
                           {!hasUnavailable && (
                             <button onClick={() => { setEditTx(tx); setActionTx(null); }}
+                              disabled={!isOnline}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                               <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
                             </button>
                           )}
                           {!hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole && (
                             <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
+                              disabled={!isOnline}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70">
+                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                               <Scissors className="w-3.5 h-3.5" /> {t("split.btn")}
                             </button>
                           )}
                           <button
                             onClick={() => remove.mutate({ id: tx.id })}
-                            disabled={remove.isPending}
+                            disabled={!isOnline || remove.isPending}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                        bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                             <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}

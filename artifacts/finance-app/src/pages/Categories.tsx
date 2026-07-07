@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -189,6 +190,7 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
 function CategoryCard({ category, onEdit, currency, canShare = false }: { category: any; onEdit: () => void; currency: string; canShare?: boolean }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
 
@@ -254,7 +256,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false }: { catego
             </button>
             <button
               onClick={() => remove.mutate({ id: category.id })}
-              disabled={remove.isPending}
+              disabled={!isOnline || remove.isPending}
               className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40"
               data-testid={`button-delete-category-${category.id}`}
             >
@@ -265,26 +267,29 @@ function CategoryCard({ category, onEdit, currency, canShare = false }: { catego
           <div className="flex gap-2">
             <button
               onClick={onEdit}
+              disabled={!isOnline}
               data-testid={`button-edit-open-${category.id}`}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40"
             >
               <Pencil className="w-3.5 h-3.5" /> {t("common.edit")}
             </button>
             {canShare && (
               <button
                 onClick={() => setProposeOpen(true)}
+                disabled={!isOnline}
                 data-testid={`button-propose-category-${category.id}`}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                           bg-muted text-xs font-medium text-pink-400 border border-pink-500/30 transition active:opacity-70"
+                           bg-muted text-xs font-medium text-pink-400 border border-pink-500/30 transition active:opacity-70 disabled:opacity-40"
               >
                 <Share2 className="w-3.5 h-3.5" /> {t("cat.share_send")}
               </button>
             )}
             <button
               onClick={() => setConfirmDelete(true)}
+              disabled={!isOnline}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70"
+                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40"
             >
               <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
             </button>
@@ -388,6 +393,7 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
   totalBudget: number | null; otherCategoriesTotal: number; sym: string;
 }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const [name,       setName]       = useState(category.name);
   const [color,      setColor]      = useState(category.color);
   const [budgetMode, setBudgetMode] = useState<"amount" | "percent">("amount");
@@ -443,7 +449,7 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
               <Button variant="outline" className="flex-1" onClick={onClose}>
                 <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
               </Button>
-              <Button className="flex-1" onClick={handleSave} disabled={update.isPending}
+              <Button className="flex-1" onClick={handleSave} disabled={!isOnline || update.isPending}
                 data-testid={`button-save-category-${category.id}`}>
                 <Check className="w-3.5 h-3.5 mr-1" />
                 {update.isPending ? t("common.saving") : t("common.save")}
@@ -460,6 +466,7 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
 
 function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () => void; currency: string }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const remove = useMutationWithQueue({
@@ -497,7 +504,7 @@ function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () =>
             </button>
             <button
               onClick={() => remove.mutate({ id: rp.id })}
-              disabled={remove.isPending}
+              disabled={!isOnline || remove.isPending}
               className="flex-1 py-2 rounded-xl bg-destructive text-xs font-medium text-destructive-foreground transition active:opacity-70 disabled:opacity-40"
             >
               {remove.isPending ? t("common.deleting") : t("common.delete")}
@@ -507,15 +514,17 @@ function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () =>
           <div className="flex gap-2">
             <button
               onClick={onEdit}
+              disabled={!isOnline}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
+                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40"
             >
               <Pencil className="w-3.5 h-3.5" /> {t("common.edit")}
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
+              disabled={!isOnline}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70"
+                         bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40"
             >
               <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
             </button>
@@ -532,6 +541,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
   rp: any; open: boolean; onClose: () => void; sym: string;
 }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
   const [name, setName] = useState(rp.name);
   const [color, setColor] = useState(rp.color);
   const [amount, setAmount] = useState(String(rp.amount));
@@ -654,7 +664,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
             <Button variant="outline" className="flex-1" onClick={onClose}>
               <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={update.isPending || !canSave}>
+            <Button className="flex-1" onClick={handleSave} disabled={!isOnline || update.isPending || !canSave}>
               <Check className="w-3.5 h-3.5 mr-1" />
               {update.isPending ? t("common.saving") : t("common.save")}
             </Button>
@@ -679,6 +689,7 @@ type CategoryProposal = {
 
 function PendingProposals({ onSettled }: { onSettled: () => void }) {
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
 
   const { data: proposals = [], isLoading } = useQuery<CategoryProposal[]>({
     queryKey: ["category-share-proposals"],
@@ -742,7 +753,7 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
             <div className="flex gap-2">
               <button
                 onClick={() => reject.mutate(p.id)}
-                disabled={reject.isPending || accept.isPending}
+                disabled={!isOnline || reject.isPending || accept.isPending}
                 className="flex-1 py-2 rounded-xl bg-muted text-xs font-medium text-muted-foreground
                            transition active:opacity-70 disabled:opacity-40"
               >
@@ -751,7 +762,7 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
               </button>
               <button
                 onClick={() => accept.mutate(p.id)}
-                disabled={accept.isPending || reject.isPending}
+                disabled={!isOnline || accept.isPending || reject.isPending}
                 className="flex-1 py-2 rounded-xl bg-pink-500/20 border border-pink-500/40
                            text-xs font-semibold text-pink-300 transition active:opacity-70 disabled:opacity-40"
               >
@@ -771,6 +782,7 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const isOnline = useOnlineStatus();
   // Reactive prefs so any auto-sync of totalBudget immediately updates this page's UI
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym         = currencySymbol(prefs.currency);
@@ -900,7 +912,8 @@ export default function CategoriesPage() {
           <p className="text-muted-foreground text-xs mt-0.5">{t("cat.subtitle")}</p>
         </div>
         <button
-          onClick={() => setAddOpen(true)}
+          onClick={() => { if (!isOnline) return; setAddOpen(true); }}
+          disabled={!isOnline}
           data-testid="button-add-category"
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-foreground text-background
                      text-sm font-semibold transition active:scale-95"
@@ -936,7 +949,8 @@ export default function CategoriesPage() {
               </p>
               <button
                 onClick={() => setAdjustBudgetOpen(true)}
-                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
+                disabled={!isOnline}
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 disabled:opacity-40"
               >
                 <TrendingUp className="w-3 h-3" />
                 {prefs.language === "pl" ? "Dostosuj do sumy kategorii" : "Adjust total budget to match"}
@@ -959,7 +973,8 @@ export default function CategoriesPage() {
                   setPrefsState(updated);
                   updateMe.mutate({ data: { totalBudget: newTotal } });
                 }}
-                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25"
+                disabled={!isOnline}
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 disabled:opacity-40"
               >
                 <TrendingUp className="w-3 h-3" />
                 {prefs.language === "pl"
@@ -988,8 +1003,9 @@ export default function CategoriesPage() {
             <Plus className="w-6 h-6 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground text-sm">{t("cat.no_categories")}</p>
-          <button onClick={() => { setDialogType("category"); setAddOpen(true); }}
-            className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95">
+          <button onClick={() => { if (!isOnline) return; setDialogType("category"); setAddOpen(true); }}
+            disabled={!isOnline}
+            className="px-5 py-2.5 rounded-2xl bg-foreground text-background text-sm font-semibold transition active:scale-95 disabled:opacity-40">
             {t("cat.create_first")}
           </button>
         </div>
@@ -1016,8 +1032,9 @@ export default function CategoriesPage() {
       ) : (
         <div className="text-center py-8 flex flex-col items-center gap-2">
           <p className="text-muted-foreground text-sm">{t("rp.no_items_yet")}</p>
-          <button onClick={() => { setDialogType("recurring"); setAddOpen(true); }}
-            className="text-xs text-primary underline-offset-2 hover:underline">
+          <button onClick={() => { if (!isOnline) return; setDialogType("recurring"); setAddOpen(true); }}
+            disabled={!isOnline}
+            className="text-xs text-primary underline-offset-2 hover:underline disabled:opacity-40">
             {t("rp.create_first")}
           </button>
         </div>
@@ -1093,10 +1110,11 @@ export default function CategoriesPage() {
           <div className="flex rounded-lg overflow-hidden border border-border w-full mb-1">
             <button
               type="button"
-              onClick={() => setDialogType("category")}
+              onClick={() => { if (isOnline) setDialogType("category"); }}
+              disabled={!isOnline}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
                 dialogType === "category" ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
-              }`}
+              } disabled:opacity-40`}
             >
               {t("rp.type_category")}
             </button>
@@ -1145,7 +1163,7 @@ export default function CategoriesPage() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>
-                <Button type="submit" className="flex-1" disabled={create.isPending}
+                <Button type="submit" className="flex-1" disabled={!isOnline || create.isPending}
                   data-testid="button-save-new-category">
                   {create.isPending ? t("common.saving") : t("cat.create_btn")}
                 </Button>
@@ -1237,7 +1255,7 @@ export default function CategoriesPage() {
               <div className="flex gap-2 pt-1">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetAndClose}>{t("common.cancel")}</Button>
                 <Button type="submit" className="flex-1"
-                  disabled={createRP.isPending || !rpCanSave}>
+                  disabled={!isOnline || createRP.isPending || !rpCanSave}>
                   {createRP.isPending ? t("common.saving") : t("rp.create_btn")}
                 </Button>
               </div>

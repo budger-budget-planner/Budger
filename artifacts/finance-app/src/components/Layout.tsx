@@ -625,7 +625,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         key={c.code}
                         onClick={() => changeCurrency(c.code)}
-                        disabled={converting || isSelected || !!currSwitchTarget}
+                        disabled={!isOnline || converting || isSelected || !!currSwitchTarget}
                         className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition active:scale-95 disabled:cursor-default ${
                           isSelected
                             ? "border-foreground bg-foreground text-background"
@@ -644,7 +644,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
                 <button
                   onClick={handleRefreshRates}
-                  disabled={refreshingRates}
+                  disabled={!isOnline || refreshingRates}
                   className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl
                              border border-border bg-muted/40 text-sm font-medium text-foreground
                              transition active:scale-95 disabled:opacity-50"
@@ -676,7 +676,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         key={l.code}
                         onClick={() => changeLanguage(l.code)}
-                        disabled={isSelected || !!langSwitchTarget}
+                        disabled={!isOnline || isSelected || !!langSwitchTarget}
                         className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-default ${
                           isSelected
                             ? "border-foreground bg-foreground text-background"

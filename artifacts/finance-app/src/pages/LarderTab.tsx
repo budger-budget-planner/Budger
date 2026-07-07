@@ -537,7 +537,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-3" : "grid-cols-2"}`}>
             <button
               onClick={() => setSpendOpen(true)}
-              disabled={total <= 0}
+              disabled={!isOnline || total <= 0}
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <PiggyBank className="w-4 h-4 flex-shrink-0" />
@@ -545,7 +545,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </button>
             <button
               onClick={() => setDedicateOpen(true)}
-              disabled={total <= 0}
+              disabled={!isOnline || total <= 0}
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <Target className="w-4 h-4 flex-shrink-0" />
@@ -554,7 +554,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             {inHousehold && (
               <button
                 onClick={() => setSendGlOpen(true)}
-                disabled={total <= 0}
+                disabled={!isOnline || total <= 0}
                 className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
               >
                 <Users className="w-4 h-4 flex-shrink-0" />
@@ -576,7 +576,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                 </button>
                 <button
                   onClick={handleClearHistory}
-                  className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors"
+                  disabled={!isOnline}
+                  className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors disabled:opacity-40"
                 >
                   <Trash2 className="w-3 h-3" />
                   {t("larder.clear")}

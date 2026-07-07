@@ -21,6 +21,7 @@ import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 import { useLiveActivity } from "@/hooks/useLiveActivity";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const CHART_COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -51,6 +52,7 @@ export default function DashboardPage() {
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
+  const isOnline = useOnlineStatus();
 
   useEffect(() => { fetchRates().then(setRates); }, []);
 
@@ -210,7 +212,8 @@ export default function DashboardPage() {
               {combinedBudgetSum > 0 && (
                 <button
                   onClick={setFromCategorySum}
-                  className="mt-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[11px] font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 w-full"
+                  disabled={!isOnline}
+                  className="mt-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[11px] font-semibold text-amber-300 transition active:opacity-70 hover:bg-amber-500/25 w-full disabled:opacity-40"
                 >
                   <Target className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">

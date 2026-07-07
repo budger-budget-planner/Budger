@@ -42,6 +42,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 function GlSheet({
   title, open, onClose, children,
@@ -967,6 +968,8 @@ export default function HouseholdPage() {
     sumMemberBudgets > 0 &&
     budgetInViewerCurrency < sumMemberBudgets;
 
+  const isOnline = useOnlineStatus();
+
   function barPercent(spent: number) {
     if (budgetInViewerCurrency) return Math.min((spent / budgetInViewerCurrency) * 100, 100);
     return Math.min((spent / maxMemberSpent) * 100, 100);
@@ -981,7 +984,7 @@ export default function HouseholdPage() {
   }
 
   return (
-    <div className="pb-28 anim-in">
+    <div className={`pb-28 anim-in${!isOnline ? " [&_button:not([data-offline-ok])]:opacity-50 [&_button:not([data-offline-ok])]:pointer-events-none" : ""}`}>
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
