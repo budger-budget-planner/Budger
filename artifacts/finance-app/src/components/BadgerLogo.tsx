@@ -162,7 +162,7 @@ export default function BadgerLogo({
           .blg-yawn {
             opacity: 0;
             transform-box: fill-box;
-            transform-origin: 50px 71px; /* hinge at top of mouth opening */
+            transform-origin: center top; /* hinge at top of bounding box so mouth stays attached */
           }
           /* Smile hides while mouth is open during a yawn */
           .blg-falling-asleep .blg-smile,
@@ -339,16 +339,16 @@ export default function BadgerLogo({
         <g className="blg-closed-eye-l">
           {/* Upper eyelid crease — arches gently upward */}
           <path d="M 18.5 48 Q 29 41.5 39.5 48"
-            stroke="#787878" strokeWidth="3" strokeLinecap="round" fill="none" />
+            stroke="#4a4a4a" strokeWidth="3" strokeLinecap="round" fill="none" />
           {/* Lower lid shadow for depth */}
           <path d="M 19.5 50 Q 29 53.5 38.5 50"
-            stroke="#484848" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
+            stroke="#2e2e2e" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
         </g>
         <g className="blg-closed-eye-r">
           <path d="M 60.5 48 Q 71 41.5 81.5 48"
-            stroke="#787878" strokeWidth="3" strokeLinecap="round" fill="none" />
+            stroke="#4a4a4a" strokeWidth="3" strokeLinecap="round" fill="none" />
           <path d="M 61.5 50 Q 71 53.5 80.5 50"
-            stroke="#484848" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
+            stroke="#2e2e2e" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
         </g>
 
         {/* Nose — SNIFF target */}

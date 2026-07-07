@@ -130,6 +130,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.name_it":     { en: "Name it",          pl: "Nazwij"             },
   "tx.all_cats":    { en: "All categories",   pl: "Wszystkie kategorie"},
   "tx.no_results":  { en: "No results found.",pl: "Brak wyników."     },
+  "tx.pending_sync":{ en: "Pending sync",    pl: "Oczekuje na sync"  },
   "tx.goals":       { en: "Goals",            pl: "Cele"              },
   "tx.dedicate":    { en: "Dedicate to Goal", pl: "Przypisz do celu"  },
   "tx.choose_goal": { en: "Choose goal…",     pl: "Wybierz cel…"      },

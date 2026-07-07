@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { listAll, type QueuedOp } from "@/lib/mutation-queue";
 
+/** A transaction reconstructed from a queued POST that hasn't reached the DB yet. */
+export interface PendingTransaction {
+  /** Temporary client-only id (negative integer so it never collides with DB ids). */
+  id: string;
+  /** The IndexedDB queue entry id — used to map this item back to the op. */
+  queueId: string;
+  amount: number;
+  description: string;
+  categoryId: number | null;
+  date: string;
+  paymentMethod: string;
+  /** Always true — used by the UI to render a greyed-out "pending" style. */
+  _pending: true;
+}
+
 export interface OfflinePendingOps {
   ops: QueuedOp[];
   pendingCount: number;
@@ -9,6 +24,11 @@ export interface OfflinePendingOps {
   pendingTxIds: Set<number>;
   /** IDs of goals that have a pending contribution (POST /api/goal-contributions). */
   pendingGoalIds: Set<number>;
+  /**
+   * Transactions that were created while offline and are still waiting to sync.
+   * Show these in the UI immediately (greyed out) so the user sees their input.
+   */
+  pendingTransactions: PendingTransaction[];
   refresh: () => void;
 }
 
@@ -79,12 +99,40 @@ export function useOfflinePendingOps(): OfflinePendingOps {
       .filter((id): id is number => id !== null),
   );
 
+  // POST /api/transactions → reconstruct as fake transaction objects for optimistic display.
+  // The queued payload is the unwrapped data object: { amount, description, categoryId, date, paymentMethod }.
+  const pendingTransactions: PendingTransaction[] = ops
+    .filter((op) => {
+      const api = op.endpoint.split("/api/")[1] ?? "";
+      return op.status === "pending" && op.method === "POST" && api === "transactions";
+    })
+    .map((op) => {
+      const p = op.payload as {
+        amount?: number;
+        description?: string;
+        categoryId?: number | null;
+        date?: string;
+        paymentMethod?: string;
+      } | null;
+      return {
+        id: `pending-${op.id}`,
+        queueId: op.id,
+        amount: Number(p?.amount ?? 0),
+        description: p?.description ?? "",
+        categoryId: p?.categoryId ?? null,
+        date: p?.date ?? "",
+        paymentMethod: p?.paymentMethod ?? "card",
+        _pending: true as const,
+      };
+    });
+
   return {
     ops,
     pendingCount: ops.filter((o) => o.status === "pending").length,
     failedCount:  ops.filter((o) => o.status === "failed").length,
     pendingTxIds,
     pendingGoalIds,
+    pendingTransactions,
     refresh,
   };
 }

@@ -591,7 +591,7 @@ export default function TransactionsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const { pendingTxIds } = useOfflinePendingOps();
+  const { pendingTxIds, pendingTransactions } = useOfflinePendingOps();
 
   const create = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/transactions`,
@@ -836,13 +836,39 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && pendingTransactions.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-sm">{t("tx.no_results")}</p>
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-card">
           <div className="divide-y divide-border">
+            {/* Pending (offline-queued) transactions shown immediately, greyed out */}
+            {pendingTransactions.map(tx => {
+              const cat = (categories ?? []).find(c => c.id === tx.categoryId);
+              const displayColor = cat?.color ?? "#94a3b8";
+              const displayName  = cat?.name ?? t("common.uncategorized");
+              const payLabel = getPaymentLabel()[tx.paymentMethod] ?? tx.paymentMethod;
+              return (
+                <div key={tx.id} className="flex items-center gap-4 px-5 py-4 opacity-50">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium truncate text-muted-foreground">{tx.description}</p>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-zinc-600 bg-zinc-800/40 text-zinc-400 tracking-wide flex-shrink-0">
+                        <Clock className="w-2.5 h-2.5" />
+                        {t("tx.pending_sync")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{displayName} · {payLabel}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
+                  <span className="font-semibold text-sm w-20 text-right flex-shrink-0 text-muted-foreground">
+                    {fmtAmt(tx.amount, prefs.currency)}
+                  </span>
+                </div>
+              );
+            })}
             {filtered.map(tx => {
               const goalContrib = !tx.categoryId
                 ? (allContribs ?? []).find((c: any) => c.transactionId === tx.id)
