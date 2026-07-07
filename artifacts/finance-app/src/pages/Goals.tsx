@@ -1139,6 +1139,8 @@ export default function GoalsPage() {
 
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
+  // Pre-fetch larder at page level so GoalCard diamonds have data on first render (no late-mount flash)
+  const { isLoading: larderLoading } = useGetLarder({ query: { enabled: true } } as any);
   const { data: summary }                             = useGetGoalsSummary({});
   const { data: me }                                  = useGetMe();
   const { data: household }                           = useGetHousehold({
@@ -1673,7 +1675,7 @@ export default function GoalsPage() {
       )}
 
 
-      {isLoading ? (
+      {isLoading || larderLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
