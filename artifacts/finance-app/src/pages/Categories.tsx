@@ -681,7 +681,7 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
   const { data: proposals = [], isLoading } = useQuery<CategoryProposal[]>({
     queryKey: ["category-share-proposals"],
     queryFn: () => apiFetch("/category-share-proposals"),
-    refetchInterval: 10_000,
+    refetchInterval: 5_000,
   });
 
   const accept = useMutation({
