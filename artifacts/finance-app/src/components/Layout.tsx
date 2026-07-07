@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw, Wifi } from "lucide-react";
+import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo, { type BadgerMode } from "@/components/BadgerLogo";
@@ -28,63 +28,11 @@ function navItems() {
 }
 
 
-const FORCE_OFFLINE_KEY = "budger_force_offline";
-
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const mainRef        = useRef<HTMLDivElement>(null);
   const [waveIntensity, setWaveIntensity] = useState(0);
   const [larderReached, setLarderReached] = useState(false);
-
-  // ── Manual-offline reconnect prompt ─────────────────────────────────────────
-  // When the user manually switched to offline mode and a network connection is
-  // detected, prompt them to go back online. It is always their choice.
-  const [showReconnectPrompt, setShowReconnectPrompt] = useState(false);
-  // Tracks whether the user explicitly dismissed the prompt this session.
-  // Prevents the 15-second probe in useOnlineStatus from re-showing it repeatedly.
-  // Resets to false if the user goes offline again (i.e. actually loses connection),
-  // so the next genuine reconnect will prompt again.
-  const reconnectDismissedRef = useRef(false);
-
-  useEffect(() => {
-    function checkAndPrompt() {
-      if (reconnectDismissedRef.current) return; // user said "Stay Offline" this session
-      try {
-        if (localStorage.getItem(FORCE_OFFLINE_KEY) === "1" && navigator.onLine) {
-          setShowReconnectPrompt(true);
-        }
-      } catch { /* ignore */ }
-    }
-
-    // Check immediately when Layout mounts (e.g. right after login)
-    checkAndPrompt();
-
-    // Also listen for the event dispatched by useOnlineStatus's periodic probe
-    window.addEventListener("budger-connection-detected", checkAndPrompt);
-    // Reset dismissed flag when the device genuinely loses connection so the
-    // next reconnect will prompt again.
-    const onOffline = () => { reconnectDismissedRef.current = false; };
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("budger-connection-detected", checkAndPrompt);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, []);
-
-  function handleGoOnline() {
-    try { localStorage.removeItem(FORCE_OFFLINE_KEY); } catch { /* ignore */ }
-    reconnectDismissedRef.current = false;
-    setShowReconnectPrompt(false);
-    // Trigger the useOnlineStatus hook's goOnline handler by dispatching a real
-    // online event — the hook will see that force_offline is gone and update state.
-    window.dispatchEvent(new Event("online"));
-  }
-
-  function handleStayOffline() {
-    reconnectDismissedRef.current = true;
-    setShowReconnectPrompt(false);
-  }
-  // ────────────────────────────────────────────────────────────────────────────
 
   // Drain queued offline mutations whenever connectivity returns
   useQueueReplay();
@@ -768,36 +716,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Offline mask — covers all non-Home tabs ── */}
       {!isOnline && location !== "/" && <OfflineMask />}
-
-      {/* ── Manual-offline reconnect prompt ── */}
-      {showReconnectPrompt && (
-        <div
-          className="fixed bottom-20 inset-x-4 z-50 rounded-2xl border border-border bg-card shadow-xl"
-          style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.55)" }}
-        >
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wifi className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <p className="text-sm font-semibold text-foreground">{t("offline.connection_detected")}</p>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4 pl-6">{t("offline.reconnect_ask")}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleStayOffline}
-                className="flex-1 py-2.5 rounded-xl bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70"
-              >
-                {t("offline.stay_offline")}
-              </button>
-              <button
-                onClick={handleGoOnline}
-                className="flex-1 py-2.5 rounded-xl bg-foreground text-xs font-medium text-background transition active:opacity-70"
-              >
-                {t("offline.go_online")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Page content ── */}
       <main ref={mainRef} className="flex-1 overflow-auto pb-24">
