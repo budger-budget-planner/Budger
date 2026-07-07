@@ -65,6 +65,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
   // ────────────────────────────────────────────────────────────────────────────
 
+  // ── DEV exercise: simulate offline→online cycle after login ─────────────────
+  // Fires once per session, 15 s after Layout mounts (i.e. after login).
+  // Dispatches synthetic window events so the badger animation plays while
+  // real network calls remain unaffected.
+  useEffect(() => {
+    const offlineTimer = setTimeout(() => {
+      window.dispatchEvent(new Event("offline"));
+    }, 15_000);
+
+    const onlineTimer = setTimeout(() => {
+      window.dispatchEvent(new Event("online"));
+    }, 15_000 + 30_000); // 15 s offline + 30 s sleeping = back online at 45 s
+
+    return () => {
+      clearTimeout(offlineTimer);
+      clearTimeout(onlineTimer);
+    };
+  }, []); // empty deps = runs once on mount (once per login session)
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Scroll to top on every tab/route change
   useEffect(() => {
     window.scrollTo(0, 0);
