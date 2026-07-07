@@ -177,10 +177,11 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicatedAmount }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicatedAmount, savedToLarderActive: savedToLarderActiveProp, larderDedicatedToGoal: larderDedicatedToGoalProp }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
   canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
   isHousehold?: boolean; glDedicatedAmount?: number;
+  savedToLarderActive?: number; larderDedicatedToGoal?: number;
 }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -206,15 +207,10 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
     { goalId: goal.id, all: "true" } as any,
     { query: { queryKey: ["goal-contributions-save", goal.id], enabled: saveOpen } },
   );
-  const { data: larderForBadge } = useGetLarder({ query: { enabled: true } } as any);
   const myTotalForSave = (myContribsForSave ?? []).reduce((s: number, c: any) => s + Number(c.accountAmount ?? c.amount), 0);
-  const savedToLarderActive = ((larderForBadge as any)?.entries ?? [])
-    .filter((e: any) => e.sourceType === "goal_save" && e.goalId === goal.id)
-    .reduce((s: number, e: any) => s + Number(e.amount), 0);
-  // Regular Larder → Goal dedications (sourceType "goal_dedication" in larder entries)
-  const larderDedicatedToGoal = ((larderForBadge as any)?.entries ?? [])
-    .filter((e: any) => e.sourceType === "goal_dedication" && e.goalId === goal.id)
-    .reduce((s: number, e: any) => s + Math.abs(Number(e.amount)), 0);
+  // These values are pre-computed at the page level so diamonds render on first mount without async delays
+  const savedToLarderActive = savedToLarderActiveProp ?? 0;
+  const larderDedicatedToGoal = larderDedicatedToGoalProp ?? 0;
   const hasLarderSupport = savedToLarderActive > 0 || larderDedicatedToGoal > 0 || (glDedicatedAmount ?? 0) > 0;
   // Total larder money directed INTO this goal — computed after currency conversion below
 
@@ -1139,8 +1135,19 @@ export default function GoalsPage() {
 
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
-  // Pre-fetch larder at page level so GoalCard diamonds have data on first render (no late-mount flash)
-  const { isLoading: larderLoading } = useGetLarder({ query: { enabled: true } } as any);
+  // Fetch larder at page level so GoalCard diamonds have data on first render (no late-mount flash)
+  const { data: larderForBadge, isLoading: larderLoading } = useGetLarder({ query: { enabled: true } } as any);
+  const savedToLarderAmounts = new Map<number, number>();
+  const larderDedicatedAmounts = new Map<number, number>();
+  ((larderForBadge as any)?.entries ?? []).forEach((e: any) => {
+    if (e.goalId == null) return;
+    const id = e.goalId as number;
+    if (e.sourceType === "goal_save") {
+      savedToLarderAmounts.set(id, (savedToLarderAmounts.get(id) ?? 0) + Number(e.amount));
+    } else if (e.sourceType === "goal_dedication") {
+      larderDedicatedAmounts.set(id, (larderDedicatedAmounts.get(id) ?? 0) + Math.abs(Number(e.amount)));
+    }
+  });
   const { data: summary }                             = useGetGoalsSummary({});
   const { data: me }                                  = useGetMe();
   const { data: household }                           = useGetHousehold({
@@ -1689,7 +1696,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -1717,7 +1724,7 @@ export default function GoalsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   {pendingHouseholdGoals.map(g => (
                     <div key={`pending-${g.id}`} className="relative opacity-50 pointer-events-none select-none">
-                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
+                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} />
                       <div className="absolute inset-0 flex items-start justify-end p-3 pointer-events-none">
                         <span className="text-[10px] font-semibold uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded-full">
                           {t("goals.pending_hh_badge")}
@@ -1730,7 +1737,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} />
                   ))}
                 </div>
               ) : pendingHouseholdGoals.length === 0 ? (
