@@ -940,6 +940,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "queue.larder_withdrawal":     { en: "Larder withdrawal",          pl: "Wypłata ze Spiżarni"                },
   "queue.larder_to_goal":        { en: "Larder → goal",              pl: "Spiżarnia → cel"                    },
   "queue.send_to_gl":            { en: "Send to GL",                 pl: "Przekaż do WS"                      },
+
+  "camera.denied":  { en: "Camera access was denied. Please allow camera access in your device settings.", pl: "Dostęp do kamery został zablokowany. Zezwól na dostęp do kamery w ustawieniach urządzenia." },
   "larder.source_recurring": { en: "Recurring payment",              pl: "Płatność cykliczna"                 },
   "larder.source_fund":      { en: "From Larder",                    pl: "Ze Spiżarni"                        },
   "larder.dedicated_badge":  { en: "Dedicated to Larder",            pl: "Przeznaczone do Spiżarni"           },

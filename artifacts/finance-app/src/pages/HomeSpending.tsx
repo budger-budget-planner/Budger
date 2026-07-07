@@ -44,7 +44,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, requestCameraPermission } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
@@ -386,7 +386,14 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
             )}
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="gap-2"
-                onClick={() => cameraRef.current?.click()} disabled={uploadReceipt.isPending}>
+                onClick={async () => {
+                  const result = await requestCameraPermission();
+                  if (result === "denied") {
+                    alert(t("camera.denied"));
+                    return;
+                  }
+                  cameraRef.current?.click();
+                }} disabled={uploadReceipt.isPending}>
                 <Camera className="w-4 h-4" />
                 {uploadReceipt.isPending ? t("home.uploading") : t("home.camera")}
               </Button>

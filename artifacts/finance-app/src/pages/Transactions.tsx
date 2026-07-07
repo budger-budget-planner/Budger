@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { t } from "@/lib/i18n";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, requestCameraPermission } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import {
   useListTransactions,
@@ -455,7 +455,14 @@ function ReceiptModal({
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => cameraRef.current?.click()}
+                onClick={async () => {
+                  const result = await requestCameraPermission();
+                  if (result === "denied") {
+                    alert(t("camera.denied"));
+                    return;
+                  }
+                  cameraRef.current?.click();
+                }}
                 disabled={isOffline || uploadReceipt.isPending}
                 data-testid="button-capture-receipt"
               >

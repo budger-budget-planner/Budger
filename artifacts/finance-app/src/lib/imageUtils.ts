@@ -1,4 +1,21 @@
 /**
+ * Request camera permission via getUserMedia so iOS shows the native
+ * system prompt ("App would like to access your Camera").
+ * Stops the stream immediately — we only need the permission grant.
+ * Returns "granted", "denied", or "unavailable" (API not supported).
+ */
+export async function requestCameraPermission(): Promise<"granted" | "denied" | "unavailable"> {
+  if (!navigator.mediaDevices?.getUserMedia) return "unavailable";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream.getTracks().forEach(t => t.stop());
+    return "granted";
+  } catch {
+    return "denied";
+  }
+}
+
+/**
  * Compress an image File to a JPEG data URL.
  * Resizes to maxPx on the longest edge, then encodes at `quality` (0-1).
  * Camera photos can be 5-12 MB; this brings them under ~200 KB.
