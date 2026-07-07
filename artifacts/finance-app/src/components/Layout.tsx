@@ -629,9 +629,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         disabled={!isOnline || converting || isSelected || !!currSwitchTarget}
                         className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition active:scale-95 disabled:cursor-default ${
                           isSelected
-                            ? "border-foreground bg-foreground text-background"
+                            ? "border-zinc-600 bg-zinc-700 text-white"
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
-                        } ${(!isOnline || converting || !!currSwitchTarget) && !isSelected ? "opacity-40" : ""}`}
+                        } ${(!isOnline || converting) && !isSelected ? "opacity-40" : ""}`}
                       >
                         <span className="text-sm font-bold">{c.symbol} {c.code}</span>
                         {rateStr && !isSelected && (
@@ -680,9 +680,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         disabled={!isOnline || isSelected || !!langSwitchTarget}
                         className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-default ${
                           isSelected
-                            ? "border-foreground bg-foreground text-background"
+                            ? "border-zinc-600 bg-zinc-700 text-white"
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
-                        } ${(!isOnline || !!langSwitchTarget) && !isSelected ? "opacity-40" : ""}`}
+                        } ${!isOnline && !isSelected ? "opacity-40" : ""}`}
                       >
                         {l.label}
                       </button>
