@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { OfflineMask } from "@/components/OfflineMask";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
@@ -813,6 +814,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      <OfflineMask />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">{t("tx.title")}</h1>
         <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2" disabled={!isOnline}>

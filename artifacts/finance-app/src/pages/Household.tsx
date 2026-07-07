@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { OfflineMask } from "@/components/OfflineMask";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
@@ -984,7 +985,8 @@ export default function HouseholdPage() {
   }
 
   return (
-    <div className={`pb-28 anim-in${!isOnline ? " [&_button:not([data-offline-ok])]:opacity-50 [&_button:not([data-offline-ok])]:pointer-events-none" : ""}`}>
+    <div className="pb-28 anim-in">
+      <OfflineMask />
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2">

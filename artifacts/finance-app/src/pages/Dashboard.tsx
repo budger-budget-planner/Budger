@@ -22,6 +22,7 @@ import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 import { useLiveActivity } from "@/hooks/useLiveActivity";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { OfflineMask } from "@/components/OfflineMask";
 
 const CHART_COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
 
@@ -153,6 +154,7 @@ export default function DashboardPage() {
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
+      <OfflineMask />
 
       <div className="mb-4">
         <h1 className="text-xl font-bold">{t("dashboard.title")}</h1>

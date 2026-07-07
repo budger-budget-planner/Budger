@@ -527,6 +527,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "currency.converted":  { en: "Currency converted",           pl: "Waluta przeliczona"           },
   "currency.failed":     { en: "Conversion failed",            pl: "Przeliczanie nie powiodło się"},
   "currency.offline_rates": { en: "Offline — using last known rates", pl: "Offline — używam ostatnich kursów"},
+  "offline.mask_title":     { en: "Unavailable Offline",              pl: "Niedostępne offline"                },
+  "offline.mask_subtitle":  { en: "Go to Home to add transactions while offline", pl: "Przejdź do Głównej, aby dodać transakcje offline" },
 
   // ── Home additional ──
   "home.current_month":       { en: "current month",           pl: "obecny miesiąc"               },
