@@ -177,10 +177,10 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicated }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicatedAmount }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
   canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
-  isHousehold?: boolean; glDedicated?: boolean;
+  isHousehold?: boolean; glDedicatedAmount?: number;
 }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -211,7 +211,12 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   const savedToLarderActive = ((larderForBadge as any)?.entries ?? [])
     .filter((e: any) => e.sourceType === "goal_save" && e.goalId === goal.id)
     .reduce((s: number, e: any) => s + Number(e.amount), 0);
-  const hasLarderSupport = savedToLarderActive > 0 || !!glDedicated;
+  // Regular Larder → Goal dedications (sourceType "goal_dedication" in larder entries)
+  const larderDedicatedToGoal = ((larderForBadge as any)?.entries ?? [])
+    .filter((e: any) => e.sourceType === "goal_dedication" && e.goalId === goal.id)
+    .reduce((s: number, e: any) => s + Math.abs(Number(e.amount)), 0);
+  const hasLarderSupport = savedToLarderActive > 0 || larderDedicatedToGoal > 0 || (glDedicatedAmount ?? 0) > 0;
+  // Total larder money directed INTO this goal — computed after currency conversion below
 
   const saveToLarder = useLarderSaveFromGoal({
     mutation: {
@@ -280,6 +285,13 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
     ? convertAmount(rawBudget, goalCur, currency, rates)
     : rawBudget;
   const pct = budget > 0 ? Math.min((contributed / budget) * 100, 100) : 0;
+
+  // Larder/GL % of goal — both amounts treated as viewer currency (same as budget after conversion)
+  const totalLarderToGoal = larderDedicatedToGoal + (glDedicatedAmount ?? 0);
+  const larderPct = budget > 0 ? Math.min((totalLarderToGoal / budget) * 100, 100) : 0;
+  const diamondCount = !hasLarderSupport ? 0 : larderPct >= 75 ? 4 : larderPct >= 50 ? 3 : larderPct >= 25 ? 2 : 1;
+  const larderFundedFully = larderPct >= 100;
+
   const isTbd = goal.deadline === "TBD";
   const ml = isTbd ? null : monthsLeft(goal.deadline);
   const monthlyTarget = goal.divideByMonths && ml
@@ -287,7 +299,13 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
     : null;
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+    <div
+      className="bg-card border border-border rounded-2xl overflow-hidden"
+      style={larderFundedFully ? {
+        borderColor: "rgba(255,255,255,0.30)",
+        boxShadow: "0 0 22px 5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.14)",
+      } : undefined}
+    >
       <div className="h-1.5" style={{ backgroundColor: goal.color }} />
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
@@ -296,18 +314,35 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
             <div className="w-full h-full rounded-xl flex items-center justify-center">
               <Target className="w-4 h-4" style={{ color: goal.color }} />
             </div>
-            {hasLarderSupport && (<>
+            {/* Diamond sparkles: count 1–4 based on % of goal funded by Larder/GL */}
+            {diamondCount >= 1 && (
               <div style={{ position:"absolute", top:-7, right:-7, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
               </div>
+            )}
+            {diamondCount >= 2 && (
               <div style={{ position:"absolute", bottom:-6, left:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
               </div>
-            </>)}
+            )}
+            {diamondCount >= 3 && (
+              <div style={{ position:"absolute", top:-6, left:-6, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.70)" }} />
+              </div>
+            )}
+            {diamondCount >= 4 && (
+              <div style={{ position:"absolute", bottom:-6, right:-6, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
+                <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.78), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.78), transparent)" }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.68)" }} />
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
@@ -1121,12 +1156,14 @@ export default function GoalsPage() {
     enabled: isInHouseholdEarly,
     staleTime: 60_000,
   });
-  // GL entries now carry goalId for goal_dedication rows; negative amounts = GL spent on that goal
-  const glDedicatedGoalIds = new Set<number>(
-    ((greatLarder?.entries ?? []) as any[])
-      .filter(e => e.sourceType === "goal_dedication" && e.goalId != null)
-      .map(e => e.goalId as number)
-  );
+  // GL entries carry goalId for goal_dedication rows; amounts are negative (GL balance decreases)
+  const glDedicatedAmounts = new Map<number, number>();
+  ((greatLarder?.entries ?? []) as any[])
+    .filter(e => e.sourceType === "goal_dedication" && e.goalId != null)
+    .forEach(e => {
+      const id = e.goalId as number;
+      glDedicatedAmounts.set(id, (glDedicatedAmounts.get(id) ?? 0) + Math.abs(Number(e.amount)));
+    });
 
   const isInHousehold = !!me?.householdId;
   const isCreator = isInHousehold && !!household && !!me && (household as any).ownerId === me.id;
@@ -1650,7 +1687,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicated={glDedicatedGoalIds.has((g as any).id)} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -1678,7 +1715,7 @@ export default function GoalsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   {pendingHouseholdGoals.map(g => (
                     <div key={`pending-${g.id}`} className="relative opacity-50 pointer-events-none select-none">
-                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} glDedicated={glDedicatedGoalIds.has((g as any).id)} />
+                      <GoalCard goal={g} summary={undefined} onEdit={() => {}} currency={prefs.currency} canEdit={false} canDelete={false} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
                       <div className="absolute inset-0 flex items-start justify-end p-3 pointer-events-none">
                         <span className="text-[10px] font-semibold uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded-full">
                           {t("goals.pending_hh_badge")}
@@ -1691,7 +1728,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicated={glDedicatedGoalIds.has((g as any).id)} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} />
                   ))}
                 </div>
               ) : pendingHouseholdGoals.length === 0 ? (
