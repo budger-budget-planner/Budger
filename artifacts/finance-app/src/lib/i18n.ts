@@ -109,6 +109,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.amount_toward_goal":  { en: "Amount toward goal",                pl: "Kwota na cel"                    },
   "home.up_to":               { en: "up to",                            pl: "do"                              },
   "home.cannot_exceed":       { en: "Cannot exceed transaction amount",  pl: "Nie może przekroczyć kwoty transakcji"},
+  "home.goal_remaining":      { en: "Left to complete: {amt}",           pl: "Pozostało do celu: {amt}"            },
+  "home.goal_completed":      { en: "Goal already reached",              pl: "Cel już osiągnięty"                  },
   "home.no_spending_month":   { en: "No spending logged for this month.",pl: "Brak wydatków w tym miesiącu."  },
   "home.add_first_entry":     { en: "Add first entry",                   pl: "Dodaj pierwszy wpis"             },
   "home.goal_contribution":   { en: "Goal contribution",                 pl: "Wpłata na cel"                   },

@@ -2213,6 +2213,19 @@ export default function HouseholdPage() {
               to={prefs.currency}
               rates={splitRates}
             />
+            {glDedicateGoalId && (() => {
+              const summary = (goalSummary ?? []).find((s: any) => s.goalId === glDedicateGoalId);
+              if (!summary) return null;
+              const remaining = summary.budget - summary.contributed;
+              const goalObj = (sharedGoals ?? []).find((g: any) => g.id === glDedicateGoalId);
+              const currency = (goalObj as any)?.currency ?? prefs.currency;
+              if (remaining <= 0) return (
+                <p className="text-xs text-emerald-400/80">{t("home.goal_completed")}</p>
+              );
+              return (
+                <p className="text-xs text-white/45">{t("home.goal_remaining", { amt: fmtAmt(remaining, currency) })}</p>
+              );
+            })()}
           </div>
           {(() => {
             const amt = parseFloat(glDedicateAmt.replace(",", "."));

@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useListGoals, useGetMe, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
+import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
@@ -180,6 +180,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   });
 
   const { data: goals } = useListGoals({ query: { retry: false } } as any);
+  const { data: goalSummaries } = useGetGoalsSummary({}, { query: { retry: false } } as any);
   const { data: rates } = useQuery({ queryKey: ["fx-rates"], queryFn: fetchRates, staleTime: 60 * 60 * 1000 });
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
@@ -712,6 +713,19 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               value={dedAmount} onChange={e => setDedAmount(e.target.value)}
               placeholder="0.00" className={inputCls} />
             <ConversionPreview amount={parseFloat(dedAmount.replace(",", "."))} from={dedAsset || prefs.currency} to={prefs.currency} rates={rates} />
+            {dedGoalId && (() => {
+              const summary = (goalSummaries ?? []).find((s: any) => s.goalId === dedGoalId);
+              if (!summary) return null;
+              const remaining = summary.budget - summary.contributed;
+              const goalObj = (goals ?? []).find((g: any) => g.id === dedGoalId);
+              const currency = (goalObj as any)?.currency ?? prefs.currency;
+              if (remaining <= 0) return (
+                <p className="text-xs text-emerald-400/80">{t("home.goal_completed")}</p>
+              );
+              return (
+                <p className="text-xs text-white/45">{t("home.goal_remaining", { amt: fmtAmt(remaining, currency) })}</p>
+              );
+            })()}
           </div>
           {(() => {
             const amt = parseFloat(dedAmount.replace(",", "."));

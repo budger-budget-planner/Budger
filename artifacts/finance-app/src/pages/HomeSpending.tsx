@@ -31,6 +31,7 @@ import {
   useGetLarder,
   getGetLarderQueryKey,
   useDeleteLarderEntry,
+  useGetGoalsSummary,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse } from "lucide-react";
@@ -89,10 +90,11 @@ type TxFormState = {
   foundedWithRealizedGoal: boolean;
 };
 
-function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
+function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel, loading }: {
   initial: TxFormState;
   categories: any[];
   goals: any[];
+  goalSummaries: any[];
   onSubmit: (d: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
@@ -239,6 +241,20 @@ function TxForm({ initial, categories, goals, onSubmit, onCancel, loading }: {
                     ))}
                   </SelectContent>
                 </Select>
+                {/* Goal remaining preview */}
+                {form.goalId && form.goalId !== "none" && form.goalId !== "larder" && (() => {
+                  const summary = goalSummaries.find((s: any) => String(s.goalId) === form.goalId);
+                  if (!summary) return null;
+                  const remaining = summary.budget - summary.contributed;
+                  const goalObj = goals.find((g: any) => String(g.id) === form.goalId);
+                  const currency = goalObj?.currency ?? loadPrefs().currency;
+                  if (remaining <= 0) return (
+                    <p className="text-xs text-emerald-500">{t("home.goal_completed")}</p>
+                  );
+                  return (
+                    <p className="text-xs text-muted-foreground">{t("home.goal_remaining", { amt: fmtAmt(remaining, currency) })}</p>
+                  );
+                })()}
               </div>
 
               {form.goalMode === "part" && (
@@ -1007,6 +1023,7 @@ export default function HomeSpending() {
 
   const { data: categories }    = useListCategories();
   const { data: goals }         = useListGoals();
+  const { data: goalSummaries } = useGetGoalsSummary({});
   const { data: contributions } = useListGoalContributions(
     { month: viewMonth },
     { query: { queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) } }
@@ -1856,6 +1873,7 @@ export default function HomeSpending() {
             initial={getBlank()}
             categories={categories ?? []}
             goals={goals ?? []}
+            goalSummaries={goalSummaries ?? []}
             onSubmit={handleCreate}
             onCancel={() => setAddOpen(false)}
             loading={create.isPending}
@@ -1926,6 +1944,7 @@ export default function HomeSpending() {
               initial={buildEditInitial(editTx)}
               categories={categories ?? []}
               goals={goals ?? []}
+              goalSummaries={goalSummaries ?? []}
               onSubmit={handleUpdate}
               onCancel={() => setEditTx(null)}
               loading={update.isPending}
