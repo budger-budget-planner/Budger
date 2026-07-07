@@ -35,7 +35,8 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse } from "lucide-react";
+import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1071,6 +1072,8 @@ export default function HomeSpending() {
     }
   }
 
+  const { pendingTxIds } = useOfflinePendingOps();
+
   const create = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/transactions`,
     method: "POST",
@@ -1714,6 +1717,14 @@ export default function HomeSpending() {
                             <p className="text-sm font-semibold text-foreground">
                               −{fmtAmt(Number(tx.amount), tx.transactionCurrency ?? prefs.currency)}
                             </p>
+                          )}
+                          {pendingTxIds.has(tx.id) && (
+                            <span
+                              className="inline-flex items-center gap-0.5 text-[10px] text-amber-400/90 font-medium"
+                              title="Pending offline sync"
+                            >
+                              <Clock className="w-3 h-3" />
+                            </span>
                           )}
                           {isExpanded && hasUnavailable && (
                             <span className="inline-flex flex-col items-end text-[10px] font-medium px-2 py-1 rounded-xl border border-yellow-500/60 text-yellow-400 bg-yellow-500/10 leading-snug text-right">

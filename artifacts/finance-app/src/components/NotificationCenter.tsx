@@ -4,7 +4,7 @@ import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
   Smartphone, ExternalLink, Circle, Sparkles, Crown,
-  FileText, ShieldCheck,
+  FileText, ShieldCheck, Clock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -24,6 +24,8 @@ import {
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
+import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { discardOp, opLabel } from "@/lib/mutation-queue";
 import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
 import { LEGAL } from "@/lib/legal";
 import { showNotification } from "@/lib/show-notification";
@@ -387,6 +389,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [previewing, setPreviewing] = useState(false);
   const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Offline sync status (shown in the Sync section above Smart alerts)
+  const [syncExpanded, setSyncExpanded] = useState(false);
+  const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
+
   // Legal / Delete state
   const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -468,6 +474,78 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-5 -mx-1 px-1">
+
+        {/* 0. Offline sync — only shown when there are queued or failed ops */}
+        {(pendingCount > 0 || failedCount > 0) && (
+          <section>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {lang === "pl" ? "Synchronizacja offline" : "Offline sync"}
+            </p>
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              {/* Header row — toggles the list */}
+              <button
+                onClick={() => setSyncExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3.5 transition active:opacity-70"
+              >
+                <div className="flex items-center gap-2">
+                  <Clock className={`w-4 h-4 ${failedCount > 0 ? "text-destructive" : "text-amber-400"}`} />
+                  <span className="text-sm font-medium">
+                    {lang === "pl"
+                      ? (failedCount > 0
+                          ? `${failedCount} błąd${pendingCount > 0 ? `, ${pendingCount} oczekuje` : ""}`
+                          : `${pendingCount} oczekuj${pendingCount === 1 ? "e" : "ą"}`)
+                      : (failedCount > 0
+                          ? `${failedCount} failed${pendingCount > 0 ? `, ${pendingCount} pending` : ""}`
+                          : `${pendingCount} pending change${pendingCount !== 1 ? "s" : ""}`)
+                    }
+                  </span>
+                </div>
+                <ChevronLeft className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${syncExpanded ? "rotate-90" : "-rotate-90"}`} />
+              </button>
+
+              {/* Expanded list of queued ops */}
+              {syncExpanded && (
+                <div className="border-t border-border divide-y divide-border/50">
+                  {ops.map(op => (
+                    <div key={op.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        op.status === "failed"
+                          ? "bg-destructive/15 text-destructive"
+                          : "bg-amber-500/15 text-amber-400"
+                      }`}>
+                        {op.status === "failed"
+                          ? <AlertTriangle className="w-3.5 h-3.5" />
+                          : <Clock className="w-3.5 h-3.5" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{opLabel(op)}</p>
+                        {op.status === "failed" && (op as any).error && (
+                          <p className="text-[10px] text-destructive/80 mt-0.5 line-clamp-1">
+                            {String((op as any).error).slice(0, 80)}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await discardOp(op.id);
+                          opsRefresh();
+                          window.dispatchEvent(new CustomEvent("queue-updated"));
+                          // Also fire queue-drain so useQueueReplay retries remaining ops immediately
+                          window.dispatchEvent(new CustomEvent("queue-drain"));
+                        }}
+                        className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 transition active:scale-90"
+                        title={lang === "pl" ? "Odrzuć" : "Discard"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* 1. Smart alerts */}
         <section>

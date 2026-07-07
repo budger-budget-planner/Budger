@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { countPending, replayQueue, withReplayLock } from "@/lib/mutation-queue";
+import { countPending, replayQueue, withReplayLock, discardOp, opLabel, type QueuedOp } from "@/lib/mutation-queue";
 import { toast } from "sonner";
 
 /**
@@ -24,7 +24,27 @@ export function useQueueReplay() {
       );
 
       try {
-        const { succeeded, failed } = await withReplayLock(() => replayQueue());
+        const { succeeded, failed } = await withReplayLock(() =>
+          replayQueue(
+            undefined,
+            // onFail — called once per terminal (4xx) op; shows a Discard toast
+            (op: QueuedOp, error: string) => {
+              toast.error(`Couldn't sync: ${opLabel(op)}`, {
+                description: error.slice(0, 120),
+                action: {
+                  label: "Discard",
+                  onClick: async () => {
+                    await discardOp(op.id);
+                    // Fire queue-drain so useQueueReplay retries remaining ops
+                    window.dispatchEvent(new CustomEvent("queue-drain"));
+                    window.dispatchEvent(new CustomEvent("queue-updated"));
+                  },
+                },
+                duration: 10_000,
+              });
+            },
+          ),
+        );
 
         if (succeeded > 0) {
           // Broad invalidation — simpler than tracking which endpoints were touched.
@@ -62,7 +82,11 @@ export function useQueueReplay() {
     // and connectivity is now available.
     if (navigator.onLine) void drain();
 
-    window.addEventListener("online", drain);
-    return () => window.removeEventListener("online", drain);
+    window.addEventListener("online",      drain);
+    window.addEventListener("queue-drain", drain);
+    return () => {
+      window.removeEventListener("online",      drain);
+      window.removeEventListener("queue-drain", drain);
+    };
   }, [queryClient]);
 }

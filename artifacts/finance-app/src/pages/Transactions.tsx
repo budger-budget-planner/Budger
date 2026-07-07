@@ -30,7 +30,8 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock } from "lucide-react";
+import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -590,6 +591,8 @@ export default function TransactionsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const { pendingTxIds } = useOfflinePendingOps();
+
   const create = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/transactions`,
     method: "POST",
@@ -902,6 +905,9 @@ export default function TransactionsPage() {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{tx.date}</span>
+                  {pendingTxIds.has(tx.id) && (
+                    <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label="Pending sync" />
+                  )}
                   {/* Amount — show original currency for locked rows */}
                   <span className="font-semibold text-sm w-20 text-right flex-shrink-0">
                     {tx.currencyLocked && tx.transactionCurrency

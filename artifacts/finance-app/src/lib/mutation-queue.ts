@@ -63,7 +63,13 @@ export async function enqueue(
   const entry: QueuedOp = { ...op, id, timestamp: Date.now(), status: "pending" };
   return new Promise((resolve, reject) => {
     const req = idbStore(db, "readwrite").add(entry);
-    req.onsuccess = () => resolve(id);
+    req.onsuccess = () => {
+      resolve(id);
+      // Notify any page-level listeners so they refresh the pending count.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("queue-updated"));
+      }
+    };
     req.onerror  = () => reject(req.error);
   });
 }
@@ -212,6 +218,55 @@ export async function replayQueue(
 }
 
 // ─── Background Sync registration ────────────────────────────────────────────
+
+// ─── Additional read / utility exports ───────────────────────────────────────
+
+/**
+ * Return ALL ops (both "pending" and "failed") sorted by timestamp.
+ * Used by `useOfflinePendingOps` to populate the sync status UI.
+ */
+export async function listAll(): Promise<QueuedOp[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = idbStore(db, "readonly").getAll();
+    req.onsuccess = () => {
+      const all = req.result as QueuedOp[];
+      resolve(all.sort((a, b) => a.timestamp - b.timestamp));
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Remove any op from the queue regardless of its status (pending or failed).
+ * Equivalent to `dequeue`; exported with a clearer name for the discard flow.
+ */
+export const discardOp = dequeue;
+
+/**
+ * Return a short, human-readable label for a queued op.
+ * Matches against the /api/<path> suffix of the endpoint so it works
+ * regardless of the BASE_URL prefix (e.g. `/finance-app/api/…`).
+ */
+export function opLabel(op: QueuedOp): string {
+  const { method, endpoint } = op;
+  const api = endpoint.split("/api/")[1] ?? endpoint;
+  if (api === "transactions"                        && method === "POST")   return "Add transaction";
+  if (/^transactions\/\d+$/.test(api)               && method === "PATCH")  return "Edit transaction";
+  if (/^transactions\/\d+$/.test(api)               && method === "DELETE") return "Delete transaction";
+  if (api === "auth/me"                             && method === "PATCH")  return "Update profile";
+  if (api === "goal-contributions"                  && method === "POST")   return "Goal contribution";
+  if (/^goal-contributions\/\d+$/.test(api)         && method === "DELETE") return "Remove contribution";
+  if (api === "recurring-payments"                  && method === "POST")   return "Add recurring payment";
+  if (/^recurring-payments\/\d+$/.test(api)         && method === "PATCH")  return "Edit recurring payment";
+  if (/^recurring-payments\/\d+$/.test(api)         && method === "DELETE") return "Delete recurring payment";
+  if (api === "larder/entries"                      && method === "POST")   return "Fund larder";
+  if (/^larder\/entries\/\d+$/.test(api)            && method === "DELETE") return "Remove larder entry";
+  if (api === "larder/spend"                        && method === "POST")   return "Larder withdrawal";
+  if (api === "larder/dedicate-to-goal"             && method === "POST")   return "Larder → goal";
+  if (api === "great-larder/send"                   && method === "POST")   return "Send to GL";
+  return `${method} /${api}`;
+}
 
 /**
  * Ask the Service Worker to replay the queue via the Background Sync API.

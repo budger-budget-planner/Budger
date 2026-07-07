@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
+import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -177,11 +178,12 @@ function monthsLeft(deadline: string): number {
   );
 }
 
-function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicatedAmount, savedToLarderActive: savedToLarderActiveProp, larderDedicatedToGoal: larderDedicatedToGoalProp }: {
+function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, isHousehold, glDedicatedAmount, savedToLarderActive: savedToLarderActiveProp, larderDedicatedToGoal: larderDedicatedToGoalProp, hasPendingContrib }: {
   goal: any; summary: any; onEdit: () => void; currency: string;
   canEdit: boolean; canDelete: boolean; rates: Record<string, number>;
   isHousehold?: boolean; glDedicatedAmount?: number;
   savedToLarderActive?: number; larderDedicatedToGoal?: number;
+  hasPendingContrib?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -342,7 +344,12 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-semibold text-sm text-foreground truncate">{goal.name}</p>
+              {hasPendingContrib && (
+                <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label="Pending sync" />
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {isTbd
                 ? t("goals.target_due", { amt: fmtAmtRound(Number(budget), currency), date: t("goals.date_tbd") })
@@ -1093,6 +1100,7 @@ export default function GoalsPage() {
   const queryClient = useQueryClient();
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
+  const { pendingGoalIds } = useOfflinePendingOps();
 
   const larderRef = useRef<HTMLDivElement>(null);
   const [larderVisible, setLarderVisible] = useState(false);
@@ -1703,7 +1711,7 @@ export default function GoalsPage() {
             {privateGoals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {privateGoals.map(g => (
-                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} />
+                  <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} hasPendingContrib={pendingGoalIds.has(g.id)} />
                 ))}
               </div>
             ) : !isInHousehold ? (
@@ -1744,7 +1752,7 @@ export default function GoalsPage() {
               {householdGoals.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {householdGoals.map(g => (
-                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} />
+                    <GoalCard key={g.id} goal={g} summary={summaryMap.get(g.id)} onEdit={() => setEditGoal(g)} currency={prefs.currency} canEdit={canEdit(g)} canDelete={canDelete(g)} rates={rates} isHousehold glDedicatedAmount={glDedicatedAmounts.get((g as any).id) ?? 0} savedToLarderActive={savedToLarderAmounts.get((g as any).id) ?? 0} larderDedicatedToGoal={larderDedicatedAmounts.get((g as any).id) ?? 0} hasPendingContrib={pendingGoalIds.has(g.id)} />
                   ))}
                 </div>
               ) : pendingHouseholdGoals.length === 0 ? (
