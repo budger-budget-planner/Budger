@@ -167,18 +167,24 @@ export default function BadgerLogo({
           }
           @keyframes blg-eye-close {
             0%   { transform: scaleY(1); }
-            30%  { transform: scaleY(0.65); }
-            60%  { transform: scaleY(0.22); }
-            85%  { transform: scaleY(0.08); }
-            100% { transform: scaleY(0.06); }
+            30%  { transform: scaleY(0.55); }
+            60%  { transform: scaleY(0.18); }
+            85%  { transform: scaleY(0.04); }
+            100% { transform: scaleY(0.04); }
           }
 
-          /* ══ SLEEPING — eyes stay closed, whole group breathes ══ */
+          /* Drawn closed eyelids — hidden by default, visible only when sleeping */
+          .blg-closed-eye-l,
+          .blg-closed-eye-r { opacity: 0; }
+
+          /* ══ SLEEPING ══ */
+          /* Hide the open-eye groups so drawn lids take over */
           .blg-sleeping .blg-eye-l,
-          .blg-sleeping .blg-eye-r {
-            transform: scaleY(0.06);
-          }
-          /* Gentle breathing: the animated group as a whole rises and falls */
+          .blg-sleeping .blg-eye-r { opacity: 0; }
+          /* Reveal the drawn closed eyelids */
+          .blg-sleeping .blg-closed-eye-l,
+          .blg-sleeping .blg-closed-eye-r { opacity: 1; }
+          /* Gentle breathing on the whole group */
           .blg-sleeping {
             animation: blg-breathe 3.5s ease-in-out infinite;
           }
@@ -188,14 +194,16 @@ export default function BadgerLogo({
             65%      { transform: translateY(-1.4px); }
           }
 
-          /* Zzz — hidden by default, animated only when sleeping */
+          /* Zzz — hidden by default, animated only when sleeping.
+             Italic weight makes them read instantly as sleep-Zzz.
+             Sizes 15/20/25 SVG units → ~6/8/11 px at 42 px display size. */
           .blg-zzz {
             opacity: 0;
             transform-box: fill-box;
             transform-origin: center;
           }
           /* Every-other-breath: 7 s cycle (two 3.5 s breaths).
-             First ≈ 3.5 s = active (rise + fade), last ≈ 3.5 s = dead silence. */
+             First ≈ 3.5 s active (rise + fade), last ≈ 3.5 s silent. */
           .blg-sleeping .blg-z1 {
             animation: blg-zzz-rise 7s ease-in-out infinite 0.35s;
           }
@@ -207,19 +215,30 @@ export default function BadgerLogo({
           }
           @keyframes blg-zzz-rise {
             0%   { opacity: 0; transform: translate(0px, 0px); }
-            8%   { opacity: 0.95; }
-            46%  { opacity: 0.75; transform: translate(9px, -19px); }
-            56%  { opacity: 0;    transform: translate(11px, -23px); }
-            100% { opacity: 0;    transform: translate(11px, -23px); }
+            8%   { opacity: 1; }
+            46%  { opacity: 0.85; transform: translate(10px, -20px); }
+            56%  { opacity: 0;   transform: translate(12px, -25px); }
+            100% { opacity: 0;   transform: translate(12px, -25px); }
           }
 
-          /* ══ WAKING UP — eyes flutter open from closed ══ */
+          /* ══ WAKING UP ══ */
+          /* Drawn lids fade out as real eyes open */
+          .blg-waking-up .blg-closed-eye-l,
+          .blg-waking-up .blg-closed-eye-r {
+            animation: blg-closed-fade 0.25s ease-out forwards;
+          }
+          @keyframes blg-closed-fade {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+          }
+          /* Real eyes: restore opacity and spring open */
           .blg-waking-up .blg-eye-l,
           .blg-waking-up .blg-eye-r {
+            opacity: 1;
             animation: blg-eye-open 0.95s ease-out forwards;
           }
           @keyframes blg-eye-open {
-            0%   { transform: scaleY(0.06); }
+            0%   { transform: scaleY(0.04); }
             42%  { transform: scaleY(1.18); }
             65%  { transform: scaleY(0.80); }
             83%  { transform: scaleY(1.09); }
@@ -274,6 +293,27 @@ export default function BadgerLogo({
           <circle cx="72.5" cy="47" r="2.5" fill="white" />
         </g>
 
+        {/* ── Drawn closed eyelids — visible only during sleeping ──────────
+             A filled circle blocks the white sclera; a thick curved arc on
+             top reads instantly as a firmly-shut eyelid at any icon size.  */}
+        <g className="blg-closed-eye-l">
+          {/* Block out the open eye beneath */}
+          <circle cx="29" cy="48" r="11" fill="#111" />
+          {/* Upper eyelid crease — arches gently upward */}
+          <path d="M 18.5 48 Q 29 41.5 39.5 48"
+            stroke="#686868" strokeWidth="3" strokeLinecap="round" fill="none" />
+          {/* Lower lid shadow for depth */}
+          <path d="M 19.5 50 Q 29 53.5 38.5 50"
+            stroke="#3a3a3a" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.7" />
+        </g>
+        <g className="blg-closed-eye-r">
+          <circle cx="71" cy="48" r="11" fill="#111" />
+          <path d="M 60.5 48 Q 71 41.5 81.5 48"
+            stroke="#686868" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <path d="M 61.5 50 Q 71 53.5 80.5 50"
+            stroke="#3a3a3a" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.7" />
+        </g>
+
         {/* Nose — SNIFF target */}
         <g className="blg-nose">
           <ellipse cx="50" cy="67" rx="9"   ry="7"   fill="#111" />
@@ -300,37 +340,41 @@ export default function BadgerLogo({
           <ellipse cx="48" cy="77.5" rx="1.8" ry="1" fill="white" opacity="0.3" />
         </g>
 
-        {/* ── Zzz — sleeping exhale bubbles ──
-             Three white Z letters rising from the right side of the mouth
-             upper-right toward the dark face stripe, staggered 0.65 s each.
-             They are hidden via opacity:0 (blg-zzz) and only animated
-             when the parent group carries the blg-sleeping class.          */}
+        {/* ── Zzz — sleeping exhale bubbles ──────────────────────────────────
+             Three italic Z letters cascade from the mouth's right edge and
+             float upper-right into the dark face stripe (white on dark =
+             high contrast). Font sizes 15/20/25 SVG units give ~6/8/11 px
+             at the 42 px header icon — clearly visible at any device scale.
+             Italic style makes them instantly read as classic sleep Zzz.    */}
         <text
           aria-hidden="true"
           className="blg-zzz blg-z1"
-          x="61" y="71"
-          fontSize="6.5"
+          x="60" y="71"
+          fontSize="15"
           fontWeight="800"
+          fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
           fill="white"
           textAnchor="middle"
-        >Z</text>
+        >z</text>
         <text
           aria-hidden="true"
           className="blg-zzz blg-z2"
-          x="67" y="63"
-          fontSize="9"
+          x="67" y="62"
+          fontSize="20"
           fontWeight="800"
+          fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
           fill="white"
           textAnchor="middle"
-        >Z</text>
+        >z</text>
         <text
           aria-hidden="true"
           className="blg-zzz blg-z3"
-          x="74" y="54"
-          fontSize="12"
+          x="75" y="51"
+          fontSize="25"
           fontWeight="800"
+          fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
           fill="white"
           textAnchor="middle"
