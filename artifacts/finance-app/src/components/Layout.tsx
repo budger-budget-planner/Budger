@@ -78,7 +78,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 
   const { data: editProposalsBadge } = useQuery<Array<{ id: number; createdAt: string }>>({
@@ -88,7 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 
   const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; actorName?: string; createdAt: string }>>({
@@ -252,7 +252,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
   const hasPendingCategoryProposals = (categoryProposals?.length ?? 0) > 0;
 
@@ -263,7 +263,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
   const { data: declinedSplits } = useQuery<Array<{ id: number }>>({
     queryKey: ["splits-declined-badge"],
@@ -272,7 +272,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
   const hasPendingSplits = (incomingSplits?.length ?? 0) > 0 || (declinedSplits?.length ?? 0) > 0;
 
@@ -283,7 +283,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!r.ok) return null;
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
   const hasGLPendingApprovals = (glData?.entries ?? []).some((e) => e.status === "pending");
 
