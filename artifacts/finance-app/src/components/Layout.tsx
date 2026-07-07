@@ -631,7 +631,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           isSelected
                             ? "border-foreground bg-foreground text-background"
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
-                        } ${(!isOnline || converting) && !isSelected ? "opacity-40" : ""}`}
+                        } ${(!isOnline || converting || !!currSwitchTarget) && !isSelected ? "opacity-40" : ""}`}
                       >
                         <span className="text-sm font-bold">{c.symbol} {c.code}</span>
                         {rateStr && !isSelected && (
@@ -682,7 +682,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           isSelected
                             ? "border-foreground bg-foreground text-background"
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
-                        } ${!isOnline && !isSelected ? "opacity-40" : ""}`}
+                        } ${(!isOnline || !!langSwitchTarget) && !isSelected ? "opacity-40" : ""}`}
                       >
                         {l.label}
                       </button>

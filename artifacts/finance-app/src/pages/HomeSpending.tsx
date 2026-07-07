@@ -1534,14 +1534,14 @@ export default function HomeSpending() {
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-        ) : sorted.length === 0 && pendingTransactions.length === 0 ? (
+        ) : sorted.length === 0 && pendingTransactions.length === 0 && pendingRpEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
             <p className="text-sm">{t("home.no_spending_month")}</p>
             <Button onClick={() => setAddOpen(true)} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" /> {t("home.add_first_entry")}
             </Button>
           </div>
-        ) : filtered.length === 0 && pendingTransactions.length === 0 ? (
+        ) : filtered.length === 0 && pendingTransactions.length === 0 && pendingRpEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
             <Search className="w-8 h-8 opacity-30" />
             <p className="text-sm">{t("home.search_no_results")}</p>

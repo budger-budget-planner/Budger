@@ -332,23 +332,16 @@ export default function BadgerLogo({
           <circle cx="72.5" cy="47" r="2.5" fill="white" />
         </g>
 
-        {/* ── Drawn closed eyelids — grey arc lines only, no fill blocking ──
-             The open eye sits at opacity 0.2 + scaleY 0.04 during sleep
-             (a faint grey sliver). These arc lines draw on top to complete
-             the firmly-shut look without hiding the eye entirely.          */}
+        {/* ── Drawn closed eyelids — single cartoon line per eye ──
+             Simple slightly-curved horizontal lines give a classic
+             cartoon "asleep" look without full eyelid shapes.           */}
         <g className="blg-closed-eye-l">
-          {/* Upper eyelid crease — arches gently upward */}
-          <path d="M 18.5 48 Q 29 41.5 39.5 48"
-            stroke="#4a4a4a" strokeWidth="3" strokeLinecap="round" fill="none" />
-          {/* Lower lid shadow for depth */}
-          <path d="M 19.5 50 Q 29 53.5 38.5 50"
-            stroke="#2e2e2e" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
+          <path d="M 21 48 Q 29 45 37 48"
+            stroke="#4a4a4a" strokeWidth="3.2" strokeLinecap="round" fill="none" />
         </g>
         <g className="blg-closed-eye-r">
-          <path d="M 60.5 48 Q 71 41.5 81.5 48"
-            stroke="#4a4a4a" strokeWidth="3" strokeLinecap="round" fill="none" />
-          <path d="M 61.5 50 Q 71 53.5 80.5 50"
-            stroke="#2e2e2e" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />
+          <path d="M 63 48 Q 71 45 79 48"
+            stroke="#4a4a4a" strokeWidth="3.2" strokeLinecap="round" fill="none" />
         </g>
 
         {/* Nose — SNIFF target */}
@@ -401,8 +394,8 @@ export default function BadgerLogo({
         <text
           aria-hidden="true"
           className="blg-zzz blg-z1"
-          x="60" y="71"
-          fontSize="15"
+          x="61" y="72"
+          fontSize="26"
           fontWeight="800"
           fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
@@ -412,8 +405,8 @@ export default function BadgerLogo({
         <text
           aria-hidden="true"
           className="blg-zzz blg-z2"
-          x="67" y="62"
-          fontSize="20"
+          x="70" y="60"
+          fontSize="35"
           fontWeight="800"
           fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
@@ -423,8 +416,8 @@ export default function BadgerLogo({
         <text
           aria-hidden="true"
           className="blg-zzz blg-z3"
-          x="75" y="51"
-          fontSize="25"
+          x="80" y="47"
+          fontSize="44"
           fontWeight="800"
           fontStyle="italic"
           fontFamily="'Inter', system-ui, -apple-system, sans-serif"
