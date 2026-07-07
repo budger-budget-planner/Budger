@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw } from "lucide-react";
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import BadgerLogo from "@/components/BadgerLogo";
+import BadgerLogo, { type BadgerMode } from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
 import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
@@ -13,6 +13,7 @@ import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
 import { useQueueReplay } from "@/hooks/useQueueReplay";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 
 function navItems() {
@@ -34,6 +35,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Drain queued offline mutations whenever connectivity returns
   useQueueReplay();
+
+  // ── Badger sleep state machine ──────────────────────────────────────────────
+  // Goes offline → "falling-asleep" (1.4 s transition) → "sleeping" (looping).
+  // Back online  → "waking-up"     (1.0 s transition) → "awake".
+  // Initial state is derived from navigator.onLine so app-load-while-offline
+  // starts the badger already asleep with no spurious waking-up animation.
+  const isOnline = useOnlineStatus();
+  const [badgerMode, setBadgerMode] = useState<BadgerMode>(() =>
+    navigator.onLine ? "awake" : "sleeping",
+  );
+  const badgerTimerRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const prevOnlineRef   = useRef(navigator.onLine);
+
+  useEffect(() => {
+    const wasOnline = prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+    if (wasOnline === isOnline) return; // no actual change, skip
+
+    clearTimeout(badgerTimerRef.current);
+    if (!isOnline) {
+      setBadgerMode("falling-asleep");
+      badgerTimerRef.current = setTimeout(() => setBadgerMode("sleeping"), 1_400);
+    } else {
+      setBadgerMode("waking-up");
+      badgerTimerRef.current = setTimeout(() => setBadgerMode("awake"), 1_000);
+    }
+    return () => clearTimeout(badgerTimerRef.current);
+  }, [isOnline]);
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Scroll to top on every tab/route change
   useEffect(() => {
@@ -448,7 +478,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             aria-label="The Mission"
           >
             <span data-splash-logo-home>
-              <BadgerLogo size={42} />
+              <BadgerLogo size={42} mode={badgerMode} />
             </span>
           </button>
           <Link href="/" className="text-lg font-bold tracking-tight text-foreground leading-none">
