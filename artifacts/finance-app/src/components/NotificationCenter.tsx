@@ -4,7 +4,7 @@ import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
   Smartphone, ExternalLink, Circle, Sparkles, Crown,
-  FileText, ShieldCheck, Clock,
+  FileText, ShieldCheck, Clock, WifiOff,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -382,6 +382,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
   const { data: user } = useGetMe();
   const [animDisabled, setAnimDisabled] = useState(() => loadPrefs().disableAnimations ?? false);
+  const [forceOffline, setForceOffline] = useState<boolean>(() => {
+    try { return localStorage.getItem("budger_force_offline") === "1"; } catch { return false; }
+  });
   const [smartPrefs, setSmartPrefs] = useState<SmartAlertPrefs>(loadSmartAlertPrefs);
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem("budger_haptic_v1") !== "off"; } catch { return true; }
@@ -423,6 +426,12 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     setHapticEnabled(v);
     try { localStorage.setItem("budger_haptic_v1", v ? "on" : "off"); } catch { /**/ }
     if (v) hapticSniff();
+  }
+
+  function toggleForceOffline(v: boolean) {
+    setForceOffline(v);
+    try { localStorage.setItem("budger_force_offline", v ? "1" : "0"); } catch { /**/ }
+    window.dispatchEvent(new Event(v ? "offline" : "online"));
   }
 
   async function handlePreview() {
@@ -547,7 +556,36 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           </section>
         )}
 
-        {/* 1. Smart alerts */}
+        {/* 1. Go Offline toggle */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {lang === "pl" ? "Połączenie" : "Connection"}
+          </p>
+          <div className={`flex items-start justify-between gap-3 py-4 px-4 rounded-2xl border transition-colors ${
+            forceOffline
+              ? "bg-amber-500/10 border-amber-500/30"
+              : "bg-card border-border"
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`mt-0.5 ${forceOffline ? "text-amber-400" : "text-muted-foreground"}`}>
+                <WifiOff className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {lang === "pl" ? "Tryb offline" : "Go Offline"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {lang === "pl"
+                    ? "Symuluj brak połączenia"
+                    : "Simulate no connection"}
+                </p>
+              </div>
+            </div>
+            <Switch checked={forceOffline} onCheckedChange={toggleForceOffline} />
+          </div>
+        </section>
+
+        {/* 2. Smart alerts */}
         <section>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("notif.smart")}</p>
           <div className="space-y-3">
