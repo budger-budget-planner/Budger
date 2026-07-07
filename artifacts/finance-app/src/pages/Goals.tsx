@@ -311,30 +311,30 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
               <Target className="w-4 h-4" style={{ color: goal.color }} />
             </div>
             {/* Diamond sparkles: count 1–4 based on % of goal funded by Larder/GL */}
-            {/* Each diamond is on a different edge at an irregular 1/7–1/4 offset from the nearest end; one is at the corner */}
+            {/* Each diamond hugs a different edge; along-edge offsets are 1–5 px so they sit near the corners */}
             {diamondCount >= 1 && (
-              <div style={{ position:"absolute", top:-5, right:-5, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
+              <div style={{ position:"absolute", top:-5, right:1, width:11, height:11, pointerEvents:"none", animation:"gemFlash 3.6s ease-in-out 0s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.9), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:2, height:2, borderRadius:"50%", background:"white", boxShadow:"0 0 4px 1px rgba(255,255,255,0.8)" }} />
               </div>
             )}
             {diamondCount >= 2 && (
-              <div style={{ position:"absolute", bottom:-4, left:5, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
+              <div style={{ position:"absolute", bottom:-4, left:3, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.1s ease-in-out 1.7s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.75), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.65)" }} />
               </div>
             )}
             {diamondCount >= 3 && (
-              <div style={{ position:"absolute", top:9, left:-4, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
+              <div style={{ position:"absolute", top:4, left:-4, width:8, height:8, pointerEvents:"none", animation:"gemFlash 2.9s ease-in-out 0.8s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.80), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.70)" }} />
               </div>
             )}
             {diamondCount >= 4 && (
-              <div style={{ position:"absolute", bottom:7, right:-4, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
+              <div style={{ position:"absolute", bottom:5, right:-4, width:9, height:9, pointerEvents:"none", animation:"gemFlash 3.3s ease-in-out 2.4s infinite" }}>
                 <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:"1px", height:"100%", background:"linear-gradient(to bottom, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:0, transform:"translateY(-50%)", width:"100%", height:"1px", background:"linear-gradient(to right, transparent, rgba(255,255,255,0.78), transparent)" }} />
                 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:1.5, height:1.5, borderRadius:"50%", background:"white", boxShadow:"0 0 3px 1px rgba(255,255,255,0.68)" }} />
