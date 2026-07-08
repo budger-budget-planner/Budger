@@ -1,20 +1,48 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
+import { playSniffSound } from "@/lib/badger-notify";
+import { CURRENCIES } from "@/lib/prefs";
 import { useExtractScreenshotTransactions } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Image, Loader2, Check } from "lucide-react";
+import BadgerLogo from "@/components/BadgerLogo";
+import { Image, Check } from "lucide-react";
 
 export type ExtractedRow = {
   merchant: string;
   amount: string;
   currency: string;
-  date: string;
+  date: string; // stored internally as ISO yyyy-MM-dd
   selected: boolean;
 };
+
+// ── DD.MM.YYYY <-> yyyy-MM-dd helpers ───────────────────────────────────────
+// The native <input type="date"> calendar never localizes month abbreviations
+// to Polish, so dates are edited as plain DD.MM.YYYY text instead.
+function isoToDisplayDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? "");
+  if (!m) return iso ?? "";
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+function displayToIsoDate(display: string): string | null {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(display.trim());
+  if (!m) return null;
+  const day = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // Reject calendar-impossible dates (e.g. 31.02, 29.02 on a non-leap year) by
+  // round-tripping through a real Date and checking the components survived —
+  // JS Date silently rolls invalid days/months over into the next month otherwise.
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 /**
  * Shared "scan a screenshot" AI-import flow — lets the user pick an image of a
@@ -34,12 +62,32 @@ export function ScreenshotImportDialog({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ExtractedRow[] | null>(null);
+  // Free-text draft for each row's date field, keyed by row index — lets the
+  // user type digits/dots freely without every keystroke needing to already
+  // form a valid date. Falls back to the row's ISO date (formatted) when untouched.
+  const [dateDrafts, setDateDrafts] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const extract = useExtractScreenshotTransactions();
 
+  // Tracks whether the dialog is still open when an in-flight extraction resolves —
+  // the mutation can't be cancelled, so without this guard closing mid-scan and
+  // reopening later would silently repopulate rows and play the sniff sound.
+  const openRef = useRef(open);
+  useEffect(() => { openRef.current = open; }, [open]);
+
+  // Loop the badger's sniff animation for as long as the AI is reading the screenshot —
+  // the underlying CSS animation runs once per mount, so we remount it on a tick.
+  const [sniffTick, setSniffTick] = useState(0);
+  useEffect(() => {
+    if (!extract.isPending) return;
+    const interval = setInterval(() => setSniffTick(n => n + 1), 1550);
+    return () => clearInterval(interval);
+  }, [extract.isPending]);
+
   function reset() {
     setRows(null);
+    setDateDrafts({});
     setError(null);
     setImporting(false);
   }
@@ -61,6 +109,9 @@ export function ScreenshotImportDialog({
         { data: { imageData } },
         {
           onSuccess: (result) => {
+            // The dialog may have been closed while the request was in flight —
+            // don't repopulate rows or play sound into a dialog the user already left.
+            if (!openRef.current) return;
             setRows(
               result.transactions.map(tx => ({
                 merchant: tx.merchant,
@@ -70,8 +121,11 @@ export function ScreenshotImportDialog({
                 selected: true,
               })),
             );
+            setDateDrafts({});
+            // Let the user know the badger finished reading the screenshot.
+            playSniffSound();
           },
-          onError: () => setError(t("tx.screenshot_error")),
+          onError: () => { if (openRef.current) setError(t("tx.screenshot_error")); },
         },
       );
     } catch {
@@ -81,6 +135,12 @@ export function ScreenshotImportDialog({
 
   function updateRow(i: number, patch: Partial<ExtractedRow>) {
     setRows(prev => prev ? prev.map((r, idx) => idx === i ? { ...r, ...patch } : r) : prev);
+  }
+
+  function handleDateDraftChange(i: number, text: string) {
+    setDateDrafts(prev => ({ ...prev, [i]: text }));
+    const iso = displayToIsoDate(text);
+    if (iso) updateRow(i, { date: iso });
   }
 
   async function handleImport() {
@@ -128,6 +188,7 @@ export function ScreenshotImportDialog({
       // Keep the dialog open with only the rows that failed to save so the user
       // can retry, instead of losing their edits or wrongly believing everything saved.
       setRows(failedRows);
+      setDateDrafts({});
       setError(
         succeeded > 0
           ? t("tx.import_partial_error", { succeeded, failed: failedRows.length })
@@ -137,6 +198,13 @@ export function ScreenshotImportDialog({
   }
 
   const selectedCount = rows?.filter(r => r.selected).length ?? 0;
+  // Block import while any *selected* row's date field is mid-edit into something
+  // invalid — otherwise the stale last-valid ISO date would be submitted silently.
+  const hasInvalidSelectedDate = (rows ?? []).some((row, i) => {
+    if (!row.selected) return false;
+    const draft = dateDrafts[i] ?? isoToDisplayDate(row.date);
+    return displayToIsoDate(draft) === null;
+  });
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
@@ -144,6 +212,14 @@ export function ScreenshotImportDialog({
         <DialogHeader>
           <DialogTitle>{t("tx.import_screenshot")}</DialogTitle>
         </DialogHeader>
+
+        <div className="flex justify-center">
+          <BadgerLogo
+            key={extract.isPending ? sniffTick : "idle"}
+            size={72}
+            forceAnim={extract.isPending ? "sniff" : undefined}
+          />
+        </div>
 
         {!rows && (
           <div className="space-y-4">
@@ -153,7 +229,6 @@ export function ScreenshotImportDialog({
 
             {extract.isPending ? (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin" />
                 <p className="text-sm">{t("tx.import_screenshot_analyzing")}</p>
               </div>
             ) : (
@@ -183,48 +258,70 @@ export function ScreenshotImportDialog({
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {rows.map((row, i) => (
-                <div key={i} className="border border-border rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateRow(i, { selected: !row.selected })}
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${row.selected ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
-                      data-testid={`checkbox-import-row-${i}`}
-                    >
-                      {row.selected && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                    <Input
-                      value={row.merchant}
-                      onChange={e => updateRow(i, { merchant: e.target.value })}
-                      className="flex-1 h-8 text-sm"
-                      placeholder={t("home.description")}
-                    />
+              {rows.map((row, i) => {
+                const dateText = dateDrafts[i] ?? isoToDisplayDate(row.date);
+                const dateValid = displayToIsoDate(dateText) !== null;
+                // Some currencies extracted from a screenshot may not be one of the
+                // app's usual set — keep it selectable rather than silently dropping it.
+                const currencyOptions = CURRENCIES.some(c => c.code === row.currency)
+                  ? CURRENCIES
+                  : row.currency
+                    ? [...CURRENCIES, { code: row.currency, label: row.currency, symbol: "" }]
+                    : CURRENCIES;
+
+                return (
+                  <div key={i} className="border border-border rounded-xl p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateRow(i, { selected: !row.selected })}
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${row.selected ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+                        data-testid={`checkbox-import-row-${i}`}
+                      >
+                        {row.selected && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                      <Input
+                        value={row.merchant}
+                        onChange={e => updateRow(i, { merchant: e.target.value })}
+                        className="flex-1 h-8 text-sm"
+                        placeholder={t("home.description")}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 pl-7">
+                      <Input
+                        type="number" step="0.01" min="0"
+                        value={row.amount}
+                        onChange={e => updateRow(i, { amount: e.target.value })}
+                        className="h-8 text-sm"
+                        placeholder="0.00"
+                      />
+                      <Select
+                        value={row.currency || undefined}
+                        onValueChange={(v) => updateRow(i, { currency: v })}
+                      >
+                        <SelectTrigger className="h-8 text-sm" data-testid={`select-import-currency-${i}`}>
+                          <SelectValue placeholder={t("profile.currency")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencyOptions.map(c => (
+                            <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={dateText}
+                        onChange={e => handleDateDraftChange(i, e.target.value)}
+                        className={`h-8 text-sm ${!dateValid ? "border-destructive" : ""}`}
+                        placeholder="DD.MM.YYYY"
+                        maxLength={10}
+                        data-testid={`input-import-date-${i}`}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pl-7">
-                    <Input
-                      type="number" step="0.01" min="0"
-                      value={row.amount}
-                      onChange={e => updateRow(i, { amount: e.target.value })}
-                      className="h-8 text-sm"
-                      placeholder="0.00"
-                    />
-                    <Input
-                      value={row.currency}
-                      onChange={e => updateRow(i, { currency: e.target.value.toUpperCase() })}
-                      className="h-8 text-sm"
-                      placeholder="PLN"
-                      maxLength={3}
-                    />
-                    <Input
-                      type="date"
-                      value={row.date}
-                      onChange={e => updateRow(i, { date: e.target.value })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -232,7 +329,7 @@ export function ScreenshotImportDialog({
               <Button
                 type="button"
                 className="flex-1"
-                disabled={importing || selectedCount === 0}
+                disabled={importing || selectedCount === 0 || hasInvalidSelectedDate}
                 onClick={handleImport}
                 data-testid="button-confirm-import"
               >
