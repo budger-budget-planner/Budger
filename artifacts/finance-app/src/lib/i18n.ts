@@ -711,70 +711,60 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.try_again":               { en: "Try again",                pl: "Spróbuj ponownie"                       },
   "hh.already_in_hh":           { en: "Already in a household",   pl: "Już w gospodarstwie"                    },
 
-  // ── Apple Pay automation slides ──
-  "ap.setup_title":  { en: "Apple Pay Automation",           pl: "Automatyzacja Apple Pay"              },
-  "ap.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
+  // ── Shared slide-viewer chrome (used by both the screenshot-import manual
+  //    and the Share Sheet tutorial) — kept under "ap.*" since it's generic,
+  //    not Apple-Pay-specific content.
   "ap.copy_link":    { en: "Copy URL",                       pl: "Kopiuj URL"                          },
   "ap.copied":       { en: "Copied!",                        pl: "Skopiowano!"                         },
   "ap.generating":   { en: "Generating your link…",          pl: "Generowanie linku…"                  },
+  "ap.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
   "ap.tap_hint":     { en: "tap right side to continue",     pl: "dotknij prawej strony, aby kontynuować" },
   "ap.prev":         { en: "Previous",                       pl: "Poprzedni"                           },
   "ap.next":         { en: "Next",                           pl: "Następny"                            },
-  "ap.configure_btn":{ en: "Set up Apple Pay auto-logging",  pl: "Skonfiguruj automatyczne Apple Pay"  },
-  "ap.configure_desc":{ en: "Every Apple Pay purchase will appear in Budger automatically.", pl: "Każda płatność Apple Pay pojawi się w Budger automatycznie." },
 
-  "ap.s1_title": {
-    en: "Every Apple Pay tap, logged for you",
-    pl: "Każde tapnięcie Apple Pay — zalogowane",
-  },
-  "ap.s1_desc": {
-    en: "Set this up once in 5 steps. Every purchase will appear in Budger the moment you pay — nothing to type.",
-    pl: "Skonfiguruj raz w 5 krokach. Każdy zakup pojawi się w Budger w momencie płatności — nic do wpisywania.",
-  },
+  // ── Screenshot import manual ──
+  "man.setup_title":  { en: "Screenshot Import",              pl: "Import ze zrzutu ekranu"              },
+  "man.step_of":      { en: "Step {n} of {total}",            pl: "Krok {n} z {total}"                  },
+  "man.tap_hint":     { en: "tap right side to continue",     pl: "dotknij prawej strony, aby kontynuować" },
+  "man.prev":         { en: "Previous",                       pl: "Poprzedni"                           },
+  "man.next":         { en: "Next",                           pl: "Następny"                            },
+  "man.configure_btn":{ en: "How to import from a screenshot", pl: "Jak importować ze zrzutu ekranu"    },
+  "man.configure_desc":{ en: "Log expenses from Apple Wallet or any banking app — no typing needed.", pl: "Rejestruj wydatki z Apple Wallet lub dowolnej aplikacji bankowej — bez wpisywania." },
 
-  "ap.s2_title": {
-    en: "Open Shortcuts · tap Automation · tap +",
-    pl: "Otwórz Skróty · Automatyzacja · +",
+  "man.s1_title": {
+    en: "Log expenses from any bank app",
+    pl: "Rejestruj wydatki z dowolnej aplikacji bankowej",
   },
-  "ap.s2_desc": {
-    en: "Open the Shortcuts app on your iPhone. Tap Automation at the bottom of the screen. Tap the + button in the top-right corner.",
-    pl: "Otwórz aplikację Skróty na iPhonie. Dotknij Automatyzacja na dole ekranu. Dotknij + w prawym górnym rogu.",
+  "man.s1_desc": {
+    en: "Budger's agent reads transaction screenshots so you don't have to type anything — just scan and confirm.",
+    pl: "Agent Budger odczytuje zrzuty ekranu transakcji, dzięki czemu nic nie musisz wpisywać — wystarczy zeskanować i potwierdzić.",
   },
 
-  "ap.s3_title": {
-    en: "Scroll down · tap Wallet · choose 'Whenever I tap my card'",
-    pl: "Przewiń · dotknij Portfel · wybierz 'Gdy przykładam kartę'",
+  "man.s2_title": {
+    en: "Screenshot your transaction list",
+    pl: "Zrób zrzut ekranu listy transakcji",
   },
-  "ap.s3_desc": {
-    en: "Scroll the trigger list and tap Wallet. On the next screen, choose the option: Whenever I tap my card.",
-    pl: "Przewiń listę wyzwalaczy i dotknij Portfel. Na kolejnym ekranie wybierz opcję: Gdy przykładam kartę.",
-  },
-
-  "ap.s4_title": {
-    en: "Choose your card · select Run Immediately · tap Next",
-    pl: "Wybierz kartę · Uruchom natychmiast · dotknij Dalej",
-  },
-  "ap.s4_desc": {
-    en: "Tap the card(s) you want to track. Under 'When to Run', choose Run Immediately. Tap Next to continue.",
-    pl: "Dotknij kart, które chcesz śledzić. W sekcji 'Kiedy uruchamiać' wybierz Uruchom natychmiast. Dotknij Dalej.",
+  "man.s2_desc": {
+    en: "Open Apple Wallet, your banking app, or any payment history — whichever app you use — and take a screenshot of the transactions you want to log.",
+    pl: "Otwórz Apple Wallet, aplikację bankową lub inną historię płatności — dowolną, z której korzystasz — i zrób zrzut ekranu transakcji, które chcesz zapisać.",
   },
 
-  "ap.s5_title": {
-    en: "Tap 'New Blank Automation' · type the action name · tap it",
-    pl: "Nowa pusta automatyzacja · wpisz nazwę akcji · dotknij ją",
+  "man.s3_title": {
+    en: "Tap the badger to open the scanner",
+    pl: "Dotknij borsuka, aby otworzyć skaner",
   },
-  "ap.s5_desc": {
-    en: "Tap Create New Shortcut. In the search box, type: Get Contents of URL. Tap the result to add the action.",
-    pl: "Dotknij Utwórz nowy skrót. W polu wyszukiwania wpisz: Pobierz zawartość URL. Dotknij wynik, aby dodać akcję.",
+  "man.s3_desc": {
+    en: "A single tap on the Budger logo opens the importer. Choose 'All logs' or 'This month' before picking your screenshot.",
+    pl: "Jedno dotknięcie logo Budger otwiera importer. Przed wybraniem zrzutu ekranu wybierz 'Wszystkie' lub 'Ten miesiąc'.",
   },
 
-  "ap.s6_title": {
-    en: "Set POST · add key 'transaction' · paste your link",
-    pl: "Ustaw POST · dodaj klucz 'transaction' · wklej link",
+  "man.s4_title": {
+    en: "Review the rows, then import",
+    pl: "Sprawdź wiersze i zaimportuj",
   },
-  "ap.s6_desc": {
-    en: "Expand the action. Set Method to POST, Body to JSON. Tap + Add field — type transaction as the key, choose Shortcut Input as the value. Copy the link below and paste it into the URL field. Tap Done.",
-    pl: "Rozwiń akcję. Ustaw Metodę na POST, Treść na JSON. Dotknij + Dodaj pole — wpisz transaction jako klucz, wybierz Dane wejściowe skrótu jako wartość. Skopiuj link poniżej i wklej go w pole URL. Dotknij Gotowe.",
+  "man.s4_desc": {
+    en: "The agent extracts merchant, amount, and date automatically. Fix anything if needed, uncheck what you don't want, then tap Import.",
+    pl: "Agent automatycznie wyodrębnia sprzedawcę, kwotę i datę. Popraw, jeśli trzeba, odznacz to, czego nie chcesz, i dotknij Importuj.",
   },
 
   // ── Capturing Online Payments tutorial ──

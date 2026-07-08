@@ -330,8 +330,8 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
             <Smartphone className="w-5 h-5 text-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-snug">{t("ap.configure_btn")}</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("ap.configure_desc")}</p>
+            <p className="text-sm font-semibold leading-snug">{t("man.configure_btn")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("man.configure_desc")}</p>
           </div>
           <ChevronLeft className="w-4 h-4 text-muted-foreground flex-shrink-0 rotate-180" />
         </button>
