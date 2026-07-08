@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target, RefreshCw } from "lucide-react";
-import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@workspace/api-client-react";
+import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo, { type BadgerMode } from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
@@ -435,9 +435,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   function changeLanguage(code: string) {
     if (code === prefs.language || langSwitchTarget) return;
     // Close the profile sheet and navigate home BEFORE showing the wink.
-    // Language change is pure local state — no API awaiting needed.
-    // setLang() updates the module-level override so t() returns new strings
-    // immediately; softRefresh() remounts routes so every component re-renders.
     setShowProfile(false);
     navigate("/");
     setLangSwitchTarget(code);
@@ -445,9 +442,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setPrefsState(next);
     savePrefs(next);
     setLang(code as "en" | "pl");
-    // Fire-and-forget the persist — animation takes ~3 s, plenty of time.
-    updateMe.mutate({ data: { language: code } });
-    showWinkSplash(() => softRefresh()); // remount routes → all t() pick up new lang
+    // IMPORTANT: the wink callback must await the mutation AND refetch the user
+    // cache before calling softRefresh(). When softRefresh() bumps appVersion,
+    // AppRoutes remounts, which recreates AuthGuard with a fresh syncedUserIdRef.
+    // If the React Query cache still holds the old user.language at that point,
+    // AuthGuard's server→localStorage sync reverts the language — causing the
+    // "must tap twice" bug. Awaiting mutateAsync + refetchQueries here ensures
+    // the cache reflects the new language before AuthGuard runs its sync.
+    showWinkSplash(async () => {
+      // Bound the entire async block to 5 s so softRefresh() always fires even
+      // on a network hang — langSwitchTarget must not get permanently stuck.
+      const work = (async () => {
+        await updateMe.mutateAsync({ data: { language: code } });
+        // Targeted refetch of getMe so AuthGuard's sync sees the new language.
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        await queryClient.refetchQueries({ queryKey: getGetMeQueryKey() });
+      })();
+      await Promise.race([work, new Promise(r => setTimeout(r, 5_000))]).catch(() => {});
+      softRefresh(); // remount routes → all t() pick up new lang
+    });
   }
 
   async function handleRefreshRates() {
