@@ -26,6 +26,9 @@ const translations: Record<string, Record<Lang, string>> = {
   "profile.never_updated":     { en: "Rates not fetched yet",                 pl: "Kursy jeszcze nie pobrane"                },
   "profile.rates_refreshed":   { en: "Rates have been updated",              pl: "Kursy zostały zaktualizowane"            },
   "profile.rates_refresh_failed": { en: "Failed to update rates",            pl: "Nie udało się zaktualizować kursów"      },
+  "layout.scan_screenshot":    { en: "Scan a screenshot",                    pl: "Zeskanuj zrzut ekranu"                    },
+  "layout.badger_hint":        { en: "Tap to scan a screenshot · Hold for The Mission", pl: "Dotknij, by zeskanować zrzut ekranu · Przytrzymaj, aby zobaczyć Misję" },
+  "layout.screenshot_imported": { en: "Transactions imported",               pl: "Transakcje zaimportowane"                 },
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },

@@ -5,6 +5,17 @@ import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe } from "@works
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo, { type BadgerMode } from "@/components/BadgerLogo";
 import NotificationCenter from "@/components/NotificationCenter";
+import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
+import {
+  getListTransactionsQueryKey,
+  getGetSpendingSummaryQueryKey,
+  getGetMonthlySummaryQueryKey,
+  getGetRecentActivityQueryKey,
+  getGetSpendingHistoryQueryKey,
+  getGetGoalsSummaryQueryKey,
+  getListGoalContributionsQueryKey,
+  getListGoalsQueryKey,
+} from "@workspace/api-client-react";
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
 import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
@@ -326,6 +337,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const [showProfile, setShowProfile] = useState(false);
   const [showMission, setShowMission] = useState(false);
+  const [screenshotOpen, setScreenshotOpen] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
   const [rates, setRates]             = useState<Record<string, number> | null>(null);
@@ -467,6 +479,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const nav = navItems();
 
+  // ── Badger logo: tap opens the AI screenshot scanner, long-press opens "The Mission" ──
+  const BADGER_LONG_PRESS_MS = 500;
+  const badgerLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const badgerLongPressFiredRef = useRef(false);
+
+  function handleBadgerPressStart() {
+    badgerLongPressFiredRef.current = false;
+    clearTimeout(badgerLongPressTimerRef.current);
+    badgerLongPressTimerRef.current = setTimeout(() => {
+      badgerLongPressFiredRef.current = true;
+      setShowMission(true);
+    }, BADGER_LONG_PRESS_MS);
+  }
+
+  function handleBadgerPressEnd() {
+    clearTimeout(badgerLongPressTimerRef.current);
+  }
+
+  function handleBadgerClick() {
+    // A long-press already fired the Mission sheet — swallow the trailing click.
+    if (badgerLongPressFiredRef.current) {
+      badgerLongPressFiredRef.current = false;
+      return;
+    }
+    if (!isOnline) return;
+    setScreenshotOpen(true);
+  }
+
+  useEffect(() => () => clearTimeout(badgerLongPressTimerRef.current), []);
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
@@ -475,9 +517,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                          bg-background/90 backdrop-blur border-b border-border">
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => setShowMission(true)}
+            onPointerDown={handleBadgerPressStart}
+            onPointerUp={handleBadgerPressEnd}
+            onPointerLeave={handleBadgerPressEnd}
+            onPointerCancel={handleBadgerPressEnd}
+            onClick={handleBadgerClick}
             className="flex-shrink-0 transition active:scale-90"
-            aria-label="The Mission"
+            aria-label={t("layout.scan_screenshot")}
+            title={t("layout.badger_hint")}
           >
             <span data-splash-logo-home>
               <BadgerLogo size={42} mode={badgerMode} />
@@ -505,6 +552,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Offline indicator ── */}
       <OfflineBanner />
+
+      {/* ── AI screenshot import (badger logo tap) ── */}
+      <ScreenshotImportDialog
+        open={screenshotOpen}
+        onClose={() => setScreenshotOpen(false)}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetSpendingHistoryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
+          queryClient.invalidateQueries({ queryKey: ["larder"] });
+          toast({ title: t("layout.screenshot_imported") });
+          if (!location.startsWith("/transactions")) navigate("/transactions");
+        }}
+      />
 
       {/* ── Mission bottom sheet ── */}
       {showMission && (
