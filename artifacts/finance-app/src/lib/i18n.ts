@@ -132,6 +132,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.import_screenshot":            { en: "Import from screenshot",                                        pl: "Importuj ze zrzutu ekranu"                                  },
   "tx.import_screenshot_hint":       { en: "Upload a screenshot of your Wallet or banking app's transaction list — we'll read the merchant, amount, and currency for each row.", pl: "Prześlij zrzut ekranu z listy transakcji z aplikacji Wallet lub bankowej — odczytamy sprzedawcę, kwotę i walutę każdej pozycji." },
   "tx.import_screenshot_analyzing":  { en: "Reading transactions…",                                         pl: "Odczytywanie transakcji…"                                   },
+  "tx.sniffing_label":               { en: "Budger is sniffing…",                                           pl: "Budger niucha…"                                             },
   "tx.choose_screenshot":            { en: "Choose screenshot",                                             pl: "Wybierz zrzut ekranu"                                       },
   "tx.import_screenshot_review":     { en: "Found {count} transaction(s). Review and adjust before importing.", pl: "Znaleziono {count} transakcji. Sprawdź i popraw przed importem." },
   "tx.import_count":                 { en: "Import {count}",                                                pl: "Importuj {count}"                                           },
