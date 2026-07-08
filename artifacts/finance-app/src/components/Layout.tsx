@@ -519,7 +519,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-20
+      <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-[4.375rem]
                          bg-background/90 backdrop-blur border-b border-border">
         <div className="flex items-center gap-3">
           <button
@@ -533,23 +533,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             title={t("layout.badger_hint")}
           >
             <span data-splash-logo-home>
-              <BadgerLogo size={63} mode={badgerMode} />
+              <BadgerLogo size={53} mode={badgerMode} />
             </span>
           </button>
-          <Link href="/" className="text-[1.7rem] font-bold tracking-tight text-foreground leading-none">
+          <Link href="/" className="text-[1.4rem] font-bold tracking-tight text-foreground leading-none">
             Budger
           </Link>
         </div>
 
         {/* Right side: Notification Center bell + profile avatar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <NotificationCenter userId={(user as any)?.id ?? "guest"} />
           <button
             onClick={() => setShowProfile(true)}
-            className="w-12 h-12 rounded-full bg-muted border border-border
+            className="w-10 h-10 rounded-full bg-muted border border-border
                        flex items-center justify-center flex-shrink-0 transition active:scale-95"
           >
-            <span className="text-base font-bold text-foreground">
+            <span className="text-sm font-bold text-foreground">
               {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
             </span>
           </button>
