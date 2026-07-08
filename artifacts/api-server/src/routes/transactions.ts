@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
+import { genai } from "../lib/geminiClient";
+import { logger } from "../lib/logger";
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -9,6 +11,7 @@ import {
   DeleteTransactionParams,
   GetTransactionParams,
   ListTransactionsQueryParams,
+  ExtractScreenshotTransactionsBody,
 } from "@workspace/api-zod";
 const router: IRouter = Router();
 
@@ -117,6 +120,99 @@ router.post("/transactions", async (req, res): Promise<void> => {
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
 
   res.status(201).json(enrichTransaction(tx, category, currentUser));
+});
+
+// ── POST /transactions/extract-screenshot — AI vision extraction, no DB write ──
+//
+// Accepts a base64 data URL of a wallet/banking app screenshot (e.g. Apple Wallet's
+// transaction list) and asks Gemini to pull out merchant/amount/currency/date pairs.
+// Nothing is saved here — the frontend shows a review list and the user confirms
+// each row via the existing POST /transactions endpoint before it's written.
+
+router.post("/transactions/extract-screenshot", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const parsed = ExtractScreenshotTransactionsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const match = parsed.data.imageData.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  if (!match) {
+    res.status(400).json({ error: "imageData must be a base64 image data URL" });
+    return;
+  }
+  const [, mimeType, base64Data] = match;
+
+  const todayIso = new Date().toISOString().split("T")[0];
+  const promptText = [
+    "This is a screenshot of a banking or mobile wallet app's transaction list.",
+    "Extract every individual transaction row (ignore card art, balances, headers, and nav chrome).",
+    "For each transaction return: merchant (the payee/business name, not the payment method),",
+    "amount (positive number, no currency symbol), currency (3-letter ISO code, inferred from",
+    "symbols, labels, or context such as PLN/zl, USD/$, EUR/euro, GBP/pound; null if truly unknown),",
+    "and date (best-effort ISO YYYY-MM-DD if a date or relative label like 'Yesterday' or a weekday",
+    `name is shown near the row -- resolve relative dates against today's date ${todayIso};`,
+    "null if not inferable). Return an empty transactions array if this doesn't look like a transaction list.",
+  ].join(" ");
+
+  try {
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: base64Data } },
+            { text: promptText },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            transactions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  merchant: { type: "string" },
+                  amount: { type: "number" },
+                  currency: { type: "string", nullable: true },
+                  date: { type: "string", nullable: true },
+                },
+                required: ["merchant", "amount", "currency", "date"],
+              },
+            },
+          },
+          required: ["transactions"],
+        },
+        maxOutputTokens: 8192,
+      },
+    });
+
+    const text = response.text;
+    if (!text) {
+      logger.warn({ userId }, "Screenshot extraction: empty Gemini response");
+      res.status(422).json({ error: "Could not read any transactions from this image" });
+      return;
+    }
+
+    const result = JSON.parse(text) as { transactions: Array<{ merchant: string; amount: number; currency: string | null; date: string | null }> };
+    const transactions = (result.transactions ?? []).filter(t => t.merchant && typeof t.amount === "number" && t.amount > 0);
+
+    if (transactions.length === 0) {
+      res.status(422).json({ error: "Could not find any transactions in this image" });
+      return;
+    }
+
+    logger.info({ userId, count: transactions.length }, "Screenshot extraction: transactions extracted");
+    res.json({ transactions });
+  } catch (err) {
+    logger.error({ err, userId }, "Screenshot extraction: Gemini call failed");
+    res.status(502).json({ error: "Failed to analyze the screenshot. Please try again." });
+  }
 });
 
 router.get("/transactions/:id", async (req, res): Promise<void> => {

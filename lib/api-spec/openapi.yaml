@@ -494,6 +494,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
+  /transactions/extract-screenshot:
+    post:
+      operationId: extractScreenshotTransactions
+      tags: [transactions]
+      summary: Extract candidate transactions (merchant, amount, currency) from a wallet/banking app screenshot using AI vision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenshotExtractInput"
+      responses:
+        "200":
+          description: Extracted transactions (not yet saved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenshotExtractResult"
+        "422":
+          description: Could not extract any transactions from the image
+
   /households:
     get:
       operationId: getHousehold
@@ -1988,6 +2009,42 @@ components:
         imageData:
           type: string
           description: Base64-encoded image data URL
+
+    ScreenshotExtractInput:
+      type: object
+      required:
+        - imageData
+      properties:
+        imageData:
+          type: string
+          description: Base64-encoded image data URL of a wallet/banking app screenshot
+
+    ExtractedTransaction:
+      type: object
+      required:
+        - merchant
+        - amount
+        - currency
+      properties:
+        merchant:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+          description: ISO date (YYYY-MM-DD) if inferable from the screenshot, else null
+
+    ScreenshotExtractResult:
+      type: object
+      required:
+        - transactions
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedTransaction"
 
     Household:
       type: object

@@ -77,6 +77,8 @@ import type {
   RegisterStartOutput,
   ResetPinInput,
   SavePushSubscription200,
+  ScreenshotExtractInput,
+  ScreenshotExtractResult,
   SendToGreatLarderBody,
   SetNotificationItemReadBody,
   Transaction,
@@ -2119,6 +2121,96 @@ export const useDeleteReceipt = <
   TContext
 > => {
   return useMutation(getDeleteReceiptMutationOptions(options));
+};
+
+/**
+ * @summary Extract candidate transactions (merchant, amount, currency) from a wallet/banking app screenshot using AI vision
+ */
+export const getExtractScreenshotTransactionsUrl = () => {
+  return `/api/transactions/extract-screenshot`;
+};
+
+export const extractScreenshotTransactions = async (
+  screenshotExtractInput: ScreenshotExtractInput,
+  options?: RequestInit,
+): Promise<ScreenshotExtractResult> => {
+  return customFetch<ScreenshotExtractResult>(
+    getExtractScreenshotTransactionsUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(screenshotExtractInput),
+    },
+  );
+};
+
+export const getExtractScreenshotTransactionsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof extractScreenshotTransactions>>,
+    TError,
+    { data: BodyType<ScreenshotExtractInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof extractScreenshotTransactions>>,
+  TError,
+  { data: BodyType<ScreenshotExtractInput> },
+  TContext
+> => {
+  const mutationKey = ["extractScreenshotTransactions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof extractScreenshotTransactions>>,
+    { data: BodyType<ScreenshotExtractInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return extractScreenshotTransactions(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExtractScreenshotTransactionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof extractScreenshotTransactions>>
+>;
+export type ExtractScreenshotTransactionsMutationBody =
+  BodyType<ScreenshotExtractInput>;
+export type ExtractScreenshotTransactionsMutationError = ErrorType<void>;
+
+/**
+ * @summary Extract candidate transactions (merchant, amount, currency) from a wallet/banking app screenshot using AI vision
+ */
+export const useExtractScreenshotTransactions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof extractScreenshotTransactions>>,
+    TError,
+    { data: BodyType<ScreenshotExtractInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof extractScreenshotTransactions>>,
+  TError,
+  { data: BodyType<ScreenshotExtractInput> },
+  TContext
+> => {
+  return useMutation(getExtractScreenshotTransactionsMutationOptions(options));
 };
 
 /**

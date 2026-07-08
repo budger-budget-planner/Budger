@@ -700,6 +700,33 @@ export const DeleteReceiptResponse = zod.object({
 });
 
 /**
+ * @summary Extract candidate transactions (merchant, amount, currency) from a wallet/banking app screenshot using AI vision
+ */
+export const ExtractScreenshotTransactionsBody = zod.object({
+  imageData: zod
+    .string()
+    .describe(
+      "Base64-encoded image data URL of a wallet\/banking app screenshot",
+    ),
+});
+
+export const ExtractScreenshotTransactionsResponse = zod.object({
+  transactions: zod.array(
+    zod.object({
+      merchant: zod.string(),
+      amount: zod.number(),
+      currency: zod.string().nullable(),
+      date: zod
+        .string()
+        .nullish()
+        .describe(
+          "ISO date (YYYY-MM-DD) if inferable from the screenshot, else null",
+        ),
+    }),
+  ),
+});
+
+/**
  * @summary Get current user's household
  */
 export const GetHouseholdResponse = zod.object({

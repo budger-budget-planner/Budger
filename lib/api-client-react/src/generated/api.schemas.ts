@@ -222,6 +222,27 @@ export interface ReceiptInput {
   imageData: string;
 }
 
+export interface ScreenshotExtractInput {
+  /** Base64-encoded image data URL of a wallet/banking app screenshot */
+  imageData: string;
+}
+
+export interface ExtractedTransaction {
+  merchant: string;
+  amount: number;
+  /** @nullable */
+  currency: string | null;
+  /**
+   * ISO date (YYYY-MM-DD) if inferable from the screenshot, else null
+   * @nullable
+   */
+  date?: string | null;
+}
+
+export interface ScreenshotExtractResult {
+  transactions: ExtractedTransaction[];
+}
+
 export interface Household {
   id: number;
   name: string;
