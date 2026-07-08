@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import ApplePaySlides from "@/components/ApplePaySlides";
 import ShareSheetSlides from "@/components/ShareSheetSlides";
+import BadgerLogo from "@/components/BadgerLogo";
 import {
   loadSmartAlertPrefs, saveSmartAlertPrefs, type SmartAlertPrefs,
 } from "@/hooks/useSmartNotifications";
@@ -396,7 +397,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [syncExpanded, setSyncExpanded] = useState(false);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
 
-  // Legal / Delete state
+  // Mission / Legal / Delete state
+  const [showMission, setShowMission] = useState(false);
   const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteStep, setDeleteStep] = useState<"warning" | "type-email" | "final" | "pending" | "done">("warning");
@@ -676,7 +678,23 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           </div>
         </section>
 
-        {/* 4. Legal */}
+        {/* 4. Mission */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {lang === "pl" ? "O aplikacji" : "About"}
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowMission(true)}
+              className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-card border border-border text-sm text-foreground transition active:opacity-70"
+            >
+              <Sparkles className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span>{lang === "pl" ? "Misja" : "The Mission"}</span>
+            </button>
+          </div>
+        </section>
+
+        {/* 5. Legal */}
         <section>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             {lang === "pl" ? "Prawne" : "Legal"}
@@ -696,6 +714,15 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
               <ShieldCheck className="w-4 h-4 text-muted-foreground shrink-0" />
               <span>{t("login.privacy_title")}</span>
             </button>
+          </div>
+        </section>
+
+        {/* 6. Danger zone */}
+        <section>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {lang === "pl" ? "Strefa zagrożenia" : "Danger zone"}
+          </p>
+          <div className="space-y-2">
             <button
               onClick={openDeleteFlow}
               className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-sm text-destructive transition active:opacity-70"
@@ -706,6 +733,62 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           </div>
         </section>
       </div>
+
+      {/* ── Mission overlay (portalled) ── */}
+      {showMission && createPortal(
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border shrink-0">
+            <div className="flex items-center gap-3">
+              <BadgerLogo size={32} />
+              <div>
+                <p className="text-base font-semibold text-foreground">
+                  {lang === "pl" ? "Misja" : "The Mission"}
+                </p>
+                <p className="text-xs text-muted-foreground">Filip Snopek · Budger</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMission(false)}
+              className="text-muted-foreground text-2xl leading-none px-2 py-1"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {lang === "pl" ? (
+              <div className="space-y-4 text-sm text-foreground/80 leading-relaxed">
+                <p>Pomysł na Budgera narodził się z lat praktyk i potrzeby. Potrzebowałem planera finansowego dla swojej rodziny, by śledzić bieżące wydatki oraz mądrze planować te które dopiero nadejdą.</p>
+                <p>Od lat starannie planowałem wydatki w notatniku swojego telefonu — zalążki podejścia. Później zacząłem te wydatki kategoryzować. Z biegiem czasu stworzyłem pierwszy świadomy budżet, ale bez środków aby śledzić każdy finansowy ruch trudno było utrzymać konsekwencję. Aplikacje bankowe nie oferowały elastyczności, a ja miałem kilka kont w różnych bankach. To zadanie zdawało się przytłaczające i niemożliwe do zrealizowania.</p>
+                <p>Gdy nadszedł 2026, Sztuczna Inteligencja pojawiła się w wielu codziennych obszarach, tworząc okazję, otwierając drzwi. Jedną z nich był vibecoding, czyli tworzenie kodu za pomocą promptów, a nie języka programistycznego. Iskra potrzebna by podjąć akcję. Mając środki do zrealizacji celu zacząłem tworzyć narzędzie którego potrzebowałem przez tyle lat. I tak, Panie i Panowie, narodził się Budger.</p>
+                <p>Z czasem zdałem sobie sprawę, że osobista potrzeba przekształciła się w misję stworzenia społeczności i szerzenia finansowej świadomości. Każdy z nas ma miesięczne wydatki oraz cele do których dąży. Świadomość swoich finansów oraz staranne planowanie sprawia, że stają się one łatwiejsze i bardziej osiągalne. Chciałbym podzielić się tym podejściem z moimi najbliższymi, przyjaciółmi, a w przyszłości po prostu z ludźmi myślącymi podobnie do mnie. Ideą Budgera jest planowanie i osiąganie celów — indywidualnych jak i tych wspólnych. Dla lepszej przyszłości.</p>
+                <p>Dedykuję tę aplikację mojej rodzinie, szczególnie żonie Natalii oraz córce Matyldzie, które napędzały mnie i dawały wsparcie w całym procesie, oraz bratu Pawłowi i chrześniakowi Teodorowi, którzy byli inspiracją do brandingu, dając mi pozytywne skojarzenia z Borsukiem.</p>
+                <p>Borsuki same w sobie są bardzo przedsiębiorczymi zwierzętami. Poszukują pożywienia na wiele sposobów, podejmują sprytne decyzje, budują złożone nory które przekazywane są z pokolenia na pokolenie. Jeśli ta aplikacja osiągnie komercyjny sukces, deklaruję wsparcie ich bezpieczeństwa oraz dobrobytu.</p>
+                <p className="text-foreground/50 text-xs pt-2 border-t border-border">Autor i CEO Budgera, Filip Snopek</p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-sm text-foreground/80 leading-relaxed">
+                <p>The idea for Budger was born out of necessity and years of practice. I needed a planner for my household, to more carefully track current expenses and plan wisely those that are yet to come.</p>
+                <p>Over the years, I carefully planned my expenses in my phone notebook — a start of a mindset. Then, I started to categorize them. Over time I created the first conscious budget, but with no means to actually track every financial move, it was difficult to stay consistent. Banking apps were not flexible enough, and I had multiple accounts to manage. The task seemed overwhelming and impossible to achieve.</p>
+                <p>Then 2026 came, and Artificial Intelligence surged in most areas of everyday life, creating opportunities and opening many doors. One of them was vibecoding — creating code with prompts instead of coding language. A spark needed to take action. With the means to do it, I started to create the tool I needed for so many years. And that's, ladies and gentlemen, how Budger was born.</p>
+                <p>Over time I realized that this personal need became a mission to create community and spread financial awareness. Everyone has monthly expenses and goals to achieve. By staying conscious of your finances and through careful planning, everything is easier and much more obtainable. I'd like to spread this approach with my close ones, friends, and in the future, people that think just like me. The idea of Budger is to plan and achieve goals — individual or common. For a better future.</p>
+                <p>I dedicate this app to my family, especially my wife Natalia and daughter Matylda, for giving me drive and support along the way, and brother Paweł and godson Teodor, who both were an inspiration for the branding as they gave me fond memories with the Badger.</p>
+                <p>Badgers themselves are extremely entrepreneurial animals. They seek many opportunities to get food, make smart choices, build complex burrows that are passed from generation to generation. If this app reaches commercial success, I pledge to contribute to their safety and wellbeing.</p>
+                <p className="text-foreground/50 text-xs pt-2 border-t border-border">Author and CEO of Budger, Filip Snopek</p>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 px-5 pb-8 pt-3 border-t border-border">
+            <button
+              onClick={() => setShowMission(false)}
+              className="w-full py-4 rounded-2xl bg-muted text-sm font-semibold text-foreground transition active:opacity-70"
+            >
+              {lang === "pl" ? "Zamknij" : "Close"}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Legal text overlay (portalled) ── */}
       {legalModal !== null && createPortal(

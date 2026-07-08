@@ -13,6 +13,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import BadgerLogo from "@/components/BadgerLogo";
 import { Image, Check } from "lucide-react";
 
+// ── Import scope ─────────────────────────────────────────────────────────────
+type ImportScope = "all" | "current_month";
+const SCOPE_KEY = "budger_import_scope_v1";
+function loadScope(): ImportScope {
+  try {
+    const v = localStorage.getItem(SCOPE_KEY);
+    if (v === "current_month") return "current_month";
+  } catch { /**/ }
+  return "all";
+}
+function saveScope(s: ImportScope) {
+  try { localStorage.setItem(SCOPE_KEY, s); } catch { /**/ }
+}
+
+/** Returns yyyy-MM prefix for the current month, e.g. "2026-07" */
+function currentMonthPrefix(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export type ExtractedRow = {
   merchant: string;
   amount: string;
@@ -69,7 +89,15 @@ export function ScreenshotImportDialog({
   const [dateDrafts, setDateDrafts] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  // Import scope — persisted so it survives dialog close/reopen
+  const [scope, setScopeState] = useState<ImportScope>(loadScope);
+  const [outOfMonthDeselected, setOutOfMonthDeselected] = useState(false);
   const extract = useExtractScreenshotTransactions();
+
+  function setScope(s: ImportScope) {
+    setScopeState(s);
+    saveScope(s);
+  }
 
   // Tracks whether the dialog is still open when an in-flight extraction resolves —
   // the mutation can't be cancelled, so without this guard closing mid-scan and
@@ -91,6 +119,7 @@ export function ScreenshotImportDialog({
     setDateDrafts({});
     setError(null);
     setImporting(false);
+    setOutOfMonthDeselected(false);
   }
 
   function handleClose() {
@@ -119,20 +148,33 @@ export function ScreenshotImportDialog({
             // The dialog may have been closed while the request was in flight —
             // don't repopulate rows or play sound into a dialog the user already left.
             if (!openRef.current) return;
+            // Snapshot scope at the time results arrive (user can't change it mid-flight)
+            const activeScope = loadScope();
+            const monthPrefix = currentMonthPrefix();
+            let anyDeselected = false;
             setRows(
-              result.transactions.map(tx => ({
-                merchant: tx.merchant,
-                // Banking apps show expenses as negative amounts (e.g. -136.02 PLN).
-                // Budger stores all transactions as positive values, so we always
-                // take the absolute value here — the user can correct the number in
-                // the review step if needed.
-                amount: String(Math.abs(tx.amount)),
-                currency: (tx.currency ?? "").toUpperCase(),
-                date: tx.date ?? format(new Date(), "yyyy-MM-dd"),
-                selected: true,
-              })),
+              result.transactions.map(tx => {
+                const date = tx.date ?? format(new Date(), "yyyy-MM-dd");
+                // When "current month only" is chosen, deselect rows whose date
+                // falls outside the current calendar month.
+                const inCurrentMonth = date.startsWith(monthPrefix);
+                const selected = activeScope === "current_month" ? inCurrentMonth : true;
+                if (!selected) anyDeselected = true;
+                return {
+                  merchant: tx.merchant,
+                  // Banking apps show expenses as negative amounts (e.g. -136.02 PLN).
+                  // Budger stores all transactions as positive values, so we always
+                  // take the absolute value here — the user can correct the number in
+                  // the review step if needed.
+                  amount: String(Math.abs(tx.amount)),
+                  currency: (tx.currency ?? "").toUpperCase(),
+                  date,
+                  selected,
+                };
+              }),
             );
             setDateDrafts({});
+            setOutOfMonthDeselected(anyDeselected);
             // Let the user know the badger finished reading the screenshot.
             playSniffSound();
           },
@@ -241,6 +283,29 @@ export function ScreenshotImportDialog({
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">{t("tx.import_screenshot_hint")}</p>
 
+            {/* ── Import scope toggle ── */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t("tx.import_scope_label")}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["all", "current_month"] as ImportScope[]).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScope(s)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition active:scale-95 ${
+                      scope === s
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-muted/40 text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {s === "all" ? t("tx.import_all") : t("tx.import_current_month")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             {extract.isPending ? (
@@ -270,6 +335,13 @@ export function ScreenshotImportDialog({
             <p className="text-sm text-muted-foreground">
               {t("tx.import_screenshot_review", { count: rows.length })}
             </p>
+
+            {/* Hint when rows were deselected because they're outside this month */}
+            {outOfMonthDeselected && (
+              <p className="text-xs text-muted-foreground bg-muted/60 rounded-xl px-3 py-2 leading-snug">
+                {t("tx.import_current_month_hint")}
+              </p>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 

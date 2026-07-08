@@ -27,7 +27,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "profile.rates_refreshed":   { en: "Rates have been updated",              pl: "Kursy zostały zaktualizowane"            },
   "profile.rates_refresh_failed": { en: "Failed to update rates",            pl: "Nie udało się zaktualizować kursów"      },
   "layout.scan_screenshot":    { en: "Scan a screenshot",                    pl: "Zeskanuj zrzut ekranu"                    },
-  "layout.badger_hint":        { en: "Tap to scan a screenshot · Hold for The Mission", pl: "Dotknij, by zeskanować zrzut ekranu · Przytrzymaj, aby zobaczyć Misję" },
+  "layout.badger_hint":        { en: "Tap to scan a screenshot",                        pl: "Dotknij, by zeskanować zrzut ekranu"                              },
   "layout.screenshot_imported": { en: "Transactions imported",               pl: "Transakcje zaimportowane"                 },
 
   // ── Common ──
@@ -138,6 +138,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.screenshot_error":             { en: "Couldn't read that screenshot. Try a clearer image.",           pl: "Nie udało się odczytać zrzutu ekranu. Spróbuj wyraźniejszego obrazu." },
   "tx.import_partial_error":         { en: "Saved {succeeded}, but {failed} failed. Review and try again.", pl: "Zapisano {succeeded}, ale {failed} się nie powiodło. Sprawdź i spróbuj ponownie." },
   "tx.import_failed_error":          { en: "Couldn't save these transactions. Please try again.",           pl: "Nie udało się zapisać transakcji. Spróbuj ponownie." },
+  "tx.import_scope_label":           { en: "Import scope",                                                  pl: "Zakres importu"                                             },
+  "tx.import_all":                   { en: "All logs",                                                      pl: "Wszystkie"                                                  },
+  "tx.import_current_month":         { en: "Current month only",                                            pl: "Tylko bieżący miesiąc"                                      },
+  "tx.import_current_month_hint":    { en: "Rows outside the current month were deselected automatically.", pl: "Pozycje spoza bieżącego miesiąca zostały odznaczone automatycznie." },
   "tx.search":      { en: "Search…",          pl: "Szukaj…"           },
   "tx.name_it":     { en: "Name it",          pl: "Nazwij"             },
   "tx.all_cats":    { en: "All categories",   pl: "Wszystkie kategorie"},

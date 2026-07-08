@@ -337,7 +337,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const hasGLPendingApprovals = (glData?.entries ?? []).some((e) => e.status === "pending");
 
   const [showProfile, setShowProfile] = useState(false);
-  const [showMission, setShowMission] = useState(false);
   const [screenshotOpen, setScreenshotOpen] = useState(false);
   const [prefs, setPrefsState]        = useState(() => loadPrefs());
   const [converting, setConverting]   = useState(false);
@@ -480,30 +479,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const nav = navItems();
 
-  // ── Badger logo: tap opens the AI screenshot scanner, long-press opens "The Mission" ──
-  const BADGER_LONG_PRESS_MS = 500;
-  const badgerLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const badgerLongPressFiredRef = useRef(false);
-
-  function handleBadgerPressStart() {
-    badgerLongPressFiredRef.current = false;
-    clearTimeout(badgerLongPressTimerRef.current);
-    badgerLongPressTimerRef.current = setTimeout(() => {
-      badgerLongPressFiredRef.current = true;
-      setShowMission(true);
-    }, BADGER_LONG_PRESS_MS);
-  }
-
-  function handleBadgerPressEnd() {
-    clearTimeout(badgerLongPressTimerRef.current);
-  }
-
+  // ── Badger logo: tap opens the AI screenshot scanner ──
+  // (The Mission page used to live behind a long-press here; it now lives in
+  // the Notification Center's Settings tab, under About.)
   function handleBadgerClick() {
-    // A long-press already fired the Mission sheet — swallow the trailing click.
-    if (badgerLongPressFiredRef.current) {
-      badgerLongPressFiredRef.current = false;
-      return;
-    }
     if (!isOnline) return;
     // Unlock the sniff AudioContext right on the tap that opens the scanner —
     // the actual sound plays much later (after the AI finishes reading the
@@ -513,8 +492,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setScreenshotOpen(true);
   }
 
-  useEffect(() => () => clearTimeout(badgerLongPressTimerRef.current), []);
-
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
@@ -523,10 +500,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                          bg-background/90 backdrop-blur border-b border-border">
         <div className="flex items-center gap-3">
           <button
-            onPointerDown={handleBadgerPressStart}
-            onPointerUp={handleBadgerPressEnd}
-            onPointerLeave={handleBadgerPressEnd}
-            onPointerCancel={handleBadgerPressEnd}
             onClick={handleBadgerClick}
             className="flex-shrink-0 transition active:scale-90"
             aria-label={t("layout.scan_screenshot")}
@@ -577,61 +550,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           toast({ title: t("layout.screenshot_imported") });
         }}
       />
-
-      {/* ── Mission bottom sheet ── */}
-      {showMission && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            onClick={() => setShowMission(false)} />
-          <div className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-border
-                          rounded-t-3xl px-5 pt-6 pb-12 max-h-[88vh] overflow-y-auto">
-
-            {/* drag handle */}
-            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
-
-            {/* header */}
-            <div className="flex items-center gap-3 mb-6">
-              <BadgerLogo size={36} />
-              <div>
-                <p className="text-lg font-bold text-foreground">
-                  {prefs.language === "pl" ? "Misja" : "The Mission"}
-                </p>
-                <p className="text-xs text-muted-foreground">Filip Snopek · Budger</p>
-              </div>
-            </div>
-
-            {/* body */}
-            {prefs.language === "pl" ? (
-              <div className="space-y-4 text-sm text-foreground/80 leading-relaxed">
-                <p>Pomysł na Budgera narodził się z lat praktyk i potrzeby. Potrzebowałem planera finansowego dla swojej rodziny, by śledzić bieżące wydatki oraz mądrze planować te które dopiero nadejdą.</p>
-                <p>Od lat starannie planowałem wydatki w notatniku swojego telefonu — zalążki podejścia. Później zacząłem te wydatki kategoryzować. Z biegiem czasu stworzyłem pierwszy świadomy budżet, ale bez środków aby śledzić każdy finansowy ruch trudno było utrzymać konsekwencję. Aplikacje bankowe nie oferowały elastyczności, a ja miałem kilka kont w różnych bankach. To zadanie zdawało się przytłaczające i niemożliwe do zrealizowania.</p>
-                <p>Gdy nadszedł 2026, Sztuczna Inteligencja pojawiła się w wielu codziennych obszarach, tworząc okazję, otwierając drzwi. Jedną z nich był vibecoding, czyli tworzenie kodu za pomocą promptów, a nie języka programistycznego. Iskra potrzebna by podjąć akcję. Mając środki do zrealizacji celu zacząłem tworzyć narzędzie którego potrzebowałem przez tyle lat. I tak, Panie i Panowie, narodził się Budger.</p>
-                <p>Z czasem zdałem sobie sprawę, że osobista potrzeba przekształciła się w misję stworzenia społeczności i szerzenia finansowej świadomości. Każdy z nas ma miesięczne wydatki oraz cele do których dąży. Świadomość swoich finansów oraz staranne planowanie sprawia, że stają się one łatwiejsze i bardziej osiągalne. Chciałbym podzielić się tym podejściem z moimi najbliższymi, przyjaciółmi, a w przyszłości po prostu z ludźmi myślącymi podobnie do mnie. Ideą Budgera jest planowanie i osiąganie celów — indywidualnych jak i tych wspólnych. Dla lepszej przyszłości.</p>
-                <p>Dedykuję tę aplikację mojej rodzinie, szczególnie żonie Natalii oraz córce Matyldzie, które napędzały mnie i dawały wsparcie w całym procesie, oraz bratu Pawłowi i chrześniakowi Teodorowi, którzy byli inspiracją do brandingu, dając mi pozytywne skojarzenia z Borsukiem.</p>
-                <p>Borsuki same w sobie są bardzo przedsiębiorczymi zwierzętami. Poszukują pożywienia na wiele sposobów, podejmują sprytne decyzje, budują złożone nory które przekazywane są z pokolenia na pokolenie. Jeśli ta aplikacja osiągnie komercyjny sukces, deklaruję wsparcie ich bezpieczeństwa oraz dobrobytu.</p>
-                <p className="text-foreground/50 text-xs pt-2 border-t border-border">Autor i CEO Budgera, Filip Snopek</p>
-              </div>
-            ) : (
-              <div className="space-y-4 text-sm text-foreground/80 leading-relaxed">
-                <p>The idea for Budger was born out of necessity and years of practice. I needed a planner for my household, to more carefully track current expenses and plan wisely those that are yet to come.</p>
-                <p>Over the years, I carefully planned my expenses in my phone notebook — a start of a mindset. Then, I started to categorize them. Over time I created the first conscious budget, but with no means to actually track every financial move, it was difficult to stay consistent. Banking apps were not flexible enough, and I had multiple accounts to manage. The task seemed overwhelming and impossible to achieve.</p>
-                <p>Then 2026 came, and Artificial Intelligence surged in most areas of everyday life, creating opportunities and opening many doors. One of them was vibecoding — creating code with prompts instead of coding language. A spark needed to take action. With the means to do it, I started to create the tool I needed for so many years. And that's, ladies and gentlemen, how Budger was born.</p>
-                <p>Over time I realized that this personal need became a mission to create community and spread financial awareness. Everyone has monthly expenses and goals to achieve. By staying conscious of your finances and through careful planning, everything is easier and much more obtainable. I'd like to spread this approach with my close ones, friends, and in the future, people that think just like me. The idea of Budger is to plan and achieve goals — individual or common. For a better future.</p>
-                <p>I dedicate this app to my family, especially my wife Natalia and daughter Matylda, for giving me drive and support along the way, and brother Paweł and godson Teodor, who both were an inspiration for the branding as they gave me fond memories with the Badger.</p>
-                <p>Badgers themselves are extremely entrepreneurial animals. They seek many opportunities to get food, make smart choices, build complex burrows that are passed from generation to generation. If this app reaches commercial success, I pledge to contribute to their safety and wellbeing.</p>
-                <p className="text-foreground/50 text-xs pt-2 border-t border-border">Author and CEO of Budger, Filip Snopek</p>
-              </div>
-            )}
-
-            <button
-              onClick={() => setShowMission(false)}
-              className="mt-6 w-full py-3 rounded-2xl bg-muted text-sm font-medium text-muted-foreground transition active:opacity-70"
-            >
-              {prefs.language === "pl" ? "Zamknij" : "Close"}
-            </button>
-          </div>
-        </>
-      )}
 
       {/* ── Profile bottom sheet ── */}
       {showProfile && (
