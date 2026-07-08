@@ -302,10 +302,14 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   }, [totalGLSent, glDismissedAmount, meId, larder]);
 
   const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
-  // Add form always needs at least one currency option even when the larder is empty
-  const addAssetOpts: CurrencySubtotal[] = assetOpts.length > 0
-    ? assetOpts
-    : [{ currency: prefs.currency, rawTotal: 0 }];
+  // Add form shows all supported currencies regardless of current larder balance
+  const addCurrencyOrder = prefs.language === "pl"
+    ? ["PLN", "EUR", "USD", "GBP"]
+    : ["EUR", "USD", "GBP", "PLN"];
+  const addAssetOpts: CurrencySubtotal[] = addCurrencyOrder.map(currency => {
+    const existing = (larder?.currencyBreakdown ?? []).find(b => b.currency === currency);
+    return { currency, rawTotal: existing?.rawTotal ?? 0 };
+  });
   const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
   const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? total;
   const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? total;
