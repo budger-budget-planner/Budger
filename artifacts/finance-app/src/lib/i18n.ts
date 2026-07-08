@@ -737,8 +737,8 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Rejestruj wydatki z dowolnej aplikacji bankowej",
   },
   "man.s1_desc": {
-    en: "Budger's agent reads transaction screenshots so you don't have to type anything — just scan and confirm.",
-    pl: "Agent Budger odczytuje zrzuty ekranu transakcji, dzięki czemu nic nie musisz wpisywać — wystarczy zeskanować i potwierdzić.",
+    en: "Budger reads transaction screenshots so you don't have to type anything — just scan and confirm.",
+    pl: "Budger odczytuje zrzuty ekranu transakcji, dzięki czemu nic nie musisz wpisywać — wystarczy zeskanować i potwierdzić.",
   },
 
   "man.s2_title": {
@@ -764,8 +764,8 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Sprawdź wiersze i zaimportuj",
   },
   "man.s4_desc": {
-    en: "The agent extracts merchant, amount, and date automatically. Fix anything if needed, uncheck what you don't want, then tap Import.",
-    pl: "Agent automatycznie wyodrębnia sprzedawcę, kwotę i datę. Popraw, jeśli trzeba, odznacz to, czego nie chcesz, i dotknij Importuj.",
+    en: "Budger extracts merchant, amount, and date automatically. Fix anything if needed, uncheck what you don't want, then tap Import.",
+    pl: "Budger automatycznie wyodrębnia sprzedawcę, kwotę i datę. Popraw, jeśli trzeba, odznacz to, czego nie chcesz, i dotknij Importuj.",
   },
 
   // ── Capturing Online Payments tutorial ──

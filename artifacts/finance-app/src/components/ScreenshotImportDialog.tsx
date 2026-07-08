@@ -315,9 +315,6 @@ export function ScreenshotImportDialog({
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("tx.import_screenshot")}</DialogTitle>
-          </DialogHeader>
 
           {/* ── Sniffing / transition hold screen ───────────────────────── */}
           {isSniffing && (
@@ -363,15 +360,17 @@ export function ScreenshotImportDialog({
 
           {/* ── Idle (no scan, no results) ──────────────────────────────── */}
           {!rows && !isSniffing && (
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <BadgerLogo size={72} />
+            <div className="flex flex-col gap-6 pt-3 pb-2">
+              <div className="flex justify-center pt-2">
+                <BadgerLogo size={96} />
               </div>
 
-              <p className="text-sm text-muted-foreground">{t("tx.import_screenshot_hint")}</p>
+              <p className="text-sm text-muted-foreground text-center leading-relaxed px-1">
+                {t("tx.import_screenshot_hint")}
+              </p>
 
               {/* Import scope toggle */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {t("tx.import_scope_label")}
                 </p>

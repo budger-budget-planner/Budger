@@ -268,11 +268,8 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
     // Surface Gemini rate-limit errors with a human-readable message so the
     // user knows to wait rather than retry immediately.
     if (err?.status === 429 || (typeof err?.message === "string" && err.message.includes("429"))) {
-      const retryMatch = typeof err.message === "string" && err.message.match(/"retryDelay":"(\d+)s"/);
-      const retrySec = retryMatch ? retryMatch[1] : null;
-      const retryHint = retrySec ? ` Please try again in ${retrySec} seconds.` : " Please try again later.";
       logger.warn({ userId }, "Screenshot extraction: Gemini rate limit hit");
-      res.status(429).json({ error: `AI quota exceeded.${retryHint}` });
+      res.status(429).json({ error: "AI quota exceeded. Please try again tomorrow." });
       return;
     }
     logger.error({ err, userId }, "Screenshot extraction: Gemini call failed");
