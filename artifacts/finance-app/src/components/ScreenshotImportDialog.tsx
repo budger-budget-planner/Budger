@@ -212,10 +212,12 @@ export function ScreenshotImportDialog({
 
             transitionTimersRef.current = [t1, t2];
           },
-          onError: () => {
-            if (openRef.current && sessionTokenRef.current === mySession) {
-              setError(t("tx.screenshot_error"));
-            }
+          onError: (err: unknown) => {
+            if (!openRef.current || sessionTokenRef.current !== mySession) return;
+            // Prefer the server's own error message (ApiError.data.error) so
+            // specific cases like rate-limit 429s surface clearly to the user.
+            const serverMsg = (err as any)?.data?.error;
+            setError(typeof serverMsg === "string" ? serverMsg : t("tx.screenshot_error"));
           },
         },
       );
