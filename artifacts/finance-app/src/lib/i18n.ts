@@ -922,7 +922,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.support_btn":      { en: "Support",                        pl: "Wesprzyj"                           },
   "larder.save_short":       { en: "Save",                           pl: "Oszczędź"                           },
   "larder.send_gl_btn":      { en: "Send to Great Larder",            pl: "Przekaż do Wielkiej Spiżarni"        },
-  "larder.dedicate":         { en: "Allocate to Goal",               pl: "Przeznacz na Cel"                   },
+  "larder.dedicate":         { en: "Support",                        pl: "Przeznacz na Cel"                   },
   "larder.recent":           { en: "Recent activity",                pl: "Ostatnia aktywność"                 },
 
   "queue.add_transaction":       { en: "Add transaction",            pl: "Dodaj transakcję"                   },
@@ -961,7 +961,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.fund_sheet_title": { en: "Fund Larder",                    pl: "Zasilij Spiżarnię"                  },
   "larder.spend_sheet_title": { en: "Fund from Larder",              pl: "Funduj ze Spiżarni"                 },
   "larder.send_gl_sheet_title": { en: "Send to Great Larder",        pl: "Przekaż do Wielkiej Spiżarni"       },
-  "larder.dedicate_sheet_title": { en: "Allocate to Goal",           pl: "Przeznacz na Cel"                   },
+  "larder.dedicate_sheet_title": { en: "Support a Goal",             pl: "Przeznacz na Cel"                   },
   "larder.description":      { en: "Description",                    pl: "Opis"                               },
   "larder.amount_label":     { en: "Amount",                         pl: "Kwota"                              },
   "larder.percent_label":    { en: "Percent",                        pl: "Procent"                            },

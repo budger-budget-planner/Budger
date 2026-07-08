@@ -639,7 +639,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                     <span
                       className="flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out"
                       style={{
-                        maxWidth: glBadgeCollapsed ? "0px" : "200px",
+                        maxWidth: glBadgeCollapsed ? "0px" : "280px",
                         opacity: glBadgeCollapsed ? 0 : 1,
                       }}
                     >
