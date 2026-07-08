@@ -937,13 +937,9 @@ export default function LoginPage() {
           <div className="shrink-0 px-5 pb-safe-bottom pb-6 pt-3 border-t border-border">
             <Button
               className="w-full h-14 rounded-2xl text-base font-semibold"
-              onClick={() => {
-                if (legalModal === "terms") setTermsAccepted(true);
-                if (legalModal === "privacy") setPrivacyAccepted(true);
-                setLegalModal(null);
-              }}
+              onClick={() => setLegalModal(null)}
             >
-              {legalModal === "terms" ? t("login.terms_link") : t("login.privacy_link")} — {t("login.continue")}
+              {t("login.continue")}
             </Button>
           </div>
         </div>
