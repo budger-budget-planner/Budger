@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES, loadPrefs } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
-import { Zap } from "lucide-react";
+import { Zap, Bell, Banknote, Check } from "lucide-react";
 import {
   useUpdateNotificationSettings,
   useUpdateMe,
@@ -26,6 +26,16 @@ function Dots({ current }: { current: Step }) {
           i <  idx  ? "w-3 bg-foreground/40" : "w-3 bg-border"
         }`} />
       ))}
+    </div>
+  );
+}
+
+// ── Shared step icon container ────────────────────────────────────────────────
+
+function StepIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-18 h-18 rounded-2xl bg-card border border-border flex items-center justify-center p-4 self-center">
+      {children}
     </div>
   );
 }
@@ -111,9 +121,7 @@ export default function Onboarding({
   }
 
   function handleLetsStart() {
-    // Show splash overlay, then finish after it's visible
     setLaunching(true);
-    // Second RAF tick triggers the CSS opacity transition
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (mountedRef.current) setLaunchVisible(true);
     }));
@@ -200,7 +208,7 @@ export default function Onboarding({
       {/* ── Stay signed in ── */}
       {step === "stay-signed-in" && (
         <div className="flex flex-col items-center gap-6 flex-1 justify-center w-full max-w-sm">
-          <div className="p-5 rounded-3xl bg-card border border-border shadow-xl">
+          <div className="p-4 rounded-2xl bg-card border border-border">
             <BadgerLogo size={72} />
           </div>
           <div className="text-center">
@@ -211,15 +219,13 @@ export default function Onboarding({
           <div className="flex flex-col gap-3 w-full">
             <button
               onClick={() => { setStaySignedIn(true); next(); }}
-              className={`w-full h-14 rounded-2xl border-2 font-semibold text-base transition
-                ${staySignedIn ? "border-foreground bg-foreground text-background" : "border-border bg-card text-foreground"}`}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base transition active:scale-95"
             >
               {t("ob.yes_stay")}
             </button>
             <button
               onClick={() => { setStaySignedIn(false); next(); }}
-              className={`w-full h-14 rounded-2xl border-2 font-semibold text-base transition
-                ${!staySignedIn ? "border-foreground bg-foreground text-background" : "border-border bg-card text-foreground"}`}
+              className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base transition active:scale-95"
             >
               {t("ob.no_sign_out")}
             </button>
@@ -236,17 +242,29 @@ export default function Onboarding({
             <p className="text-xs text-muted-foreground/60 mt-1">{t("ob.can_skip")}</p>
           </div>
           <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1">
-            {CURRENCIES.map(c => (
-              <button key={c.code} onClick={() => setCurrency(c.code)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition
-                  ${currency === c.code ? "border-foreground bg-foreground/8" : "border-border bg-card"}`}>
-                <span className="text-xl font-bold text-foreground w-8 text-center flex-shrink-0">{c.symbol}</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{c.code}</p>
-                  <p className="text-xs text-muted-foreground truncate">{c.label}</p>
-                </div>
-              </button>
-            ))}
+            {CURRENCIES.map(c => {
+              const selected = currency === c.code;
+              return (
+                <button
+                  key={c.code}
+                  onClick={() => setCurrency(c.code)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition active:scale-95 ${
+                    selected
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-card text-foreground"
+                  }`}
+                >
+                  <span className={`text-xl font-bold w-8 text-center flex-shrink-0 ${selected ? "text-background" : "text-foreground"}`}>
+                    {c.symbol}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{c.code}</p>
+                    <p className={`text-xs truncate ${selected ? "text-background/70" : "text-muted-foreground"}`}>{c.label}</p>
+                  </div>
+                  {selected && <Check className="w-4 h-4 flex-shrink-0 text-background" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -254,6 +272,9 @@ export default function Onboarding({
       {/* ── Budget ── */}
       {step === "budget" && (
         <div className="flex flex-col gap-5 flex-1 w-full max-w-sm justify-center">
+          <StepIcon>
+            <Banknote className="w-8 h-8 text-foreground" />
+          </StepIcon>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-foreground">{t("ob.monthly_budget")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("ob.budget_desc")}</p>
@@ -274,13 +295,16 @@ export default function Onboarding({
             />
           </div>
           <div className="flex flex-col gap-3 w-full flex-shrink-0">
-            <button onClick={next}
-              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
-                         transition active:scale-95 shadow-sm">
+            <button
+              onClick={next}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base transition active:scale-95"
+            >
               {t("ob.continue")}
             </button>
-            <button onClick={skip}
-              className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4">
+            <button
+              onClick={skip}
+              className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4"
+            >
               {t("ob.skip")}
             </button>
           </div>
@@ -290,9 +314,9 @@ export default function Onboarding({
       {/* ── Wallet — Automation teaser ── */}
       {step === "wallet" && (
         <div className="flex flex-col items-center gap-6 flex-1 justify-center w-full max-w-sm">
-          <div className="w-20 h-20 rounded-3xl bg-card border border-border shadow-xl flex items-center justify-center">
-            <Zap className="w-9 h-9 text-foreground" />
-          </div>
+          <StepIcon>
+            <Zap className="w-8 h-8 text-foreground" />
+          </StepIcon>
           <div className="text-center space-y-3">
             <h2 className="text-2xl font-bold text-foreground">{t("ob.automate_title")}</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">{t("ob.automate_desc")}</p>
@@ -303,9 +327,10 @@ export default function Onboarding({
             </div>
           </div>
           <div className="flex flex-col gap-3 w-full flex-shrink-0">
-            <button onClick={next}
-              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
-                         transition active:scale-95 shadow-sm">
+            <button
+              onClick={next}
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base transition active:scale-95"
+            >
               {t("ob.continue")}
             </button>
           </div>
@@ -315,43 +340,45 @@ export default function Onboarding({
       {/* ── Notifications ── */}
       {step === "notifications" && (
         <div className="flex flex-col gap-5 flex-1 w-full max-w-sm justify-center">
+          <StepIcon>
+            <Bell className="w-8 h-8 text-foreground" />
+          </StepIcon>
           <div className="text-center">
-            <span className="text-5xl">🔔</span>
-            <h2 className="text-2xl font-bold text-foreground mt-4">{t("ob.notif_title")}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{t("ob.notif_title")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("ob.notif_desc")}</p>
           </div>
 
           {notifStatus === "granted" && (
-            <div className="bg-green-900/20 border border-green-900/40 rounded-2xl px-4 py-3 text-center">
-              <p className="text-sm text-green-400 font-medium">{t("ob.notif_enabled")}</p>
+            <div className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3">
+              <Check className="w-4 h-4 text-foreground flex-shrink-0" />
+              <p className="text-sm text-foreground font-medium">{t("ob.notif_enabled")}</p>
             </div>
           )}
           {notifStatus === "denied" && (
-            <div className="bg-muted border border-border rounded-2xl px-4 py-3 text-center">
+            <div className="bg-card border border-border rounded-2xl px-4 py-3 text-center">
               <p className="text-sm text-muted-foreground">{t("ob.notif_blocked_title")}</p>
             </div>
           )}
 
-          {notifStatus !== "granted" && (
+          <div className="flex flex-col gap-3">
+            {notifStatus !== "granted" && (
+              <button
+                onClick={requestNotifications}
+                disabled={notifStatus === "loading"}
+                className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base disabled:opacity-50 active:scale-95 transition"
+              >
+                {notifStatus === "loading" ? t("ob.notif_enabling") :
+                 notifStatus === "denied"  ? t("ob.try_again") :
+                 t("ob.notif_enable_btn")}
+              </button>
+            )}
             <button
-              onClick={requestNotifications}
-              disabled={notifStatus === "loading"}
-              className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
-                         disabled:opacity-50 active:scale-95 transition"
+              onClick={next}
+              className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition"
             >
-              {notifStatus === "loading" ? t("ob.notif_enabling") :
-               notifStatus === "denied"  ? t("ob.try_again") :
-               t("ob.notif_enable_btn")}
+              {notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
             </button>
-          )}
-
-          {/* Advance to welcome screen, not directly to finish */}
-          <button
-            onClick={next}
-            className="w-full h-14 rounded-2xl bg-card border border-border text-foreground font-semibold text-base active:scale-95 transition"
-          >
-            {notifStatus === "granted" ? t("ob.lets_go") : t("ob.skip_notif")}
-          </button>
+          </div>
         </div>
       )}
 
@@ -414,12 +441,12 @@ export default function Onboarding({
           </div>
 
           {/* CTA button */}
-          <div className="flex-shrink-0">
+          <div className="w-full flex-shrink-0">
             <button
               onClick={handleLetsStart}
               disabled={finishing || launching}
-              className="w-full h-16 rounded-2xl bg-foreground text-background font-bold text-lg
-                         transition active:scale-95 shadow-lg disabled:opacity-60"
+              className="w-full h-14 rounded-2xl bg-foreground text-background font-bold text-base
+                         transition active:scale-95 disabled:opacity-60"
             >
               {t("ob.welcome_lets_start")}
             </button>
@@ -430,13 +457,16 @@ export default function Onboarding({
       {/* ── Bottom action (skip/continue) for currency step ── */}
       {step === "currency" && (
         <div className="flex flex-col gap-3 w-full max-w-sm flex-shrink-0">
-          <button onClick={next}
-            className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base
-                       transition active:scale-95 shadow-sm">
+          <button
+            onClick={next}
+            className="w-full h-14 rounded-2xl bg-foreground text-background font-semibold text-base transition active:scale-95"
+          >
             {t("ob.continue")}
           </button>
-          <button onClick={skip}
-            className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4">
+          <button
+            onClick={skip}
+            className="w-full h-10 text-sm text-muted-foreground underline underline-offset-4"
+          >
             {t("ob.skip")}
           </button>
         </div>
