@@ -4,6 +4,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
+import { jsonrepair } from "jsonrepair";
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -232,11 +233,15 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
     const text = response.text;
     if (!text) {
       logger.warn({ userId }, "Screenshot extraction: empty Gemini response");
-      res.status(422).json({ error: "Could not read any transactions from this image" });
+      res.status(422).json({ error: "Could not read any transactions from this file" });
       return;
     }
 
-    const result = JSON.parse(text) as { transactions: Array<{ merchant: string; amount: number; currency: string | null; date: string | null; type: string }> };
+    // Gemini occasionally returns JavaScript-style object notation (unquoted
+    // keys, single-quoted strings, trailing commas) or wraps output in markdown
+    // code fences — especially with PDF inputs. Strip fences first, then repair.
+    const stripped = text.replace(/^```(?:json)?\s*/m, "").replace(/\s*```\s*$/m, "").trim();
+    const result = JSON.parse(jsonrepair(stripped)) as { transactions: Array<{ merchant: string; amount: number; currency: string | null; date: string | null; type: string }> };
     // Keep only expense rows (money leaving the account).
     // The prompt already instructs Gemini to omit income, but the type field
     // acts as a hard server-side filter in case any slip through.
