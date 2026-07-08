@@ -55,6 +55,9 @@ export default function Onboarding({
   const mountedRef    = useRef(true);
   const launchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Welcome-screen badger lick — fires 1 s after the step is shown ─────────
+  const [welcomeAnim, setWelcomeAnim] = useState<"lick" | null>(null);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -62,6 +65,14 @@ export default function Onboarding({
       if (launchTimeout.current) clearTimeout(launchTimeout.current);
     };
   }, []);
+
+  // Trigger one lick 1 s after landing on the welcome step
+  useEffect(() => {
+    if (step !== "welcome") { setWelcomeAnim(null); return; }
+    const t1 = setTimeout(() => setWelcomeAnim("lick"), 1000);
+    const t2 = setTimeout(() => setWelcomeAnim(null), 1000 + 2400 + 100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [step]);
 
   const updateNotif = useUpdateNotificationSettings();
   const updateMe    = useUpdateMe();
@@ -160,11 +171,25 @@ export default function Onboarding({
       {/* ── Splash-out overlay — sits above everything ── */}
       {launching && (
         <div
-          className="fixed inset-0 z-[200] bg-background flex flex-col items-center justify-center"
-          style={{ opacity: launchVisible ? 1 : 0, transition: "opacity 0.55s ease" }}
+          className="fixed inset-0 z-[200] flex items-center justify-center"
+          style={{
+            background: "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
+            opacity: launchVisible ? 1 : 0,
+            transition: "opacity 0.45s ease",
+          }}
         >
-          <div style={{ opacity: launchVisible ? 1 : 0, transition: "opacity 0.4s ease 0.1s", transform: launchVisible ? "scale(1)" : "scale(0.85)", transitionProperty: "opacity, transform" }}>
-            <BadgerLogo size={120} />
+          <div
+            className={launchVisible ? "splash-pulse" : ""}
+            style={{
+              transform: launchVisible ? "scale(1)" : "scale(0.82)",
+              transition: "transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <BadgerLogo
+              size={120}
+              forceAnim={launchVisible ? "lick" : null}
+              forceAnimDurationMs={1067}
+            />
           </div>
         </div>
       )}
@@ -332,7 +357,12 @@ export default function Onboarding({
 
       {/* ── Welcome ── */}
       {step === "welcome" && (
-        <div className="flex flex-col flex-1 w-full max-w-sm justify-center gap-8">
+        <div className="flex flex-col flex-1 w-full max-w-sm items-center gap-6">
+          {/* Logo — lick fires after 1 s */}
+          <div className="flex justify-center pt-4">
+            <BadgerLogo size={120} forceAnim={welcomeAnim} />
+          </div>
+
           {/* Large header */}
           <div className="text-center">
             <h1 className="text-5xl font-black tracking-widest text-foreground uppercase">
