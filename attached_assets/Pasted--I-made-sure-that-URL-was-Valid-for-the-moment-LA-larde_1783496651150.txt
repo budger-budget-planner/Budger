@@ -1,0 +1,75 @@
+
+I made sure that URL was Valid for the moment
+LA
+larder21
+larder21
+17 minutes ago
+I have everything I need to give a clear analysis. Let me reason through this carefully.
+Here's the diagnosis. There are two layered problems:
+
+Problem 1 — What the trigger actually provides
+
+The "When I tap any of 4 Wallet passes or payment cards" automation fires when you tap the card to open it, not after a payment completes. The Shortcut Input it passes along is the Wallet Pass object (the card itself), not a payment transaction. iOS serialises that Pass object into the JSON body as either:
+
+a plain string — just the card/bank name like "mBank", or
+a structured object with fields like passTypeIdentifier, organizationName, serialNumber — none of which match what the server looks for (amount, currency, merchant, merchantName, etc.)
+Either way the parser finds no amount → returns 422 → nothing is saved.
+
+Problem 2 — Even if iOS does send transaction data
+
+On some pass types (transit, loyalty) iOS 16+ can attach transaction detail to the input. But for standard bank/payment cards, the amount and merchant are not available at tap time — the shortcut runs before the payment is authorised, so there's nothing to read.
+
+What would actually work
+
+The Shortcut is architecturally set up correctly — it just needs a different trigger and input source. Three approaches that work:
+
+Option A — Bank notification Share Sheet (works today, no changes needed)
+When your bank sends a push notification for a payment ("Netflix €12.99"), long-press it → Share → Budger Shortcut. The raw text path in the server already parses "mBank\nNetflix\n12,99 EUR" style strings.
+
+Option B — NFC tag on your desk
+Place an NFC sticker next to where you pay. Tap it after a payment, enter amount + merchant in a simple prompt sheet. More deliberate but reliable.
+
+Option C — Automation on notification from bank app
+Trigger: "When I receive a notification from [Bank App]" → capture Notification Content as Shortcut Input → POST to the webhook. The raw text parser handles the notification body string if it contains the amount.
+
+How to confirm what iOS is actually sending right now
+
+There's a safe dry-run endpoint already in the server — same URL with /test appended — that returns what would be parsed without saving anything:
+
+POST /api/webhook/apple/<your-token>/test
+Duplicate your Shortcut, change the URL to .../test, run it, and the response JSON will show exactly what body.transaction contains and why parsing failed (fields rawTransaction, path, error). That'll tell you precisely what iOS is sending.
+When I tap wallet notifications they are not share'able
+LA
+larder21
+larder21
+7 minutes ago
+Capturing notification content
+That rules out Option A. Option C is your best path — and it's purely a Shortcuts reconfiguration, no code changes needed.
+
+Set up a "notification received" automation
+
+Instead of the Wallet card tap, trigger on the bank app's push notification arriving:
+
+Shortcuts → Automation → New Automation
+Trigger: App → [your bank app, e.g. mBank / Revolut / ING] → Notification Received
+Set "Run Immediately" (toggle off "Ask Before Running") so it fires silently
+Same "Get Contents of URL" action as now, but change the body to:
+{
+  "transaction": "[Notification Title]\n[Notification Content]"
+}
+Use the magic variables Notification Title and Notification Content concatenated with a literal \n between them. This gives the parser two lines — typically the bank name on line 1 and the payment detail on line 2.
+
+Why this works with the current server
+
+The raw text parser already handles the common formats banks use:
+
+Bank notification text	What gets extracted
+mBank\n45,00 PLN - Allegro	amount=45.00 PLN, merchant=Allegro
+Revolut\nYou paid €12.99 at Netflix	amount=12.99 EUR, merchant=Netflix (line 2)
+ING\nPłatność 45,00 zł Allegro	amount=45.00 PLN, merchant=Allegro
+The merchant name won't always be perfectly clean (some banks embed it mid-sentence) but the amount and currency will parse correctly.
+
+One useful trick — the /test endpoint
+
+Before going live, duplicate the Shortcut and point it at .../test instead of the live URL. The response JSON shows you exactly what transaction string iOS sends and what the parser extracts — without saving anything. Lets you tweak the body template before committing.
+But notifications I get are not from the bank but from the wallet app. Look at the screenshot
