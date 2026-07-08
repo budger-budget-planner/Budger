@@ -36,6 +36,10 @@ export default function LoginPage() {
   const [screen, setScreen] = useState<Screen>("start");
   // Set to true after successful registration so the start screen can show a success banner
   const [justRegistered, setJustRegistered] = useState(false);
+  // Set to true when landing from a deletion request (the account is in the 24h grace period)
+  const [pendingDeletion, setPendingDeletion] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("pendingDeletion") === "1"; } catch { return false; }
+  });
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -148,7 +152,10 @@ export default function LoginPage() {
       },
       onError: (err: any) => {
         const msg = err?.response?.data?.error ?? err?.message ?? t("login.failed");
-        if (msg.includes("No account") || msg.includes("404")) {
+        if (msg.includes("account_pending_deletion") || msg.includes("403")) {
+          setLoginError(t("login.account_pending_deletion"));
+          setLoginPin("");
+        } else if (msg.includes("No account") || msg.includes("404")) {
           setLoginError(t("login.no_account"));
           setLoginPin(""); // clear: no account — email step should be retried
         } else if (msg.includes("Incorrect") || msg.includes("401")) {
@@ -377,15 +384,22 @@ export default function LoginPage() {
       {/* ── Start screen ── */}
       {screen === "start" && (
         <div key="start" className="min-h-screen flex flex-col items-center justify-center px-6 pb-10">
+          {/* Pending-deletion notice banner */}
+          {pendingDeletion && (
+            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-destructive/10 border border-destructive/30 px-4 py-3 text-center mb-4">
+              <p className="text-sm font-semibold text-destructive">{t("login.pending_deletion")}</p>
+              <p className="text-xs text-destructive/70 mt-0.5">{t("login.pending_deletion_sub")}</p>
+            </div>
+          )}
           {/* Account-created success banner */}
-          {justRegistered && (
+          {justRegistered && !pendingDeletion && (
             <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
               <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
           )}
           {/* PIN-reset success banner */}
-          {justPinReset && (
+          {justPinReset && !pendingDeletion && (
             <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
               <p className="text-sm font-semibold text-green-400">{t("login.pin_reset_success")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.pin_reset_success_sub")}</p>

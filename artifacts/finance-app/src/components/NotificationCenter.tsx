@@ -463,7 +463,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         body: JSON.stringify({ language: lang }),
       });
       if (!r.ok) throw new Error("failed");
-      setDeleteStep("done");
+      // Session is destroyed on the server — hard-navigate directly to the login route with
+      // a pending-deletion notice so AuthGuard does not intercept and strip the query param.
+      window.location.replace(`${import.meta.env.BASE_URL}login?pendingDeletion=1`);
     } catch {
       setDeleteStep("final");
       setDeleteError(lang === "pl"
@@ -897,8 +899,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                 <div className="rounded-2xl bg-muted/50 border border-border px-4 py-3">
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {lang === "pl"
-                      ? "Zgodnie z art. 17 RODO Twoje żądanie zostanie przetworzone w ciągu 30 dni. Potwierdzenie e-mailem zostanie wysłane na Twój adres."
-                      : "Under GDPR Article 17 your request will be processed within 30 days. A confirmation email will be sent to your address."}
+                      ? "Po potwierdzeniu Twoje konto zostanie trwale usunięte po 24 godzinach. W tym czasie nie możesz się zalogować ani zarejestrować na ten adres e-mail. Po upływie tego czasu e-mail staje się wolny do ponownej rejestracji."
+                      : "Once confirmed, your account will be permanently deleted after 24 hours. During that window you cannot log in or re-register with this email. After the 24 hours your email is free to use again."}
                   </p>
                 </div>
                 <label className="flex items-start gap-3 cursor-pointer pb-2">

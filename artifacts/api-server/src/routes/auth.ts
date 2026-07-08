@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "@workspace/db";
-import { eq, and, count, isNull, lt, ne } from "drizzle-orm";
+import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger } from "../lib/logger";
 import {
@@ -47,9 +47,25 @@ async function purgeExpiredPendingAccounts(): Promise<number> {
   return deleted.length;
 }
 
-// Periodic sweep so abandoned sign-ups are cleaned up even without further requests.
+// Permanently deletes any account whose 24-hour deletion grace period has elapsed.
+// Called on a periodic sweep so deletions are applied even with no incoming requests.
+async function purgeScheduledDeletions(): Promise<number> {
+  const deleted = await db.delete(usersTable)
+    .where(and(
+      isNotNull(usersTable.deletionScheduledAt),
+      lt(usersTable.deletionScheduledAt, new Date()),
+    ))
+    .returning({ id: usersTable.id, email: usersTable.email });
+  if (deleted.length > 0) {
+    logger.info({ count: deleted.length, ids: deleted.map(d => d.id) }, "auth: purged scheduled account deletions");
+  }
+  return deleted.length;
+}
+
+// Periodic sweep so abandoned sign-ups and scheduled deletions are applied even without further requests.
 setInterval(() => {
-  purgeExpiredPendingAccounts().catch(err => logger.warn({ err }, "auth: periodic purge failed"));
+  purgeExpiredPendingAccounts().catch(err => logger.warn({ err }, "auth: periodic purge (pending) failed"));
+  purgeScheduledDeletions().catch(err => logger.warn({ err }, "auth: periodic purge (scheduled deletions) failed"));
 }, 60 * 1000);
 
 function isChild(role: string) { return role === "child" || role === "member"; }
@@ -78,11 +94,11 @@ router.get("/auth/check-email", async (req, res): Promise<void> => {
   }
   const email = (req.query.email as string ?? "").toLowerCase().trim();
   if (!email) { res.status(400).json({ error: "Missing email" }); return; }
-  const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength, passwordHash: usersTable.passwordHash })
+  const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength, passwordHash: usersTable.passwordHash, deletionScheduledAt: usersTable.deletionScheduledAt })
     .from(usersTable).where(eq(usersTable.email, email));
-  // A pending account (no passwordHash) is treated as non-existent for login — the user
-  // should re-register with the same email to set a new PIN.
-  const fullyRegistered = !!user && !!user.passwordHash;
+  // A pending account (no passwordHash) or one scheduled for deletion is treated as
+  // non-existent for login — prevents login or re-registration during grace period.
+  const fullyRegistered = !!user && !!user.passwordHash && !user.deletionScheduledAt;
   res.json({ exists: fullyRegistered, pinLength: fullyRegistered ? (user?.pinLength ?? null) : null });
 });
 
@@ -162,6 +178,11 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   if (existing && existing.passwordHash) {
     // Fully-registered account already owns this email
     res.status(409).json({ error: "Email already in use" });
+    return;
+  }
+  if (existing && existing.deletionScheduledAt) {
+    // Email is in the 24-hour deletion grace period — block re-registration
+    res.status(409).json({ error: "This email is not available for registration at this time." });
     return;
   }
 
@@ -318,6 +339,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
+  // Block login for accounts in the deletion grace period
+  if (user.deletionScheduledAt) {
+    res.status(403).json({ error: "account_pending_deletion" });
+    return;
+  }
+
   // Verify password — legacy users (no hash) cannot log in; they must register again
   if (!user.passwordHash) {
     res.status(401).json({ error: "No password set. Please create a new account." });
@@ -448,8 +475,10 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
 });
 
 // POST /api/auth/request-deletion
-// Authenticated. Sends a GDPR erasure-request email to support + ack to user.
-// Also handles household side-effects:
+// Authenticated. Schedules the account for permanent deletion in 24 hours, then immediately
+// logs the user out. During the 24-hour grace period the email cannot be used to log in or
+// re-register. After 24 hours the account row is purged by the periodic sweep.
+// Also handles household side-effects immediately:
 //   - If user is the household head, transfers headship to a random parent.
 //   - Notifies all remaining household members via the notification centre.
 router.post("/auth/request-deletion", async (req, res): Promise<void> => {
@@ -459,10 +488,15 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  req.log.info({ userId, email: user.email }, "auth: account deletion requested");
+  // Idempotent: if already scheduled, just log out again
+  if (user.deletionScheduledAt) {
+    await new Promise<void>(resolve => req.session.destroy(() => resolve()));
+    res.json({ scheduled: true, deletionAt: user.deletionScheduledAt.toISOString() });
+    return;
+  }
 
-  const language = req.body?.language === "pl" ? "pl" : "en";
-  const firstName = (user.name ?? "").split(" ")[0] || user.name || "there";
+  req.log.info({ userId, email: user.email }, "auth: account deletion scheduled (24h grace)");
+
   const displayName = user.name || user.email;
 
   // ── Household side-effects ──────────────────────────────────────────────────
@@ -562,13 +596,20 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     }
   }
 
-  // ── Emails ──────────────────────────────────────────────────────────────────
-  await Promise.all([
-    sendDeletionRequestEmail({ userEmail: user.email, userName: user.name }),
-    sendDeletionAckEmail({ to: user.email, firstName, language }),
-  ]);
+  // ── Schedule deletion ────────────────────────────────────────────────────────
+  const DELETION_GRACE_MS = 24 * 60 * 60 * 1000; // 24 hours
+  const deletionAt = new Date(Date.now() + DELETION_GRACE_MS);
 
-  res.json({ success: true });
+  await db.update(usersTable)
+    .set({ deletionScheduledAt: deletionAt })
+    .where(eq(usersTable.id, userId));
+
+  req.log.info({ userId, deletionAt }, "auth: account marked for deletion");
+
+  // ── Log out the user immediately ─────────────────────────────────────────────
+  await new Promise<void>(resolve => req.session.destroy(() => resolve()));
+
+  res.json({ scheduled: true, deletionAt: deletionAt.toISOString() });
 });
 
 export default router;

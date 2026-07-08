@@ -35,6 +35,11 @@ export const usersTable = pgTable("users", {
   termsAccepted: boolean("terms_accepted").notNull().default(true),
   /** True once the user has accepted the Privacy Policy. Same default rationale. */
   privacyAccepted: boolean("privacy_accepted").notNull().default(true),
+  // Account deletion grace period. When set, the account is scheduled for permanent deletion
+  // at this timestamp (24 hours after the user requested it). During this window the user
+  // cannot log in or re-register with the same email. After the timestamp passes the account
+  // is purged automatically on the next periodic sweep.
+  deletionScheduledAt: timestamp("deletion_scheduled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
