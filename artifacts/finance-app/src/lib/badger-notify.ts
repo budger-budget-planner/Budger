@@ -79,11 +79,41 @@ async function getSniffBuffer(): Promise<AudioBuffer> {
   return _loadPromise;
 }
 
+/**
+ * Create (and resume) the shared AudioContext synchronously, from within a
+ * user-gesture call stack (click/tap/change handler — called directly, not
+ * after an `await`). Mobile Safari and Chrome's autoplay policies only allow
+ * `AudioContext.resume()` to unlock playback when it runs as part of the
+ * gesture itself; calling it later (e.g. inside a network response handler
+ * that resolves seconds after the tap) silently fails to unlock audio, so
+ * `playSniffSound()` ends up scheduling into a context that never plays.
+ *
+ * Call this at the moment of the triggering tap (e.g. opening the file
+ * picker) so the context is already "running" by the time the async work
+ * finishes and `playSniffSound()` is actually invoked.
+ */
+export function primeSniffAudio(): void {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    // Also start warming the sniff buffer fetch/decode so it's ready by the
+    // time playback is requested.
+    void getSniffBuffer();
+  } catch {
+    // Ignore — AudioContext may be unavailable in this environment
+  }
+}
+
 /** Play the badger sniff sound with per-sniff melodic pitch offsets. */
 export async function playSniffSound(): Promise<void> {
   try {
     const ctx = getAudioContext();
-    // Browsers suspend AudioContext until a user gesture; resume if needed
+    // Browsers suspend AudioContext until a user gesture; resume if needed.
+    // This only succeeds here if a gesture unlocked it earlier (see
+    // `primeSniffAudio`) — by the time an async AI extraction resolves, we
+    // are well outside the gesture window on iOS Safari / Chrome autoplay policy.
     if (ctx.state === "suspended") await ctx.resume();
 
     const buffer = await getSniffBuffer();

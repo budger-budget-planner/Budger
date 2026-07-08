@@ -21,6 +21,7 @@ import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
+import { primeSniffAudio } from "@/lib/badger-notify";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
 import { OfflineMask } from "@/components/OfflineMask";
@@ -504,6 +505,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!isOnline) return;
+    // Unlock the sniff AudioContext right on the tap that opens the scanner —
+    // the actual sound plays much later (after the AI finishes reading the
+    // screenshot), well outside this gesture, so mobile browsers need the
+    // context resumed now or they'll silently refuse to play it then.
+    primeSniffAudio();
     setScreenshotOpen(true);
   }
 
@@ -513,9 +519,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-14
+      <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-20
                          bg-background/90 backdrop-blur border-b border-border">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <button
             onPointerDown={handleBadgerPressStart}
             onPointerUp={handleBadgerPressEnd}
@@ -527,23 +533,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             title={t("layout.badger_hint")}
           >
             <span data-splash-logo-home>
-              <BadgerLogo size={42} mode={badgerMode} />
+              <BadgerLogo size={63} mode={badgerMode} />
             </span>
           </button>
-          <Link href="/" className="text-lg font-bold tracking-tight text-foreground leading-none">
+          <Link href="/" className="text-[1.7rem] font-bold tracking-tight text-foreground leading-none">
             Budger
           </Link>
         </div>
 
         {/* Right side: Notification Center bell + profile avatar */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <NotificationCenter userId={(user as any)?.id ?? "guest"} />
           <button
             onClick={() => setShowProfile(true)}
-            className="w-8 h-8 rounded-full bg-muted border border-border
+            className="w-12 h-12 rounded-full bg-muted border border-border
                        flex items-center justify-center flex-shrink-0 transition active:scale-95"
           >
-            <span className="text-xs font-bold text-foreground">
+            <span className="text-base font-bold text-foreground">
               {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
             </span>
           </button>

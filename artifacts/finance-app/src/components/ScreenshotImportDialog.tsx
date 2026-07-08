@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
-import { playSniffSound } from "@/lib/badger-notify";
+import { playSniffSound, primeSniffAudio } from "@/lib/badger-notify";
 import { CURRENCIES } from "@/lib/prefs";
 import { enqueue } from "@/lib/mutation-queue";
 import { useExtractScreenshotTransactions } from "@workspace/api-client-react";
@@ -103,6 +103,12 @@ export function ScreenshotImportDialog({
     if (!file) return;
     e.target.value = "";
     setError(null);
+    // Unlock/warm the sniff AudioContext synchronously here, still inside the
+    // gesture call stack for this change event — the extraction below is an
+    // async network round-trip, so priming later (in the mutation's onSuccess)
+    // would run outside any user gesture and mobile browsers would silently
+    // refuse to resume playback.
+    primeSniffAudio();
     try {
       // Higher resolution than receipt compression — the model needs to read small text.
       const imageData = await compressImage(file, 1600, 0.85);

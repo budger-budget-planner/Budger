@@ -1293,13 +1293,13 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
       {/* ── Bell button (rendered inside Layout header) ── */}
       <button
         onClick={handleOpen}
-        className="relative w-8 h-8 rounded-full bg-muted border border-border
+        className="relative w-12 h-12 rounded-full bg-muted border border-border
                    flex items-center justify-center flex-shrink-0 transition active:scale-95"
         aria-label={t("nc.title")}
       >
-        <Bell className={`w-4 h-4 ${hasBadge ? "text-pink-400" : "text-muted-foreground"}`} strokeWidth={hasBadge ? 2.2 : 1.6} />
+        <Bell className={`w-6 h-6 ${hasBadge ? "text-pink-400" : "text-muted-foreground"}`} strokeWidth={hasBadge ? 2.2 : 1.6} />
         {hasBadge && (
-          <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-pink-500 border border-background" />
+          <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-pink-500 border border-background" />
         )}
       </button>
 
