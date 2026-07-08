@@ -199,6 +199,49 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const glWasLongPress   = useRef(false);
   useEffect(() => () => { if (glLongPressTimer.current) clearTimeout(glLongPressTimer.current); }, []);
 
+  // ── GL badge hint animation ──────────────────────────────────────────────────
+  // When the badge is expanded: after 1 s show a "press & hold to reset" hint for
+  // 1.5 s, then hide it. First-ever expand loops the cycle every 4 s after hiding;
+  // any re-expand (after the user has collapsed it) plays the hint once only.
+  const [hintVisible,    setHintVisible]    = useState(false);
+  const hintTimers      = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const hintLoopEnabled = useRef(true); // true = loop; flips false after first collapse
+
+  function clearHintTimers() {
+    hintTimers.current.forEach(clearTimeout);
+    hintTimers.current = [];
+  }
+
+  function scheduleHint(loop: boolean) {
+    clearHintTimers();
+    const t1 = setTimeout(() => {
+      setHintVisible(true);
+      const t2 = setTimeout(() => {
+        setHintVisible(false);
+        if (loop) {
+          const t3 = setTimeout(() => scheduleHint(true), 4000);
+          hintTimers.current.push(t3);
+        }
+      }, 1500);
+      hintTimers.current.push(t2);
+    }, 1000);
+    hintTimers.current.push(t1);
+  }
+
+  // Watch badge collapse/expand to drive the hint schedule.
+  useEffect(() => {
+    if (!glBadgeCollapsed) {
+      scheduleHint(hintLoopEnabled.current);
+      hintLoopEnabled.current = false; // all future re-opens are one-shot
+    } else {
+      clearHintTimers();
+      setHintVisible(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [glBadgeCollapsed]);
+
+  useEffect(() => () => clearHintTimers(), []);
+
   const [spendOpen,    setSpendOpen]    = useState(false);
   const [spendDesc,    setSpendDesc]    = useState("");
   const [spendAmt,     setSpendAmt]     = useState("");
@@ -250,11 +293,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   // Rebase: if totalGLSent drops below the dismissed baseline (e.g. after history clear),
   // reset so future new sends are visible immediately without exceeding the stale baseline.
+  // Guard on `larder != null` — while the query is still loading, entries=[]/totalGLSent=0
+  // which would incorrectly wipe a legitimate persisted baseline loaded from localStorage.
   useEffect(() => {
-    if (!meId || totalGLSent >= glDismissedAmount) return;
+    if (!meId || !larder || totalGLSent >= glDismissedAmount) return;
     setGlDismissedAmount(totalGLSent);
     try { localStorage.setItem(`larder_gl_badge_dismissed_${meId}`, String(totalGLSent)); } catch { /* ignore */ }
-  }, [totalGLSent, glDismissedAmount, meId]);
+  }, [totalGLSent, glDismissedAmount, meId, larder]);
 
   const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
   // Add form always needs at least one currency option even when the larder is empty
@@ -584,21 +629,35 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   onPointerUp={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
                   onPointerLeave={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
                   onPointerCancel={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
-                  className="relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/80 transition active:scale-95 select-none touch-none"
+                  className={`relative inline-flex flex-col items-center justify-center px-2.5 py-1 border border-white/50 bg-black text-[10px] font-semibold text-white/80 active:scale-95 select-none touch-none transition-all duration-300 ease-in-out ${hintVisible ? "rounded-2xl" : "rounded-full"}`}
                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
                   title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
-                  <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
-                  <span
-                    className="flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out"
+                  {/* main row: icon + label */}
+                  <div className="flex items-center gap-1.5">
+                    <ArrowRightCircle className="w-2.5 h-2.5 text-white/60 flex-shrink-0" />
+                    <span
+                      className="flex items-center gap-1.5 overflow-hidden transition-all duration-300 ease-in-out"
+                      style={{
+                        maxWidth: glBadgeCollapsed ? "0px" : "200px",
+                        opacity: glBadgeCollapsed ? 0 : 1,
+                      }}
+                    >
+                      <span className="tabular-nums whitespace-nowrap">{fmtAmt(displayGLSent, prefs.currency)}</span>
+                      <span className="text-white/50 whitespace-nowrap">{t("larder.source_transfer")}</span>
+                    </span>
+                  </div>
+                  {/* hint row — slides in downward, then back up */}
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-in-out"
                     style={{
-                      maxWidth: glBadgeCollapsed ? "0px" : "200px",
-                      opacity: glBadgeCollapsed ? 0 : 1,
+                      maxHeight: hintVisible ? "18px" : "0px",
+                      opacity: hintVisible ? 1 : 0,
+                      marginTop: hintVisible ? "3px" : "0px",
                     }}
                   >
-                    <span className="tabular-nums whitespace-nowrap">{fmtAmt(displayGLSent, prefs.currency)}</span>
-                    <span className="text-white/50 whitespace-nowrap">{t("larder.source_transfer")}</span>
-                  </span>
+                    <p className="text-[8px] text-white/50 whitespace-nowrap">{t("larder.hint_reset")}</p>
+                  </div>
                   {!noAnim && <>
                     {/* top-left */}
                     <div style={{ position:"absolute", top:-7, left:-6, width:11, height:11, pointerEvents:"none", animation:"glGemFlash 6s ease-in-out 0s infinite" }}>

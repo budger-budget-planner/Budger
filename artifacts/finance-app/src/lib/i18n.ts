@@ -956,6 +956,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.source_manual":    { en: "Manual entry",                   pl: "Wpis ręczny"                        },
   "larder.source_dedication": { en: "Dedicated to goal",             pl: "Przeznaczono na cel"                },
   "larder.source_transfer":  { en: "Sent to Great Larder",           pl: "Przekazano do Wielkiej Spiżarni"    },
+ "larder.hint_reset":       { en: "Press to hide and reset",         pl: "Przytrzymaj by wyzerować"           },
   "larder.add_sheet_title":  { en: "Add to Larder",                  pl: "Dodaj do Spiżarni"                  },
   "larder.fund_sheet_title": { en: "Fund Larder",                    pl: "Zasilij Spiżarnię"                  },
   "larder.spend_sheet_title": { en: "Fund from Larder",              pl: "Funduj ze Spiżarni"                 },
