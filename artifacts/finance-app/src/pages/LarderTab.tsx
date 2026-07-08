@@ -9,7 +9,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
-  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users,
+  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users, Plus,
 } from "lucide-react";
 
 type LarderEntry = {
@@ -217,6 +217,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [dedAsset,   setDedAsset]   = useState("");
   const [dedLoading, setDedLoading] = useState(false);
 
+  const [addOpen,    setAddOpen]    = useState(false);
+  const [addAmt,     setAddAmt]     = useState("");
+  const [addAsset,   setAddAsset]   = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+
   const { data: me } = useGetMe();
   const inHousehold = !!(me as any)?.householdId;
 
@@ -252,6 +257,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   }, [totalGLSent, glDismissedAmount, meId]);
 
   const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
+  // Add form always needs at least one currency option even when the larder is empty
+  const addAssetOpts: CurrencySubtotal[] = assetOpts.length > 0
+    ? assetOpts
+    : [{ currency: prefs.currency, rawTotal: 0 }];
   const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
   const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? total;
   const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? total;
@@ -271,6 +280,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setDedAsset(assetOpts[0].currency);
     }
   }, [dedicateOpen, assetOpts]);
+  useEffect(() => {
+    if (addOpen && !addAssetOpts.some(a => a.currency === addAsset)) {
+      setAddAsset(addAssetOpts[0].currency);
+    }
+  }, [addOpen, addAssetOpts]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
@@ -291,6 +305,38 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     } catch {
       toast({ title: t("larder.clear_failed") });
     }
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(addAmt.replace(",", "."));
+    if (isNaN(amount) || amount === 0) return;
+    if (!isOnline) {
+      void enqueue({
+        endpoint: `${import.meta.env.BASE_URL}api/larder/add`,
+        method: "POST",
+        payload: { amount, currency: addAsset || prefs.currency },
+      }).then(() => requestBackgroundSync()).catch(console.error);
+      setAddOpen(false); setAddAmt("");
+      toast({ title: "Saved offline — will sync when back online" });
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ amount, currency: addAsset || prefs.currency }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      invalidate();
+      setAddOpen(false);
+      setAddAmt("");
+      toast({ title: t("larder.add_success") });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Failed" });
+    } finally { setAddLoading(false); }
   }
 
   async function handleSpend(e: React.FormEvent) {
@@ -585,7 +631,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </div>
 
           {/* Action buttons */}
-          <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-3" : "grid-cols-2"}`}>
+          <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
+            <button
+              onClick={() => setAddOpen(true)}
+              disabled={!isOnline}
+              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[11px] leading-tight text-center">{t("larder.add_entry")}</span>
+            </button>
             <button
               onClick={() => setSpendOpen(true)}
               disabled={!isOnline || total <= 0}
@@ -766,6 +820,38 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </form>
         </Sheet>
       )}
+
+      {/* ── Add to Larder sheet ── */}
+      <Sheet title={t("larder.add_sheet_title")} open={addOpen} onClose={() => { setAddOpen(false); setAddAmt(""); }}>
+        <form onSubmit={handleAdd} className="space-y-4">
+          <AssetSelect options={addAssetOpts} value={addAsset} onChange={setAddAsset} />
+          <div className="space-y-1.5">
+            <label className={labelCls}>{t("larder.amount_label")}</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={addAmt}
+              onChange={e => setAddAmt(e.target.value)}
+              placeholder="0.00"
+              className={inputCls}
+              autoFocus
+            />
+            <ConversionPreview
+              amount={Math.abs(parseFloat(addAmt.replace(",", ".")))}
+              from={addAsset || prefs.currency}
+              to={prefs.currency}
+              rates={rates}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={addLoading || (() => { const a = parseFloat(addAmt.replace(",", ".")); return isNaN(a) || a === 0; })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {addLoading ? "…" : t("larder.add_entry")}
+          </button>
+        </form>
+      </Sheet>
 
       {/* ── Dedicate to goal sheet ── */}
       <Sheet title={t("larder.dedicate_sheet_title")} open={dedicateOpen} onClose={() => setDedicateOpen(false)}>

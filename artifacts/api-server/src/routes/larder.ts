@@ -177,6 +177,31 @@ router.post("/larder/entries", async (req, res): Promise<void> => {
   res.status(201).json(fmtEntry(entry));
 });
 
+// POST /larder/add — manually add (or subtract) a raw amount from the user's Larder.
+// Unlike /larder/entries this accepts any non-zero amount including negative values,
+// which lets developer tooling subtract without going through a separate spend flow.
+router.post("/larder/add", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const { amount, currency } = req.body;
+  if (typeof amount !== "number" || amount === 0 || !isFinite(amount)) {
+    res.status(400).json({ error: "amount must be a non-zero finite number" }); return;
+  }
+  if (typeof currency !== "string" || !currency.trim()) {
+    res.status(400).json({ error: "currency is required" }); return;
+  }
+
+  const [entry] = await db.insert(larderEntriesTable).values({
+    userId,
+    amount: String(amount),
+    currency: currency.trim(),
+    sourceType: "manual_addition",
+  }).returning();
+
+  res.status(201).json(fmtEntry(entry));
+});
+
 // DELETE /larder/entries/:id — remove one of the current user's own entries
 // (used by the client to resync transaction-dedication entries on edit/delete)
 router.delete("/larder/entries/:id", async (req, res): Promise<void> => {
