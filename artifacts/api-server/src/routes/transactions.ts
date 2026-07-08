@@ -171,10 +171,13 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
   const todayIso = new Date().toISOString().split("T")[0];
   const promptText = [
     "This is either a screenshot of a banking or mobile wallet app's transaction list, or a bank statement PDF.",
-    "Extract ONLY debit/expense transactions — rows where money LEFT the account (purchases, fees, withdrawals,",
-    "transfers out). These are typically shown with a minus sign, in red, or labelled as a debit.",
-    "SKIP any row where money ARRIVED in the account: incoming transfers, salary deposits, refunds, top-ups,",
-    "cashback, interest credited, or any row shown with a plus sign or in green.",
+    "Extract ONLY genuine expense transactions — rows where money LEFT the account to pay for something",
+    "(purchases, bills, fees, cash withdrawals). These are typically shown with a minus sign, in red, or labelled as a debit.",
+    "SKIP the following — do NOT include them:",
+    "(1) Income: incoming transfers, salary deposits, refunds, top-ups, cashback, interest credited, any row shown with a plus sign or in green.",
+    "(2) Internal transfers: any movement of money between accounts owned by the same person or within the same bank",
+    "(e.g. 'Transfer to savings', 'Own account transfer', 'Between my accounts', 'Przelew własny', account-to-account sweeps).",
+    "If a row looks like a transfer to another person's account but no merchant or purpose is identifiable, skip it.",
     "Also ignore card art, account balances, section headers, and nav chrome.",
     "For each qualifying transaction return: merchant (the payee/business name, not the payment method),",
     "amount (the ABSOLUTE value — always a positive number, no currency symbol; strip any leading minus sign),",
@@ -210,10 +213,11 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
                   amount: { type: "number" },
                   currency: { type: "string", nullable: true },
                   date: { type: "string", nullable: true },
-                  // "expense" = money left the account; "income" = money arrived.
-                  // Used as a server-side safety net to drop any income rows
-                  // that Gemini includes despite the prompt instruction.
-                  type: { type: "string", enum: ["expense", "income"] },
+                  // "expense"  = genuine purchase/fee — import this.
+                  // "income"   = money arrived in the account — skip.
+                  // "transfer" = internal/own-account move — skip.
+                  // Server drops anything that isn't "expense".
+                  type: { type: "string", enum: ["expense", "income", "transfer"] },
                 },
                 required: ["merchant", "amount", "currency", "date", "type"],
               },
