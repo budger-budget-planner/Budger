@@ -119,20 +119,35 @@ export async function playSniffSound(): Promise<void> {
     const buffer = await getSniffBuffer();
     const now = ctx.currentTime;
 
+    // Fade-in levels for the first two sniffs: sniff 1 starts at 0.15 and
+    // ramps to 0.55 by its end; sniff 2 ramps from 0.55 to 0.9; sniff 3+
+    // plays at full volume 0.9.
+    const FADE_IN_LEVELS = [
+      { from: 0.15, to: 0.55 }, // sniff 1
+      { from: 0.55, to: 0.9  }, // sniff 2
+    ];
+
     SNIFF_SLOTS.forEach(({ start, srcOffset, srcDuration }, i) => {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.playbackRate.value = SNIFF_RATES[i];
 
       const gain = ctx.createGain();
-      gain.gain.value = 0.9;
 
-      // On the last (sustained) sniff, schedule a gradual fade-out over the
-      // final 0.45 s so it tails off naturally instead of cutting abruptly.
-      if (i === SNIFF_SLOTS.length - 1) {
+      if (i < FADE_IN_LEVELS.length) {
+        // First two sniffs: fade in over the slot duration
+        const { from, to } = FADE_IN_LEVELS[i];
+        gain.gain.setValueAtTime(from, now + start);
+        gain.gain.linearRampToValueAtTime(to, now + start + srcDuration);
+      } else if (i === SNIFF_SLOTS.length - 1) {
+        // Last (sustained) sniff: hold full volume then fade out over final 0.65 s
+        gain.gain.setValueAtTime(0.9, now + start);
         const fadeStart = now + SEQUENCE_DURATION - 0.65;
         gain.gain.setValueAtTime(0.9, fadeStart);
         gain.gain.linearRampToValueAtTime(0, now + SEQUENCE_DURATION);
+      } else {
+        // Middle sniffs: full volume, explicitly scheduled for consistency
+        gain.gain.setValueAtTime(0.9, now + start);
       }
 
       src.connect(gain);
