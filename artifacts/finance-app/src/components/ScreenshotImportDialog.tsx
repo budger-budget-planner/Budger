@@ -115,7 +115,11 @@ export function ScreenshotImportDialog({
             setRows(
               result.transactions.map(tx => ({
                 merchant: tx.merchant,
-                amount: String(tx.amount),
+                // Banking apps show expenses as negative amounts (e.g. -136.02 PLN).
+                // Budger stores all transactions as positive values, so we always
+                // take the absolute value here — the user can correct the number in
+                // the review step if needed.
+                amount: String(Math.abs(tx.amount)),
                 currency: (tx.currency ?? "").toUpperCase(),
                 date: tx.date ?? format(new Date(), "yyyy-MM-dd"),
                 selected: true,

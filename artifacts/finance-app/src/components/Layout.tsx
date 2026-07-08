@@ -569,7 +569,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
           queryClient.invalidateQueries({ queryKey: ["larder"] });
           toast({ title: t("layout.screenshot_imported") });
-          if (!location.startsWith("/transactions")) navigate("/transactions");
         }}
       />
 
