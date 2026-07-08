@@ -41,9 +41,9 @@ const SNIFF_RATES = [
   Math.pow(2, +1 / 12), // sniff 5 — ↑2 semitones from sniff 4 (= 1 semitone above base)
 ];
 
-// Milliseconds from the start of the sound to sniff 4 — used to time page
-// transitions so the scene changes exactly when the 4th sniff fires.
-export const SNIFF_4_OFFSET_MS = 435;
+// Milliseconds from the start of the sound to sniff 3 — used to time page
+// transitions so the scene changes exactly when the 3rd sniff fires.
+export const SNIFF_4_OFFSET_MS = 290;
 
 // Slot boundaries in source-buffer seconds
 // 4 × ♪ (0.145 s each) + 1 × ♩ (0.580 s — extended sustain with fade-out)
