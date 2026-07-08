@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import { compressImage } from "@/lib/imageUtils";
 import { playSniffSound } from "@/lib/badger-notify";
 import { CURRENCIES } from "@/lib/prefs";
+import { enqueue } from "@/lib/mutation-queue";
 import { useExtractScreenshotTransactions } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,51 +154,56 @@ export function ScreenshotImportDialog({
     if (selected.length === 0) return;
     setImporting(true);
     setError(null);
-    const failedRows: ExtractedRow[] = [];
-    let succeeded = 0;
     try {
-      for (const row of selected) {
-        try {
-          const res = await fetch(`${import.meta.env.BASE_URL}api/transactions`, {
+      // Enqueue all selected transactions into the offline mutation queue rather
+      // than posting directly.  Benefits:
+      //   • They appear immediately as "pending sync" in the NC Settings tab.
+      //   • The existing drain handles retries, ordering, and query refresh.
+      //   • The dialog can close right away without waiting for the network.
+      //
+      // Use allSettled so a single IDB failure doesn't silently discard the rest.
+      const results = await Promise.allSettled(
+        selected.map(row =>
+          enqueue({
+            endpoint: `${import.meta.env.BASE_URL}api/transactions`,
             method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+            payload: {
               amount: parseFloat(row.amount),
               description: row.merchant.trim(),
               date: row.date,
               paymentMethod: "apple_pay",
               transactionCurrency: row.currency || null,
-            }),
-          });
-          if (res.ok) {
-            succeeded++;
-          } else {
-            failedRows.push(row);
-          }
-        } catch {
-          failedRows.push(row);
-        }
+            },
+          }),
+        ),
+      );
+
+      const failedIdxs = results
+        .map((r, i) => (r.status === "rejected" ? i : null))
+        .filter((i): i is number => i !== null);
+      const enqueuedCount = results.length - failedIdxs.length;
+
+      if (enqueuedCount > 0) {
+        // Kick off an immediate drain — the drainPending flag in useQueueReplay
+        // ensures ops enqueued during an already-running drain aren't missed.
+        window.dispatchEvent(new CustomEvent("queue-drain"));
+        window.dispatchEvent(new CustomEvent("queue-updated"));
+        onImported();
       }
+
+      if (failedIdxs.length === 0) {
+        handleClose();
+      } else {
+        // Keep only the rows that couldn't be queued so the user can retry
+        // without re-submitting successfully-queued ones.
+        setRows(selected.filter((_, i) => failedIdxs.includes(i)));
+        setDateDrafts({});
+        setError(t("tx.import_failed_error"));
+      }
+    } catch {
+      setError(t("tx.import_failed_error"));
     } finally {
       setImporting(false);
-    }
-
-    if (succeeded > 0) {
-      onImported();
-    }
-    if (failedRows.length === 0) {
-      handleClose();
-    } else {
-      // Keep the dialog open with only the rows that failed to save so the user
-      // can retry, instead of losing their edits or wrongly believing everything saved.
-      setRows(failedRows);
-      setDateDrafts({});
-      setError(
-        succeeded > 0
-          ? t("tx.import_partial_error", { succeeded, failed: failedRows.length })
-          : t("tx.import_failed_error"),
-      );
     }
   }
 

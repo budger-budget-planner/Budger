@@ -10,15 +10,23 @@ import { toast } from "sonner";
  */
 export function useQueueReplay() {
   const queryClient = useQueryClient();
-  const replayingRef = useRef(false);
+  const replayingRef    = useRef(false);
+  // If a drain event arrives while a replay is already running we can't just
+  // drop it — the newly-enqueued ops won't be in the snapshot that started.
+  // Set a flag and run one more pass once the current drain finishes.
+  const drainPendingRef = useRef(false);
 
   useEffect(() => {
     async function drain() {
-      if (replayingRef.current) return;
+      if (replayingRef.current) {
+        drainPendingRef.current = true;
+        return;
+      }
       const count = await countPending().catch(() => 0);
       if (count === 0) return;
 
-      replayingRef.current = true;
+      replayingRef.current    = true;
+      drainPendingRef.current = false;
       const toastId = toast.loading(
         `Syncing ${count} offline action${count !== 1 ? "s" : ""}…`,
       );
@@ -75,6 +83,11 @@ export function useQueueReplay() {
         });
       } finally {
         replayingRef.current = false;
+        // A drain event arrived while we were running — process those ops now.
+        if (drainPendingRef.current) {
+          drainPendingRef.current = false;
+          void drain();
+        }
       }
     }
 

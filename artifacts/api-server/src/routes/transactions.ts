@@ -167,13 +167,15 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
   const todayIso = new Date().toISOString().split("T")[0];
   const promptText = [
     "This is a screenshot of a banking or mobile wallet app's transaction list.",
-    "Extract every individual transaction row (ignore card art, balances, headers, and nav chrome).",
+    "Extract EVERY individual transaction row visible (ignore card art, account balances, headers, and nav chrome).",
+    "Include both expenses (shown with a minus sign or in red) and income (shown with a plus sign or in green).",
     "For each transaction return: merchant (the payee/business name, not the payment method),",
-    "amount (positive number, no currency symbol), currency (3-letter ISO code, inferred from",
-    "symbols, labels, or context such as PLN/zl, USD/$, EUR/euro, GBP/pound; null if truly unknown),",
-    "and date (best-effort ISO YYYY-MM-DD if a date or relative label like 'Yesterday' or a weekday",
-    `name is shown near the row -- resolve relative dates against today's date ${todayIso};`,
-    "null if not inferable). Return an empty transactions array if this doesn't look like a transaction list.",
+    "amount (the ABSOLUTE value of the amount — always a positive number, no currency symbol; strip any leading",
+    "minus/plus sign), currency (3-letter ISO code, inferred from symbols, labels, or context such as",
+    "PLN/zł, USD/$, EUR/€, GBP/£; null if truly unknown), and date (best-effort ISO YYYY-MM-DD if a date",
+    "or relative label like 'Yesterday' or a weekday name is shown near the row -- resolve relative dates",
+    `against today's date ${todayIso}; null if not inferable).`,
+    "Return an empty transactions array if this doesn't look like a transaction list.",
   ].join(" ");
 
   try {
@@ -221,7 +223,13 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
     }
 
     const result = JSON.parse(text) as { transactions: Array<{ merchant: string; amount: number; currency: string | null; date: string | null }> };
-    const transactions = (result.transactions ?? []).filter(t => t.merchant && typeof t.amount === "number" && t.amount > 0);
+    // Normalise amounts to absolute values — banking apps show expenses as
+    // negative numbers (e.g. -136.02 PLN) but Budger always stores positives.
+    // Filter out rows with no merchant, zero amounts, or non-finite values
+    // (NaN/Infinity can appear if Gemini misreads a cell; Math.abs preserves them).
+    const transactions = (result.transactions ?? [])
+      .filter(t => t.merchant && typeof t.amount === "number" && Number.isFinite(t.amount) && t.amount !== 0)
+      .map(t => ({ ...t, amount: Math.abs(t.amount) }));
 
     if (transactions.length === 0) {
       res.status(422).json({ error: "Could not find any transactions in this image" });
