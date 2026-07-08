@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
-import { genai } from "../lib/geminiClient";
+import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
 import {
   CreateTransactionBody,
@@ -133,6 +133,12 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
+  const genai = getGenAI();
+  if (!genai) {
+    res.status(503).json({ error: "Screenshot import is not configured. Please try again later." });
+    return;
+  }
+
   const parsed = ExtractScreenshotTransactionsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -142,6 +148,21 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
     return;
   }
   const [, mimeType, base64Data] = match;
+
+  const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]);
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    res.status(400).json({ error: "Unsupported image type. Please use PNG, JPEG, WEBP, or HEIC." });
+    return;
+  }
+
+  // Guard against oversized payloads before spending a model call on them.
+  // Decoded byte size ≈ base64 length * 0.75; cap at 8 MB.
+  const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+  const approxDecodedBytes = Math.floor((base64Data.length * 3) / 4);
+  if (approxDecodedBytes > MAX_IMAGE_BYTES) {
+    res.status(413).json({ error: "Screenshot is too large. Please use an image under 8 MB." });
+    return;
+  }
 
   const todayIso = new Date().toISOString().split("T")[0];
   const promptText = [

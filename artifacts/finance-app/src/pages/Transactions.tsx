@@ -604,25 +604,51 @@ function ScreenshotImportDialog({
     const selected = rows.filter(r => r.selected && r.merchant.trim() && parseFloat(r.amount) > 0);
     if (selected.length === 0) return;
     setImporting(true);
+    setError(null);
+    const failedRows: ExtractedRow[] = [];
+    let succeeded = 0;
     try {
       for (const row of selected) {
-        await fetch(`${import.meta.env.BASE_URL}api/transactions`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: parseFloat(row.amount),
-            description: row.merchant.trim(),
-            date: row.date,
-            paymentMethod: "apple_pay",
-            transactionCurrency: row.currency || null,
-          }),
-        });
+        try {
+          const res = await fetch(`${import.meta.env.BASE_URL}api/transactions`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: parseFloat(row.amount),
+              description: row.merchant.trim(),
+              date: row.date,
+              paymentMethod: "apple_pay",
+              transactionCurrency: row.currency || null,
+            }),
+          });
+          if (res.ok) {
+            succeeded++;
+          } else {
+            failedRows.push(row);
+          }
+        } catch {
+          failedRows.push(row);
+        }
       }
-      onImported();
-      handleClose();
     } finally {
       setImporting(false);
+    }
+
+    if (succeeded > 0) {
+      onImported();
+    }
+    if (failedRows.length === 0) {
+      handleClose();
+    } else {
+      // Keep the dialog open with only the rows that failed to save so the user
+      // can retry, instead of losing their edits or wrongly believing everything saved.
+      setRows(failedRows);
+      setError(
+        succeeded > 0
+          ? t("tx.import_partial_error", { succeeded, failed: failedRows.length })
+          : t("tx.import_failed_error"),
+      );
     }
   }
 
@@ -669,6 +695,8 @@ function ScreenshotImportDialog({
             <p className="text-sm text-muted-foreground">
               {t("tx.import_screenshot_review", { count: rows.length })}
             </p>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {rows.map((row, i) => (

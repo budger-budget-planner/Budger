@@ -133,6 +133,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.import_screenshot_review":     { en: "Found {count} transaction(s). Review and adjust before importing.", pl: "Znaleziono {count} transakcji. Sprawdź i popraw przed importem." },
   "tx.import_count":                 { en: "Import {count}",                                                pl: "Importuj {count}"                                           },
   "tx.screenshot_error":             { en: "Couldn't read that screenshot. Try a clearer image.",           pl: "Nie udało się odczytać zrzutu ekranu. Spróbuj wyraźniejszego obrazu." },
+  "tx.import_partial_error":         { en: "Saved {succeeded}, but {failed} failed. Review and try again.", pl: "Zapisano {succeeded}, ale {failed} się nie powiodło. Sprawdź i spróbuj ponownie." },
+  "tx.import_failed_error":          { en: "Couldn't save these transactions. Please try again.",           pl: "Nie udało się zapisać transakcji. Spróbuj ponownie." },
   "tx.search":      { en: "Search…",          pl: "Szukaj…"           },
   "tx.name_it":     { en: "Name it",          pl: "Nazwij"             },
   "tx.all_cats":    { en: "All categories",   pl: "Wszystkie kategorie"},
