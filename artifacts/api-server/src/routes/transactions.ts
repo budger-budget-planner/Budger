@@ -142,31 +142,35 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
   const parsed = ExtractScreenshotTransactionsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const match = parsed.data.imageData.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  const match = parsed.data.imageData.match(/^data:((?:image\/[a-zA-Z+]+)|application\/pdf);base64,(.+)$/);
   if (!match) {
-    res.status(400).json({ error: "imageData must be a base64 image data URL" });
+    res.status(400).json({ error: "imageData must be a base64 image or PDF data URL" });
     return;
   }
   const [, mimeType, base64Data] = match;
 
-  const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]);
+  const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif", "application/pdf"]);
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-    res.status(400).json({ error: "Unsupported image type. Please use PNG, JPEG, WEBP, or HEIC." });
+    res.status(400).json({ error: "Unsupported file type. Please use PNG, JPEG, WEBP, HEIC, or PDF." });
     return;
   }
 
   // Guard against oversized payloads before spending a model call on them.
-  // Decoded byte size ≈ base64 length * 0.75; cap at 8 MB.
-  const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+  // Decoded byte size ≈ base64 length * 0.75.
+  // PDFs (bank statements) can legitimately be larger than screenshots, so
+  // allow up to 20 MB for PDFs and keep the 8 MB cap for images.
+  const isPdf = mimeType === "application/pdf";
+  const MAX_BYTES = isPdf ? 20 * 1024 * 1024 : 8 * 1024 * 1024;
   const approxDecodedBytes = Math.floor((base64Data.length * 3) / 4);
-  if (approxDecodedBytes > MAX_IMAGE_BYTES) {
-    res.status(413).json({ error: "Screenshot is too large. Please use an image under 8 MB." });
+  if (approxDecodedBytes > MAX_BYTES) {
+    const limitLabel = isPdf ? "20 MB" : "8 MB";
+    res.status(413).json({ error: `File is too large. Please use a file under ${limitLabel}.` });
     return;
   }
 
   const todayIso = new Date().toISOString().split("T")[0];
   const promptText = [
-    "This is a screenshot of a banking or mobile wallet app's transaction list.",
+    "This is either a screenshot of a banking or mobile wallet app's transaction list, or a bank statement PDF.",
     "Extract EVERY individual transaction row visible (ignore card art, account balances, headers, and nav chrome).",
     "Include both expenses (shown with a minus sign or in red) and income (shown with a plus sign or in green).",
     "For each transaction return: merchant (the payee/business name, not the payment method),",

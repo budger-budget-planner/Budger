@@ -34,8 +34,10 @@ app.use(cors({
   origin: true,
   credentials: true,
 }));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Base64 encoding adds ~33 % overhead, so a 20 MB PDF becomes ~27 MB on the
+// wire. Allow 30 MB to give a comfortable margin above the advertised cap.
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 
 const sessionStore = process.env.DATABASE_URL
   ? new PgSession({

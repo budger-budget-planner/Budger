@@ -151,7 +151,15 @@ export function ScreenshotImportDialog({
     sessionTokenRef.current += 1;
     const mySession = sessionTokenRef.current;
     try {
-      const imageData = await compressImage(file, 1600, 0.85);
+      // PDFs are sent as-is (base64 data URL); images are compressed first.
+      const imageData = file.type === "application/pdf"
+        ? await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Failed to read PDF"));
+            reader.readAsDataURL(file);
+          })
+        : await compressImage(file, 1600, 0.85);
       extract.mutate(
         { data: { imageData } },
         {
@@ -212,7 +220,7 @@ export function ScreenshotImportDialog({
         },
       );
     } catch {
-      if (sessionTokenRef.current === mySession) setError(t("tx.image_error"));
+      if (sessionTokenRef.current === mySession) setError(t("tx.screenshot_error"));
     }
   }
 
@@ -393,7 +401,7 @@ export function ScreenshotImportDialog({
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 className="hidden"
                 onChange={handleFileChange}
                 data-testid="input-screenshot-import"
