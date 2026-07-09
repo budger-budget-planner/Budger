@@ -326,7 +326,7 @@ export function ScreenshotImportDialog({
       `}</style>
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
 
           {/* ── Sniffing / transition hold screen ───────────────────────── */}
           {isSniffing && (
@@ -406,7 +406,7 @@ export function ScreenshotImportDialog({
                       key={s}
                       type="button"
                       onClick={() => setScope(s)}
-                      className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition active:scale-95 ${
+                      className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         scope === s
                           ? "bg-foreground text-background border-foreground"
                           : "bg-muted/40 text-foreground border-border hover:bg-muted"
