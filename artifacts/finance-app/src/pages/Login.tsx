@@ -40,6 +40,12 @@ export default function LoginPage() {
   const [pendingDeletion, setPendingDeletion] = useState(() => {
     try { return new URLSearchParams(window.location.search).get("pendingDeletion") === "1"; } catch { return false; }
   });
+  // Auto-dismiss the pending-deletion banner after 5 seconds
+  useEffect(() => {
+    if (!pendingDeletion) return;
+    const id = setTimeout(() => setPendingDeletion(false), 5000);
+    return () => clearTimeout(id);
+  }, [pendingDeletion]);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
