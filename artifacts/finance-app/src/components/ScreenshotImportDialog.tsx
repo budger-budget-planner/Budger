@@ -116,6 +116,32 @@ export function ScreenshotImportDialog({
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
 
+  // ── Idle wink — fires 3 s after the dialog opens (or resets to idle),
+  //    then every 5 s, while no file has been chosen yet.
+  const [dialogWink, setDialogWink] = useState(false);
+  const idleForWink = open && !rows && !(extract.isPending || transitioning);
+  useEffect(() => {
+    if (!idleForWink) return;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    let resetId:    ReturnType<typeof setTimeout>  | undefined;
+    const winkOnce = () => {
+      clearTimeout(resetId); // guard against overlapping resets
+      setDialogWink(true);
+      resetId = setTimeout(() => setDialogWink(false), 850); // 700 ms anim + 150 ms buffer
+    };
+    // First wink at 3 s, then every 5 s from that point on
+    const firstId = setTimeout(() => {
+      winkOnce();
+      intervalId = setInterval(winkOnce, 5_000);
+    }, 3_000);
+    return () => {
+      clearTimeout(firstId);
+      clearTimeout(resetId);
+      clearInterval(intervalId);
+      setDialogWink(false);
+    };
+  }, [idleForWink]);
+
   // Loop the sniff animation tick while scanning or in transition hold
   const [sniffTick, setSniffTick] = useState(0);
   const isSniffing = extract.isPending || transitioning;
@@ -374,7 +400,7 @@ export function ScreenshotImportDialog({
           {!rows && !isSniffing && (
             <div className="flex flex-col gap-6 pt-3 pb-2">
               <div className="flex flex-col items-center gap-2 pt-2">
-                <BadgerLogo size={96} />
+                <BadgerLogo size={96} forceAnim={dialogWink ? "wink" : null} />
                 {/* Subtle name field — a little secret for curious eyes */}
                 <input
                   type="text"
