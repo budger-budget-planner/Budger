@@ -43,7 +43,7 @@ const sessionStore = process.env.DATABASE_URL
   ? new PgSession({
       conString: process.env.DATABASE_URL,
       tableName: "sessions",
-      createTableIfMissing: false,
+      createTableIfMissing: true,
     })
   : undefined;
 

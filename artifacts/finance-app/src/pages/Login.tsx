@@ -168,19 +168,26 @@ export default function LoginPage() {
         setLocation("/");
       },
       onError: (err: any) => {
-        const msg = err?.response?.data?.error ?? err?.message ?? t("login.failed");
-        if (msg.includes("account_pending_deletion") || msg.includes("403")) {
+        // ApiError stores the parsed response body at err.data (not err.response.data —
+        // err.response is the raw Response object which has no .data property).
+        // Fall back to err.message which buildErrorMessage populates as
+        // "HTTP <status> <statusText>: <error>" for additional string-based matching.
+        const errData  = err?.data ?? err?.response?.data; // data-first; response.data is legacy-safe fallback
+        const errMsg   = errData?.error ?? err?.message ?? "";
+        const status   = err?.status ?? err?.response?.status ?? 0;
+
+        if (status === 403 || errMsg.includes("account_pending_deletion")) {
           setLoginError(t("login.account_pending_deletion"));
           setLoginPin("");
-        } else if (msg.includes("No account") || msg.includes("404")) {
+        } else if (status === 404 || errMsg.includes("No account")) {
           setLoginError(t("login.no_account"));
           setLoginPin(""); // clear: no account — email step should be retried
-        } else if (msg.includes("Incorrect") || msg.includes("401")) {
+        } else if (status === 401 || errMsg.includes("Incorrect")) {
           setLoginError(t("login.wrong_pin"));
           setLoginPin(""); // clear on wrong PIN so the user retypes deliberately
         } else {
-          // Network / server error — keep the PIN so the user can retry via Continue
-          // without having to retype. The Continue button stays enabled.
+          // Network / server error (e.g. "Failed to fetch", 5xx) —
+          // keep the PIN so the user can retry via Continue without retyping.
           setLoginError(t("login.failed"));
         }
       },
