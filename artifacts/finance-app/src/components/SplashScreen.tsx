@@ -31,15 +31,7 @@ type Dest     = "home" | "login" | null;
 // pixel-perfect on the destination logo element in the live DOM.
 type LogoTransform = { translate: string; scale: number };
 
-function computeTransform(dest: "home" | "login"): LogoTransform {
-  const selector = dest === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]";
-  const el = document.querySelector(selector);
-  if (!el) {
-    return dest === "home"
-      ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.35 }
-      : { translate: "translateY(-16vh)", scale: 0.733 };
-  }
-
+function measureTarget(el: Element): LogoTransform {
   const rect     = el.getBoundingClientRect();
   const targetCX = rect.left + rect.width  / 2;
   const targetCY = rect.top  + rect.height / 2;
@@ -47,9 +39,62 @@ function computeTransform(dest: "home" | "login"): LogoTransform {
   const splashCY = window.innerHeight / 2;
 
   return {
-    translate: `translate(${targetCX - splashCX}px, ${targetCY - splashCY}px)`,
-    scale: rect.width / SPLASH_SIZE,
+    // Round to whole pixels — fractional translate/scale values can make the
+    // browser rasterize the incoming logo at a very slightly different size
+    // than the resting destination logo, which reads as a "pop"/mismatch
+    // right as the two swap. Whole pixels guarantee a 1:1 visual match.
+    translate: `translate(${Math.round(targetCX - splashCX)}px, ${Math.round(targetCY - splashCY)}px)`,
+    scale: Math.round((rect.width / SPLASH_SIZE) * 1000) / 1000,
   };
+}
+
+function fallbackTransform(dest: "home" | "login"): LogoTransform {
+  return dest === "home"
+    ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.35 }
+    : { translate: "translateY(-16vh)", scale: 0.733 };
+}
+
+// Destination screen (Layout/header or Login) can still be mid-mount — behind
+// an auth-loading spinner, or a query resolving a tick later than the splash's
+// own — when the splash sequence finishes. Measuring right then can hit the
+// hardcoded fallback (element not in the DOM yet) or a not-yet-settled layout,
+// so the incoming logo doesn't land 1:1 on the real one. Poll across a few
+// animation frames for the real element (and stable position) before giving up.
+function computeTransformWhenReady(
+  dest: "home" | "login",
+  onReady: (t: LogoTransform) => void,
+) {
+  const selector = dest === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]";
+  let attempts = 0;
+  let lastRect: DOMRect | null = null;
+
+  function tick() {
+    const el = document.querySelector(selector);
+    attempts += 1;
+
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      // Require two consecutive frames with an identical rect so we don't
+      // capture a mid-layout-shift position (e.g. header still reflowing
+      // right after mount).
+      const stable = lastRect != null
+        && rect.left === lastRect.left && rect.top === lastRect.top
+        && rect.width === lastRect.width && rect.height === lastRect.height;
+      lastRect = rect;
+      if (stable) {
+        onReady(measureTarget(el));
+        return;
+      }
+    }
+
+    if (attempts >= 20) { // ~20 frames (≈330ms @60fps) worst case before giving up
+      onReady(el ? measureTarget(el) : fallbackTransform(dest));
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -109,19 +154,27 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     const target: "home" | "login" =
       user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
 
-    // Measure live DOM positions — destination screen renders underneath the overlay
-    const { translate: tx, scale: sc } = computeTransform(target);
-
     setDest(target);
-    setTranslate(tx);
-    setScale(sc);
-    setPhase("moving"); // logo glides at full opacity so the motion is clearly visible
 
-    // Fade starts near the end of the glide; removing the splash too early flashes
-    // the destination screen while the logo is still mid-flight (looks jarring).
-    const t1 = setTimeout(() => setPhase("fading"), 950);
-    const t2 = setTimeout(onDone,                   1400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    let cancelled = false;
+    let t1: ReturnType<typeof setTimeout> | undefined;
+    let t2: ReturnType<typeof setTimeout> | undefined;
+
+    // Measure live DOM positions — destination screen renders underneath the
+    // overlay, but may still be mid-mount, so wait for a stable rect first.
+    computeTransformWhenReady(target, ({ translate: tx, scale: sc }) => {
+      if (cancelled) return;
+      setTranslate(tx);
+      setScale(sc);
+      setPhase("moving"); // logo glides at full opacity so the motion is clearly visible
+
+      // Fade starts near the end of the glide; removing the splash too early
+      // flashes the destination screen while the logo is still mid-flight.
+      t1 = setTimeout(() => setPhase("fading"), 950);
+      t2 = setTimeout(onDone,                   1400);
+    });
+
+    return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); };
   }, [seqDone, isLoading, user, onDone]);
 
   const isMoving = phase === "moving" || phase === "fading";

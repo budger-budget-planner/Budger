@@ -33,13 +33,16 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
     ids.push(setTimeout(() => {
       const el = document.querySelector("[data-splash-logo-home]") as HTMLElement | null;
       if (el) {
+        // Round to whole pixels so the incoming logo rasterizes at exactly
+        // the same size as the resting one — avoids a subtle 1:1 mismatch
+        // right as the overlay fades away.
         const rect    = el.getBoundingClientRect();
         const targetCX = rect.left + rect.width  / 2;
         const targetCY = rect.top  + rect.height / 2;
-        const tx = targetCX - window.innerWidth  / 2;
-        const ty = targetCY - window.innerHeight / 2;
+        const tx = Math.round(targetCX - window.innerWidth  / 2);
+        const ty = Math.round(targetCY - window.innerHeight / 2);
         setTranslate(`translate(${tx}px, ${ty}px)`);
-        setScale(rect.width / SPLASH_SIZE);
+        setScale(Math.round((rect.width / SPLASH_SIZE) * 1000) / 1000);
       } else {
         // Fallback if header isn't mounted yet
         setTranslate("translate(calc(-50vw + 34px), calc(-50vh + 28px))");
