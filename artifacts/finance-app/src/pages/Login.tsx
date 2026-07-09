@@ -474,7 +474,9 @@ export default function LoginPage() {
               <span data-splash-logo-login>
                 <BadgerLogo size={88} />
               </span>
-              <BudgerWordmark size={48} tagline="Budget Planner" />
+              <div data-splash-wordmark-login>
+                <BudgerWordmark size={48} tagline="Budget Planner" />
+              </div>
             </div>
 
             {/* Login form */}
