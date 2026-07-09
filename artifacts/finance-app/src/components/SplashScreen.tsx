@@ -181,6 +181,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
               size={SPLASH_SIZE}
               forceAnim={forceAnim}
               forceAnimDurationMs={forceAnimDurMs}
+              growPulse={false}
             />
           </div>
         </div>

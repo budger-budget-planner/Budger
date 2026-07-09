@@ -109,6 +109,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
               size={SPLASH_SIZE}
               forceAnim={phase === "wink" ? "wink" : null}
               forceAnimDurationMs={phase === "wink" ? WINK_MS : undefined}
+              growPulse={false}
             />
           </div>
         </div>

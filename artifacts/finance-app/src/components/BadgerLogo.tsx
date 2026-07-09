@@ -32,6 +32,13 @@ interface BadgerLogoProps {
    * so the caller has full control over what plays. forceAnim still works.
    */
   pauseIdleAnimations?: boolean;
+  /**
+   * Whole-icon "coming alive" grow pulse that plays alongside personality/
+   * sleep-transition animations. Only wanted for the in-app logo (header,
+   * login screen) — splash screens set this to false since the logo there
+   * is already scaling/flying as part of the glide-to-destination sequence.
+   */
+  growPulse?: boolean;
 }
 
 export default function BadgerLogo({
@@ -40,6 +47,7 @@ export default function BadgerLogo({
   forceAnimDurationMs,
   mode = "awake",
   pauseIdleAnimations = false,
+  growPulse = true,
 }: BadgerLogoProps) {
   const uid = useId().replace(/:/g, "");
   const [anim, setAnim] = useState<Anim>(null);
@@ -103,7 +111,7 @@ export default function BadgerLogo({
     mode === "waking-up"      ? 2500 :
     displayAnim ? (forceAnimDurationMs ?? ANIM_MS[displayAnim]) :
     undefined;
-  const growActive = growDurMs != null;
+  const growActive = growPulse && growDurMs != null;
   const outerStyle: React.CSSProperties = {
     transformBox: "fill-box",
     transformOrigin: "center",
@@ -119,7 +127,7 @@ export default function BadgerLogo({
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label="Budger badger logo"
-      style={svgStyle}
+      style={{ ...svgStyle, overflow: "visible" }}
     >
       <defs>
         <linearGradient
