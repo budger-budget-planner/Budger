@@ -140,6 +140,16 @@ export default function LoginPage() {
         setActiveUserId(user.id);
         // Carry language (selected on login screen) into user-scoped prefs on first login
         migratePreLoginPrefs();
+        // The server is the durable carrier of the account's language — it survives even
+        // if this browser context (e.g. a mail app's in-app browser during email
+        // verification) never had the locally-chosen language in its own localStorage.
+        // Apply it immediately so PIN screen -> onboarding -> app all render correctly,
+        // without waiting for firstLoginDone / the post-onboarding sync in App.tsx.
+        const serverLang = (user as any).language;
+        if (serverLang) {
+          setLang(serverLang as "en" | "pl");
+          savePrefs({ ...loadPrefs(), language: serverLang });
+        }
         markSession();
         // If firstLoginDone is false this is their first login — trigger onboarding
         // via sessionStorage so AuthGuard picks it up after navigation
@@ -274,6 +284,16 @@ export default function LoginPage() {
         setSignupEmail(data.email);
         if (data.firstName) setFirstName(data.firstName);
         if (data.lastName)  setLastName(data.lastName);
+        // This step may run in a completely different browser context than the one
+        // where the language was originally picked (e.g. a mail app's in-app browser
+        // opening the verification link) — apply the server-stored language now so
+        // PIN setup and everything after it renders in the right language.
+        const verifiedLang = (data as any).language;
+        if (verifiedLang) {
+          setLangState(verifiedLang);
+          setLang(verifiedLang as "en" | "pl");
+          savePrefs({ ...loadPrefs(), language: verifiedLang });
+        }
         setScreen("signup-pin");
       },
       onError: (err: any) => {
@@ -347,6 +367,7 @@ export default function LoginPage() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: signupEmail.trim(),
+        language: lang,
       },
     });
   }
@@ -475,7 +496,12 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => {
                     setSignupError("");
-                    setSignupEmail(loginEmail);
+                    // Always start the create-account form with a blank email —
+                    // prefilling from the login field caused confusion when the
+                    // email being typed there wasn't meant for the new account.
+                    setSignupEmail("");
+                    setFirstName("");
+                    setLastName("");
                     setScreen("signup-info");
                   }}
                   className="text-sm text-foreground underline underline-offset-4"

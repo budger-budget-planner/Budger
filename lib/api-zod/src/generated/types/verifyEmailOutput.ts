@@ -10,4 +10,6 @@ export interface VerifyEmailOutput {
   email: string;
   firstName: string;
   lastName: string;
+  /** The account's stored language, so the client can apply it immediately in case this browser context never had it (e.g. verification opened in an in-app browser). */
+  language?: string;
 }

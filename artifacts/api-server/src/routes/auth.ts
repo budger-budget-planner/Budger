@@ -173,7 +173,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { firstName, lastName, email } = parsed.data;
+  const { firstName, lastName, email, language } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
 
   // Clear out any other abandoned sign-ups before checking for a conflict, so a stale
@@ -181,15 +181,18 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   await purgeExpiredPendingAccounts();
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
-  if (existing && existing.passwordHash) {
-    // Fully-registered account already owns this email
-    res.status(409).json({ error: "Email already in use" });
-    return;
-  }
+  // Check the deletion-grace-period case FIRST: a fully-registered account that has
+  // just requested deletion still has a passwordHash, so checking passwordHash first
+  // would misreport it as "already in use" instead of the specific blocked message.
   if (existing && existing.deletionScheduledAt) {
     // Email is in the 24-hour deletion grace period — block re-registration with a
     // machine-readable code so the client can show a specific explanation.
     res.status(409).json({ error: "email_pending_deletion" });
+    return;
+  }
+  if (existing && existing.passwordHash) {
+    // Fully-registered account already owns this email
+    res.status(409).json({ error: "Email already in use" });
     return;
   }
 
@@ -198,13 +201,17 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
   // Starts (or restarts) the 15-minute clock for completing the whole sign-up flow.
   const signupExpiresAt = new Date(Date.now() + SIGNUP_COMPLETION_TTL_MS);
+  // The language picked on the pre-login start screen — persisted server-side so it
+  // survives even if the user completes verification in a different browser context
+  // (e.g. a mail app's in-app browser, which has its own isolated localStorage).
+  const resolvedLanguage = language ?? "en";
 
   let user;
   if (existing) {
     // Re-submitting the sign-up form for a still-pending (unverified) account —
     // refresh their details and issue a new token instead of erroring out.
     [user] = await db.update(usersTable)
-      .set({ name, firstName, lastName, emailVerified: false, verificationToken, verificationTokenExpiresAt, signupExpiresAt })
+      .set({ name, firstName, lastName, language: resolvedLanguage, emailVerified: false, verificationToken, verificationTokenExpiresAt, signupExpiresAt })
       .where(eq(usersTable.id, existing.id))
       .returning();
   } else {
@@ -218,6 +225,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
       lastName,
       email: normalizedEmail,
       status,
+      language: resolvedLanguage,
       firstLoginDone: false,
       emailVerified: false,
       verificationToken,
@@ -273,6 +281,7 @@ router.post("/auth/verify-email", async (req, res): Promise<void> => {
     email: updated.email,
     firstName: updated.firstName ?? "",
     lastName: updated.lastName ?? "",
+    language: updated.language,
   }));
 });
 

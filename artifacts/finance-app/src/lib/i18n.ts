@@ -426,6 +426,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "login.confirm_pin_sub":  { en: "Re-enter the same PIN to confirm.", pl: "Wpisz ponownie ten sam PIN, aby potwierdzić."},
   "login.pin_mismatch":     { en: "PINs don't match. Please try again.", pl: "PINy się nie zgadzają. Spróbuj ponownie."},
   "login.email_taken":      { en: "This email is already registered. Please log in.", pl: "Ten adres e-mail jest już zarejestrowany. Zaloguj się."},
+  "tx.import_review_disclaimer": {
+    en: "The AI reads these amounts and merchants automatically and can make mistakes — please check each row (including internal transfers, which should be unchecked) before importing.",
+    pl: "AI odczytuje te kwoty i nazwy automatycznie i może się pomylić — sprawdź każdą pozycję (w tym przelewy własne, które powinny być odznaczone) przed importem.",
+  },
   "login.register_failed":  { en: "Registration failed. Please try again.", pl: "Rejestracja nie powiodła się. Spróbuj ponownie."},
   "login.creating":         { en: "Creating account…", pl: "Tworzenie konta…"     },
   "login.account_created":  { en: "Account created!",  pl: "Konto utworzone!"     },

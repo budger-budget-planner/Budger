@@ -443,6 +443,10 @@ export function ScreenshotImportDialog({
                 {t("tx.import_screenshot_review", { count: rows.length })}
               </p>
 
+              <p className="text-xs text-muted-foreground bg-muted/60 rounded-xl px-3 py-2 leading-snug">
+                {t("tx.import_review_disclaimer")}
+              </p>
+
               {outOfMonthDeselected && (
                 <p className="text-xs text-muted-foreground bg-muted/60 rounded-xl px-3 py-2 leading-snug">
                   {t("tx.import_current_month_hint")}

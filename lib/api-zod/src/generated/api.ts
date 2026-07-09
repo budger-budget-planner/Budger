@@ -31,7 +31,6 @@ export const GetMeResponse = zod.object({
   language: zod.string(),
   currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
-  budgerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -47,7 +46,6 @@ export const UpdateMeBody = zod.object({
   currency: zod.string().optional(),
   firstLoginDone: zod.boolean().optional(),
   pendingHouseholdAlert: zod.string().nullish(),
-  budgerName: zod.string().nullish(),
 });
 
 export const UpdateMeResponse = zod.object({
@@ -64,7 +62,6 @@ export const UpdateMeResponse = zod.object({
   language: zod.string(),
   currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
-  budgerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -76,6 +73,12 @@ export const RegisterStartBody = zod.object({
   firstName: zod.string().min(1),
   lastName: zod.string().min(1),
   email: zod.string().min(1),
+  language: zod
+    .string()
+    .optional()
+    .describe(
+      "Language chosen on the login screen before the account exists, so it survives even if verification happens in a different browser context.",
+    ),
 });
 
 export const RegisterStartResponse = zod.object({
@@ -99,6 +102,12 @@ export const VerifyEmailResponse = zod.object({
   email: zod.string(),
   firstName: zod.string(),
   lastName: zod.string(),
+  language: zod
+    .string()
+    .optional()
+    .describe(
+      "The account's stored language, so the client can apply it immediately in case this browser context never had it (e.g. verification opened in an in-app browser).",
+    ),
 });
 
 /**

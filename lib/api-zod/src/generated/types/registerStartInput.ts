@@ -13,4 +13,6 @@ export interface RegisterStartInput {
   lastName: string;
   /** @minLength 1 */
   email: string;
+  /** Language chosen on the login screen before the account exists, so it survives even if verification happens in a different browser context. */
+  language?: string;
 }

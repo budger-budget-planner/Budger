@@ -83,6 +83,8 @@ export interface RegisterStartInput {
   lastName: string;
   /** @minLength 1 */
   email: string;
+  /** Language chosen on the login screen before the account exists, so it survives even if verification happens in a different browser context. */
+  language?: string;
 }
 
 export interface RegisterStartOutput {
@@ -100,6 +102,8 @@ export interface VerifyEmailOutput {
   email: string;
   firstName: string;
   lastName: string;
+  /** The account's stored language, so the client can apply it immediately in case this browser context never had it (e.g. verification opened in an in-app browser). */
+  language?: string;
 }
 
 export interface Category {
