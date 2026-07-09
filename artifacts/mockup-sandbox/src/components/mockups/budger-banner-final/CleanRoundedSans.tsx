@@ -1,4 +1,4 @@
-const gradient = "linear-gradient(180deg, #8a8a8a 0%, #ffffff 50%, #cfcac0 100%)";
+const gradient = "linear-gradient(180deg, #6e6e6e 0%, #f0ede6 50%, #d8d3c8 100%)";
 
 export function CleanRoundedSans() {
   return (
@@ -9,6 +9,9 @@ export function CleanRoundedSans() {
           fontFamily: "'Quicksand', sans-serif",
           fontWeight: 700,
           letterSpacing: "-0.005em",
+          lineHeight: 1.3,
+          paddingBottom: "0.15em",
+          display: "inline-block",
           background: gradient,
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
