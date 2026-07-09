@@ -405,14 +405,14 @@ export default function Onboarding({
                 {language === "pl" ? (
                   <>
                     <span className="font-bold text-foreground">Witamy w Budgerze</span>
-                    {" "}- jedynym Planerze Budżetu jakiego kiedykolwiek będziesz potrzebować. Jesteśmy szczęśliwi że postanowiłaś/łeś dołączyć do nas w podróży do finansowej stabilności i harmonii jako jeden z 50 pierwszych użytkowników. Z tego powodu mamy ekscytujące wieści! Został nadany ci tytuł „Honorowego Współtwórcy". To oznacza, że bez względu na to co przyniesie Budgerowi, będziesz w tym z nami używając wszystkich funkcjonalności aplikacji…{" "}
+                    {" "}- jedynym Planerze Budżetu jakiego kiedykolwiek będziesz potrzebować. Jesteśmy szczęśliwi że postanowiłaś/łeś dołączyć do nas w podróży do finansowej stabilności i harmonii jako jeden z 50 pierwszych użytkowników. Z tego powodu mamy ekscytujące wieści! Został nadany ci tytuł <span className="font-bold text-foreground">„Honorowego Współtwórcy"</span>. To oznacza, że bez względu na to co przyszłość przyniesie Budgerowi, będziesz w tym z nami używając wszystkich funkcjonalności aplikacji…{" "}
                     <span className="font-bold text-foreground">ZA DARMO!</span>
                     {" "}Raz jeszcze, dziękujemy że jesteś z nami! Zacznijmy grzebać w planowaniu naszej przyszłości!
                   </>
                 ) : (
                   <>
                     <span className="font-bold text-foreground">Welcome to Budger</span>
-                    {" "}- the only Budget Planner you'll ever need. We're glad you decided to join us in this journey of financial stability and harmony as one of your first 50 users. For that reason we have an exciting news! You've been awarded with a „Honorable Contributor" title. That means that no matter what the future holds to Budger, you will enjoy this ride with us using full functionalities of the app…{" "}
+                    {" "}- the only Budget Planner you'll ever need. We're glad you decided to join us in this journey of financial stability and harmony as one of your first 50 users. For that reason we have an exciting news! You've been awarded with a <span className="font-bold text-foreground">„Honorable Contributor"</span> title. That means that no matter what the future holds to Budger, you will enjoy this ride with us using full functionalities of the app…{" "}
                     <span className="font-bold text-foreground">FOR FREE!</span>
                     {" "}Once again, thank you for being with us and let's dig deeper in planning our future.
                   </>
