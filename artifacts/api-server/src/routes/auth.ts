@@ -240,7 +240,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
   const absoluteVerifyUrl = `${origin}${relativeVerifyPath}`;
 
-  const sent = await sendVerificationEmail({ to: normalizedEmail, firstName, verifyUrl: absoluteVerifyUrl });
+  const sent = await sendVerificationEmail({ to: normalizedEmail, firstName, verifyUrl: absoluteVerifyUrl, language: resolvedLanguage as "en" | "pl" });
   if (sent) {
     req.log.info({ email: normalizedEmail }, "Verification email sent via Resend");
   } else {
@@ -410,6 +410,7 @@ router.post("/auth/forgot-pin", async (req, res): Promise<void> => {
     id: usersTable.id,
     firstName: usersTable.firstName,
     passwordHash: usersTable.passwordHash,
+    language: usersTable.language,
   }).from(usersTable).where(eq(usersTable.email, email));
 
   // Always return {sent:true} — never reveal whether the email is registered.
@@ -436,6 +437,7 @@ router.post("/auth/forgot-pin", async (req, res): Promise<void> => {
     to: email,
     firstName: user.firstName ?? "",
     resetUrl,
+    language: (user.language as "en" | "pl") ?? "en",
   });
 
   logger.info({ to: email, sent }, "forgot-pin: reset email dispatched");

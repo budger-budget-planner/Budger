@@ -10,6 +10,7 @@ export type VerificationEmailInput = {
   to: string;
   firstName: string;
   verifyUrl: string;
+  language?: "en" | "pl";
 };
 
 // Dark colour palette — matches the app splash screen aesthetic.
@@ -27,8 +28,9 @@ const C = {
   btnText:   "#0a0a0a",   // CTA button label
 } as const;
 
-function buildEmailHtml(firstName: string, verifyUrl: string): string {
-  const greetingName = firstName || "there";
+function buildEmailHtml(firstName: string, verifyUrl: string, language: "en" | "pl" = "en"): string {
+  const isPl = language === "pl";
+  const greetingName = escapeHtml(firstName || (isPl ? "tam" : "there"));
 
   // Derive the app origin from the verify URL to point the logo <img> at the
   // publicly hosted favicon.  SVG via remote <img> renders in Apple Mail and
@@ -38,17 +40,28 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
   try { appOrigin = new URL(verifyUrl).origin; } catch { /* leave empty */ }
   const logoSrc = appOrigin ? `${appOrigin}/favicon.svg` : "";
 
+  const title = isPl ? "Potwierdź swoje konto Budger" : "Confirm your Budger account";
+  const tagline = isPl ? "Twój domowy tracker finansowy" : "Your household finance tracker";
+  const bodyCopy = isPl
+    ? "Witamy w Budger! Kliknij przycisk poniżej, aby potwierdzić swój adres e-mail i zakończyć tworzenie konta."
+    : "Welcome to Budger! Tap the button below to verify your email address and finish setting up your account.";
+  const ctaLabel = isPl ? "Potwierdź adres e-mail" : "Verify email address";
+  const copyLinkLabel = isPl ? "Lub skopiuj ten link do przeglądarki:" : "Or copy this link into your browser:";
+  const footerCopy = isPl
+    ? "Ten link wygasa za 30 minut. Jeśli nie rejestrowałeś/aś się w Budger, możesz bezpiecznie zignorować tę wiadomość."
+    : "This link expires in 30 minutes. If you didn't sign up for Budger, you can safely ignore this email.";
+
   // Gmail on iOS strips background-color from <body> and <table> elements, but
   // it DOES honour the bgcolor HTML attribute and background-color on <td>.
   // Every <td> therefore carries both bgcolor="…" and style="background-color:…"
   // so the dark theme shows correctly in Gmail, Apple Mail, and Outlook alike.
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isPl ? "pl" : "en"}">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Confirm your Budger account</title>
+  <title>${title}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings>
     <o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
@@ -83,7 +96,7 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
                          color:${C.textHero};line-height:1.2;">Budger</p>
               <p style="margin:4px 0 0;font-size:11px;letter-spacing:0.8px;
                          text-transform:uppercase;color:${C.textFaint};">
-                Your household finance tracker
+                ${tagline}
               </p>
             </td>
           </tr>
@@ -100,11 +113,10 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
             <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:28px 32px 16px;">
 
               <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:${C.textHero};line-height:1.3;">
-                Hi ${greetingName} 👋
+                ${isPl ? `Cześć, ${greetingName}` : `Hi ${greetingName}`} 👋
               </p>
               <p style="margin:0 0 28px;font-size:14px;line-height:1.75;color:${C.textSub};">
-                Welcome to Budger! Tap the button below to verify your email address
-                and finish setting up your account.
+                ${bodyCopy}
               </p>
 
               <!-- CTA button -->
@@ -116,14 +128,14 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
                        style="display:inline-block;background-color:${C.btnBg};color:${C.btnText};
                               text-decoration:none;font-weight:700;font-size:15px;
                               padding:15px 40px;border-radius:12px;letter-spacing:-0.1px;">
-                      Verify email address
+                      ${ctaLabel}
                     </a>
                   </td>
                 </tr>
               </table>
 
               <p style="margin:0;font-size:12px;color:${C.textFaint};line-height:1.6;">
-                Or copy this link into your browser:
+                ${copyLinkLabel}
               </p>
               <p style="margin:4px 0 0;font-size:11px;color:${C.textFaint};
                          word-break:break-all;line-height:1.6;">
@@ -137,8 +149,7 @@ function buildEmailHtml(firstName: string, verifyUrl: string): string {
             <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:16px 32px 32px;">
               <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:20px;">&nbsp;</div>
               <p style="margin:0;font-size:11px;color:${C.textFaint};line-height:1.7;">
-                This link expires in 30 minutes. If you didn't sign up for Budger,
-                you can safely ignore this email.
+                ${footerCopy}
               </p>
             </td>
           </tr>
@@ -158,24 +169,37 @@ export type PinResetEmailInput = {
   to: string;
   firstName: string;
   resetUrl: string;
+  language?: "en" | "pl";
 };
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function buildPinResetHtml(firstName: string, resetUrl: string): string {
-  const greetingName = escapeHtml(firstName || "there");
+function buildPinResetHtml(firstName: string, resetUrl: string, language: "en" | "pl" = "en"): string {
+  const isPl = language === "pl";
+  const greetingName = escapeHtml(firstName || (isPl ? "tam" : "there"));
   let appOrigin = "";
   try { appOrigin = new URL(resetUrl).origin; } catch { /* leave empty */ }
   const logoSrc = appOrigin ? `${appOrigin}/favicon.svg` : "";
 
+  const title = isPl ? "Zresetuj swój PIN Budger" : "Reset your Budger PIN";
+  const heading = isPl ? `Zresetuj swój PIN, ${greetingName}` : `Reset your PIN, ${greetingName}`;
+  const bodyCopy = isPl
+    ? "Otrzymaliśmy prośbę o zresetowanie PIN-u dla Twojego konta Budger.<br/>Kliknij przycisk poniżej, aby ustawić nowy PIN. Ten link wygasa za 30 minut."
+    : "We received a request to reset the PIN for your Budger account.<br/>Click the button below to set a new PIN. This link expires in 30 minutes.";
+  const ctaLabel = isPl ? "Zresetuj PIN" : "Reset PIN";
+  const copyLinkLabel = isPl ? "Lub skopiuj ten link:" : "Or copy this link:";
+  const footerCopy = isPl
+    ? "Jeśli nie prosiłeś/aś o reset PIN-u, możesz bezpiecznie zignorować tę wiadomość. Twój PIN nie zmieni się."
+    : "If you didn't request a PIN reset, you can safely ignore this email. Your PIN will not change.";
+
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isPl ? "pl" : "en"}">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Reset your Budger PIN</title>
+  <title>${title}</title>
 </head>
 <body style="margin:0;padding:0;background-color:${C.outerBg};" bgcolor="${C.outerBg}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -196,10 +220,9 @@ function buildPinResetHtml(firstName: string, resetUrl: string): string {
           <tr>
             <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:0 32px 28px;">
               <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:24px;">&nbsp;</div>
-              <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:${C.textHero};line-height:1.3;">Reset your PIN, ${greetingName}</p>
+              <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:${C.textHero};line-height:1.3;">${heading}</p>
               <p style="margin:0 0 24px;font-size:14px;color:${C.textSub};line-height:1.6;">
-                We received a request to reset the PIN for your Budger account.<br/>
-                Click the button below to set a new PIN. This link expires in 30 minutes.
+                ${bodyCopy}
               </p>
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
@@ -207,13 +230,13 @@ function buildPinResetHtml(firstName: string, resetUrl: string): string {
                     <a href="${resetUrl}" target="_blank"
                        style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;
                               color:${C.btnText};text-decoration:none;letter-spacing:0.2px;">
-                      Reset PIN
+                      ${ctaLabel}
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin:24px 0 0;font-size:12px;color:${C.textFaint};line-height:1.6;word-break:break-all;">
-                Or copy this link: <a href="${resetUrl}" style="color:${C.textFaint};">${resetUrl}</a>
+                ${copyLinkLabel} <a href="${resetUrl}" style="color:${C.textFaint};">${resetUrl}</a>
               </p>
             </td>
           </tr>
@@ -221,8 +244,7 @@ function buildPinResetHtml(firstName: string, resetUrl: string): string {
             <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:16px 32px 32px;">
               <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:20px;">&nbsp;</div>
               <p style="margin:0;font-size:11px;color:${C.textFaint};line-height:1.7;">
-                If you didn't request a PIN reset, you can safely ignore this email.
-                Your PIN will not change.
+                ${footerCopy}
               </p>
             </td>
           </tr>
@@ -234,7 +256,7 @@ function buildPinResetHtml(firstName: string, resetUrl: string): string {
 </html>`;
 }
 
-export async function sendPinResetEmail({ to, firstName, resetUrl }: PinResetEmailInput): Promise<boolean> {
+export async function sendPinResetEmail({ to, firstName, resetUrl, language = "en" }: PinResetEmailInput): Promise<boolean> {
   if (!resend) {
     logger.info({ to, resetUrl }, "email-sender: RESEND_API_KEY not set, PIN reset link logged only");
     return false;
@@ -244,8 +266,8 @@ export async function sendPinResetEmail({ to, firstName, resetUrl }: PinResetEma
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: "Reset your Budger PIN",
-      html: buildPinResetHtml(firstName, resetUrl),
+      subject: language === "pl" ? "Zresetuj swój PIN Budger" : "Reset your Budger PIN",
+      html: buildPinResetHtml(firstName, resetUrl, language),
     });
     if (error) {
       logger.warn({ to, error }, "email-sender: Resend error sending PIN reset email");
@@ -472,7 +494,7 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
   }
 }
 
-export async function sendVerificationEmail({ to, firstName, verifyUrl }: VerificationEmailInput): Promise<boolean> {
+export async function sendVerificationEmail({ to, firstName, verifyUrl, language = "en" }: VerificationEmailInput): Promise<boolean> {
   if (!resend) {
     logger.info({ to }, "email-sender: RESEND_API_KEY not set, skipping real send (simulated)");
     return false;
@@ -482,8 +504,8 @@ export async function sendVerificationEmail({ to, firstName, verifyUrl }: Verifi
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: "Confirm your Budger account",
-      html: buildEmailHtml(firstName, verifyUrl),
+      subject: language === "pl" ? "Potwierdź swoje konto Budger" : "Confirm your Budger account",
+      html: buildEmailHtml(firstName, verifyUrl, language),
     });
     if (error) {
       logger.warn({ to, error }, "email-sender: Resend returned an error, falling back to simulated email");
