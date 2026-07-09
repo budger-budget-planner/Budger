@@ -8,8 +8,8 @@ const SPLASH_SIZE = 120;
 const STILL_MS   = 900;   // float before wink
 const WINK_MS    = 700;   // wink duration
 const FLY_MS     = 1240;  // translate+scale transition — matches SplashScreen exactly
-const FADE_DELAY = 950;   // start fading this far into the fly (ms) — logo nearly arrived
-const FADE_MS    = 450;   // overlay fade-out duration
+const FADE_DELAY = 1200;  // start fading this far into the fly (ms) — logo nearly arrived
+const FADE_MS    = 250;   // overlay fade-out duration
 
 type Phase = "float" | "wink" | "fly" | "fade";
 
@@ -101,7 +101,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+        transition: isFading ? "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
@@ -159,18 +159,21 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         </div>
 
         {/* ── Wordmark + tagline ───────────────────────────────────────────
-            Sits below the logo in normal flow (no absolute positioning),
-            so the browser's flex centering treats logo+wordmark as one unit.
-            Fades out the instant the logo begins its glide to the header. */}
-        <div
+            Opacity applied directly to BudgerWordmark's root div (via style
+            prop) rather than on a parent wrapper. A parent-only opacity
+            transition can fail to propagate correctly on iOS Safari when the
+            child contains -webkit-background-clip:text (gradient wordmark),
+            causing the text to remain visible. Direct application avoids the
+            compositing issue. Fades out the instant the logo begins its glide. */}
+        <BudgerWordmark
+          size={38}
+          tagline="Budget Planner"
           style={{
             opacity: showPulse ? 1 : 0,
-            transition: "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "opacity 0.15s linear",
             pointerEvents: "none",
           }}
-        >
-          <BudgerWordmark size={38} tagline="Budget Planner" />
-        </div>
+        />
       </div>
     </div>
   );

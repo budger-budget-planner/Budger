@@ -198,8 +198,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       // If wordmarkT is null the wordmark stays at opacity:0 (fade path, see render)
 
       setPhase("moving");
-      t1 = setTimeout(() => setPhase("fading"), 950);
-      t2 = setTimeout(onDone,                   1400);
+      t1 = setTimeout(() => setPhase("fading"), 1200); // give logo time to land before home bleeds through
+      t2 = setTimeout(onDone,                   1550);
     }
 
     // Poll for logo destination
@@ -255,7 +255,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
         opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+        transition: isFading ? "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
@@ -317,20 +317,18 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
           ref={wordmarkRef}
           style={{
             transform: wordmarkFlying ? wordmarkTranslate : "none",
-            // Flying → only animate transform (overlay fade handles final disappearance)
-            // Fading  → only animate opacity (no transform)
-            transition: wordmarkFlying
-              ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)"
-              : "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
-            opacity: wordmarkFlying
-              ? 1                          // visible throughout the glide
-              : (phase === "showing" ? 1 : 0), // fade out on move (home or degrade)
+            transition: wordmarkFlying ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
             willChange: wordmarkFlying ? "transform" : "auto",
             pointerEvents: "none",
           }}
         >
           {/* ── Wordmark: scale layer ─────────────────────────────────────
-              Same separate-layer pattern as the logo. */}
+              Same separate-layer pattern as the logo. Opacity is applied
+              directly on BudgerWordmark's root div (via style prop) rather
+              than on any ancestor wrapper. A parent-only opacity transition
+              can fail to cascade on iOS Safari when the child renders
+              -webkit-background-clip:text (gradient wordmark), leaving the
+              text visible. Direct application sidesteps the compositing bug. */}
           <div
             style={{
               transform: wordmarkFlying ? `scale(${wordmarkScale})` : "none",
@@ -341,7 +339,16 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
               transformOrigin: "center center",
             }}
           >
-            <BudgerWordmark size={38} tagline="Budget Planner" />
+            <BudgerWordmark
+              size={38}
+              tagline="Budget Planner"
+              style={{
+                // Flying to login: always visible (overlay fade handles final disappearance)
+                // Going to home or degraded: fade out immediately when movement starts
+                opacity: wordmarkFlying ? 1 : (phase === "showing" ? 1 : 0),
+                transition: wordmarkFlying ? "none" : "opacity 0.15s linear",
+              }}
+            />
           </div>
         </div>
       </div>
