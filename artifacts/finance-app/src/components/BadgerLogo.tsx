@@ -112,10 +112,18 @@ export default function BadgerLogo({
     displayAnim ? (forceAnimDurationMs ?? ANIM_MS[displayAnim]) :
     undefined;
   const growActive = growPulse && growDurMs != null;
+  // Wink is quick, so let it hang onto the "grown" size a touch longer before
+  // settling back — feels less snappy/abrupt for such a short animation.
+  // Lick is the longest animation, so ease back down sooner — otherwise the
+  // grow lingers noticeably after the tongue motion has already finished.
+  const growAnimName =
+    displayAnim === "wink" ? "blg-grow-wink" :
+    displayAnim === "lick" ? "blg-grow-lick" :
+    "blg-grow";
   const outerStyle: React.CSSProperties = {
     transformBox: "fill-box",
     transformOrigin: "center",
-    ...(growActive ? { animation: `blg-grow ${growDurMs}ms ease-in-out` } : {}),
+    ...(growActive ? { animation: `${growAnimName} ${growDurMs}ms ease-in-out` } : {}),
   };
 
   return (
@@ -321,6 +329,20 @@ export default function BadgerLogo({
             0%   { transform: scale(1);    }
             15%  { transform: scale(1.05); }
             85%  { transform: scale(1.05); }
+            100% { transform: scale(1);    }
+          }
+          /* Wink: hold the grown size a little longer before settling back */
+          @keyframes blg-grow-wink {
+            0%   { transform: scale(1);    }
+            15%  { transform: scale(1.05); }
+            92%  { transform: scale(1.05); }
+            100% { transform: scale(1);    }
+          }
+          /* Lick: ease back down sooner so it doesn't linger past the tongue motion */
+          @keyframes blg-grow-lick {
+            0%   { transform: scale(1);    }
+            10%  { transform: scale(1.05); }
+            65%  { transform: scale(1.05); }
             100% { transform: scale(1);    }
           }
         `}</style>
