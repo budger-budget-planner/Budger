@@ -173,32 +173,39 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
   const promptText = [
     "This is either a screenshot of a banking or mobile wallet app's transaction list, or a bank statement PDF.",
     "Extract ONLY genuine expense transactions — rows where money LEFT the account to pay for something",
-    "(purchases, bills, fees, cash withdrawals). These are typically shown with a minus sign, in red, or labelled as a debit.",
-    "IMPORTANT for PDF bank statements: expenses are identified by a leading minus sign before the amount,",
-    "with or without a space (e.g. '-140 zł', '- 140 zł', '-23.50', '- 23.50'). Rows WITHOUT a leading minus sign",
-    "are incoming transactions (credits) and must be SKIPPED. The minus sign is the definitive indicator — do not",
-    "include any amount row that does not begin with a minus sign when processing a PDF bank statement.",
-    "SKIP the following — do NOT include them:",
-    "(1) Income: incoming transfers, salary deposits, refunds, top-ups, cashback, interest credited, any row shown with a plus sign or in green, or any amount without a leading minus sign in a PDF.",
-    "(2) Internal transfers / own-account movements: ANY movement of money between accounts, cards, or wallets owned by the same person,",
-    "even across different banks or products. This includes but is not limited to: 'Transfer to savings', 'Transfer between accounts',",
-    "'Own account transfer', 'Between my accounts', 'Internal transfer', 'Savings transfer', 'Moving money', 'Top-up from bank account',",
-    "'Add money', 'Load balance', 'Withdrawal to bank account', 'Send to myself', 'Przelew własny', 'Przelew między rachunkami',",
-    "'Doładowanie', ATM/cash withdrawals into the user's own possession that are just moving funds (not a purchase), round-up/auto-save",
-    "sweeps, and any transfer whose counterparty is described as the user's own name, 'me', 'myself', or another product/account the",
-    "same person clearly owns (e.g. a second card, a joint account referenced as 'my [bank] account'). Treat labels like 'transfer' or",
-    "'przelew' with NO named merchant/business as internal by default — only classify as a genuine expense if a specific",
-    "merchant/payee/business name is shown. When uncertain whether a row is an internal transfer or a real expense, err on the side of",
-    "excluding it — a missed real expense is far less harmful than importing a transfer that inflates the user's spending totals.",
-    "If a row looks like a transfer to another person's account but no merchant or purpose is identifiable, skip it.",
-    "Also ignore card art, account balances, section headers, and nav chrome.",
+    "(purchases, bills, fees, subscriptions, insurance premiums, fines, parking fees).",
+    "",
+    "STEP 1 — AMOUNT SIGN CHECK (PDF statements only):",
+    "In PDF bank statements amounts with a leading minus sign (with or without space: '- 59,99 PLN' or '-59.99') are outgoing.",
+    "Amounts WITHOUT a leading minus sign are incoming credits — skip them immediately.",
+    "The minus sign is a NECESSARY condition for a PDF row to be an expense, but not sufficient on its own — also apply Step 2.",
+    "",
+    "STEP 2 — TRANSFER / PERSON CHECK (applies to all inputs including screenshots):",
+    "Even if a row has a minus sign, SKIP it when ANY of these conditions are true:",
+    "  A) The operation type is a bank transfer to a person (first name + last name counterparty, not a business).",
+    "     Polish indicators: 'PRZELEW MOBILE', 'PRZELEW KRAJOWY', 'PRZELEW BLIK WYCHODZĄCY', 'REALIZACJA PŁATNOŚCI PEOPAY'",
+    "     when the counterparty field shows a person's name (e.g. 'NATALIA SNOPEK', 'MAGDALENA ZABOROWSKA').",
+    "     These are family/friend money transfers, not purchases — skip regardless of the memo/purpose text.",
+    "  B) The counterparty is the account owner's own name (sending money to oneself, own account).",
+    "  C) The operation is a loan/mortgage repayment: 'SPŁATA KREDYTU', 'RATA KREDYTU', 'SPŁATA POŻYCZKI'.",
+    "  D) General transfer labels with no merchant: 'Przelew własny', 'Przelew między rachunkami', 'Doładowanie',",
+    "     'Transfer to savings', 'Add money', 'Top-up', round-up/auto-save sweeps.",
+    "  E) The row is income: salary ('WYNAGRODZENIE'), social benefits ('ZUS', 'Świadczenie'), refunds, cashback.",
+    "",
+    "STEP 3 — WHAT TO INCLUDE:",
+    "Include rows where the counterparty is a recognisable merchant, business, shop, service provider, or utility",
+    "(e.g. 'BIEDRONKA', 'ALLEGRO', 'NETFLIX', 'T-MOBILE', 'BP', 'PZU NA ŻYCIE', 'AUTOPAY S.A.', 'TEMU.COM').",
+    "'TRANSAKCJA KARTĄ PŁATNICZĄ' rows are always card purchases — include them if the merchant name is shown.",
+    "'PŁATNOŚĆ BLIK' to a business/service (e.g. 'AUTOPAY S.A.') is a purchase — include it.",
+    "'PŁATNOŚĆ BLIK' or 'PRZELEW BLIK' to a person's name — skip (personal transfer).",
+    "",
     "For each qualifying transaction return: merchant (the payee/business name, not the payment method),",
-    "amount (the ABSOLUTE value — always a positive number, no currency symbol; strip any leading minus sign),",
-    "currency (3-letter ISO code inferred from symbols, labels, or context such as PLN/zł, USD/$, EUR/€,",
-    "GBP/£; null if truly unknown), and date (best-effort ISO YYYY-MM-DD; resolve relative labels like",
-    `'Yesterday' or weekday names against today ${todayIso}; null if not inferable).`,
-    "Return an empty transactions array if this doesn't look like a transaction list or all rows are income.",
-  ].join(" ");
+    "amount (the ABSOLUTE value — always positive, no currency symbol, strip any leading minus sign),",
+    "currency (3-letter ISO code inferred from symbols/labels: PLN/zł, USD/$, EUR/€, GBP/£; null if unknown),",
+    `date (best-effort ISO YYYY-MM-DD; resolve relative labels against today ${todayIso}; null if not inferable),`,
+    "type: 'expense' for purchases/bills, 'income' for money received, 'transfer' for person-to-person or own-account moves.",
+    "Return an empty transactions array if this doesn't look like a transaction list.",
+  ].join("\n");
 
   try {
     const response = await genai.models.generateContent({
@@ -241,8 +248,11 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
         // 65 k = Gemini 2.5 Flash hard maximum. Thinking disabled (budget 0)
         // so zero tokens are spent on reasoning — every token goes to JSON
         // output. Supports up to ~100 transactions in a single extraction.
+        // temperature: 0 makes extraction deterministic — same file always
+        // produces the same result regardless of how many times it is run.
         maxOutputTokens: 65536,
         thinkingConfig: { thinkingBudget: 0 },
+        temperature: 0,
       },
     });
 
