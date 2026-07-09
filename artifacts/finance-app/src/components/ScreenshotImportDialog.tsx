@@ -400,7 +400,7 @@ export function ScreenshotImportDialog({
           {!rows && !isSniffing && (
             <div className="flex flex-col gap-6 pt-3 pb-2">
               <div className="flex flex-col items-center gap-2 pt-2">
-                <BadgerLogo size={96} forceAnim={dialogWink ? "wink" : null} />
+                <BadgerLogo size={96} forceAnim={dialogWink ? "wink" : null} pauseIdleAnimations />
                 {/* Subtle name field — a little secret for curious eyes */}
                 <input
                   type="text"

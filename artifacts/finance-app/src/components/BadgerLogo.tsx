@@ -27,6 +27,11 @@ interface BadgerLogoProps {
    *   "waking-up"     — transition: eyes flutter open (≈1.0 s)
    */
   mode?: BadgerMode;
+  /**
+   * When true, suppresses the internal random idle animations (wink/sniff/lick)
+   * so the caller has full control over what plays. forceAnim still works.
+   */
+  pauseIdleAnimations?: boolean;
 }
 
 export default function BadgerLogo({
@@ -34,6 +39,7 @@ export default function BadgerLogo({
   forceAnim,
   forceAnimDurationMs,
   mode = "awake",
+  pauseIdleAnimations = false,
 }: BadgerLogoProps) {
   const uid = useId().replace(/:/g, "");
   const [anim, setAnim] = useState<Anim>(null);
@@ -41,14 +47,16 @@ export default function BadgerLogo({
   const resetRef       = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastAnimRef    = useRef<NonNullable<Anim> | null>(null);
   const consecutiveRef = useRef(0);
-  // Track mode in a ref so the interval callback always sees the latest value
-  const modeRef = useRef<BadgerMode>(mode);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
+  // Track mode and pauseIdleAnimations in refs so the interval callback always sees the latest value
+  const modeRef  = useRef<BadgerMode>(mode);
+  const pauseRef = useRef(pauseIdleAnimations);
+  useEffect(() => { modeRef.current  = mode; },                [mode]);
+  useEffect(() => { pauseRef.current = pauseIdleAnimations; }, [pauseIdleAnimations]);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      // Suspend idle personality animations while the badger is asleep
-      if (modeRef.current !== "awake") return;
+      // Suspend idle personality animations while asleep or caller has paused them
+      if (modeRef.current !== "awake" || pauseRef.current) return;
 
       const all: NonNullable<Anim>[] = ["wink", "sniff", "lick"];
       const filtered = consecutiveRef.current >= 2
