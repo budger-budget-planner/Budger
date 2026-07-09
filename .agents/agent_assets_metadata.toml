@@ -6,3 +6,9 @@ id = "UVGJE6TfVVrsrYhEElwlW"
 uri = "file://attached_assets/generated_audio/badger-sniff.mp3"
 type = "audio"
 title = "badger-sniff"
+
+[[outputs]]
+id = "8XDk6XQOQpJwj5GxxNmDL"
+uri = "file://budger-logo.png"
+type = "image"
+title = "Budger Logo — 1024×1024 PNG"
