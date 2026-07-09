@@ -71,10 +71,14 @@ export function ScreenshotImportDialog({
   open,
   onClose,
   onImported,
+  budgerName,
+  onBudgerNameSave,
 }: {
   open: boolean;
   onClose: () => void;
   onImported: () => void;
+  budgerName?: string | null;
+  onBudgerNameSave?: (name: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ExtractedRow[] | null>(null);
@@ -83,6 +87,14 @@ export function ScreenshotImportDialog({
   const [importing, setImporting] = useState(false);
   const [scope, setScopeState] = useState<ImportScope>(loadScope);
   const [outOfMonthDeselected, setOutOfMonthDeselected] = useState(false);
+
+  // ── Budger naming — synced from prop, saved on blur / Enter ──────────────
+  const [nameInput, setNameInput] = useState(budgerName ?? "");
+  useEffect(() => { setNameInput(budgerName ?? ""); }, [budgerName]);
+  function handleNameSave() {
+    const trimmed = nameInput.trim();
+    if (trimmed !== (budgerName ?? "")) onBudgerNameSave?.(trimmed);
+  }
 
   // transitioning = scan complete but we're waiting for sniff 4 before revealing results
   const [transitioning, setTransitioning] = useState(false);
@@ -328,13 +340,13 @@ export function ScreenshotImportDialog({
                 />
               </div>
 
-              {/* "Budger is sniffing…" — fades+slides in fresh each cycle */}
+              {/* "[Name] is sniffing…" — fades+slides in fresh each cycle */}
               <p
                 key={`label-${sniffTick}`}
                 className="text-base font-semibold tracking-wide text-foreground"
                 style={{ animation: "sid-text-in 0.35s ease-out forwards" }}
               >
-                {t("tx.sniffing_label")}
+                {budgerName ? `${budgerName} is sniffing…` : t("tx.sniffing_label")}
               </p>
 
               {/* Bouncing dots loading indicator */}
@@ -361,8 +373,22 @@ export function ScreenshotImportDialog({
           {/* ── Idle (no scan, no results) ──────────────────────────────── */}
           {!rows && !isSniffing && (
             <div className="flex flex-col gap-6 pt-3 pb-2">
-              <div className="flex justify-center pt-2">
+              <div className="flex flex-col items-center gap-2 pt-2">
                 <BadgerLogo size={96} />
+                {/* Subtle name field — a little secret for curious eyes */}
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  placeholder="give me a name…"
+                  maxLength={24}
+                  className="w-36 text-xs text-center bg-transparent outline-none
+                             text-muted-foreground/60 placeholder:text-muted-foreground/25
+                             border-b border-transparent focus:border-border/50
+                             transition-colors duration-300 pb-0.5"
+                />
               </div>
 
               <p className="text-sm text-muted-foreground text-center leading-relaxed px-1">

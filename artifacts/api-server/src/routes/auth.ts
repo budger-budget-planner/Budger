@@ -96,10 +96,16 @@ router.get("/auth/check-email", async (req, res): Promise<void> => {
   if (!email) { res.status(400).json({ error: "Missing email" }); return; }
   const [user] = await db.select({ id: usersTable.id, pinLength: usersTable.pinLength, passwordHash: usersTable.passwordHash, deletionScheduledAt: usersTable.deletionScheduledAt })
     .from(usersTable).where(eq(usersTable.email, email));
-  // A pending account (no passwordHash) or one scheduled for deletion is treated as
-  // non-existent for login — prevents login or re-registration during grace period.
+  // A pending account (no passwordHash) is treated as non-existent.
+  // An account scheduled for deletion gets a distinct flag so the client can show
+  // a specific "you chose to delete this account" message instead of "no account found".
+  const pendingDeletion = !!user && !!user.deletionScheduledAt;
   const fullyRegistered = !!user && !!user.passwordHash && !user.deletionScheduledAt;
-  res.json({ exists: fullyRegistered, pinLength: fullyRegistered ? (user?.pinLength ?? null) : null });
+  res.json({
+    exists: fullyRegistered,
+    pinLength: fullyRegistered ? (user?.pinLength ?? null) : null,
+    ...(pendingDeletion ? { pendingDeletion: true } : {}),
+  });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
@@ -181,8 +187,9 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
     return;
   }
   if (existing && existing.deletionScheduledAt) {
-    // Email is in the 24-hour deletion grace period — block re-registration
-    res.status(409).json({ error: "This email is not available for registration at this time." });
+    // Email is in the 24-hour deletion grace period — block re-registration with a
+    // machine-readable code so the client can show a specific explanation.
+    res.status(409).json({ error: "email_pending_deletion" });
     return;
   }
 

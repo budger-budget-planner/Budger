@@ -207,7 +207,9 @@ export default function LoginPage() {
       },
       onError: (err: any) => {
         const msg = err?.response?.data?.error ?? err?.message ?? "";
-        if (msg.includes("409") || msg.includes("already")) {
+        if (msg.includes("email_pending_deletion")) {
+          setSignupError(t("login.email_pending_deletion"));
+        } else if (msg.includes("409") || msg.includes("already")) {
           setSignupError(t("login.email_taken"));
         } else {
           setSignupError(t("login.register_failed"));
@@ -296,6 +298,10 @@ export default function LoginPage() {
       );
       if (r.ok) {
         const data = await r.json().catch(() => ({}));
+        if (data.pendingDeletion) {
+          setLoginError(t("login.account_pending_deletion"));
+          return;
+        }
         if (data.exists === false) {
           setLoginError(t("login.no_account"));
           return;

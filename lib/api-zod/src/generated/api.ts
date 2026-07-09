@@ -31,6 +31,7 @@ export const GetMeResponse = zod.object({
   language: zod.string(),
   currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
+  budgerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -46,6 +47,7 @@ export const UpdateMeBody = zod.object({
   currency: zod.string().optional(),
   firstLoginDone: zod.boolean().optional(),
   pendingHouseholdAlert: zod.string().nullish(),
+  budgerName: zod.string().nullish(),
 });
 
 export const UpdateMeResponse = zod.object({
@@ -62,6 +64,7 @@ export const UpdateMeResponse = zod.object({
   language: zod.string(),
   currency: zod.string(),
   pendingHouseholdAlert: zod.string().nullable(),
+  budgerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 

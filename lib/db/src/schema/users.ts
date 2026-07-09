@@ -40,6 +40,9 @@ export const usersTable = pgTable("users", {
   // cannot log in or re-register with the same email. After the timestamp passes the account
   // is purged automatically on the next periodic sweep.
   deletionScheduledAt: timestamp("deletion_scheduled_at", { withTimezone: true }),
+  // User-assigned nickname for the AI scanning badger (e.g. "Sniffles").
+  // Shown in the scanner dialog: "[Name] is sniffing…"
+  budgerName: text("budger_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

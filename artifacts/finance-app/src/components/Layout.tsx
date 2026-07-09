@@ -549,6 +549,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <ScreenshotImportDialog
         open={screenshotOpen}
         onClose={() => setScreenshotOpen(false)}
+        budgerName={(user as any)?.budgerName ?? null}
+        onBudgerNameSave={(name) => {
+          updateMe.mutate({ data: { budgerName: name || null } as any });
+          queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        }}
         onImported={() => {
           queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
