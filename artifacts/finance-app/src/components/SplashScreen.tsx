@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGetMe } from "@workspace/api-client-react";
 import BadgerLogo from "@/components/BadgerLogo";
+import BudgerWordmark from "@/components/BudgerWordmark";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
 // ── Startup animation sequence ────────────────────────────────────────────────
@@ -183,6 +184,22 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Wordmark + tagline — pinned below the logo's resting position; fades
+          quickly and cleanly the instant the logo starts gliding away. */}
+      <div
+        style={{
+          position: "absolute",
+          top: `calc(50% + ${SPLASH_SIZE / 2 + 22}px)`,
+          left: "50%",
+          transform: "translateX(-50%)",
+          opacity: phase === "showing" ? 1 : 0,
+          transition: "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+          pointerEvents: "none",
+        }}
+      >
+        <BudgerWordmark size={38} tagline="Budget Planner" />
       </div>
     </div>
   );

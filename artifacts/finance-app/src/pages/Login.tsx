@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import BadgerLogo from "@/components/BadgerLogo";
+import BudgerWordmark from "@/components/BudgerWordmark";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
 import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
@@ -466,10 +467,7 @@ export default function LoginPage() {
               <span data-splash-logo-login>
                 <BadgerLogo size={88} />
               </span>
-              <div className="text-center">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Budger</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("login.tagline")}</p>
-              </div>
+              <BudgerWordmark size={48} tagline="Budget Planner" />
             </div>
 
             {/* Login form */}

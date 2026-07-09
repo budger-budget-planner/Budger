@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import BadgerLogo from "@/components/BadgerLogo";
+import BudgerWordmark from "@/components/BudgerWordmark";
 
 // Must match SplashScreen.tsx so the logo lands at the same size
 const SPLASH_SIZE = 120;
@@ -111,6 +112,22 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Wordmark + tagline — pinned below the logo's resting position; fades
+          quickly and cleanly the instant the logo starts flying to the header. */}
+      <div
+        style={{
+          position: "absolute",
+          top: `calc(50% + ${SPLASH_SIZE / 2 + 22}px)`,
+          left: "50%",
+          transform: "translateX(-50%)",
+          opacity: showPulse ? 1 : 0,
+          transition: "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+          pointerEvents: "none",
+        }}
+      >
+        <BudgerWordmark size={38} tagline="Budget Planner" />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { Home, LayoutDashboard, Tag, Users, LogOut, X, DollarSign, Globe, Target
 import { useLogout, useGetMe, useListIncomingInvites, useUpdateMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import BadgerLogo, { type BadgerMode } from "@/components/BadgerLogo";
+import BudgerWordmark from "@/components/BudgerWordmark";
 import NotificationCenter from "@/components/NotificationCenter";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
@@ -522,8 +523,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <BadgerLogo size={53} mode={badgerMode} />
             </span>
           </button>
-          <Link href="/" className="text-[1.4rem] font-bold tracking-tight text-foreground leading-none">
-            Budger
+          <Link href="/" className="leading-none">
+            <BudgerWordmark size={26} />
           </Link>
         </div>
 
