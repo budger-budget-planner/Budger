@@ -94,6 +94,22 @@ export default function BadgerLogo({
     ? ({ "--blg-anim-dur": `${forceAnimDurationMs}ms` } as React.CSSProperties)
     : undefined;
 
+  // "Coming alive" grow pulse — the whole icon gently swells just as a
+  // personality (wink/sniff/lick) or sleep-transition (falling-asleep/
+  // waking-up) animation kicks in, and eases back to normal once it's done.
+  // Not applied to steady "sleeping" or plain "idle" — only transient states.
+  const growDurMs =
+    mode === "falling-asleep" ? 1600 :
+    mode === "waking-up"      ? 2500 :
+    displayAnim ? (forceAnimDurationMs ?? ANIM_MS[displayAnim]) :
+    undefined;
+  const growActive = growDurMs != null;
+  const outerStyle: React.CSSProperties = {
+    transformBox: "fill-box",
+    transformOrigin: "center",
+    ...(growActive ? { animation: `blg-grow ${growDurMs}ms ease-in-out` } : {}),
+  };
+
   return (
     <svg
       width={size}
@@ -291,8 +307,18 @@ export default function BadgerLogo({
             93%  { transform: scaleY(1.08); opacity: 1;    }
             100% { transform: scaleY(1);    opacity: 1;    }
           }
+
+          /* ══ "Coming alive" grow pulse — whole icon, transient states only ══ */
+          @keyframes blg-grow {
+            0%   { transform: scale(1);    }
+            15%  { transform: scale(1.05); }
+            85%  { transform: scale(1.05); }
+            100% { transform: scale(1);    }
+          }
         `}</style>
       </defs>
+
+      <g style={outerStyle}>
 
       {/* ── Background ── */}
       <rect width="100" height="100" rx="22" fill="#111" />
@@ -432,6 +458,7 @@ export default function BadgerLogo({
           fill="white"
           textAnchor="middle"
         >Z</text>
+      </g>
       </g>
     </svg>
   );
