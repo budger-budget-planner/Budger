@@ -109,6 +109,10 @@ export default function BadgerLogo({
   const growDurMs =
     mode === "falling-asleep" ? 1600 :
     mode === "waking-up"      ? 2500 :
+    // Wink's own eye-blink is quick (700ms) but its grow pulse runs a bit
+    // longer on both ends — starting a touch before and settling a touch
+    // after — so the size change reads as smooth rather than snapping in/out.
+    displayAnim === "wink"    ? (forceAnimDurationMs ?? ANIM_MS.wink) + 260 :
     displayAnim ? (forceAnimDurationMs ?? ANIM_MS[displayAnim]) :
     undefined;
   const growActive = growPulse && growDurMs != null;
@@ -331,11 +335,12 @@ export default function BadgerLogo({
             85%  { transform: scale(1.05); }
             100% { transform: scale(1);    }
           }
-          /* Wink: hold the grown size a little longer before settling back */
+          /* Wink: slower, smoother grow-in and settle-out (extra time budgeted
+             into growDurMs) so the size change never feels like a snap. */
           @keyframes blg-grow-wink {
             0%   { transform: scale(1);    }
-            15%  { transform: scale(1.05); }
-            92%  { transform: scale(1.05); }
+            22%  { transform: scale(1.05); }
+            80%  { transform: scale(1.05); }
             100% { transform: scale(1);    }
           }
           /* Lick: ease back down sooner so it doesn't linger past the tongue motion */
