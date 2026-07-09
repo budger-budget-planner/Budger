@@ -363,7 +363,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     return () => hintTimersRef.current.forEach(clearTimeout);
   }, []);
 
-  // ── Two-segment sequential wiggle: fires 6 s after mount ─────────────────
+  // ── Two-segment sequential wiggle: fires 4 s after mount ─────────────────
   // Uses the Web Animations API so translate directions are computed from each
   // group's actual midDeg at fire time — CSS keyframes can't do dynamic values.
   //
@@ -411,7 +411,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       t2 = setTimeout(() => {
         if (el2) wiggleEl(el2, secondSegMidDegRef.current);
       }, 900); // 700 ms group1 duration + 200 ms gap
-    }, 6_000);
+    }, 4_000);
 
     return () => {
       clearTimeout(t1);

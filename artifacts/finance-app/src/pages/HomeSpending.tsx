@@ -741,16 +741,16 @@ function SwipeableTxRow({
       const id = setTimeout(() => { if (!cancelled) fn(); }, ms);
       timers.push(id);
     };
-    setAnimating(true);
-    go(() => setOffset(-7.5), 100);          // left ×1 (half)
-    go(() => setOffset(0),    260);          // back
-    go(() => setOffset(-15),  370);          // left ×2 (full)
-    go(() => setOffset(0),    530);          // back
-    go(() => setOffset(9.5),  1360);         // right ×1 (half)
-    go(() => setOffset(0),    1520);         // back
-    go(() => setOffset(19),   1630);         // right ×2 (full)
-    go(() => setOffset(0),    1790);         // back
-    go(() => setAnimating(false), 1900);
+    go(() => setAnimating(true), 2000);
+    go(() => setOffset(-7.5), 2100);         // left ×1 (half)
+    go(() => setOffset(0),    2260);         // back
+    go(() => setOffset(-15),  2370);         // left ×2 (full)
+    go(() => setOffset(0),    2530);         // back
+    go(() => setOffset(9.5),  3360);         // right ×1 (half)
+    go(() => setOffset(0),    3520);         // back
+    go(() => setOffset(19),   3630);         // right ×2 (full)
+    go(() => setOffset(0),    3790);         // back
+    go(() => setAnimating(false), 3900);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
