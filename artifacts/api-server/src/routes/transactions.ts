@@ -238,7 +238,11 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
           },
           required: ["transactions"],
         },
-        maxOutputTokens: 8192,
+        // 32 k output tokens so large multi-page PDFs (40+ rows) are never
+        // truncated mid-list. Gemini 2.5 Flash thinking tokens come out of
+        // the same budget, so cap thinking low to preserve space for JSON.
+        maxOutputTokens: 32768,
+        thinkingConfig: { thinkingBudget: 512 },
       },
     });
 
