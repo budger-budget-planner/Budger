@@ -7,18 +7,18 @@ import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 // ── Startup animation sequence ────────────────────────────────────────────────
 // sniff at 2× speed → lick at 2.25× speed → wink at normal speed
 // Total sequence duration before the exit glide begins: ~2 774 ms
-const SNIFF_MS  = Math.round(1400 / 2);      //  700 ms (2× speed)
+const SNIFF_MS  = Math.round(1400 / 2);     //  700 ms (2× speed)
 const LICK_MS   = Math.round(2400 / 2.25);  // 1067 ms (2.25× speed)
-const WINK_MS   = 700;                       //  700 ms (normal speed)
-const SETTLE_MS = 200;                       //  short pause after wink before gliding away
-const GAP_MS    = 100;                       //  idle gap between animations (lets CSS reset)
+const WINK_MS   = 700;                      //  700 ms (normal speed)
+const SETTLE_MS = 200;                      //  short pause after wink before gliding away
+const GAP_MS    = 100;                      //  idle gap between animations (lets CSS reset)
 
 // Absolute timeouts from mount (t = 0 → sniff starts)
-const T_SNIFF_END  = SNIFF_MS;                                   //  700
-const T_LICK_START = T_SNIFF_END  + GAP_MS;                     //  800
-const T_LICK_END   = T_LICK_START + LICK_MS;                    // 1867
-const T_WINK_START = T_LICK_END   + GAP_MS;                     // 1967
-const T_SEQ_DONE   = T_WINK_START + WINK_MS + SETTLE_MS;        // 2867
+const T_SNIFF_END  = SNIFF_MS;                                  //  700
+const T_LICK_START = T_SNIFF_END  + GAP_MS;                    //  800
+const T_LICK_END   = T_LICK_START + LICK_MS;                   // 1867
+const T_WINK_START = T_LICK_END   + GAP_MS;                    // 1967
+const T_SEQ_DONE   = T_WINK_START + WINK_MS + SETTLE_MS;       // 2867
 
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
@@ -29,14 +29,21 @@ type Dest     = "home" | "login" | null;
 // ── Transform computation ─────────────────────────────────────────────────────
 // Computes translate(tx, ty) + scale(s) so the 120-px splash logo lands
 // pixel-perfect on the destination logo element in the live DOM.
+// srcEl: the splash logo's translate-layer element — used so the origin is the
+// logo's *actual* on-screen center, not an assumed "viewport center" that breaks
+// when safe-area padding or group-centering shifts the logo's true position.
 type LogoTransform = { translate: string; scale: number };
 
-function measureTarget(el: Element): LogoTransform {
-  const rect     = el.getBoundingClientRect();
-  const targetCX = rect.left + rect.width  / 2;
-  const targetCY = rect.top  + rect.height / 2;
-  const splashCX = window.innerWidth  / 2;
-  const splashCY = window.innerHeight / 2;
+function measureTarget(destEl: Element, srcEl?: Element | null): LogoTransform {
+  const destRect = destEl.getBoundingClientRect();
+  const targetCX = destRect.left + destRect.width  / 2;
+  const targetCY = destRect.top  + destRect.height / 2;
+
+  // If we have the actual source element, read its center directly.
+  // Fall back to viewport center only if the ref is unavailable (shouldn't happen).
+  const srcRect  = srcEl?.getBoundingClientRect() ?? null;
+  const splashCX = srcRect ? srcRect.left + srcRect.width  / 2 : window.innerWidth  / 2;
+  const splashCY = srcRect ? srcRect.top  + srcRect.height / 2 : window.innerHeight / 2;
 
   return {
     // Round to whole pixels — fractional translate/scale values can make the
@@ -44,14 +51,17 @@ function measureTarget(el: Element): LogoTransform {
     // than the resting destination logo, which reads as a "pop"/mismatch
     // right as the two swap. Whole pixels guarantee a 1:1 visual match.
     translate: `translate(${Math.round(targetCX - splashCX)}px, ${Math.round(targetCY - splashCY)}px)`,
-    scale: Math.round((rect.width / SPLASH_SIZE) * 1000) / 1000,
+    scale: Math.round((destRect.width / SPLASH_SIZE) * 1000) / 1000,
   };
 }
 
 function fallbackTransform(dest: "home" | "login"): LogoTransform {
+  // Group-centered layout: logo sits ~36 px above viewport center
+  // (because the wordmark below shifts the visual group's center down).
+  // Adjust the Y fallback to match that actual offset.
   return dest === "home"
-    ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 28px))", scale: 0.35 }
-    : { translate: "translateY(-16vh)", scale: 0.733 };
+    ? { translate: "translate(calc(-50vw + 34px), calc(-50vh + 64px))", scale: 0.35 }
+    : { translate: "translateY(-12vh)", scale: 0.733 };
 }
 
 // Destination screen (Layout/header or Login) can still be mid-mount — behind
@@ -63,6 +73,7 @@ function fallbackTransform(dest: "home" | "login"): LogoTransform {
 function computeTransformWhenReady(
   dest: "home" | "login",
   onReady: (t: LogoTransform) => void,
+  srcEl?: Element | null,
 ) {
   const selector = dest === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]";
   let attempts = 0;
@@ -78,17 +89,17 @@ function computeTransformWhenReady(
       // capture a mid-layout-shift position (e.g. header still reflowing
       // right after mount).
       const stable = lastRect != null
-        && rect.left === lastRect.left && rect.top === lastRect.top
+        && rect.left  === lastRect.left  && rect.top    === lastRect.top
         && rect.width === lastRect.width && rect.height === lastRect.height;
       lastRect = rect;
       if (stable) {
-        onReady(measureTarget(el));
+        onReady(measureTarget(el, srcEl));
         return;
       }
     }
 
     if (attempts >= 20) { // ~20 frames (≈330ms @60fps) worst case before giving up
-      onReady(el ? measureTarget(el) : fallbackTransform(dest));
+      onReady(el ? measureTarget(el, srcEl) : fallbackTransform(dest));
       return;
     }
     requestAnimationFrame(tick);
@@ -111,6 +122,10 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const [translate, setTranslate] = useState<string>("none");
   const [scale,     setScale]     = useState<number>(1);
 
+  // Ref on the translate layer so we always know the logo's actual screen
+  // position at fly-time — no "assume viewport center" math needed.
+  const logoRef = useRef<HTMLDivElement>(null);
+
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
@@ -121,7 +136,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     // t = T_SNIFF_END:  sniff done → idle gap
     ids.push(setTimeout(() => setAnimStep("idle"), T_SNIFF_END));
 
-    // t = T_LICK_START: start lick (1.5× speed)
+    // t = T_LICK_START: start lick (2.25× speed)
     ids.push(setTimeout(() => {
       setAnimStep("lick");
       setAnimDurMs(LICK_MS);
@@ -162,6 +177,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
     // Measure live DOM positions — destination screen renders underneath the
     // overlay, but may still be mid-mount, so wait for a stable rect first.
+    // Pass logoRef.current so translation originates from the logo's true center.
     computeTransformWhenReady(target, ({ translate: tx, scale: sc }) => {
       if (cancelled) return;
       setTranslate(tx);
@@ -172,7 +188,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       // flashes the destination screen while the logo is still mid-flight.
       t1 = setTimeout(() => setPhase("fading"), 950);
       t2 = setTimeout(onDone,                   1400);
-    });
+    }, logoRef.current);
 
     return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); };
   }, [seqDone, isLoading, user, onDone]);
@@ -188,7 +204,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const forceAnimDurMs = forceAnim != null ? animDurMs : undefined;
 
   return (
-    /* Layer 1 — full-screen gradient overlay; only this carries the opacity fade */
+    /* Full-screen gradient overlay — only this div carries the opacity fade. */
     <div
       className="splash-screen"
       style={{
@@ -200,60 +216,84 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        // Respect iOS safe-area insets (notch + home indicator) so the content
+        // is centered in the *visible* area, not the raw full-screen rect.
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
         opacity: isFading ? 0 : 1,
         transition: isFading ? "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         pointerEvents: isMoving ? "none" : "auto",
       }}
     >
-      {/* Layer 2 — handles translate only; kept separate from scale so the browser
-          interpolates each transform linearly rather than combining them into a matrix
-          (combined matrix interpolation warps the logo as it glides). */}
+      {/*
+        Column group — logo + wordmark centered together as a visual unit.
+        Centering only the logo left the wordmark hanging below, making the
+        pair feel low. Centering the pair means the logo sits slightly above
+        the viewport midpoint, which matches the human eye's optical center.
+      */}
       <div
         style={{
-          transform: isMoving ? translate : "none",
-          transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-          willChange: "transform",
-          lineHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 22,
         }}
       >
-        {/* Layer 2b — handles scale only, nested inside the translate layer */}
+        {/* ── Translate layer ─────────────────────────────────────────────
+            Ref lives here so getBoundingClientRect() at fly-time gives the
+            logo's true screen center (used by computeTransformWhenReady as
+            the origin for the translate vector). */}
         <div
+          ref={logoRef}
           style={{
-            transform: isMoving ? `scale(${scale})` : "none",
+            transform: isMoving ? translate : "none",
             transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
             willChange: "transform",
-            transformOrigin: "center center",
             lineHeight: 0,
           }}
         >
-          {/* Layer 3 — pulse while showing; stops when moving so the glide is clean.
-              Keeping the class active during individual face animations prevents a
-              scale-snap when the pulse cycle restarts between animations. */}
-          <div className={phase === "showing" ? "splash-pulse" : ""}>
-            <BadgerLogo
-              size={SPLASH_SIZE}
-              forceAnim={forceAnim}
-              forceAnimDurationMs={forceAnimDurMs}
-              growPulse={false}
-            />
+          {/* ── Scale layer ─────────────────────────────────────────────
+              Separate from translate so the browser interpolates each axis
+              independently — combined matrix interpolation warps the logo
+              mid-flight. */}
+          <div
+            style={{
+              transform: isMoving ? `scale(${scale})` : "none",
+              transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+              willChange: "transform",
+              transformOrigin: "center center",
+              lineHeight: 0,
+            }}
+          >
+            {/* ── Pulse layer ─────────────────────────────────────────
+                Active while showing; stopped when moving so the glide is
+                clean. Keeping it active across individual face animations
+                prevents a scale-snap when the pulse cycle restarts between
+                animations. */}
+            <div className={phase === "showing" ? "splash-pulse" : ""}>
+              <BadgerLogo
+                size={SPLASH_SIZE}
+                forceAnim={forceAnim}
+                forceAnimDurationMs={forceAnimDurMs}
+                growPulse={false}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Wordmark + tagline — pinned below the logo's resting position; fades
-          quickly and cleanly the instant the logo starts gliding away. */}
-      <div
-        style={{
-          position: "absolute",
-          top: `calc(50% + ${SPLASH_SIZE / 2 + 22}px)`,
-          left: "50%",
-          transform: "translateX(-50%)",
-          opacity: phase === "showing" ? 1 : 0,
-          transition: "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
-          pointerEvents: "none",
-        }}
-      >
-        <BudgerWordmark size={38} tagline="Budget Planner" />
+        {/* ── Wordmark + tagline ───────────────────────────────────────────
+            Sits below the logo in normal flow (no absolute positioning),
+            so the browser's flex centering treats logo+wordmark as one unit.
+            Fades out the instant the logo begins its glide to the header. */}
+        <div
+          style={{
+            opacity: phase === "showing" ? 1 : 0,
+            transition: "opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
+            pointerEvents: "none",
+          }}
+        >
+          <BudgerWordmark size={38} tagline="Budget Planner" />
+        </div>
       </div>
     </div>
   );
