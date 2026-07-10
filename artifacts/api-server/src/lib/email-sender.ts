@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { logger } from "./logger";
+import { logger, maskEmail } from "./logger";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? "Budger <onboarding@resend.dev>";
@@ -283,7 +283,7 @@ export async function sendPinResetEmail({ to, firstName, resetUrl, language = "e
       logger.warn({ to, error }, "email-sender: Resend error sending PIN reset email");
       return false;
     }
-    logger.info({ to }, "email-sender: PIN reset email sent via Resend");
+    logger.info({ to: maskEmail(to) }, "email-sender: PIN reset email sent via Resend");
     return true;
   } catch (err) {
     logger.warn({ err, to }, "email-sender: failed to send PIN reset email");
@@ -369,7 +369,7 @@ export async function sendDeletionRequestEmail({ userEmail, userName }: Deletion
       logger.warn({ userEmail, error }, "email-sender: error sending deletion request email");
       return false;
     }
-    logger.info({ userEmail }, "email-sender: deletion request email sent");
+    logger.info({ userEmail: maskEmail(userEmail) }, "email-sender: deletion request email sent");
     return true;
   } catch (err) {
     logger.warn({ err, userEmail }, "email-sender: failed to send deletion request email");
@@ -496,7 +496,7 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
       logger.warn({ to, error }, "email-sender: error sending deletion ack email");
       return false;
     }
-    logger.info({ to }, "email-sender: deletion ack email sent to user");
+    logger.info({ to: maskEmail(to) }, "email-sender: deletion ack email sent to user");
     return true;
   } catch (err) {
     logger.warn({ err, to }, "email-sender: failed to send deletion ack email");
@@ -521,7 +521,7 @@ export async function sendVerificationEmail({ to, firstName, verifyUrl, language
       logger.warn({ to, error }, "email-sender: Resend returned an error, falling back to simulated email");
       return false;
     }
-    logger.info({ to }, "email-sender: verification email sent via Resend");
+    logger.info({ to: maskEmail(to) }, "email-sender: verification email sent via Resend");
     return true;
   } catch (err) {
     logger.warn({ err, to }, "email-sender: failed to send via Resend, falling back to simulated email");

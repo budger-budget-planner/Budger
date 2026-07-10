@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { householdsTable } from "./households";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -12,7 +13,11 @@ export const usersTable = pgTable("users", {
   status: text("status").notNull().default("normal"),
   firstLoginDone: boolean("first_login_done").notNull().default(false),
   totalBudget: numeric("total_budget", { precision: 12, scale: 2 }),
-  householdId: integer("household_id"),
+  // References households.id. Uses a lazy () => ref to tolerate the circular
+  // import (households.ts also imports usersTable for its ownerId FK).
+  // ON DELETE SET NULL: deleting a household must not delete its members —
+  // it simply orphans them back to "no household", same as leaving one today.
+  householdId: integer("household_id").references((): any => householdsTable.id, { onDelete: "set null" }),
   dashboardBlocked: boolean("dashboard_blocked").notNull().default(false),
   language: text("language").notNull().default("en"),
   currency: text("currency").notNull().default("USD"),

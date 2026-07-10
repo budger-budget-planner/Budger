@@ -8,6 +8,13 @@
       "when": 1783712380090,
       "tag": "0000_past_blazing_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783715941157,
+      "tag": "0001_handy_masque",
+      "breakpoints": true
     }
   ]
 }

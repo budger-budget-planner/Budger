@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "@workspace/db";
 import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
-import { logger } from "../lib/logger";
+import { logger, maskEmail } from "../lib/logger";
 import {
   LoginBody,
   LoginResponse,
@@ -451,7 +451,7 @@ router.post("/auth/forgot-pin", async (req, res): Promise<void> => {
     language: (user.language as "en" | "pl") ?? "en",
   });
 
-  logger.info({ to: email, sent }, "forgot-pin: reset email dispatched");
+  logger.info({ to: maskEmail(email), sent }, "forgot-pin: reset email dispatched");
   res.json(ForgotPinResponse.parse({ sent: true }));
 });
 
@@ -524,7 +524,7 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     return;
   }
 
-  req.log.info({ userId, email: user.email }, "auth: account deletion scheduled (24h grace)");
+  req.log.info({ userId, email: maskEmail(user.email) }, "auth: account deletion scheduled (24h grace)");
 
   const displayName = user.name || user.email;
 

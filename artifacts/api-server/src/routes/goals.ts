@@ -67,6 +67,11 @@ async function getHouseholdHeadIds(householdId: number): Promise<number[]> {
   return members.filter(m => isHead(m.role)).map(m => m.userId);
 }
 
+// Both helpers accept an optional executor (a db.transaction() `tx`) so
+// callers that need the activity-log write to be atomic with the DB change
+// that triggered it (e.g. goal realization) can pass their `tx` instead of
+// the module-level `db`, closing the gap where a crash between the two
+// writes would leave state committed but the notification silently lost.
 async function fanOutActivity(
   householdId: number,
   excludeUserIds: number[],
@@ -76,12 +81,13 @@ async function fanOutActivity(
   goalColor: string,
   actorName: string | null,
   activityMonth?: string,
+  executor: typeof db = db,
 ) {
-  const members = await db.select().from(householdMembersTable)
+  const members = await executor.select().from(householdMembersTable)
     .where(eq(householdMembersTable.householdId, householdId));
   const targets = members.filter(m => !excludeUserIds.includes(m.userId));
   if (targets.length === 0) return;
-  await db.insert(goalActivityTable).values(targets.map(m => ({
+  await executor.insert(goalActivityTable).values(targets.map(m => ({
     userId: m.userId,
     type,
     goalId,
@@ -99,8 +105,9 @@ async function fanOutActivityToUser(
   goalName: string,
   goalColor: string,
   actorName: string | null,
+  executor: typeof db = db,
 ) {
-  await db.insert(goalActivityTable).values({
+  await executor.insert(goalActivityTable).values({
     userId: targetUserId,
     type,
     goalId,
@@ -216,38 +223,52 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
 
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
-  await db.update(goalProposalsTable).set({ status: "approved" }).where(eq(goalProposalsTable.id, id));
-  await db.update(goalsTable).set({ householdId: user.householdId }).where(eq(goalsTable.id, proposal.goalId));
 
+  // Fetch goal and actor before the transaction so we have names for activity rows.
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, proposal.goalId));
   const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const gName = goal?.name ?? "";
   const gColor = goal?.color ?? "#818cf8";
   const aName = actor?.name ?? null;
 
-  // Notify proposer their goal was approved
-  await fanOutActivityToUser(proposal.proposerId, "share_approved", proposal.goalId, gName, gColor, aName);
+  // Fetch ward targets before the transaction (read-only, no consistency risk).
+  const allMembers = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.householdId, user.householdId));
+  const wardTargets = allMembers.filter(m => isChildRole(m.role) && m.userId !== proposal.proposerId);
+
+  // All three writes (proposal status, goal householdId, activity rows) are
+  // committed atomically so a crash between them cannot leave a proposal
+  // "approved" without the goal being shared or the notification recorded.
+  await db.transaction(async (tx) => {
+    await tx.update(goalProposalsTable).set({ status: "approved" }).where(eq(goalProposalsTable.id, id));
+    await tx.update(goalsTable).set({ householdId: user.householdId }).where(eq(goalsTable.id, proposal.goalId));
+    await fanOutActivityToUser(
+      proposal.proposerId,
+      "share_approved",
+      proposal.goalId,
+      gName,
+      gColor,
+      aName,
+      tx as unknown as typeof db,
+    );
+    if (wardTargets.length > 0) {
+      await tx.insert(goalActivityTable).values(wardTargets.map(m => ({
+        userId: m.userId,
+        type: "goal_created",
+        goalId: proposal.goalId,
+        goalName: gName,
+        goalColor: gColor,
+        actorName: aName,
+      })));
+    }
+  });
+
   sendPushToUser(proposal.proposerId, {
     title: "Goal Proposal Approved ✓",
     body: `"${gName}" has been approved and is now a household goal.`,
     url: "/?sheet=goals",
     tag: `proposal-approved-${proposal.goalId}`,
   }).catch(() => {});
-
-  // Notify all ward/child members that a new household goal was created
-  const allMembers = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.householdId, user.householdId));
-  const wardTargets = allMembers.filter(m => isChildRole(m.role) && m.userId !== proposal.proposerId);
-  if (wardTargets.length > 0) {
-    await db.insert(goalActivityTable).values(wardTargets.map(m => ({
-      userId: m.userId,
-      type: "goal_created",
-      goalId: proposal.goalId,
-      goalName: gName,
-      goalColor: gColor,
-      actorName: aName,
-    })));
-  }
 
   res.json({ ok: true });
 });
@@ -267,22 +288,30 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   const [proposal] = await db.select().from(goalProposalsTable).where(eq(goalProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
   const reason = req.body?.reason ? String(req.body.reason).trim() : null;
-  await db.update(goalProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalProposalsTable.id, id));
 
-  // Notify proposer their goal was declined
   const [declineGoal] = await db.select().from(goalsTable).where(eq(goalsTable.id, proposal.goalId));
   const [declineActor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  await fanOutActivityToUser(
-    proposal.proposerId,
-    "share_declined",
-    proposal.goalId,
-    declineGoal?.name ?? "",
-    declineGoal?.color ?? "#818cf8",
-    declineActor?.name ?? null,
-  );
+  const dGName = declineGoal?.name ?? "";
+  const dGColor = declineGoal?.color ?? "#818cf8";
+  const dAName = declineActor?.name ?? null;
+
+  // Proposal status update and activity notification are atomic.
+  await db.transaction(async (tx) => {
+    await tx.update(goalProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalProposalsTable.id, id));
+    await fanOutActivityToUser(
+      proposal.proposerId,
+      "share_declined",
+      proposal.goalId,
+      dGName,
+      dGColor,
+      dAName,
+      tx as unknown as typeof db,
+    );
+  });
+
   sendPushToUser(proposal.proposerId, {
     title: "Goal Proposal Declined",
-    body: `"${declineGoal?.name ?? "Your goal"}" proposal was not approved.`,
+    body: `"${dGName || "Your goal"}" proposal was not approved.`,
     url: "/?sheet=goals",
     tag: `proposal-declined-${proposal.goalId}`,
   }).catch(() => {});
@@ -389,42 +418,50 @@ router.post("/goals/edit-proposals/:id/approve", async (req, res): Promise<void>
   const [proposal] = await db.select().from(goalEditProposalsTable).where(eq(goalEditProposalsTable.id, id));
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
 
-  await db.update(goalEditProposalsTable).set({ status: "approved" }).where(eq(goalEditProposalsTable.id, id));
-  await db.update(goalsTable).set({
-    name: proposal.name,
-    color: proposal.color,
-    budget: proposal.budget,
-    currency: proposal.currency,
-    deadline: proposal.deadline,
-    divideByMonths: proposal.divideByMonths,
-  }).where(eq(goalsTable.id, proposal.goalId));
-
-  // Notify proposer their edit was approved
   const [editActor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  await fanOutActivityToUser(
-    proposal.proposerId,
-    "edit_approved",
-    proposal.goalId,
-    proposal.name,
-    proposal.color,
-    editActor?.name ?? null,
-  );
+
+  // All three writes (proposal status, goal fields, activity rows for proposer
+  // and remaining members) are committed atomically so a crash cannot leave
+  // the proposal "approved" while the goal still shows the old values, or
+  // leave the goal updated without the notification rows written.
+  await db.transaction(async (tx) => {
+    await tx.update(goalEditProposalsTable).set({ status: "approved" }).where(eq(goalEditProposalsTable.id, id));
+    await tx.update(goalsTable).set({
+      name: proposal.name,
+      color: proposal.color,
+      budget: proposal.budget,
+      currency: proposal.currency,
+      deadline: proposal.deadline,
+      divideByMonths: proposal.divideByMonths,
+    }).where(eq(goalsTable.id, proposal.goalId));
+    await fanOutActivityToUser(
+      proposal.proposerId,
+      "edit_approved",
+      proposal.goalId,
+      proposal.name,
+      proposal.color,
+      editActor?.name ?? null,
+      tx as unknown as typeof db,
+    );
+    await fanOutActivity(
+      user.householdId!, // guarded by `if (!user?.householdId)` early-return above
+      [userId, proposal.proposerId],
+      "goal_changed",
+      proposal.goalId,
+      proposal.name,
+      proposal.color,
+      editActor?.name ?? null,
+      undefined,
+      tx as unknown as typeof db,
+    );
+  });
+
   sendPushToUser(proposal.proposerId, {
     title: "Goal Edit Approved ✓",
     body: `Your changes to "${proposal.name}" have been approved.`,
     url: "/?sheet=goals",
     tag: `edit-approved-${proposal.goalId}`,
   }).catch(() => {});
-  // Fan-out goal_changed to all other members (not head, not proposer)
-  await fanOutActivity(
-    user.householdId,
-    [userId, proposal.proposerId],
-    "goal_changed",
-    proposal.goalId,
-    proposal.name,
-    proposal.color,
-    editActor?.name ?? null,
-  );
 
   res.json({ ok: true });
 });
@@ -445,18 +482,21 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
   if (!proposal || proposal.householdId !== user.householdId) { res.status(404).json({ error: "Not found" }); return; }
 
   const reason = req.body?.reason ? String(req.body.reason).trim() : null;
-  await db.update(goalEditProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalEditProposalsTable.id, id));
-
-  // Notify proposer their edit was declined
   const [editDeclineActor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  await fanOutActivityToUser(
-    proposal.proposerId,
-    "edit_declined",
-    proposal.goalId,
-    proposal.name,
-    proposal.color,
-    editDeclineActor?.name ?? null,
-  );
+
+  // Proposal status and activity notification are atomic.
+  await db.transaction(async (tx) => {
+    await tx.update(goalEditProposalsTable).set({ status: "declined", declineReason: reason }).where(eq(goalEditProposalsTable.id, id));
+    await fanOutActivityToUser(
+      proposal.proposerId,
+      "edit_declined",
+      proposal.goalId,
+      proposal.name,
+      proposal.color,
+      editDeclineActor?.name ?? null,
+      tx as unknown as typeof db,
+    );
+  });
   sendPushToUser(proposal.proposerId, {
     title: "Goal Edit Declined",
     body: `Your proposed changes to "${proposal.name}" were not approved.`,
@@ -892,7 +932,42 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
         .set({ realizedAt: new Date() })
         .where(and(eq(goalsTable.id, parseInt(goalId)), isNull(goalsTable.realizedAt)))
         .returning();
-      if (realized) { goal = realized; wasJustRealized = true; }
+      if (realized) {
+        goal = realized;
+        wasJustRealized = true;
+
+        // Write the "goal_realized" activity log entry inside the same
+        // transaction as the contribution + realizedAt update. Previously
+        // this ran after the response was sent as a separate, unguarded
+        // write — a crash between the two left the goal correctly marked
+        // realized but with the notification silently lost forever (no
+        // retry, no idempotency gate to catch it later like the monthly
+        // notification has).
+        const [actor] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+        if (goal.householdId) {
+          await fanOutActivity(
+            goal.householdId,
+            [],
+            "goal_realized",
+            goal.id,
+            goal.name,
+            goal.color,
+            actor?.name ?? null,
+            undefined,
+            tx as unknown as typeof db,
+          );
+        } else {
+          const recipientId = goal.userId ?? userId;
+          await tx.insert(goalActivityTable).values({
+            userId: recipientId,
+            type: "goal_realized",
+            goalId: goal.id,
+            goalName: goal.name,
+            goalColor: goal.color,
+            actorName: actor?.name ?? null,
+          }).onConflictDoNothing();
+        }
+      }
     }
     if (!goal) {
       [goal] = await tx.select().from(goalsTable).where(eq(goalsTable.id, parseInt(goalId)));
@@ -901,43 +976,18 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
 
   res.status(201).json(formatContribution(contrib, goal));
 
-  // After response: fan-out activity notifications (non-critical, fire-and-forget).
-  // realizedAt was already updated atomically in the transaction above.
+  // After response: only the monthly-threshold notification remains here —
+  // it's already protected by its own idempotency check (existingMonthly
+  // below) so a lost fire-and-forget write just gets retried on the next
+  // contribution to the same goal/month, unlike the one-shot realized event.
   if (goal) {
     try {
-      // Total contributions for this goal across all time
       const allContribs = await db.select().from(goalContributionsTable)
         .where(eq(goalContributionsTable.goalId, goal.id));
       const totalContributed = allContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
       const goalBudget = parseFloat(goal.budget);
 
-      if (totalContributed >= goalBudget) {
-        // Only fan out if this specific contribution crossed the threshold.
-        if (wasJustRealized) {
-          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-          if (goal.householdId) {
-            await fanOutActivity(
-              goal.householdId,
-              [],
-              "goal_realized",
-              goal.id,
-              goal.name,
-              goal.color,
-              actor?.name ?? null,
-            );
-          } else {
-            const recipientId = goal.userId ?? userId;
-            await db.insert(goalActivityTable).values({
-              userId: recipientId,
-              type: "goal_realized",
-              goalId: goal.id,
-              goalName: goal.name,
-              goalColor: goal.color,
-              actorName: actor?.name ?? null,
-            }).onConflictDoNothing();
-          }
-        }
-      } else if (goal.divideByMonths) {
+      if (totalContributed < goalBudget && goal.divideByMonths) {
         // Check monthly threshold
         const monthContribs = allContribs.filter(c => c.month === contribMonth);
         const monthTotal = monthContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
