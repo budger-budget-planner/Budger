@@ -31,6 +31,20 @@ if (Number.isNaN(port) || port <= 0) {
 async function ensureDbSchema(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
 
+  // `drizzle-kit push` diffs the live schema and can decide to drop/recreate a
+  // column it can't reconcile — safe on a disposable dev database, potentially
+  // destructive against real user data. Never run it automatically once the
+  // app is live in production; require a deliberate, reviewed migration step
+  // instead (see lib/db/README or `pnpm --filter @workspace/db run push`
+  // run manually from a safe context).
+  if (process.env.NODE_ENV === "production") {
+    logger.info(
+      "Skipping automatic DB schema push in production. Run schema changes " +
+        "via a reviewed migration before deploying — never `push --force` against live data.",
+    );
+    return;
+  }
+
   logger.info("Applying DB schema (drizzle-kit push --force)…");
 
   // Find the workspace root: walk up from __dirname until we find pnpm-workspace.yaml.

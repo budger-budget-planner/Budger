@@ -311,7 +311,7 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
   const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
-  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+  if (!tx || tx.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
@@ -367,6 +367,9 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
 
   const params = DeleteTransactionParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
   // Remove any goal contributions that were linked to this transaction so
   // goal progress bars and totals stay accurate.
@@ -449,6 +452,9 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
     res.status(400).json({ error: "imageData is required" }); return;
   }
 
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
   const [tx] = await db.update(transactionsTable)
     .set({ receiptImage: imageData })
     .where(eq(transactionsTable.id, id))
@@ -469,6 +475,9 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
 
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
+  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
   const [tx] = await db.update(transactionsTable)
     .set({ receiptImage: null })

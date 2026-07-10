@@ -25,4 +25,6 @@ This is idempotent — on an existing database drizzle-kit detects no diff and e
 
 **Why:** Without this, every remix is a silent failure requiring a manual `pnpm --filter @workspace/db run push` run that no new user would know to do.
 
-**How to apply:** No action needed — it runs automatically on every startup. If drizzle-kit push somehow fails, the server continues (warning logged) so a schema error never prevents startup.
+**How to apply:** Runs automatically on every dev startup. If drizzle-kit push somehow fails, the server continues (warning logged) so a schema error never prevents startup.
+
+**Production update (2026-07-10):** `push --force` diffs and can destructively mutate a live schema (drop/recreate a column it can't reconcile), so it must never run automatically once the app has real user data. `ensureDbSchema()` now no-ops when `NODE_ENV === "production"` and logs that schema changes require a deliberate, reviewed step instead. This only affects the dev/remix convenience path — production deploys must apply schema changes manually/reviewed before deploying.
