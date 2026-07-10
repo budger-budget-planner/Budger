@@ -12,6 +12,7 @@ import BudgerWordmark from "@/components/BudgerWordmark";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
 import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
+import { useWinkSplash } from "@/lib/appReady";
 
 type Screen =
   | "start"               // email + language, login default / sign-up link
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const search = useSearch();
+  const showWinkSplash = useWinkSplash();
 
   const prefs = loadPrefs();
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
@@ -164,6 +166,13 @@ export default function LoginPage() {
           clearOnboardingDone();
           setPendingOnboarding();
         }
+        // Show the wink splash BEFORE navigating so it covers the brief moment
+        // AuthGuard re-fetches /me after login. The wink runs for ~3 s — plenty
+        // of time for the session cookie + query to resolve behind it.
+        // Navigate immediately (under the overlay) so home mounts and starts
+        // loading while the animation plays; by the time it fades out everything
+        // is ready and there is no spinner visible to the user.
+        showWinkSplash();
         queryClient.invalidateQueries();
         setLocation("/");
       },
