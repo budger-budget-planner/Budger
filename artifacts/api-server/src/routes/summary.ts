@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "@workspace/db";
-import { eq, desc, and, isNull, or } from "drizzle-orm";
+import { eq, desc, and, isNull, or, like, gte, inArray } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -16,9 +16,23 @@ function isNativeCurrency(tx: any, userCurrency?: string): boolean {
   return false;
 }
 
-async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean, userCurrency?: string, includeAllCategories = false) {
-  const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId));
+/** Validates a user-supplied month string is strictly YYYY-MM (no wildcards). */
+function isValidMonthPrefix(s: string): boolean {
+  return /^\d{4}-\d{2}$/.test(s);
+}
+
+/** Returns the YYYY-MM-DD first day of the month N months before the given date. */
+function monthsAgoDate(from: Date, monthsBack: number): string {
+  const d = new Date(from.getFullYear(), from.getMonth() - monthsBack, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+async function getSpendingGrouped(userId: number, userCurrency?: string, includeAllCategories = false, monthPrefix?: string) {
+  const whereClause = monthPrefix
+    ? and(eq(transactionsTable.userId, userId), like(transactionsTable.date, `${monthPrefix}-%`))
+    : eq(transactionsTable.userId, userId);
+
+  const txs = await db.select().from(transactionsTable).where(whereClause);
 
   // Personal dashboards must only ever show categories the user themselves created.
   // Household membership does NOT grant visibility into other members' categories here —
@@ -31,10 +45,9 @@ async function getSpendingGrouped(userId: number, filterFn?: (t: any) => boolean
   const rpMap = new Map(userRPs.map(rp => [rp.id, rp]));
 
   const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && !tx.isLarderFund && isNativeCurrency(tx, userCurrency));
-  const filtered = filterFn ? unlocked.filter(filterFn) : unlocked;
 
   const grouped = new Map<string, { total: number; count: number; category: any; rp: any }>();
-  for (const tx of filtered) {
+  for (const tx of unlocked) {
     let key: string;
     let category: any = null;
     let rp: any = null;
@@ -87,9 +100,11 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
   const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const monthPrefix = (query.data as any).month ?? currentMonth;
+  const rawMonth = (query.data as any).month ?? currentMonth;
+  if (!isValidMonthPrefix(rawMonth)) { res.status(400).json({ error: "Invalid month format, expected YYYY-MM" }); return; }
+  const monthPrefix = rawMonth;
 
-  const result = await getSpendingGrouped(userId, t => t.date.startsWith(monthPrefix), userCurrency, true);
+  const result = await getSpendingGrouped(userId, userCurrency, true, monthPrefix);
   res.json(result);
 });
 
@@ -99,19 +114,22 @@ router.get("/summary/realized-excluded", async (req, res): Promise<void> => {
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const monthPrefix = typeof req.query.month === "string" ? req.query.month : currentMonth;
+  const rawMonth = typeof req.query.month === "string" ? req.query.month : currentMonth;
+  if (!isValidMonthPrefix(rawMonth)) { res.status(400).json({ error: "Invalid month format, expected YYYY-MM" }); return; }
+  const monthPrefix = rawMonth;
   const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
 
-  const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  // Filter at the SQL level: only this user's realized-goal transactions in this month
+  const txs = await db.select().from(transactionsTable).where(
+    and(
+      eq(transactionsTable.userId, userId),
+      eq(transactionsTable.foundedWithRealizedGoal, true),
+      like(transactionsTable.date, `${monthPrefix}-%`)
+    )
+  );
 
   const total = txs
-    .filter(tx =>
-      tx.foundedWithRealizedGoal &&
-      tx.date.startsWith(monthPrefix) &&
-      !tx.currencyLocked &&
-      !tx.currencyUnavailable &&
-      isNativeCurrency(tx, userCurrency)
-    )
+    .filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && isNativeCurrency(tx, userCurrency))
     .reduce((s, tx) => s + parseFloat(tx.amount), 0);
 
   res.json({ total: Math.round(total * 100) / 100 });
@@ -121,11 +139,14 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
+  const now = new Date();
+  // Only load the 6 months we actually need — compute the cutoff date once at the DB level
+  const cutoff = monthsAgoDate(now, 5);
+
   const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId));
+    .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, cutoff)));
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const now = new Date();
   const results = [];
 
   for (let i = 5; i >= 0; i--) {
@@ -150,11 +171,18 @@ router.get("/summary/history", async (req, res): Promise<void> => {
   // long-lived accounts instead of grouping every transaction ever recorded.
   const monthsLimit = Math.min(Math.max(parseInt(String(req.query.months ?? "24"), 10) || 24, 1), 120);
 
-  const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId))
-    .orderBy(desc(transactionsTable.date));
+  const now = new Date();
+  // Compute the SQL-level cutoff so we never load transactions outside the requested window
+  const cutoff = monthsAgoDate(now, monthsLimit - 1);
 
-  const categories = await db.select().from(categoriesTable);
+  const [txs, categories] = await Promise.all([
+    db.select().from(transactionsTable)
+      .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, cutoff)))
+      .orderBy(desc(transactionsTable.date)),
+    // Scope categories to this user only — no need to load every category in the system
+    db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
+  ]);
+
   const catMap = new Map(categories.map(c => [c.id, c]));
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -225,8 +253,17 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
     .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt))
     .limit(limit);
 
-  const categories = await db.select().from(categoriesTable);
-  const users = await db.select().from(usersTable);
+  // Scope lookups to only the IDs present in the result set — no full-table scans
+  const categoryIds = [...new Set(txs.map(t => t.categoryId).filter((id): id is number => id != null))];
+  const userIds = [...new Set(txs.map(t => t.userId))];
+
+  const [categories, users] = await Promise.all([
+    categoryIds.length > 0
+      ? db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIds))
+      : Promise.resolve([]),
+    db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
+  ]);
+
   const catMap = new Map(categories.map(c => [c.id, c]));
   const userMap = new Map(users.map(u => [u.id, u]));
 

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { t } from "@/lib/i18n";
-import { compressImage, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc, requestCameraPermission } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
@@ -394,8 +394,25 @@ function ReceiptModal({
     if (!file) return;
     e.target.value = "";
     try {
-      const imageData = await compressImage(file);
-      uploadReceipt.mutate({ id: tx.id, data: { imageData } });
+      // Step 1: get a presigned upload URL from the server
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      const { uploadURL, objectPath } = await urlRes.json();
+
+      // Step 2: upload file directly to GCS (bypasses our server entirely)
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Failed to upload file");
+
+      // Step 3: save the objectPath on the transaction record
+      uploadReceipt.mutate({ id: tx.id, data: { imageData: objectPath } });
     } catch {
       alert(t("tx.image_error"));
     }
@@ -418,7 +435,7 @@ function ReceiptModal({
             {tx.receiptImage ? (
               <div className="relative group rounded-xl overflow-hidden border border-border">
                 <img
-                  src={tx.receiptImage}
+                  src={receiptSrc(tx.receiptImage)!}
                   alt="Receipt"
                   className="w-full object-cover max-h-64 cursor-pointer"
                   onClick={() => setLightbox(true)}
@@ -500,7 +517,7 @@ function ReceiptModal({
             <X className="w-6 h-6" />
           </button>
           <img
-            src={tx.receiptImage}
+            src={receiptSrc(tx.receiptImage)!}
             alt="Receipt full size"
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}

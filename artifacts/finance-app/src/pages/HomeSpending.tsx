@@ -44,7 +44,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { compressImage, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc, requestCameraPermission } from "@/lib/imageUtils";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
@@ -316,7 +316,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   const cameraRef    = useRef<HTMLInputElement>(null);
   const libraryRef   = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
-  const [localImage, setLocalImage] = useState<string | null>(tx.receiptImage ?? null);
+  const [localImage, setLocalImage] = useState<string | null>(receiptSrc(tx.receiptImage));
 
   const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
@@ -331,16 +331,33 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
     try {
-      const imageData = await compressImage(file);
+      // Step 1: get a presigned upload URL from the server
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      const { uploadURL, objectPath } = await urlRes.json();
+
+      // Step 2: upload file directly to GCS (bypasses our server entirely)
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Failed to upload file");
+
+      // Step 3: save the objectPath on the transaction record
       uploadReceipt.mutate(
-        { id: tx.id, data: { imageData } },
-        { onSuccess: () => setLocalImage(imageData) },
+        { id: tx.id, data: { imageData: objectPath } },
+        { onSuccess: () => setLocalImage(receiptSrc(objectPath)) },
       );
     } catch {
       alert("Could not process image. Please try again.");
     }
-    e.target.value = "";
   }
 
   return (

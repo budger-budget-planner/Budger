@@ -1,4 +1,15 @@
 /**
+ * Converts a stored receiptImage value to a displayable URL.
+ * New uploads store an object path (e.g. "/objects/uploads/uuid");
+ * legacy rows store a base64 data URL — both are supported transparently.
+ */
+export function receiptSrc(receiptImage: string | null | undefined): string | null {
+  if (!receiptImage) return null;
+  if (receiptImage.startsWith("data:")) return receiptImage;          // legacy base64
+  return `/api/storage${receiptImage}`;                               // new: /objects/uploads/uuid
+}
+
+/**
  * Request camera permission via getUserMedia so iOS shows the native
  * system prompt ("App would like to access your Camera").
  * Stops the stream immediately — we only need the permission grant.
