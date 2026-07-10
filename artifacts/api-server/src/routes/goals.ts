@@ -867,42 +867,6 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
       const goalBudget = parseFloat(goal.budget);
 
       if (totalContributed >= goalBudget) {
-        // Idempotency: only emit once per goal (any prior completion row blocks re-emit)
-        const [existingTotal] = await db.select({ id: goalActivityTable.id })
-          .from(goalActivityTable)
-          .where(and(
-            eq(goalActivityTable.goalId, goal.id),
-            eq(goalActivityTable.type, "goal_completed_total"),
-          ))
-          .limit(1);
-
-        if (!existingTotal) {
-          const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-          if (goal.householdId) {
-            // Household goal: fan out to all members
-            await fanOutActivity(
-              goal.householdId,
-              [],
-              "goal_completed_total",
-              goal.id,
-              goal.name,
-              goal.color,
-              actor?.name ?? null,
-            );
-          } else {
-            // Personal goal: notify the goal owner (may differ from the contributing actor)
-            const recipientId = goal.userId ?? userId;
-            await db.insert(goalActivityTable).values({
-              userId: recipientId,
-              type: "goal_completed_total",
-              goalId: goal.id,
-              goalName: goal.name,
-              goalColor: goal.color,
-              actorName: actor?.name ?? null,
-            }).onConflictDoNothing();
-          }
-        }
-
         // Mark the goal as realized (once) and notify that it will move to
         // Past Goals within 24 hours.
         if (!goal.realizedAt) {
@@ -1018,12 +982,8 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
     const totalNow = remaining.reduce((s, c) => s + parseFloat(c.amount), 0);
     const budget = parseFloat(goal.budget);
 
-    // If goal is no longer fully funded, clear total-completion rows so re-completion re-notifies
+    // If goal is no longer fully funded, revert realized state so re-completion re-notifies
     if (totalNow < budget) {
-      await db.delete(goalActivityTable).where(and(
-        eq(goalActivityTable.goalId, goal.id),
-        eq(goalActivityTable.type, "goal_completed_total"),
-      ));
       // If goal was realized (fully funded), revert it back to active — no notification
       if (goal.realizedAt) {
         await db.update(goalsTable).set({ realizedAt: null }).where(eq(goalsTable.id, goal.id));

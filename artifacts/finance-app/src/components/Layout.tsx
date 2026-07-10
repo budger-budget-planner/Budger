@@ -192,7 +192,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!goalActivityBadge || !user?.id) return;
     const NC_TYPES = [
-      "goal_completed_total", "goal_completed_monthly",
+      "goal_completed_monthly",
       "share_approved", "share_declined",
       "edit_approved", "edit_declined",
       "goal_created", "goal_changed",
@@ -210,16 +210,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       // any second insert for the same (user, key) pair with ON CONFLICT DO NOTHING.
       const dedupKey = `goal_activity_${item.id}`;
 
-      if (item.type === "goal_completed_total") {
-        addNCNotification({
-          type: "goal_completed_total",
-          titleEn: "Goal Completed",
-          titlePl: "Cel osiągnięty",
-          bodyEn: `${gName} has reached 100% of its total target. Well done!`,
-          bodyPl: `${gName} osiągnął 100% całkowitego celu. Brawo!`,
-          dedupKey,
-        });
-      } else if (item.type === "goal_completed_monthly") {
+      if (item.type === "goal_completed_monthly") {
         addNCNotification({
           type: "goal_completed_monthly",
           titleEn: "Monthly Target Reached",

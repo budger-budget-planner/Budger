@@ -14,10 +14,10 @@ export const goalActivityTable = pgTable("goal_activity", {
   dismissed: boolean("dismissed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, table => [
-  // Prevent duplicate total-completion events per user per goal
-  uniqueIndex("goal_activity_total_uniq")
+  // Prevent duplicate realized events per user per goal
+  uniqueIndex("goal_activity_realized_uniq")
     .on(table.userId, table.goalId, table.type)
-    .where(sql`${table.type} = 'goal_completed_total'`),
+    .where(sql`${table.type} = 'goal_realized'`),
   // Prevent duplicate monthly-completion events per user per goal per month
   uniqueIndex("goal_activity_monthly_uniq")
     .on(table.userId, table.goalId, table.type, table.activityMonth)

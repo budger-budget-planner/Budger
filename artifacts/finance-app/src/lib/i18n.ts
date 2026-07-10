@@ -266,7 +266,6 @@ const translations: Record<string, Record<Lang, string>> = {
   "goals.edit_approved_title":       { en: "Edit request approved",            pl: "Prośba o edycję zatwierdzona"           },
   "goals.activity_feed":             { en: "Household Activity",               pl: "Aktywność Gospodarstwa"                 },
   "goals.goal_changed_notif":            { en: "Goal updated by {name}",              pl: "Cel zaktualizowany przez {name}"             },
-  "goals.goal_completed_total_notif":    { en: "Total target reached!",               pl: "Łączna kwota osiągnięta!"                    },
   "goals.goal_completed_monthly_notif":  { en: "Monthly target met for {name}!",      pl: "Cel miesięczny osiągnięty dla {name}!"       },
   "goals.share_approved_notif":          { en: "Your proposed goal was approved!",     pl: "Twój proponowany cel został zaakceptowany!"  },
   "goals.share_declined_notif":          { en: "Your proposed goal was declined",      pl: "Twój proponowany cel został odrzucony"        },
