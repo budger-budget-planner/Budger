@@ -6,6 +6,16 @@ const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? "Budger <onboarding@resend
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+if (resend) {
+  logger.info("email-sender: Resend client initialised — emails will be delivered");
+} else {
+  logger.warn(
+    "email-sender: RESEND_API_KEY is not set. " +
+    "Verification emails, PIN reset emails, and deletion notices will NOT be delivered. " +
+    "Set RESEND_API_KEY in environment secrets to enable real email delivery."
+  );
+}
+
 export type VerificationEmailInput = {
   to: string;
   firstName: string;
@@ -258,7 +268,7 @@ function buildPinResetHtml(firstName: string, resetUrl: string, language: "en" |
 
 export async function sendPinResetEmail({ to, firstName, resetUrl, language = "en" }: PinResetEmailInput): Promise<boolean> {
   if (!resend) {
-    logger.info({ to, resetUrl }, "email-sender: RESEND_API_KEY not set, PIN reset link logged only");
+    logger.warn({ to, resetUrl }, "email-sender: RESEND_API_KEY not set — PIN reset link NOT delivered");
     return false;
   }
 
@@ -343,7 +353,7 @@ export async function sendDeletionRequestEmail({ userEmail, userName }: Deletion
 </html>`;
 
   if (!resend) {
-    logger.info({ userEmail }, "email-sender: RESEND_API_KEY not set, deletion request logged only");
+    logger.warn({ userEmail }, "email-sender: RESEND_API_KEY not set — deletion request NOT delivered");
     return false;
   }
 
@@ -471,7 +481,7 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
 </html>`;
 
   if (!resend) {
-    logger.info({ to }, "email-sender: RESEND_API_KEY not set, deletion ack email logged only");
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — deletion ack email NOT delivered");
     return false;
   }
 
@@ -496,7 +506,7 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
 
 export async function sendVerificationEmail({ to, firstName, verifyUrl, language = "en" }: VerificationEmailInput): Promise<boolean> {
   if (!resend) {
-    logger.info({ to }, "email-sender: RESEND_API_KEY not set, skipping real send (simulated)");
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — verification email NOT delivered");
     return false;
   }
 

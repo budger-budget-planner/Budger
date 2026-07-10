@@ -4,18 +4,9 @@ import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItem
 import { eq, and, desc, sql } from "drizzle-orm";
 import { UpdateNotificationSettingsBody, SavePushSubscriptionBody, CreateNotificationItemBody } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { PUSH_CONFIGURED, VAPID_PUBLIC_KEY_VALUE } from "../lib/push-sender";
 
 const router: IRouter = Router();
-
-// ── VAPID setup ───────────────────────────────────────────────────────────────
-
-const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  ?? "";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? "";
-const VAPID_SUBJECT     = process.env.VAPID_SUBJECT     ?? "mailto:admin@budger.app";
-
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -203,13 +194,25 @@ router.patch("/notifications/items/:id/read", async (req, res): Promise<void> =>
 
 // ── Web Push routes ────────────────────────────────────────────────────────────
 
+// Returns null publicKey when push is not configured so the frontend can
+// gracefully skip subscription rather than registering and then silently
+// receiving nothing.
 router.get("/notifications/vapid-public-key", (req, res): void => {
-  res.json({ publicKey: VAPID_PUBLIC_KEY });
+  res.json({ publicKey: VAPID_PUBLIC_KEY_VALUE, configured: PUSH_CONFIGURED });
 });
 
 router.post("/notifications/push-subscribe", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  // Reject subscription attempts when VAPID is not configured so the frontend
+  // knows push cannot work instead of silently storing a useless endpoint.
+  if (!PUSH_CONFIGURED) {
+    res.status(503).json({
+      error: "Push notifications are not configured on this server. VAPID keys are missing.",
+    });
+    return;
+  }
 
   const parsed = SavePushSubscriptionBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -234,7 +237,7 @@ router.post("/notifications/push-subscribe", async (req, res): Promise<void> => 
 // ── Daily reminder scheduler ──────────────────────────────────────────────────
 
 async function sendDailyReminders() {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  if (!PUSH_CONFIGURED) return; // push-sender logs a warn at startup; no need to repeat every minute
 
   const now = new Date();
   const currentHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -258,7 +261,8 @@ async function sendDailyReminders() {
     try {
       subs = await db.select().from(pushSubscriptionsTable)
         .where(eq(pushSubscriptionsTable.userId, settings.userId));
-    } catch {
+    } catch (err) {
+      logger.warn({ err, userId: settings.userId }, "daily-reminder: failed to fetch subscriptions, skipping user");
       continue;
     }
 
@@ -292,7 +296,11 @@ async function sendDailyReminders() {
 }
 
 // Run every minute
-setInterval(() => { sendDailyReminders().catch(() => {}); }, 60_000);
+setInterval(() => {
+  sendDailyReminders().catch((err) => {
+    logger.warn({ err }, "daily-reminder: unhandled error in reminder job");
+  });
+}, 60_000);
 
 // Smart alerts (budget thresholds + goal check-ins) — server-side push so
 // they fire even when the app is closed.  Import triggers its own scheduler.

@@ -7,7 +7,7 @@
 - [Recurring payments feature](recurring-payments.md) — full DB/API/frontend architecture for manual+scheduled recurring payments with auto-apply and idempotency guarantees
 - [Duplicate workflow port conflicts](duplicate-workflow-port-conflicts.md) — legacy .replit workflows can coexist with artifact-managed ones on the same port, causing EADDRINUSE; check listWorkflows() for dupes
 - [Login PIN UX fix & session persistence](login-pin-ux-fix.md) — session race fix (await session.save before res.json), PIN-clear only on auth errors, Continue button in keyboard grid
-- [Remix fresh-DB schema auto-push](remix-fresh-db.md) — after remix, DB is empty with no schema; fixed by running drizzle-kit push --force at every API server startup
+- [Drizzle migration system](drizzle-migration-system.md) — push --force replaced with proper migrate(); baseline logic handles legacy push DBs; advisory lock prevents concurrent startup races
 - [Larder independence rule](larder-independence.md) — Larder is a jar: funding/spending it does not link to transactions; deleting a source transaction must never revert Larder balance
 - [Offline mutation queue](offline-mutation-queue.md) — Phase 2 offline queue: IndexedDB, stop-on-failure ordering, Web Locks for concurrent drain, useMutationWithQueue hook design
 - [Budger gradient wordmark component](budger-wordmark-component.md) — shared BudgerWordmark component; splash screens must keep it outside the logo's fly-transform layer or positioning math breaks

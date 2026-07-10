@@ -1,8 +1,14 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { pool } from "@workspace/db";
-import { spawnSync } from "child_process";
+import { pool, db } from "@workspace/db";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import path from "path";
+/** Minimal duck-typed interface for the pg PoolClient used in baseline logic */
+interface DBPoolClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query<T extends Record<string, any>>(sql: string): Promise<{ rows: T[] }>;
+  release(): void;
+}
 
 // Fail fast if the database is not configured — every route depends on it
 // and starting without one only produces confusing per-request errors later.
@@ -27,64 +33,134 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 /**
- * Automatically push the Drizzle schema to the database on every startup.
+ * Timestamp of the initial migration (0000_past_blazing_skull).
+ * Used when baselining an existing database that was previously managed by
+ * drizzle-kit push so we don't try to re-run DDL that already exists.
+ */
+const INITIAL_MIGRATION_WHEN = 1783712380090n;
+
+/**
+ * Minimum number of expected app tables in a fully-initialized schema.
+ * Used to distinguish a genuinely populated legacy-push database from a
+ * partially-initialized or empty one.
+ */
+const MIN_EXPECTED_TABLES = 10;
+
+/**
+ * PostgreSQL advisory lock key used to serialize the baseline + migrate
+ * sequence across concurrent server startups (e.g. rolling deploys, dev
+ * hot-reload). The lock is session-scoped and released automatically when
+ * the connection is returned to the pool.
+ */
+const MIGRATION_ADVISORY_LOCK = 987654321;
+
+/**
+ * Promote a database that was previously managed by `drizzle-kit push` to
+ * migration-based tracking, under a database advisory lock so concurrent
+ * startups cannot race through this logic simultaneously.
  *
- * This is idempotent — on an existing database drizzle-kit detects no changes
- * and exits immediately. On a fresh database (e.g. after a Replit remix or a
- * new deployment) it creates all tables so the app is immediately usable
- * without any manual `pnpm --filter @workspace/db run push` step.
+ * When switching from push → migrate we need to tell Drizzle "the initial
+ * migration is already applied" without running its SQL (which would fail on
+ * existing tables). We detect this state by checking whether a sufficient
+ * number of app tables exist but the drizzle.__drizzle_migrations tracking
+ * table does not.
  *
- * Uses `push-force` (drizzle-kit push --force) to skip interactive prompts.
+ * On a completely fresh database neither condition holds, so we skip this step
+ * and let migrate() create everything from scratch.
+ *
+ * Safety properties:
+ * ─ Advisory lock: only one server instance executes this at a time.
+ * ─ Strong schema check: requires MIN_EXPECTED_TABLES app tables, not just one.
+ * ─ Idempotent insert: uses WHERE NOT EXISTS so re-entry is a no-op.
+ */
+async function baselineLegacyPushDatabase(client: DBPoolClient): Promise<void> {
+  // Count how many of the expected app tables currently exist.
+  const { rows: countRows } = await client.query<{ cnt: string }>(`
+    SELECT COUNT(*) AS cnt
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+  `);
+  const tableCount = parseInt(countRows[0]?.cnt ?? "0", 10);
+
+  if (tableCount < MIN_EXPECTED_TABLES) {
+    return; // fresh or partial DB — let migrate() handle it from scratch
+  }
+
+  // Check whether drizzle migration tracking is already set up.
+  const { rows: trackingRows } = await client.query<{ exists: boolean }>(`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'
+    ) AS exists
+  `);
+  if (trackingRows[0]?.exists === true) {
+    return; // already on migrations — nothing to do
+  }
+
+  // Legacy push state: create the tracking schema/table and record the initial
+  // migration as already applied so migrate() skips its DDL.
+  logger.info(
+    { tableCount },
+    "Detected legacy push database — baselining to migration tracking…",
+  );
+  await client.query(`
+    CREATE SCHEMA IF NOT EXISTS drizzle;
+    CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+      id         SERIAL PRIMARY KEY,
+      hash       TEXT   NOT NULL,
+      created_at BIGINT
+    );
+    -- Idempotent: only insert if no migration at or after the initial snapshot exists.
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    SELECT 'baseline', ${INITIAL_MIGRATION_WHEN}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM drizzle.__drizzle_migrations
+      WHERE created_at >= ${INITIAL_MIGRATION_WHEN}
+    );
+  `);
+  logger.info("Baseline complete — existing schema recorded as migration 0000");
+}
+
+/**
+ * Apply all pending Drizzle migrations on every startup.
+ *
+ * ─ Fresh database: migrate() creates all tables from the migration files.
+ * ─ Existing database (legacy push): baselineLegacyPushDatabase() marks
+ *   the initial migration as already applied, then migrate() picks up newer
+ *   migrations.
+ * ─ Already migrated: migrate() is a no-op (all migrations already applied).
+ *
+ * The entire sequence runs under a PostgreSQL advisory lock so concurrent
+ * startups (rolling deploys, dev reloads) cannot race through baseline
+ * detection or apply the same migration twice.
+ *
+ * For new schema changes the workflow is:
+ *   1. Edit lib/db/src/schema/
+ *   2. pnpm --filter @workspace/db run generate   ← creates a new .sql file
+ *   3. Commit the migration file
+ *   4. The next startup applies it automatically
  */
 async function ensureDbSchema(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
 
-  // `drizzle-kit push` diffs the live schema and can decide to drop/recreate a
-  // column it can't reconcile — safe on a disposable dev database, potentially
-  // destructive against real user data. Never run it automatically once the
-  // app is live in production; require a deliberate, reviewed migration step
-  // instead (see lib/db/README or `pnpm --filter @workspace/db run push`
-  // run manually from a safe context).
-  if (process.env.NODE_ENV === "production") {
-    logger.info(
-      "Skipping automatic DB schema push in production. Run schema changes " +
-        "via a reviewed migration before deploying — never `push --force` against live data.",
-    );
-    return;
-  }
+  logger.info("Running DB migrations…");
 
-  logger.info("Applying DB schema (drizzle-kit push --force)…");
+  // Migration files are copied to dist/migrations/ by build.mjs so they're
+  // available in both dev (source tree) and production builds.
+  const migrationsFolder = path.resolve(__dirname, "./migrations");
 
-  // Find the workspace root: walk up from __dirname until we find pnpm-workspace.yaml.
-  // After esbuild, __dirname is the dist/ dir inside the artifact; we need the repo root.
-  let workspaceRoot = path.resolve(__dirname);
-  for (let i = 0; i < 10; i++) {
-    const parent = path.dirname(workspaceRoot);
-    if (parent === workspaceRoot) break; // filesystem root — stop
-    workspaceRoot = parent;
-    try {
-      const fs = await import("fs");
-      if (fs.existsSync(path.join(workspaceRoot, "pnpm-workspace.yaml"))) break;
-    } catch { /* ignore */ }
-  }
-
-  const result = spawnSync(
-    "pnpm",
-    ["--filter", "@workspace/db", "run", "push-force"],
-    {
-      cwd: workspaceRoot,
-      stdio: "pipe",
-      encoding: "utf-8",
-    },
-  );
-
-  if (result.status !== 0) {
-    logger.warn(
-      { stdout: result.stdout, stderr: result.stderr, status: result.status },
-      "DB schema push exited with non-zero status — continuing startup anyway",
-    );
-  } else {
-    logger.info("DB schema is up to date");
+  // Acquire a session-level advisory lock so that only one process runs
+  // the baseline check + migrate() at a time. The lock is released
+  // automatically when this dedicated client is returned to the pool.
+  const client = await pool.connect();
+  try {
+    await client.query(`SELECT pg_advisory_lock(${MIGRATION_ADVISORY_LOCK})`);
+    await baselineLegacyPushDatabase(client);
+    await migrate(db, { migrationsFolder });
+    logger.info("DB migrations up to date");
+  } finally {
+    await client.query(`SELECT pg_advisory_unlock(${MIGRATION_ADVISORY_LOCK})`);
+    client.release();
   }
 }
 

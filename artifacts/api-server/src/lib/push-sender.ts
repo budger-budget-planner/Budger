@@ -3,12 +3,32 @@ import { db, pushSubscriptionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
-// Initialise VAPID once at module load — other routes import push-sender, not the other way around
 const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  ?? "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? "";
 const VAPID_SUBJECT     = process.env.VAPID_SUBJECT     ?? "mailto:admin@budger.app";
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+
+/**
+ * True when VAPID keys are present and web-push has been initialised.
+ * Export this so routes can gate push-subscription endpoints and return a
+ * clear error instead of silently accepting subscriptions that will never work.
+ */
+export const PUSH_CONFIGURED = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+
+/**
+ * The VAPID public key to hand to the browser when it subscribes.
+ * Null when push is not configured.
+ */
+export const VAPID_PUBLIC_KEY_VALUE: string | null = PUSH_CONFIGURED ? VAPID_PUBLIC_KEY : null;
+
+if (PUSH_CONFIGURED) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  logger.info("push-sender: VAPID keys loaded — web push is active");
+} else {
+  logger.warn(
+    "push-sender: VAPID_PUBLIC_KEY and/or VAPID_PRIVATE_KEY are not set. " +
+    "Push notifications will not be delivered. " +
+    "Generate keys with: npx web-push generate-vapid-keys"
+  );
 }
 
 export type PushPayload = {
@@ -19,6 +39,11 @@ export type PushPayload = {
 };
 
 export async function sendPushToUser(userId: number, payload: PushPayload): Promise<void> {
+  if (!PUSH_CONFIGURED) {
+    logger.warn({ userId }, "push-sender: push not configured — notification not delivered");
+    return;
+  }
+
   let subs: typeof pushSubscriptionsTable.$inferSelect[] = [];
   try {
     subs = await db.select().from(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, userId));

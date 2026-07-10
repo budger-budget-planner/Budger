@@ -9,7 +9,9 @@ A full-stack financial tracking web app for individuals and households. Named af
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run generate` — generate a new migration file after schema changes
+- `pnpm --filter @workspace/db run migrate` — apply pending migrations manually (startup does this automatically)
+- `pnpm --filter @workspace/db run push` — push DB schema changes without migration history (dev/emergency only)
 - Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret
 
 ## Stack
