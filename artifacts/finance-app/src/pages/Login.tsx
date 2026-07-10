@@ -472,7 +472,7 @@ export default function LoginPage() {
             {/* Logo + name */}
             <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
               <span data-splash-logo-login>
-                <BadgerLogo size={88} />
+                <BadgerLogo size={88} pauseIdleAnimations growPulse={false} />
               </span>
               <div data-splash-wordmark-login>
                 <BudgerWordmark size={48} tagline="Budget Planner" />
