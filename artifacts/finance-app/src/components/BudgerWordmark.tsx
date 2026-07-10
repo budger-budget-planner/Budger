@@ -34,7 +34,10 @@ export default function BudgerWordmark({
         Budger
       </span>
       {tagline && (
-        <span className="text-[0.7rem] tracking-widest uppercase text-muted-foreground/60 -mt-1">
+        <span
+          style={{ fontSize: size * 0.295 }}
+          className="tracking-widest uppercase text-muted-foreground/60 -mt-1"
+        >
           {tagline}
         </span>
       )}

@@ -198,8 +198,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       // If wordmarkT is null the wordmark stays at opacity:0 (fade path, see render)
 
       setPhase("moving");
-      t1 = setTimeout(() => setPhase("fading"), 1200); // give logo time to land before home bleeds through
-      t2 = setTimeout(onDone,                   1550);
+      t1 = setTimeout(() => setPhase("fading"), 1050); // give logo time to land before home bleeds through
+      t2 = setTimeout(onDone,                   1400);
     }
 
     // Poll for logo destination
@@ -343,10 +343,14 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
               size={38}
               tagline="Budget Planner"
               style={{
-                // Flying to login: always visible (overlay fade handles final disappearance)
-                // Going to home or degraded: fade out immediately when movement starts
-                opacity: wordmarkFlying ? 1 : (phase === "showing" ? 1 : 0),
-                transition: wordmarkFlying ? "none" : "opacity 0.15s linear",
+                // Flying to login: always visible (overlay fade handles disappearance)
+                // Going to home or degraded: fade out immediately when movement starts.
+                // Use filter:opacity() rather than opacity so the gradient-clip text
+                // (–webkit-background-clip:text) is composited before the transparency
+                // is applied — this sidesteps the iOS Safari bug where opacity on a
+                // parent wrapper fails to propagate through gradient-clip compositing.
+                filter: wordmarkFlying ? "none" : (phase === "showing" ? "none" : "opacity(0%)"),
+                transition: wordmarkFlying ? "none" : "filter 0.15s linear",
               }}
             />
           </div>

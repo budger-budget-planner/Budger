@@ -8,7 +8,7 @@ const SPLASH_SIZE = 120;
 const STILL_MS   = 900;   // float before wink
 const WINK_MS    = 700;   // wink duration
 const FLY_MS     = 1240;  // translate+scale transition — matches SplashScreen exactly
-const FADE_DELAY = 1200;  // start fading this far into the fly (ms) — logo nearly arrived
+const FADE_DELAY = 1050;  // start fading this far into the fly (ms) — logo nearly arrived
 const FADE_MS    = 250;   // overlay fade-out duration
 
 type Phase = "float" | "wink" | "fly" | "fade";
@@ -169,8 +169,12 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
           size={38}
           tagline="Budget Planner"
           style={{
-            opacity: showPulse ? 1 : 0,
-            transition: "opacity 0.15s linear",
+            // filter:opacity() rather than opacity — creates an isolated compositing
+            // context so -webkit-background-clip:text children are flattened first,
+            // sidestepping the iOS Safari bug where parent opacity fails to hide
+            // gradient-clipped text.
+            filter: showPulse ? "none" : "opacity(0%)",
+            transition: "filter 0.15s linear",
             pointerEvents: "none",
           }}
         />
