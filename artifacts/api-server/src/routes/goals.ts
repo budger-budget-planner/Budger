@@ -1045,8 +1045,9 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
           }
         }
       }
-    } catch {
-      // Non-critical: don't fail the request if activity generation fails
+    } catch (err) {
+      // Non-critical — log but don't fail the request
+      req.log.warn({ err }, "goal-contributions: post-response activity write failed");
     }
   }
 });
@@ -1110,7 +1111,10 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
         ));
       }
     }
-  } catch { /* non-critical */ }
+  } catch (err) {
+    // Non-critical post-delete cleanup — log so we notice if it starts failing consistently
+    req.log.warn({ err }, "goal-contributions: post-delete threshold cleanup failed");
+  }
 });
 
 // Per-goal member breakdown — all members' contributions for a specific household goal

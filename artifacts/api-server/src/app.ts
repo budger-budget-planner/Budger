@@ -7,6 +7,7 @@ import connectPgSimple from "connect-pg-simple";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { Sentry } from "./lib/sentry";
 
 const PgSession = connectPgSimple(session);
 
@@ -138,6 +139,11 @@ app.use("/api", router);
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "Not found" });
 });
+
+// Sentry error handler — must come AFTER routes and BEFORE the global error
+// handler so it can capture the error before we send a response.
+// It is a no-op when SENTRY_DSN is not set (Sentry.init was never called).
+Sentry.setupExpressErrorHandler(app);
 
 // ── Global error handler ─────────────────────────────────────────────────────
 // Express 5 forwards rejected promises from async handlers to next(err)

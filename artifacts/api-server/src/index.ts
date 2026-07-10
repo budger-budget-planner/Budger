@@ -1,3 +1,7 @@
+// !! Sentry must be imported before everything else so its module-level
+// instrumentation hooks are in place before any other code runs.
+import "./lib/sentry";
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool, db } from "@workspace/db";
@@ -162,6 +166,33 @@ async function ensureDbSchema(): Promise<void> {
     await client.query(`SELECT pg_advisory_unlock(${MIGRATION_ADVISORY_LOCK})`);
     client.release();
   }
+}
+
+// ── Slow query monitoring ──────────────────────────────────────────────────
+// Wraps pool.query so any query that takes longer than 200 ms emits a warn
+// log. Uses `any` casts because pg's TypeScript overloads don't expose the
+// underlying Promise return type, but pool.query is always async in practice.
+{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const _orig = (pool as any).query.bind(pool);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (pool as any).query = function (...args: any[]) {
+    const t0 = Date.now();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = _orig(...args) as Promise<any>;
+    result.then(() => {
+      const ms = Date.now() - t0;
+      if (ms > 200) {
+        const sql =
+          typeof args[0] === "string"
+            ? args[0]
+            : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ((args[0] as any)?.text ?? "?");
+        logger.warn({ ms, sql: sql.slice(0, 150) }, "slow-query: exceeded 200ms threshold");
+      }
+    }).catch(() => {}); // timing failures must never propagate
+    return result;
+  };
 }
 
 async function start() {

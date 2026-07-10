@@ -11,7 +11,8 @@ router.get("/healthz", async (_req, res) => {
     await pool.query("SELECT 1");
     const data = HealthCheckResponse.parse({ status: "ok" });
     res.json(data);
-  } catch {
+  } catch (err) {
+    req.log.warn({ err }, "health: DB ping failed");
     res.status(503).json({ status: "error", detail: "Database unreachable" });
   }
 });
