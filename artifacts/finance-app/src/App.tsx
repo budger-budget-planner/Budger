@@ -114,8 +114,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         clearSession();
         setActiveUserId(null);
         logout.mutate({} as any, {
-          onSettled: () => {
+          onSettled: async () => {
             queryClient.clear();
+            // Clear the SW's NetworkFirst API cache so a different user logging
+            // in on this device/browser can never see a stale cached response
+            // (e.g. transactions, balances) left over from this session.
+            // Awaited (not fire-and-forget) so the next login can't race ahead
+            // of the cache actually being wiped.
+            if ("caches" in window) {
+              await caches.delete("budger-api-v1").catch(() => {});
+            }
             resetSplash(); // show splash → sequence plays → lands on login
           },
         });

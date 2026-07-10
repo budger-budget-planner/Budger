@@ -4,6 +4,8 @@ import {
   RequestUploadUrlResponse,
 } from '@workspace/api-zod';
 import { Router, type IRouter, type Request, type Response } from 'express';
+import { db, transactionsTable } from '@workspace/db';
+import { eq, and } from 'drizzle-orm';
 
 import {
   ObjectNotFoundError,
@@ -113,6 +115,18 @@ router.get('/storage/objects/*path', async (req: Request, res: Response) => {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
     const objectPath = `/objects/${wildcardPath}`;
+
+    // Ownership check: receipt objects are only ever referenced from the
+    // uploading user's own transaction row (transactions.receiptImage stores
+    // the objectPath once uploaded). Without this, any authenticated user
+    // could read any other user's receipt by guessing/observing the path.
+    const [owningTx] = await db.select().from(transactionsTable)
+      .where(and(eq(transactionsTable.receiptImage, objectPath), eq(transactionsTable.userId, userId)));
+    if (!owningTx) {
+      res.status(404).json({ error: 'Object not found' });
+      return;
+    }
+
     const objectFile =
       await objectStorageService.getObjectEntityFile(objectPath);
 

@@ -147,6 +147,12 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
     return;
   }
 
+  const [acceptingUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!acceptingUser || acceptingUser.email.toLowerCase() !== invite.email.toLowerCase()) {
+    res.status(403).json({ error: "This invite was not sent to your account" });
+    return;
+  }
+
   await db.update(invitesTable).set({ status: "accepted" }).where(eq(invitesTable.id, invite.id));
 
   const existingMember = await db.select().from(householdMembersTable)
@@ -176,6 +182,19 @@ router.post("/invites/:token/decline", async (req, res): Promise<void> => {
   const params = CancelInviteParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
+  const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
+  if (!invite) { res.status(404).json({ error: "Invite not found" }); return; }
+
+  const [decliningUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!decliningUser || decliningUser.email.toLowerCase() !== invite.email.toLowerCase()) {
+    res.status(403).json({ error: "This invite was not sent to your account" });
+    return;
+  }
+  if (invite.status !== "pending" || invite.expiresAt < new Date()) {
+    res.status(404).json({ error: "Invite not found or expired" });
+    return;
+  }
+
   await db.update(invitesTable).set({ status: "declined" }).where(eq(invitesTable.token, params.data.token));
   res.sendStatus(204);
 });
@@ -186,6 +205,17 @@ router.delete("/invites/:token", async (req, res): Promise<void> => {
 
   const params = CancelInviteParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
+  if (!invite) { res.status(404).json({ error: "Invite not found" }); return; }
+
+  // Only the head of the household that sent the invite can cancel it.
+  const [cancellingMembership] = await db.select().from(householdMembersTable)
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, invite.householdId)));
+  if (!cancellingMembership || !isHead(cancellingMembership.role)) {
+    res.status(403).json({ error: "Only the head of the household can cancel this invite" });
+    return;
+  }
 
   await db.update(invitesTable).set({ status: "cancelled" }).where(eq(invitesTable.token, params.data.token));
   res.sendStatus(204);
