@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 
 export const recurringPaymentsTable = pgTable("recurring_payments", {
   id: serial("id").primaryKey(),
@@ -13,6 +13,8 @@ export const recurringPaymentsTable = pgTable("recurring_payments", {
   addToLarder: boolean("add_to_larder").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, table => [
+  index("recurring_payments_user_id_idx").on(table.userId),
+]);
 
 export type RecurringPayment = typeof recurringPaymentsTable.$inferSelect;

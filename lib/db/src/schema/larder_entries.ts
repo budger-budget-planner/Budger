@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -30,7 +30,9 @@ export const larderEntriesTable = pgTable("larder_entries", {
   /** Soft-hide from history display (balance is still included in totals) */
   hidden: boolean("hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, table => [
+  index("larder_entries_user_id_idx").on(table.userId),
+]);
 
 export const insertLarderEntrySchema = createInsertSchema(larderEntriesTable).omit({ id: true, createdAt: true });
 export type InsertLarderEntry = z.infer<typeof insertLarderEntrySchema>;

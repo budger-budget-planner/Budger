@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 
 export const expenseSplitsTable = pgTable("expense_splits", {
   id: serial("id").primaryKey(),
@@ -13,6 +13,10 @@ export const expenseSplitsTable = pgTable("expense_splits", {
   issuerNotified: boolean("issuer_notified").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, table => [
+  index("expense_splits_issuer_id_idx").on(table.issuerId),
+  index("expense_splits_recipient_id_idx").on(table.recipientId),
+  index("expense_splits_transaction_id_idx").on(table.transactionId),
+]);
 
 export type ExpenseSplit = typeof expenseSplitsTable.$inferSelect;

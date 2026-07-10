@@ -157,7 +157,7 @@ function parseTransactionPayload(
     //   "Apple\nApp Store\n$4.99"
     path = "raw_text";
 
-    console.log("[Apple webhook] raw string received:", raw);
+    logger.debug({ rawLength: raw.length }, "Apple webhook: raw string received");
 
     const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 

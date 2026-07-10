@@ -71,11 +71,22 @@ setInterval(() => {
 function isChild(role: string) { return role === "child" || role === "member"; }
 
 function serializeUser(user: typeof usersTable.$inferSelect) {
+  // Strip server-only secrets that must never reach the client.
+  const {
+    passwordHash: _ph,
+    verificationToken: _vt,
+    verificationTokenExpiresAt: _vtea,
+    signupExpiresAt: _sea,
+    pinResetToken: _prt,
+    pinResetTokenExpiresAt: _prtea,
+    deletionScheduledAt: _dsa,
+    ...safe
+  } = user;
   return {
-    ...user,
+    ...safe,
     // numeric columns come back as strings from Drizzle — convert for API consumers
-    totalBudget: user.totalBudget != null ? parseFloat(user.totalBudget) : null,
-    createdAt: user.createdAt.toISOString(),
+    totalBudget: safe.totalBudget != null ? parseFloat(safe.totalBudget) : null,
+    createdAt: safe.createdAt.toISOString(),
   };
 }
 

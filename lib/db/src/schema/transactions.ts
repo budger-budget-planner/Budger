@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -43,7 +43,13 @@ export const transactionsTable = pgTable("transactions", {
   isLarderFund: boolean("is_larder_fund").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, table => [
+  index("transactions_user_id_idx").on(table.userId),
+  index("transactions_household_id_idx").on(table.householdId),
+  index("transactions_category_id_idx").on(table.categoryId),
+  index("transactions_date_idx").on(table.date),
+  index("transactions_recurring_payment_id_idx").on(table.recurringPaymentId),
+]);
 
 export const insertTransactionSchema = createInsertSchema(transactionsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

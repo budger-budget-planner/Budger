@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Component, type ErrorInfo, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import SplashScreen from "@/components/SplashScreen";
 import WinkSplashScreen from "@/components/WinkSplashScreen";
@@ -32,6 +32,45 @@ import {
 import { setLang } from "@/lib/i18n";
 import { useLogout } from "@workspace/api-client-react";
 import { AppReadyContext, SplashResetContext, WinkSplashContext, AppRefreshContext, useSplashReset } from "@/lib/appReady";
+
+// ── Top-level Error Boundary ─────────────────────────────────────────────────
+// Catches uncaught render errors so a single broken component doesn't blank
+// the entire app. Shows a minimal recovery UI instead.
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Log to console so the error is visible in dev tools / workflow logs.
+    console.error("[ErrorBoundary] Uncaught render error:", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-8 text-center">
+          <p className="text-lg font-semibold mb-2">Something went wrong</p>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+            {this.state.error?.message ?? "An unexpected error occurred."}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold transition active:scale-95"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -237,14 +276,16 @@ function AppWithSplash() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppWithSplash />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppWithSplash />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

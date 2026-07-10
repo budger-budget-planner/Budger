@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, timestamp, numeric, text } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, timestamp, numeric, text, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,7 +14,11 @@ export const goalContributionsTable = pgTable("goal_contributions", {
   userId: integer("user_id").notNull(),
   householdId: integer("household_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, table => [
+  index("goal_contributions_goal_id_idx").on(table.goalId),
+  index("goal_contributions_user_id_idx").on(table.userId),
+  index("goal_contributions_household_id_idx").on(table.householdId),
+]);
 
 export const insertGoalContributionSchema = createInsertSchema(goalContributionsTable).omit({ id: true, createdAt: true });
 export type InsertGoalContribution = z.infer<typeof insertGoalContributionSchema>;

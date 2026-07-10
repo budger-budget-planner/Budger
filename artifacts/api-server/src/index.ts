@@ -87,13 +87,35 @@ async function start() {
     }
   }
 
-  app.listen(port, (err) => {
+  const server = app.listen(port, (err?: Error) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
       process.exit(1);
     }
     logger.info({ port }, "Server listening");
   });
+
+  function gracefulShutdown(signal: string) {
+    logger.info({ signal }, "Shutdown signal received — draining connections");
+    server.close(async () => {
+      try {
+        await pool.end();
+        logger.info("DB pool closed — exiting cleanly");
+        process.exit(0);
+      } catch (err) {
+        logger.error({ err }, "Error closing DB pool during shutdown");
+        process.exit(1);
+      }
+    });
+    // Force-exit if connections don't drain within 10 s.
+    setTimeout(() => {
+      logger.warn("Graceful shutdown timed out — forcing exit");
+      process.exit(1);
+    }, 10_000).unref();
+  }
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
 }
 
 start().catch((err) => {

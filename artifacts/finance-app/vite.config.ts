@@ -74,6 +74,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Never ship sourcemaps to production — they expose the full source tree.
+    sourcemap: false,
   },
   server: {
     port,
