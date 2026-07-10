@@ -857,22 +857,52 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
     }
   }
 
-  const [contrib] = await db.insert(goalContributionsTable).values({
-    goalId: parseInt(goalId),
-    transactionId: transactionId ? parseInt(transactionId) : null,
-    amount: String(parseFloat(amount)),
-    currency: currency ?? null,
-    accountAmount: accountAmount != null ? String(parseFloat(accountAmount)) : null,
-    accountCurrency: accountCurrency ?? null,
-    month: contribMonth,
-    userId,
-    householdId: user?.householdId ?? null,
-  }).returning();
+  // Use a db.transaction() so the contribution insert and the goal's realizedAt
+  // update are atomic — a crash between the two would leave a contribution recorded
+  // but the goal never marked as realized, causing it to stay "active" indefinitely.
+  let contrib: any;
+  let goal: any;
+  let wasJustRealized = false;
 
-  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
+  await db.transaction(async (tx) => {
+    [contrib] = await tx.insert(goalContributionsTable).values({
+      goalId: parseInt(goalId),
+      transactionId: transactionId ? parseInt(transactionId) : null,
+      amount: String(parseFloat(amount)),
+      currency: currency ?? null,
+      accountAmount: accountAmount != null ? String(parseFloat(accountAmount)) : null,
+      accountCurrency: accountCurrency ?? null,
+      month: contribMonth,
+      userId,
+      householdId: user?.householdId ?? null,
+    }).returning();
+
+    // Re-check the total within the same snapshot to avoid a TOCTOU race where
+    // two concurrent contributions both believe they are the first to realize the goal.
+    const allContribsInTx = await tx.select().from(goalContributionsTable)
+      .where(eq(goalContributionsTable.goalId, parseInt(goalId)));
+    const totalInTx = allContribsInTx.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
+    if (totalInTx >= parseFloat(targetGoal.budget)) {
+      // WHERE ... AND realizedAt IS NULL means only one concurrent transaction
+      // can win the realization race — all others see 0 rows returned and skip
+      // the fan-out. This closes the TOCTOU gap without relying on a pre-loaded
+      // snapshot of targetGoal.realizedAt.
+      const [realized] = await tx.update(goalsTable)
+        .set({ realizedAt: new Date() })
+        .where(and(eq(goalsTable.id, parseInt(goalId)), isNull(goalsTable.realizedAt)))
+        .returning();
+      if (realized) { goal = realized; wasJustRealized = true; }
+    }
+    if (!goal) {
+      [goal] = await tx.select().from(goalsTable).where(eq(goalsTable.id, parseInt(goalId)));
+    }
+  });
+
   res.status(201).json(formatContribution(contrib, goal));
 
-  // After response: check completion thresholds and create activity notifications
+  // After response: fan-out activity notifications (non-critical, fire-and-forget).
+  // realizedAt was already updated atomically in the transaction above.
   if (goal) {
     try {
       // Total contributions for this goal across all time
@@ -882,10 +912,8 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
       const goalBudget = parseFloat(goal.budget);
 
       if (totalContributed >= goalBudget) {
-        // Mark the goal as realized (once) and notify that it will move to
-        // Past Goals within 24 hours.
-        if (!goal.realizedAt) {
-          await db.update(goalsTable).set({ realizedAt: new Date() }).where(eq(goalsTable.id, goal.id));
+        // Only fan out if this specific contribution crossed the threshold.
+        if (wasJustRealized) {
           const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
           if (goal.householdId) {
             await fanOutActivity(

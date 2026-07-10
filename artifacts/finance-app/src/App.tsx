@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, Component, type ErrorInfo, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, lazy, Suspense, Component, type ErrorInfo, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import SplashScreen from "@/components/SplashScreen";
 import WinkSplashScreen from "@/components/WinkSplashScreen";
@@ -9,15 +9,17 @@ import { useGetMe } from "@workspace/api-client-react";
 import Layout from "@/components/Layout";
 import Onboarding from "@/components/Onboarding";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
-import LoginPage from "@/pages/Login";
-import HomeSpending from "@/pages/HomeSpending";
-import DashboardPage from "@/pages/Dashboard";
-import TransactionsPage from "@/pages/Transactions";
-import CategoriesPage from "@/pages/Categories";
-import GoalsPage from "@/pages/Goals";
-import HouseholdPage from "@/pages/Household";
-import NotificationsPage from "@/pages/Notifications";
-import InvitePage from "@/pages/Invite";
+// Route-level code splitting: each page is loaded only when its route is first
+// visited, shaving the initial bundle and improving PWA load time significantly.
+const LoginPage        = lazy(() => import("@/pages/Login"));
+const HomeSpending     = lazy(() => import("@/pages/HomeSpending"));
+const DashboardPage    = lazy(() => import("@/pages/Dashboard"));
+const TransactionsPage = lazy(() => import("@/pages/Transactions"));
+const CategoriesPage   = lazy(() => import("@/pages/Categories"));
+const GoalsPage        = lazy(() => import("@/pages/Goals"));
+const HouseholdPage    = lazy(() => import("@/pages/Household"));
+const NotificationsPage = lazy(() => import("@/pages/Notifications"));
+const InvitePage       = lazy(() => import("@/pages/Invite"));
 import {
   isOnboardingDone,
   markOnboardingDone,
@@ -202,32 +204,44 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Shared loading fallback for lazy-loaded pages — matches the existing spinner
+// used by AuthGuard so there's no visual jump between auth check and page load.
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
+}
+
 function AppRoutes() {
   return (
-    <Switch>
-      <Route path="/login" component={LoginPage} />
-      <Route path="/verify-email" component={LoginPage} />
-      <Route path="/reset-pin" component={LoginPage} />
-      <Route path="/invite/:token" component={InvitePage} />
-      {/*
-        wouter v3: <Route> with NO path is an unconditional catch-all (always matches).
-      */}
-      <Route>
-        <AuthGuard>
-          <Layout>
-            <Switch>
-              <Route path="/"              component={HomeSpending}     />
-              <Route path="/dashboard"     component={DashboardPage}    />
-              <Route path="/transactions"  component={TransactionsPage} />
-              <Route path="/categories"    component={CategoriesPage}   />
-              <Route path="/goals"         component={GoalsPage}        />
-              <Route path="/household"     component={HouseholdPage}    />
-              <Route path="/notifications" component={NotificationsPage}/>
-            </Switch>
-          </Layout>
-        </AuthGuard>
-      </Route>
-    </Switch>
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/login" component={LoginPage} />
+        <Route path="/verify-email" component={LoginPage} />
+        <Route path="/reset-pin" component={LoginPage} />
+        <Route path="/invite/:token" component={InvitePage} />
+        {/*
+          wouter v3: <Route> with NO path is an unconditional catch-all (always matches).
+        */}
+        <Route>
+          <AuthGuard>
+            <Layout>
+              <Switch>
+                <Route path="/"              component={HomeSpending}     />
+                <Route path="/dashboard"     component={DashboardPage}    />
+                <Route path="/transactions"  component={TransactionsPage} />
+                <Route path="/categories"    component={CategoriesPage}   />
+                <Route path="/goals"         component={GoalsPage}        />
+                <Route path="/household"     component={HouseholdPage}    />
+                <Route path="/notifications" component={NotificationsPage}/>
+              </Switch>
+            </Layout>
+          </AuthGuard>
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 

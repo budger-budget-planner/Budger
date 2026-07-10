@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
   CreateHouseholdBody,
   UpdateHouseholdBody,
@@ -133,19 +133,38 @@ router.get("/households/members", async (req, res): Promise<void> => {
   const members = await db.select().from(householdMembersTable)
     .where(eq(householdMembersTable.householdId, user.householdId));
 
-  const allUsers = await db.select().from(usersTable);
-  const userMap = new Map(allUsers.map(u => [u.id, u]));
+  if (members.length === 0) { res.json([]); return; }
+
+  const memberIds = members.map(m => m.userId);
+
+  // Scope to only this household's members instead of loading every user in
+  // the system, and batch the monthly-spending aggregation in one SQL query
+  // instead of running a per-member query in a loop (N+1).
+  const memberUsers = await db.select().from(usersTable).where(inArray(usersTable.id, memberIds));
+  const userMap = new Map(memberUsers.map(u => [u.id, u]));
 
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const enriched = await Promise.all(members.map(async m => {
+  const spendingRows = await db
+    .select({
+      userId: transactionsTable.userId,
+      total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+    })
+    .from(transactionsTable)
+    .where(and(
+      inArray(transactionsTable.userId, memberIds),
+      sql`${transactionsTable.date} like ${monthPrefix + "%"}`,
+      eq(transactionsTable.currencyLocked, false),
+      eq(transactionsTable.foundedWithRealizedGoal, false),
+      eq(transactionsTable.isLarderFund, false),
+    ))
+    .groupBy(transactionsTable.userId);
+  const spendingMap = new Map(spendingRows.map(r => [r.userId, parseFloat(r.total)]));
+
+  const enriched = members.map(m => {
     const memberUser = userMap.get(m.userId);
-    const txs = await db.select().from(transactionsTable)
-      .where(eq(transactionsTable.userId, m.userId));
-    const monthlySpent = txs
-      .filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal && !t.isLarderFund)
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const monthlySpent = spendingMap.get(m.userId) ?? 0;
 
     return {
       userId: m.userId,
@@ -160,7 +179,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
       currency: memberUser?.currency ?? "USD",
       joinedAt: m.joinedAt.toISOString(),
     };
-  }));
+  });
 
   res.json(enriched);
 });

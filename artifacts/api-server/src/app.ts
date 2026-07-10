@@ -4,6 +4,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { rateLimit } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -109,6 +110,27 @@ app.use(
     },
   }),
 );
+
+// Rate limiting — auth endpoints (brute-force protection) and the AI
+// screenshot-extraction endpoint (cost/abuse protection, since it calls a
+// paid Gemini API per request). Keyed by IP; generous enough not to affect
+// normal use, tight enough to block scripted abuse.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again later" },
+});
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});
+app.use("/api/auth", authLimiter);
+app.use("/api/transactions/extract-screenshot", aiLimiter);
 
 app.use("/api", router);
 

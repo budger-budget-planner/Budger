@@ -6,7 +6,7 @@ import {
   householdMembersTable,
   categoryShareProposalsTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -94,8 +94,10 @@ router.get("/category-share-proposals", async (req, res): Promise<void> => {
   if (proposals.length === 0) { res.json([]); return; }
 
   const proposerIds = [...new Set(proposals.map(p => p.proposedByUserId))];
-  const proposers = await db.select().from(usersTable);
-  const proposerMap = new Map(proposers.filter(u => proposerIds.includes(u.id)).map(u => [u.id, u.name]));
+  // Scope to only the proposers in this list — loading the entire usersTable is
+  // wasteful and leaks row counts to any interceptor that can observe query sizes.
+  const proposers = await db.select().from(usersTable).where(inArray(usersTable.id, proposerIds));
+  const proposerMap = new Map(proposers.map(u => [u.id, u.name]));
 
   res.json(proposals.map(p => formatProposal(p, proposerMap.get(p.proposedByUserId) ?? null)));
 });

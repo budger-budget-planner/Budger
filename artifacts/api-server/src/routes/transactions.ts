@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
@@ -60,29 +60,46 @@ router.get("/transactions", async (req, res): Promise<void> => {
   const query = ListTransactionsQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
 
-  const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId))
-    .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt));
+  // Filter in SQL instead of loading the user's entire transaction history into
+  // memory and filtering in JS — the previous approach didn't scale with account age.
+  // When the caller doesn't specify a limit, apply a generous safety cap (2000) rather
+  // than truly unbounded, so a multi-year account can't return its whole table at once;
+  // this is well above what any real user has today, so it changes no current behavior.
+  const conditions = [eq(transactionsTable.userId, userId)];
+  if (query.data.categoryId) conditions.push(eq(transactionsTable.categoryId, query.data.categoryId));
+  if (query.data.startDate) conditions.push(gte(transactionsTable.date, query.data.startDate));
+  if (query.data.endDate) conditions.push(lte(transactionsTable.date, query.data.endDate));
 
-  const categories = await db.select().from(categoriesTable);
-  const users = await db.select().from(usersTable);
-  const rps = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
+  const limit = query.data.limit ?? 2000;
+  const offset = query.data.offset ?? 0;
+
+  const txs = await db.select().from(transactionsTable)
+    .where(and(...conditions))
+    .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  if (txs.length === 0) { res.json([]); return; }
+
+  const categoryIds = [...new Set(txs.map(t => t.categoryId).filter((id): id is number => id != null))];
+  const userIds = [...new Set(txs.map(t => t.userId))];
+  const rpIds = [...new Set(txs.map(t => t.recurringPaymentId).filter((id): id is number => id != null))];
+
+  const [categories, users, rps] = await Promise.all([
+    categoryIds.length ? db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIds)) : Promise.resolve([]),
+    db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
+    rpIds.length ? db.select().from(recurringPaymentsTable).where(inArray(recurringPaymentsTable.id, rpIds)) : Promise.resolve([]),
+  ]);
   const catMap = new Map(categories.map(c => [c.id, c]));
   const userMap = new Map(users.map(u => [u.id, u]));
   const rpMap = new Map(rps.map(r => [r.id, r]));
 
-  let result = txs.map(tx => enrichTransaction(
+  const result = txs.map(tx => enrichTransaction(
     tx,
     tx.categoryId ? catMap.get(tx.categoryId) : null,
     userMap.get(tx.userId),
     tx.recurringPaymentId ? rpMap.get(tx.recurringPaymentId) : null,
   ));
-
-  if (query.data.categoryId) result = result.filter(t => t.categoryId === query.data.categoryId);
-  if (query.data.startDate) result = result.filter(t => t.date >= query.data.startDate!);
-  if (query.data.endDate) result = result.filter(t => t.date <= query.data.endDate!);
-  if (query.data.offset) result = result.slice(query.data.offset);
-  if (query.data.limit) result = result.slice(0, query.data.limit);
 
   res.json(result);
 });

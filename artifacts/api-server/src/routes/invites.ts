@@ -165,6 +165,7 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
   await db.update(usersTable).set({ householdId: invite.householdId }).where(eq(usersTable.id, userId));
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));
+  if (!household) { res.status(404).json({ error: "Household not found" }); return; }
   res.json({ ...household, createdAt: household.createdAt.toISOString() });
 });
 

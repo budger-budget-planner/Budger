@@ -253,9 +253,9 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
 
   const sent = await sendVerificationEmail({ to: normalizedEmail, firstName, verifyUrl: absoluteVerifyUrl, language: resolvedLanguage as "en" | "pl" });
   if (sent) {
-    req.log.info({ email: normalizedEmail }, "Verification email sent via Resend");
+    req.log.info("Verification email sent via Resend");
   } else {
-    req.log.info({ email: normalizedEmail }, "Simulated verification email queued (Resend not sent)");
+    req.log.info("Simulated verification email (Resend not configured)");
   }
   // Always also hand the frontend the relative link so it can show/simulate it in-app,
   // even when the real email was sent successfully.

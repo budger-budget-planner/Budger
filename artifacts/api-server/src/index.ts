@@ -4,6 +4,14 @@ import { pool } from "@workspace/db";
 import { spawnSync } from "child_process";
 import path from "path";
 
+// Fail fast if the database is not configured — every route depends on it
+// and starting without one only produces confusing per-request errors later.
+if (!process.env.DATABASE_URL) {
+  // Use console.error here because the logger may not be initialised yet.
+  console.error("[fatal] DATABASE_URL is required but not set — refusing to start.");
+  process.exit(1);
+}
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {

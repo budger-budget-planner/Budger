@@ -352,7 +352,7 @@ router.post("/webhook/apple/:token/test", async (req, res): Promise<void> => {
     return;
   }
 
-  logger.info({ body: req.body }, "Apple webhook /test: dry-run parse");
+  logger.info({ userId: user.id }, "Apple webhook /test: dry-run parse");
 
   const result = parseTransactionPayload(req.body);
 
@@ -400,16 +400,13 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     return;
   }
 
-  logger.info(
-    { rawBody: req.body, rawTransaction: req.body?.transaction },
-    "Apple Pay webhook: payload received",
-  );
+  logger.info({ userId: user.id }, "Apple Pay webhook: payload received");
 
   const result = parseTransactionPayload(req.body);
 
   if ("error" in result) {
     logger.warn(
-      { body: req.body, ...result },
+      { userId: user.id, path: result.path, error: result.error },
       "Apple Pay webhook: missing required fields (amount or merchant)",
     );
     res.status(422).json({
