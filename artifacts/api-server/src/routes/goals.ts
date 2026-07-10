@@ -2,10 +2,9 @@ import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable } from "@workspace/db";
 import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull, desc } from "drizzle-orm";
 import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
+import { isHead, isChildRole, formatGoal, formatContribution, calculateMonthlyTarget, goalPercentage } from "../lib/goals-helpers";
 
 const router: IRouter = Router();
-
-function isHead(role: string) { return role === "head" || role === "owner"; }
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -22,34 +21,6 @@ const realizedPastCutoff = and(
   sql`${goalsTable.realizedAt} <= now() - interval '24 hours'`,
 );
 
-function formatGoal(g: any) {
-  return {
-    ...g,
-    budget: parseFloat(g.budget),
-    currency: g.currency ?? null,
-    createdAt: g.createdAt.toISOString(),
-    updatedAt: g.updatedAt?.toISOString?.() ?? g.createdAt.toISOString(),
-  };
-}
-
-function formatContribution(c: any, goal?: any) {
-  return {
-    id: c.id,
-    goalId: c.goalId,
-    goalName: goal?.name ?? null,
-    goalColor: goal?.color ?? null,
-    goalCurrency: goal?.currency ?? null,
-    transactionId: c.transactionId ?? null,
-    amount: parseFloat(c.amount),
-    currency: c.currency ?? null,
-    accountAmount: c.accountAmount != null ? parseFloat(c.accountAmount) : null,
-    accountCurrency: c.accountCurrency ?? null,
-    month: c.month,
-    userId: c.userId,
-    householdId: c.householdId ?? null,
-    createdAt: c.createdAt.toISOString(),
-  };
-}
 
 async function userScope(userId: number) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -117,7 +88,6 @@ async function fanOutActivityToUser(
   });
 }
 
-function isChildRole(role: string) { return role === "child" || role === "member"; }
 
 router.get("/goals", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;

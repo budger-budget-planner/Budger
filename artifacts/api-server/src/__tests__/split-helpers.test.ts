@@ -1,0 +1,96 @@
+import { describe, it, expect } from "vitest";
+import { formatSplitRow, validateSplitAmount } from "../lib/split-helpers";
+
+// ─── formatSplitRow ──────────────────────────────────────────────────────────
+
+const createdAt = new Date("2024-06-01T10:00:00Z");
+
+const rawSplit = {
+  id: 5,
+  transactionId: 12,
+  splitAmount: "49.99",
+  issuerCurrency: "PLN",
+  issuerId: 1,
+  recipientId: 2,
+  status: "pending",
+  recipientTransactionId: null,
+  issuerNotified: false,
+  createdAt,
+};
+
+const tx = { description: "Dinner at Sakura", date: "2024-06-01" };
+
+describe("formatSplitRow", () => {
+  it("converts splitAmount string to number", () => {
+    expect(formatSplitRow(rawSplit, tx, "Alice", "Bob").splitAmount).toBe(49.99);
+  });
+  it("converts splitAmount numeric value to number", () => {
+    expect(formatSplitRow({ ...rawSplit, splitAmount: 49.99 }, tx, "Alice", "Bob").splitAmount).toBe(49.99);
+  });
+  it("copies transaction description", () => {
+    expect(formatSplitRow(rawSplit, tx, "Alice", "Bob").transactionDescription).toBe("Dinner at Sakura");
+  });
+  it("copies transaction date", () => {
+    expect(formatSplitRow(rawSplit, tx, "Alice", "Bob").transactionDate).toBe("2024-06-01");
+  });
+  it("falls back to empty string when transaction is undefined", () => {
+    const row = formatSplitRow(rawSplit, undefined, "Alice", "Bob");
+    expect(row.transactionDescription).toBe("");
+    expect(row.transactionDate).toBe("");
+  });
+  it("attaches issuer and recipient names", () => {
+    const row = formatSplitRow(rawSplit, tx, "Alice", "Bob");
+    expect(row.issuerName).toBe("Alice");
+    expect(row.recipientName).toBe("Bob");
+  });
+  it("falls back to empty string for missing names", () => {
+    const row = formatSplitRow(rawSplit, tx, undefined, undefined);
+    expect(row.issuerName).toBe("");
+    expect(row.recipientName).toBe("");
+  });
+  it("defaults issuerCurrency to USD when absent", () => {
+    const { issuerCurrency: _c, ...rest } = rawSplit;
+    expect(formatSplitRow(rest, tx, "A", "B").issuerCurrency).toBe("USD");
+  });
+  it("preserves the provided issuerCurrency", () => {
+    expect(formatSplitRow(rawSplit, tx, "A", "B").issuerCurrency).toBe("PLN");
+  });
+  it("converts createdAt to ISO string", () => {
+    expect(formatSplitRow(rawSplit, tx, "A", "B").createdAt).toBe("2024-06-01T10:00:00.000Z");
+  });
+  it("preserves status", () => {
+    expect(formatSplitRow(rawSplit, tx, "A", "B").status).toBe("pending");
+  });
+  it("sets recipientTransactionId to null when absent", () => {
+    expect(formatSplitRow(rawSplit, tx, "A", "B").recipientTransactionId).toBeNull();
+  });
+  it("passes through a present recipientTransactionId", () => {
+    expect(formatSplitRow({ ...rawSplit, recipientTransactionId: 77 }, tx, "A", "B").recipientTransactionId).toBe(77);
+  });
+});
+
+// ─── validateSplitAmount ─────────────────────────────────────────────────────
+
+describe("validateSplitAmount", () => {
+  it("returns null for a valid split amount", () => {
+    expect(validateSplitAmount(25, 100)).toBeNull();
+  });
+  it("returns null when split equals the full transaction amount", () => {
+    expect(validateSplitAmount(100, 100)).toBeNull();
+  });
+  it("returns an error when split is zero", () => {
+    expect(validateSplitAmount(0, 100)).toBe("Split amount must be positive");
+  });
+  it("returns an error when split is negative", () => {
+    expect(validateSplitAmount(-10, 100)).toBe("Split amount must be positive");
+  });
+  it("returns an error when split exceeds transaction", () => {
+    expect(validateSplitAmount(101, 100)).toBe("Split amount exceeds transaction amount");
+  });
+  it("rejects a split of 0.01 above the transaction amount", () => {
+    expect(validateSplitAmount(100.01, 100)).toBe("Split amount exceeds transaction amount");
+  });
+  it("accepts a very small positive split", () => {
+    expect(validateSplitAmount(0.01, 100)).toBeNull();
+  });
+});

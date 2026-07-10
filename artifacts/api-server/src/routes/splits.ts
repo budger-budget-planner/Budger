@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
+import { validateSplitAmount } from "../lib/split-helpers";
 
 const router: IRouter = Router();
 

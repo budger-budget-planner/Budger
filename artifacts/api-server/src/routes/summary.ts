@@ -5,27 +5,9 @@ import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
 } from "@workspace/api-zod";
+import { isNativeCurrency, isValidMonthPrefix, monthsAgoDate, roundMoney, nativeSpendingTxs } from "../lib/summary-helpers";
 
 const router: IRouter = Router();
-
-function isNativeCurrency(tx: any, userCurrency?: string): boolean {
-  // No foreign currency tag → always native
-  if (!tx.transactionCurrency) return true;
-  // Foreign tag matches the user's current currency → treat as native
-  if (userCurrency && tx.transactionCurrency === userCurrency) return true;
-  return false;
-}
-
-/** Validates a user-supplied month string is strictly YYYY-MM (no wildcards). */
-function isValidMonthPrefix(s: string): boolean {
-  return /^\d{4}-\d{2}$/.test(s);
-}
-
-/** Returns the YYYY-MM-DD first day of the month N months before the given date. */
-function monthsAgoDate(from: Date, monthsBack: number): string {
-  const d = new Date(from.getFullYear(), from.getMonth() - monthsBack, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
 
 async function getSpendingGrouped(userId: number, userCurrency?: string, includeAllCategories = false, monthPrefix?: string) {
   const whereClause = monthPrefix

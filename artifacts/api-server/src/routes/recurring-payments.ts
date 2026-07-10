@@ -2,22 +2,9 @@ import { Router, type IRouter } from "express";
 import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, larderEntriesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { syncTotalBudgetFloor } from "../lib/budget-sync";
+import { monthKey as currentMonthKey, getLastDayOfMonth, actualDayForMonth, formatRP } from "../lib/recurring-helpers";
 
 const router: IRouter = Router();
-
-function currentMonthKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getLastDayOfMonth(year: number, month: number): number {
-  // month is 1-12; using Date(year, month, 0) gives last day of month
-  return new Date(year, month, 0).getDate();
-}
-
-function actualDayForMonth(dayOfMonth: number, year: number, month: number): number {
-  return Math.min(dayOfMonth, getLastDayOfMonth(year, month));
-}
 
 async function getAppliedMap(userId: number, monthKey: string): Promise<Map<number, number | null>> {
   // INNER JOIN with transactions ensures orphaned logs (where the transaction was deleted
@@ -110,22 +97,6 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
   }
 }
 
-function formatRP(rp: any, appliedThisMonth: boolean, transactionId: number | null) {
-  return {
-    id: rp.id,
-    userId: rp.userId,
-    householdId: rp.householdId ?? null,
-    name: rp.name,
-    color: rp.color,
-    type: rp.type,
-    amount: parseFloat(rp.amount),
-    dayOfMonth: rp.dayOfMonth ?? null,
-    addToLarder: rp.addToLarder ?? false,
-    appliedThisMonth,
-    transactionId,
-    createdAt: rp.createdAt instanceof Date ? rp.createdAt.toISOString() : rp.createdAt,
-  };
-}
 
 // GET /recurring-payments — list all for current user, auto-apply scheduled
 router.get("/recurring-payments", async (req, res): Promise<void> => {
