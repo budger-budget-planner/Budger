@@ -294,4 +294,9 @@ async function sendDailyReminders() {
 // Run every minute
 setInterval(() => { sendDailyReminders().catch(() => {}); }, 60_000);
 
+// Smart alerts (budget thresholds + goal check-ins) — server-side push so
+// they fire even when the app is closed.  Import triggers its own scheduler.
+import("../lib/smart-alert-scheduler").catch(err => logger.warn({ err }, "smart-alerts: module load failed"));
+
+
 export default router;
