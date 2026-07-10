@@ -2,10 +2,11 @@ import { pgTable, serial, integer, boolean, text, timestamp, uniqueIndex } from 
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const notificationSettingsTable = pgTable("notification_settings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().unique(),
+  userId: integer("user_id").notNull().unique().references(() => usersTable.id, { onDelete: "cascade" }),
   enabled: boolean("enabled").notNull().default(false),
   reminderTime: text("reminder_time").notNull().default("20:00"),
   days: text("days").array().notNull().default(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
@@ -22,7 +23,7 @@ export type NotificationSettings = typeof notificationSettingsTable.$inferSelect
 // instead of living only in browser localStorage.
 export const notificationItemsTable = pgTable("notification_items", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   titleEn: text("title_en").notNull(),
   titlePl: text("title_pl").notNull(),

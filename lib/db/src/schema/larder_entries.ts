@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 /**
  * Personal savings ledger — "Larder" (Spiżarnia).
@@ -15,16 +16,20 @@ import { z } from "zod/v4";
  * Amounts are always stored in the user's currency at the time of the entry.
  * When the user changes currency, all existing entries are converted bulk
  * (same pattern as transactions).
+ *
+ * NOTE: goalId has no FK constraint intentionally — per the Larder independence
+ * rule, larder entries from goal saves must persist as financial history even
+ * after the source goal is deleted.
  */
 export const larderEntriesTable = pgTable("larder_entries", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull(),
   sourceType: text("source_type").notNull(), // see JSDoc above
   /** ID of the source record (transactionId, recurringPaymentLogId, goalId, etc.) */
   sourceId: integer("source_id"),
-  /** Goal ID that was saved from (for goal_save entries) */
+  /** Goal ID that was saved from (for goal_save entries) — no FK: entries must survive goal deletion */
   goalId: integer("goal_id"),
   note: text("note"),
   /** Soft-hide from history display (balance is still included in totals) */

@@ -1,13 +1,15 @@
 import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+import { transactionsTable } from "./transactions";
 
 export const expenseSplitsTable = pgTable("expense_splits", {
   id: serial("id").primaryKey(),
-  transactionId: integer("transaction_id").notNull(),
-  issuerId: integer("issuer_id").notNull(),
-  recipientId: integer("recipient_id").notNull(),
+  transactionId: integer("transaction_id").notNull().references(() => transactionsTable.id, { onDelete: "cascade" }),
+  issuerId: integer("issuer_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  recipientId: integer("recipient_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   splitAmount: numeric("split_amount", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"),
-  recipientTransactionId: integer("recipient_transaction_id"),
+  recipientTransactionId: integer("recipient_transaction_id").references(() => transactionsTable.id, { onDelete: "set null" }),
   issuerCurrency: text("issuer_currency").notNull().default("USD"),
   originalTransactionAmount: numeric("original_transaction_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   issuerNotified: boolean("issuer_notified").notNull().default(false),

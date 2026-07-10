@@ -1,9 +1,11 @@
 import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+import { householdsTable } from "./households";
 
 export const recurringPaymentsTable = pgTable("recurring_payments", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  householdId: integer("household_id"),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  householdId: integer("household_id").references(() => householdsTable.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   color: text("color").notNull().default("#818cf8"),
   type: text("type").notNull().default("manual"), // 'manual' | 'scheduled'

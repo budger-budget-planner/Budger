@@ -1,6 +1,8 @@
 import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
+import { householdsTable } from "./households";
 
 export const categoriesTable = pgTable("categories", {
   id: serial("id").primaryKey(),
@@ -8,8 +10,8 @@ export const categoriesTable = pgTable("categories", {
   color: text("color").notNull().default("#6366f1"),
   icon: text("icon").notNull().default("tag"),
   budget: numeric("budget", { precision: 12, scale: 2 }),
-  userId: integer("user_id"),
-  householdId: integer("household_id"),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  householdId: integer("household_id").references(() => householdsTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

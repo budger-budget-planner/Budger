@@ -1,6 +1,10 @@
 import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { householdsTable } from "./households";
+import { usersTable } from "./users";
+import { transactionsTable } from "./transactions";
+import { goalsTable } from "./goals";
 
 /**
  * Household savings ledger — "Great Larder" (Wielka Spiżarnia).
@@ -19,18 +23,18 @@ import { z } from "zod/v4";
  */
 export const greatLarderEntriesTable = pgTable("great_larder_entries", {
   id: serial("id").primaryKey(),
-  householdId: integer("household_id").notNull(),
-  contributedByUserId: integer("contributed_by_user_id").notNull(),
+  householdId: integer("household_id").notNull().references(() => householdsTable.id, { onDelete: "cascade" }),
+  contributedByUserId: integer("contributed_by_user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull(),
   sourceType: text("source_type").notNull(), // 'member_transfer' | 'fund'
   status: text("status").notNull().default("approved"), // 'pending' | 'approved' | 'rejected'
-  approvedByUserId: integer("approved_by_user_id"),
+  approvedByUserId: integer("approved_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   /** For 'fund' entries: the transaction ID created in the contributor's transaction list */
-  transactionId: integer("transaction_id"),
+  transactionId: integer("transaction_id").references(() => transactionsTable.id, { onDelete: "set null" }),
   /** For 'goal_dedication' entries: the goal that received the funds */
-  goalId: integer("goal_id"),
+  goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

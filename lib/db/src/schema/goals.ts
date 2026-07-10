@@ -1,6 +1,8 @@
 import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
+import { householdsTable } from "./households";
 
 export const goalsTable = pgTable("goals", {
   id: serial("id").primaryKey(),
@@ -10,8 +12,8 @@ export const goalsTable = pgTable("goals", {
   currency: text("currency"),
   deadline: text("deadline").notNull(),
   divideByMonths: boolean("divide_by_months").notNull().default(false),
-  userId: integer("user_id"),
-  householdId: integer("household_id"),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  householdId: integer("household_id").references(() => householdsTable.id, { onDelete: "cascade" }),
   /** Set the first time the goal's total contributions reach its budget.
    *  A realized goal automatically moves to Past Goals 24h after this is set. */
   realizedAt: timestamp("realized_at", { withTimezone: true }),

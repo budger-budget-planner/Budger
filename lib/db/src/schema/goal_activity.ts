@@ -1,11 +1,13 @@
 import { pgTable, serial, integer, text, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { usersTable } from "./users";
+import { goalsTable } from "./goals";
 
 export const goalActivityTable = pgTable("goal_activity", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
-  goalId: integer("goal_id").notNull(),
+  goalId: integer("goal_id").notNull().references(() => goalsTable.id, { onDelete: "cascade" }),
   goalName: text("goal_name").notNull(),
   goalColor: text("goal_color").notNull().default("#818cf8"),
   actorName: text("actor_name"),
