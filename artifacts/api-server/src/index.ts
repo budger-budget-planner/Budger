@@ -130,6 +130,17 @@ async function start() {
 
   process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
   process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
+
+  // Last-resort safety nets: the global Express error handler catches errors
+  // from request handlers, but anything thrown outside that flow (a stray
+  // async callback, a timer, a background job) would otherwise crash the
+  // process silently. Log and keep running rather than take down every user.
+  process.on("unhandledRejection", (reason) => {
+    logger.error({ err: reason }, "Unhandled promise rejection — continuing");
+  });
+  process.on("uncaughtException", (err) => {
+    logger.error({ err }, "Uncaught exception — continuing");
+  });
 }
 
 start().catch((err) => {

@@ -112,4 +112,21 @@ app.use(
 
 app.use("/api", router);
 
+// Unmatched /api routes — explicit 404 instead of falling through.
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// ── Global error handler ─────────────────────────────────────────────────────
+// Express 5 forwards rejected promises from async handlers to next(err)
+// automatically, but nothing was catching them — an unexpected DB error or a
+// malformed payload in any route (most of which have no local try/catch)
+// would otherwise crash the whole process for every user. This is the
+// last-resort safety net: log the failure and always respond, never throw.
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  req.log?.error({ err }, "Unhandled error in request handler") ?? logger.error({ err }, "Unhandled error in request handler");
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Internal server error" });
+});
+
 export default app;
