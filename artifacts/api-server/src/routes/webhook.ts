@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "crypto";
 import { db, usersTable, transactionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getAutoCategory } from "../lib/merchantRules";
 
@@ -244,10 +244,12 @@ router.get("/webhook/result/:token/:txId", async (req, res): Promise<void> => {
     return;
   }
 
+  // Scope to the token's own user — otherwise any valid webhook token could be
+  // used to enumerate and view other users' transaction result cards by ID.
   const [tx] = await db
     .select({ description: transactionsTable.description, amount: transactionsTable.amount, transactionCurrency: transactionsTable.transactionCurrency })
     .from(transactionsTable)
-    .where(eq(transactionsTable.id, Number(txId)));
+    .where(and(eq(transactionsTable.id, Number(txId)), eq(transactionsTable.userId, user.id)));
 
   if (!tx || !tx.description) {
     res.status(404).send("Transaction not found");

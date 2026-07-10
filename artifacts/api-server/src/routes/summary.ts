@@ -146,6 +146,10 @@ router.get("/summary/history", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
+  // Number of months to return, most recent first — bounds the response for
+  // long-lived accounts instead of grouping every transaction ever recorded.
+  const monthsLimit = Math.min(Math.max(parseInt(String(req.query.months ?? "24"), 10) || 24, 1), 120);
+
   const txs = await db.select().from(transactionsTable)
     .where(eq(transactionsTable.userId, userId))
     .orderBy(desc(transactionsTable.date));
@@ -164,6 +168,7 @@ router.get("/summary/history", async (req, res): Promise<void> => {
 
   const history = Array.from(monthMap.entries())
     .sort(([a], [b]) => b.localeCompare(a))
+    .slice(0, monthsLimit)
     .map(([monthKey, { txs: monthTxs }]) => {
       const [yearStr, monthStr] = monthKey.split("-");
       const year = parseInt(yearStr);

@@ -1,30 +1,49 @@
 import { Router, type IRouter } from "express";
 import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
+// Batch-fetches the transactions/users referenced by a list of splits in three
+// queries total instead of three per split (was N+1: 1 + 3*N round trips).
+async function enrichSplits(splits: any[]) {
+  if (splits.length === 0) return [];
+
+  const txIds = [...new Set(splits.map(s => s.transactionId))];
+  const userIds = [...new Set(splits.flatMap(s => [s.issuerId, s.recipientId]))];
+
+  const [txs, users] = await Promise.all([
+    db.select().from(transactionsTable).where(inArray(transactionsTable.id, txIds)),
+    db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
+  ]);
+  const txMap = new Map(txs.map(t => [t.id, t]));
+  const userMap = new Map(users.map(u => [u.id, u]));
+
+  return splits.map(s => {
+    const tx = txMap.get(s.transactionId);
+    return {
+      id: s.id,
+      transactionId: s.transactionId,
+      transactionDescription: tx?.description ?? "",
+      transactionDate: tx?.date ?? "",
+      splitAmount: parseFloat(s.splitAmount),
+      issuerCurrency: s.issuerCurrency ?? "USD",
+      issuerId: s.issuerId,
+      issuerName: userMap.get(s.issuerId)?.name ?? "",
+      recipientId: s.recipientId,
+      recipientName: userMap.get(s.recipientId)?.name ?? "",
+      status: s.status,
+      recipientTransactionId: s.recipientTransactionId ?? null,
+      issuerNotified: s.issuerNotified,
+      createdAt: s.createdAt.toISOString(),
+    };
+  });
+}
+
 async function enrichSplit(s: any) {
-  const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, s.transactionId));
-  const [issuer] = await db.select().from(usersTable).where(eq(usersTable.id, s.issuerId));
-  const [recipient] = await db.select().from(usersTable).where(eq(usersTable.id, s.recipientId));
-  return {
-    id: s.id,
-    transactionId: s.transactionId,
-    transactionDescription: tx?.description ?? "",
-    transactionDate: tx?.date ?? "",
-    splitAmount: parseFloat(s.splitAmount),
-    issuerCurrency: s.issuerCurrency ?? "USD",
-    issuerId: s.issuerId,
-    issuerName: issuer?.name ?? "",
-    recipientId: s.recipientId,
-    recipientName: recipient?.name ?? "",
-    status: s.status,
-    recipientTransactionId: s.recipientTransactionId ?? null,
-    issuerNotified: s.issuerNotified,
-    createdAt: s.createdAt.toISOString(),
-  };
+  const [result] = await enrichSplits([s]);
+  return result;
 }
 
 router.get("/splits/incoming", async (req, res): Promise<void> => {
@@ -34,8 +53,7 @@ router.get("/splits/incoming", async (req, res): Promise<void> => {
   const splits = await db.select().from(expenseSplitsTable)
     .where(and(eq(expenseSplitsTable.recipientId, userId), eq(expenseSplitsTable.status, "pending")));
 
-  const enriched = await Promise.all(splits.map(enrichSplit));
-  res.json(enriched);
+  res.json(await enrichSplits(splits));
 });
 
 router.get("/splits/issued", async (req, res): Promise<void> => {
@@ -46,8 +64,7 @@ router.get("/splits/issued", async (req, res): Promise<void> => {
     .where(and(eq(expenseSplitsTable.issuerId, userId), eq(expenseSplitsTable.issuerNotified, false)));
 
   const declined = splits.filter(s => s.status === "declined");
-  const enriched = await Promise.all(declined.map(enrichSplit));
-  res.json(enriched);
+  res.json(await enrichSplits(declined));
 });
 
 router.post("/splits", async (req, res): Promise<void> => {
@@ -182,10 +199,6 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     ? convertedAmount.toFixed(2)
     : split.splitAmount;
 
-  await db.update(transactionsTable)
-    .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer", preSplitAmount: origTx.amount })
-    .where(eq(transactionsTable.id, split.transactionId));
-
   // If the original transaction is currency-locked, the recipient's transaction
   // must inherit that lock + currency so summary.ts excludes it from totals
   // unless the recipient's account currency matches the locked currency.
@@ -194,30 +207,59 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const isLocked = origTx.currencyLocked && !!origTx.transactionCurrency;
   const finalAmount = isLocked ? split.splitAmount : recipientAmount;
 
-  const [recipientTx] = await db.insert(transactionsTable).values({
-    amount: finalAmount,
-    description: origTx.description,
-    categoryId: null,
-    date: origTx.date,
-    paymentMethod: origTx.paymentMethod,
-    userId: split.recipientId,
-    householdId: origTx.householdId,
-    splitId: split.id,
-    splitRole: "recipient",
-    // Carry over receipt image if the original had one
-    ...(origTx.receiptImage ? { receiptImage: origTx.receiptImage } : {}),
-    // Currency: locked transactions keep their lock + currency;
-    // cross-currency (non-locked) transactions get the recipient's currency tagged.
-    ...(isLocked
-      ? { currencyLocked: true, transactionCurrency: origTx.transactionCurrency }
-      : recipientCurrency && recipientCurrency !== split.issuerCurrency
-        ? { transactionCurrency: recipientCurrency }
-        : {}),
-  }).returning();
+  // Issuer amount rewrite, recipient transaction creation, and split status
+  // update must all succeed or all fail together — otherwise a mid-flight
+  // failure could shrink the issuer's transaction without ever crediting
+  // the recipient (money "disappears"), or leave the split stuck "pending"
+  // after the recipient transaction already exists (double-accept risk).
+  const recipientTx = await db.transaction(async (tx) => {
+    // Conditional on status='pending' so two concurrent accepts of the same
+    // split can't both pass the earlier check and each insert a recipient
+    // transaction — only the first to reach here wins the row.
+    const [claimed] = await tx.update(expenseSplitsTable)
+      .set({ status: "accepted" })
+      .where(and(eq(expenseSplitsTable.id, id), eq(expenseSplitsTable.status, "pending")))
+      .returning();
+    if (!claimed) {
+      throw Object.assign(new Error("Split is not pending"), { statusCode: 409 });
+    }
 
-  await db.update(expenseSplitsTable)
-    .set({ status: "accepted", recipientTransactionId: recipientTx.id })
-    .where(eq(expenseSplitsTable.id, id));
+    await tx.update(transactionsTable)
+      .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer", preSplitAmount: origTx.amount })
+      .where(eq(transactionsTable.id, split.transactionId));
+
+    const [inserted] = await tx.insert(transactionsTable).values({
+      amount: finalAmount,
+      description: origTx.description,
+      categoryId: null,
+      date: origTx.date,
+      paymentMethod: origTx.paymentMethod,
+      userId: split.recipientId,
+      householdId: origTx.householdId,
+      splitId: split.id,
+      splitRole: "recipient",
+      // Carry over receipt image if the original had one
+      ...(origTx.receiptImage ? { receiptImage: origTx.receiptImage } : {}),
+      // Currency: locked transactions keep their lock + currency;
+      // cross-currency (non-locked) transactions get the recipient's currency tagged.
+      ...(isLocked
+        ? { currencyLocked: true, transactionCurrency: origTx.transactionCurrency }
+        : recipientCurrency && recipientCurrency !== split.issuerCurrency
+          ? { transactionCurrency: recipientCurrency }
+          : {}),
+    }).returning();
+
+    await tx.update(expenseSplitsTable)
+      .set({ recipientTransactionId: inserted.id })
+      .where(eq(expenseSplitsTable.id, id));
+
+    return inserted;
+  }).catch((err) => {
+    if (err?.statusCode === 409) return null;
+    throw err;
+  });
+
+  if (!recipientTx) { res.status(409).json({ error: "Split is not pending" }); return; }
 
   res.json({ ok: true, recipientTransactionId: recipientTx.id });
 });

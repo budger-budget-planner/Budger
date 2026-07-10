@@ -11,3 +11,4 @@
 - [Larder independence rule](larder-independence.md) — Larder is a jar: funding/spending it does not link to transactions; deleting a source transaction must never revert Larder balance
 - [Offline mutation queue](offline-mutation-queue.md) — Phase 2 offline queue: IndexedDB, stop-on-failure ordering, Web Locks for concurrent drain, useMutationWithQueue hook design
 - [Budger gradient wordmark component](budger-wordmark-component.md) — shared BudgerWordmark component; splash screens must keep it outside the logo's fly-transform layer or positioning math breaks
+- [Budger deployment-hardening audit](budger-deploy-hardening.md) — phased fix history for IDOR/CORS/transactions/error-handling; check before assuming these are still unfixed

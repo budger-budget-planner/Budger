@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable } from "@workspace/db";
-import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull } from "drizzle-orm";
+import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull, desc } from "drizzle-orm";
 import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
 
 const router: IRouter = Router();
@@ -140,6 +140,11 @@ router.get("/goals/past", async (req, res): Promise<void> => {
   const user = await userScope(userId);
   if (!user) { res.status(401).json({ error: "User not found" }); return; }
 
+  // Past goals accumulate indefinitely, unlike active ones — bound the query
+  // so a long-lived household doesn't pull years of history into memory.
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "100"), 10) || 100, 1), 500);
+  const offset = Math.max(parseInt(String(req.query.offset ?? "0"), 10) || 0, 0);
+
   const t = today();
   const goals = user.householdId
     ? await db.select().from(goalsTable)
@@ -147,10 +152,14 @@ router.get("/goals/past", async (req, res): Promise<void> => {
           or(eq(goalsTable.userId, userId), eq(goalsTable.householdId, user.householdId)),
           or(lt(goalsTable.deadline, t), realizedPastCutoff),
         ))
-        .orderBy(goalsTable.deadline)
+        .orderBy(desc(goalsTable.deadline))
+        .limit(limit)
+        .offset(offset)
     : await db.select().from(goalsTable)
         .where(and(eq(goalsTable.userId, userId), or(lt(goalsTable.deadline, t), realizedPastCutoff)))
-        .orderBy(goalsTable.deadline);
+        .orderBy(desc(goalsTable.deadline))
+        .limit(limit)
+        .offset(offset);
 
   res.json(goals.map(formatGoal));
 });
@@ -753,22 +762,28 @@ router.delete("/goals/:id", async (req, res): Promise<void> => {
     }
   }
 
-  for (const { userId: refundUserId, amount, currency } of refundByKey.values()) {
-    if (amount <= 0.001) continue;
-    await db.insert(larderEntriesTable).values({
-      userId: refundUserId,
-      amount: String(amount),
-      currency,
-      sourceType: "goal_deleted_refund",
-      goalId: id,
-      note: `Refunded from deleted goal: ${goal.name}`,
-    });
-  }
+  // Refunding money into Larder and removing the goal's records must happen
+  // atomically — a crash partway through could otherwise refund a contributor's
+  // Larder twice on retry, or delete the goal without ever refunding it.
+  await db.transaction(async (tx) => {
+    for (const { userId: refundUserId, amount, currency } of refundByKey.values()) {
+      if (amount <= 0.001) continue;
+      await tx.insert(larderEntriesTable).values({
+        userId: refundUserId,
+        amount: String(amount),
+        currency,
+        sourceType: "goal_deleted_refund",
+        goalId: id,
+        note: `Refunded from deleted goal: ${goal.name}`,
+      });
+    }
 
-  await db.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
-  await db.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
-  await db.delete(goalEditProposalsTable).where(eq(goalEditProposalsTable.goalId, id));
-  await db.delete(goalsTable).where(eq(goalsTable.id, id));
+    await tx.delete(goalContributionsTable).where(eq(goalContributionsTable.goalId, id));
+    await tx.delete(goalProposalsTable).where(eq(goalProposalsTable.goalId, id));
+    await tx.delete(goalEditProposalsTable).where(eq(goalEditProposalsTable.goalId, id));
+    await tx.delete(goalsTable).where(eq(goalsTable.id, id));
+  });
+
   res.sendStatus(204);
 });
 
