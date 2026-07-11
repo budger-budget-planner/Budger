@@ -12,3 +12,9 @@ id = "8XDk6XQOQpJwj5GxxNmDL"
 uri = "file://budger-logo.png"
 type = "image"
 title = "Budger Logo — 1024×1024 PNG"
+
+[[outputs]]
+id = "hB44ZRlK8GOSDNKhU238z"
+uri = "file://output/Budger_App_Architecture_Guide.docx"
+type = "word_document"
+title = "Budger App Architecture Guide"
