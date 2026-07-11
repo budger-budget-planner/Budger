@@ -389,6 +389,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "login.continue":         { en: "Continue",           pl: "Kontynuuj"            },
   "login.signing_in":       { en: "Verifying…",         pl: "Weryfikowanie…"       },
   "login.failed":           { en: "Sign-in failed. Please try again.", pl: "Logowanie nie powiodło się. Spróbuj ponownie."},
+  "login.too_many_attempts": { en: "Too many attempts. Please wait a moment and try again.", pl: "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie." },
   "login.footer":           { en: "Budger © 2026",      pl: "Budger © 2026"       },
   "login.no_account_prompt":{ en: "New here?",          pl: "Nowy użytkownik?"    },
   "login.sign_up":          { en: "Create an account",  pl: "Utwórz konto"        },

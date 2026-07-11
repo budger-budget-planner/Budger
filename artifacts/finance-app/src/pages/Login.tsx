@@ -185,7 +185,10 @@ export default function LoginPage() {
         const errMsg   = errData?.error ?? err?.message ?? "";
         const status   = err?.status ?? err?.response?.status ?? 0;
 
-        if (status === 403 || errMsg.includes("account_pending_deletion")) {
+        if (status === 429 || errMsg.includes("Too many attempts") || errMsg.includes("Too many requests")) {
+          setLoginError(t("login.too_many_attempts"));
+          // Keep the PIN — the user just needs to wait and retry
+        } else if (status === 403 || errMsg.includes("account_pending_deletion")) {
           setLoginError(t("login.account_pending_deletion"));
           setLoginPin("");
         } else if (status === 404 || errMsg.includes("No account")) {

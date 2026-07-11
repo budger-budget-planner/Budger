@@ -596,19 +596,21 @@ function SplitSheet({
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: m.memberColor ?? "#888" }} />
                       <span className="text-sm flex-1 truncate">{m.name}</span>
                       {isChecked && (
-                        <div className="relative w-28 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                            {splitMode === "amount" ? effectiveSym : "%"}
-                          </span>
-                          <Input type="number" min="0" step={splitMode === "amount" ? "0.01" : "1"}
-                            placeholder="0" value={rawValue}
-                            onChange={e => setValues(prev => ({ ...prev, [m.userId]: e.target.value }))}
-                            className="pl-6 h-8 text-sm" />
+                        <div className="w-28 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                              {splitMode === "amount" ? effectiveSym : "%"}
+                            </span>
+                            <Input type="number" min="0" step={splitMode === "amount" ? "0.01" : "1"}
+                              placeholder="0" value={rawValue}
+                              onChange={e => setValues(prev => ({ ...prev, [m.userId]: e.target.value }))}
+                              className="pl-6 h-8 text-sm" />
+                          </div>
                         </div>
                       )}
                     </label>
                     {isChecked && splitMode === "percent" && rawValue !== "" && (
-                      <p className="text-[11px] text-muted-foreground px-3 pb-2 -mt-1">
+                      <p className="text-[11px] text-muted-foreground text-right px-3 pb-2 -mt-1">
                         ≈ {effectiveSym}{previewAmount.toFixed(2)}
                       </p>
                     )}
@@ -2240,6 +2242,7 @@ export default function HomeSpending() {
           rates={rates}
           onClose={() => setSplitTx(null)}
           onSuccess={() => {
+            invalidateAll(queryClient);
             setSplitTx(null);
             setSplitSent(true);
             setTimeout(() => setSplitSent(false), 3000);
