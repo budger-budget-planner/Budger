@@ -17,6 +17,17 @@ export const pool = new Pool({
   idleTimeoutMillis: 30_000,       // recycle idle connections after 30 s
 });
 
+// node-postgres emits 'error' on the pool when an *idle* client in the pool
+// hits a background error (e.g. the DB briefly drops the connection). If
+// nothing listens for it, Node treats it as an unhandled EventEmitter error,
+// which can take down whatever request happens to be in flight at that
+// moment — surfacing as a random, intermittent 500 unrelated to the request
+// itself (e.g. a login attempt with the correct PIN failing "sometimes").
+// Just log it and let the pool recycle the connection; do not crash.
+pool.on("error", (err) => {
+  console.error("[db] Unexpected error on idle client", err);
+});
+
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
