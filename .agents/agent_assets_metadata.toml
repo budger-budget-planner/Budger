@@ -24,3 +24,15 @@ id = "KgPrtLVz685HWo5oeDjc7"
 uri = "file://output/Budger_Przewodnik_Architektura_PL.docx"
 type = "word_document"
 title = "Budger - Przewodnik po Architekturze (PL)"
+
+[[outputs]]
+id = "An_nnQS-xz-_ok6R9ubhQ"
+uri = "file://output/Budger_Engineering_Handoff_EN.docx"
+type = "word_document"
+title = "Budger - Engineering Handoff (EN)"
+
+[[outputs]]
+id = "64siG2Stho0cog_sRPHns"
+uri = "file://output/Budger_Dokumentacja_Przekazania_PL.docx"
+type = "word_document"
+title = "Budger - Dokumentacja Przekazania Projektu (PL)"
