@@ -466,20 +466,34 @@ function SplitSheet({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [recipientId, setRecipientId] = useState("");
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [splitMode, setSplitMode] = useState<"amount" | "percent">("amount");
-  const [splitValue, setSplitValue] = useState("");
+  const [values, setValues] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const txAmount = Number(tx.amount);
-  const splitAmt = splitMode === "amount"
-    ? parseFloat(splitValue) || 0
-    : ((parseFloat(splitValue) || 0) / 100) * txAmount;
 
   // For locked or foreign-currency transactions, show amounts in the transaction's
   // own currency, not the account currency.
   const effectiveSym = tx.transactionCurrency ? currencySymbol(tx.transactionCurrency) : sym;
+
+  const others = members.filter((m: any) => m.userId !== myUserId);
+  const checkedIds = others.filter((m: any) => checked[m.userId]).map((m: any) => m.userId);
+
+  // Resolve each checked member's entered amount/percent into a currency amount
+  // in the transaction's own currency, so the totals below and the submit
+  // payload are always expressed the same way regardless of the active mode.
+  function amountFor(userId: number): number {
+    const raw = parseFloat(values[userId] ?? "") || 0;
+    return splitMode === "amount" ? raw : (raw / 100) * txAmount;
+  }
+
+  const lines = checkedIds
+    .map((id: number) => ({ recipientId: id, amount: amountFor(id) }))
+    .filter(l => l.amount > 0);
+  const totalSplitAmount = lines.reduce((acc, l) => acc + l.amount, 0);
+  const yourRemaining = txAmount - totalSplitAmount;
 
   // Amount dedicated to the goal, expressed in the transaction's own currency
   // (issuerCurrency). Prefer the stored accountAmount/accountCurrency snapshot
@@ -500,13 +514,18 @@ function SplitSheet({
       : convertAmount(goalContrib.amount, contribCurrency, issuerCurrency, rates ?? {});
   })();
 
+  const sumExceedsTotal = totalSplitAmount > txAmount + 0.01;
+
   // Block split if it would leave less than the goal-dedicated amount on this transaction
   const wouldViolateGoal = !!(
-    goalAmountInTxCurrency > 0 && splitValue !== "" && splitAmt > 0 &&
-    (txAmount - splitAmt) < goalAmountInTxCurrency
+    goalAmountInTxCurrency > 0 && totalSplitAmount > 0 && yourRemaining < goalAmountInTxCurrency
   );
 
-  const isValid = !!recipientId && splitAmt > 0 && splitAmt <= txAmount && !wouldViolateGoal;
+  const isValid = lines.length > 0 && !sumExceedsTotal && !wouldViolateGoal;
+
+  function toggleMember(userId: number) {
+    setChecked(prev => ({ ...prev, [userId]: !prev[userId] }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -518,7 +537,7 @@ function SplitSheet({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: tx.id, recipientId: parseInt(recipientId), splitAmount: splitAmt, issuerCurrency }),
+        body: JSON.stringify({ transactionId: tx.id, issuerCurrency, splits: lines }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -531,12 +550,10 @@ function SplitSheet({
     }
   }
 
-  const others = members.filter((m: any) => m.userId !== myUserId);
-
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl px-5 pt-4"
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl px-5 pt-4 max-h-[85vh] overflow-y-auto"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom, 16px), 24px)" }}>
         <div className="flex justify-center pt-1 pb-3">
           <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -550,53 +567,75 @@ function SplitSheet({
         </div>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <Label>{t("split.member_label")}</Label>
-            <Select value={recipientId} onValueChange={setRecipientId}>
-              <SelectTrigger><SelectValue placeholder={t("split.choose_member")} /></SelectTrigger>
-              <SelectContent>
-                {others.map((m: any) => (
-                  <SelectItem key={m.userId} value={String(m.userId)}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.memberColor ?? "#888" }} />
-                      {m.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>{t("split.amount_label")}</Label>
+              <Label>{t("split.select_members")}</Label>
               <div className="flex rounded-lg border border-border overflow-hidden text-xs">
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "amount" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
-                  onClick={() => { setSplitMode("amount"); setSplitValue(""); }}>{effectiveSym}</button>
+                  onClick={() => setSplitMode("amount")}>{effectiveSym}</button>
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${splitMode === "percent" ? "bg-foreground text-background font-medium" : "text-muted-foreground"}`}
-                  onClick={() => { setSplitMode("percent"); setSplitValue(""); }}>%</button>
+                  onClick={() => setSplitMode("percent")}>%</button>
               </div>
             </div>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                {splitMode === "amount" ? effectiveSym : "%"}
-              </span>
-              <Input type="number" min="0.01" step={splitMode === "amount" ? "0.01" : "1"}
-                max={splitMode === "amount" ? txAmount : 100}
-                placeholder="0" value={splitValue} onChange={e => setSplitValue(e.target.value)}
-                className="pl-7" />
-            </div>
-            {splitValue && splitAmt > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t("split.recipient_pays")}: {effectiveSym}{splitAmt.toFixed(2)} · {t("split.you_pay")}: {effectiveSym}{(txAmount - splitAmt).toFixed(2)}
-              </p>
+
+            {others.length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">{t("split.no_members")}</p>
             )}
+
+            <div className="space-y-2">
+              {others.map((m: any) => {
+                const isChecked = !!checked[m.userId];
+                const rawValue = values[m.userId] ?? "";
+                const previewAmount = amountFor(m.userId);
+                return (
+                  <div key={m.userId} className={`rounded-xl border transition-colors ${isChecked ? "border-white/20 bg-white/5" : "border-border"}`}>
+                    <label className="flex items-center gap-3 px-3 py-2.5 cursor-pointer">
+                      <input type="checkbox" checked={isChecked} onChange={() => toggleMember(m.userId)}
+                        className="w-4 h-4 rounded accent-white flex-shrink-0" />
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: m.memberColor ?? "#888" }} />
+                      <span className="text-sm flex-1 truncate">{m.name}</span>
+                      {isChecked && (
+                        <div className="relative w-28 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                            {splitMode === "amount" ? effectiveSym : "%"}
+                          </span>
+                          <Input type="number" min="0" step={splitMode === "amount" ? "0.01" : "1"}
+                            placeholder="0" value={rawValue}
+                            onChange={e => setValues(prev => ({ ...prev, [m.userId]: e.target.value }))}
+                            className="pl-6 h-8 text-sm" />
+                        </div>
+                      )}
+                    </label>
+                    {isChecked && splitMode === "percent" && rawValue !== "" && (
+                      <p className="text-[11px] text-muted-foreground px-3 pb-2 -mt-1">
+                        ≈ {effectiveSym}{previewAmount.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {lines.length > 0 && (
+              <div className="flex items-center justify-between pt-1 px-1">
+                <span className="text-xs text-muted-foreground">{t("split.your_share")}</span>
+                <span className={`text-sm font-medium ${yourRemaining < 0 ? "text-destructive" : ""}`}>
+                  {effectiveSym}{yourRemaining.toFixed(2)}
+                </span>
+              </div>
+            )}
+
+            {sumExceedsTotal && (
+              <p className="text-xs text-destructive">{t("split.sum_exceeds")}</p>
+            )}
+
             {wouldViolateGoal && goalContrib && (
               <div className="flex items-start gap-2 rounded-xl border border-yellow-500/50 bg-yellow-500/10 px-3 py-2.5">
                 <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-yellow-400">
                   {t("split.goal_block", {
-                    rem: `${effectiveSym}${(txAmount - splitAmt).toFixed(2)}`,
+                    rem: `${effectiveSym}${yourRemaining.toFixed(2)}`,
                     goal: `${effectiveSym}${goalAmountInTxCurrency.toFixed(2)}`,
                   })}
                 </p>
@@ -1634,6 +1673,7 @@ export default function HomeSpending() {
                   // Badge presence flags
                   const larderDedication = !contrib ? larderByTxId.get(tx.id) : undefined;
                   const hasSplit            = !!(tx as any).splitRole;
+                  const isSplitPending      = (tx as any).splitGroupStatus === "pending";
                   const hasGoal             = !!contrib;
                   const hasLarderDedication = !!larderDedication;
                   const isRealizedGoal      = !!(tx as any).foundedWithRealizedGoal;
@@ -1665,7 +1705,7 @@ export default function HomeSpending() {
                     >
                       {/* ── Main row ── */}
                       <div
-                        className="flex items-start gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer"
+                        className={`flex items-start gap-3 px-4 py-3.5 transition-colors active:bg-muted/40 cursor-pointer ${isSplitPending ? "opacity-50" : ""}`}
                         onClick={() => setActionTx(isExpanded ? null : tx.id)}
                       >
                         {/* Category icon */}

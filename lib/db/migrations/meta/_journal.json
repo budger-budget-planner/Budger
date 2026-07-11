@@ -15,6 +15,13 @@
       "when": 1783715941157,
       "tag": "0001_handy_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783786306395,
+      "tag": "0002_adorable_vulture",
+      "breakpoints": true
     }
   ]
 }

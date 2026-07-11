@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
-import { validateSplitAmount } from "../lib/split-helpers";
+import { validateSplitGroup, computeGroupState, formatSplitRow, type SplitLine } from "../lib/split-helpers";
+import crypto from "node:crypto";
 
 const router: IRouter = Router();
 
@@ -21,25 +22,12 @@ async function enrichSplits(splits: any[]) {
   const txMap = new Map(txs.map(t => [t.id, t]));
   const userMap = new Map(users.map(u => [u.id, u]));
 
-  return splits.map(s => {
-    const tx = txMap.get(s.transactionId);
-    return {
-      id: s.id,
-      transactionId: s.transactionId,
-      transactionDescription: tx?.description ?? "",
-      transactionDate: tx?.date ?? "",
-      splitAmount: parseFloat(s.splitAmount),
-      issuerCurrency: s.issuerCurrency ?? "USD",
-      issuerId: s.issuerId,
-      issuerName: userMap.get(s.issuerId)?.name ?? "",
-      recipientId: s.recipientId,
-      recipientName: userMap.get(s.recipientId)?.name ?? "",
-      status: s.status,
-      recipientTransactionId: s.recipientTransactionId ?? null,
-      issuerNotified: s.issuerNotified,
-      createdAt: s.createdAt.toISOString(),
-    };
-  });
+  return splits.map(s => formatSplitRow(
+    s,
+    txMap.get(s.transactionId),
+    userMap.get(s.issuerId)?.name,
+    userMap.get(s.recipientId)?.name,
+  ));
 }
 
 async function enrichSplit(s: any) {
@@ -72,13 +60,12 @@ router.post("/splits", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { transactionId, recipientId, splitAmount, issuerCurrency } = req.body as {
+  const { transactionId, issuerCurrency, splits } = req.body as {
     transactionId?: number;
-    recipientId?: number;
-    splitAmount?: number;
     issuerCurrency?: string;
+    splits?: { recipientId: number; amount: number }[];
   };
-  if (!transactionId || !recipientId || !splitAmount) {
+  if (!transactionId || !Array.isArray(splits) || splits.length === 0) {
     res.status(400).json({ error: "Missing required fields" }); return;
   }
 
@@ -86,12 +73,16 @@ router.post("/splits", async (req, res): Promise<void> => {
   if (!tx || tx.userId !== userId) {
     res.status(403).json({ error: "Not your transaction" }); return;
   }
-  if (splitAmount > parseFloat(tx.amount)) {
-    res.status(400).json({ error: "Split amount exceeds transaction amount" }); return;
+  // A transaction can only have one active/settled split group at a time —
+  // if it already carries one, the issuer must wait for it to fully resolve
+  // (all-declined groups get cleared automatically, re-opening this).
+  if (tx.splitGroupId) {
+    res.status(400).json({ error: "This transaction already has a split in progress" }); return;
   }
-  if (splitAmount <= 0) {
-    res.status(400).json({ error: "Split amount must be positive" }); return;
-  }
+
+  const lines: SplitLine[] = splits.map(s => ({ recipientId: Number(s.recipientId), amount: Number(s.amount) }));
+  const validationError = validateSplitGroup(lines, parseFloat(tx.amount), userId);
+  if (validationError) { res.status(400).json({ error: validationError }); return; }
 
   // Block if the remaining amount after the split would be less than what is already
   // dedicated to a goal — the issuer must keep at least that much on their record.
@@ -118,8 +109,9 @@ router.post("/splits", async (req, res): Promise<void> => {
       }
     }
   }
+  const totalSplitAmount = lines.reduce((acc, l) => acc + l.amount, 0);
   if (totalGoalAmount > 0) {
-    const remaining = parseFloat(tx.amount) - splitAmount;
+    const remaining = parseFloat(tx.amount) - totalSplitAmount;
     if (remaining < totalGoalAmount) {
       res.status(400).json({
         error: "split_would_violate_goal",
@@ -131,24 +123,48 @@ router.post("/splits", async (req, res): Promise<void> => {
   }
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  const [recipient] = await db.select().from(usersTable).where(eq(usersTable.id, recipientId));
-  if (!currentUser?.householdId || currentUser.householdId !== recipient?.householdId) {
-    res.status(403).json({ error: "Not in the same household" }); return;
+  const recipients = await db.select().from(usersTable).where(inArray(usersTable.id, lines.map(l => l.recipientId)));
+  if (recipients.length !== lines.length) {
+    res.status(400).json({ error: "One or more members were not found" }); return;
+  }
+  for (const r of recipients) {
+    if (!currentUser?.householdId || currentUser.householdId !== r.householdId) {
+      res.status(403).json({ error: "Not in the same household" }); return;
+    }
   }
 
-  const [split] = await db.insert(expenseSplitsTable).values({
-    transactionId,
-    issuerId: userId,
-    recipientId,
-    splitAmount: String(splitAmount),
-    issuerCurrency: issuerCurrency ?? "USD",
-    // Snapshot the transaction amount now so we can compute the correct fraction
-    // at accept-time even if the issuer later changes currency (which rewrites tx.amount).
-    originalTransactionAmount: tx.amount,
-    status: "pending",
-  }).returning();
+  const groupId = crypto.randomUUID();
 
-  const enriched = await enrichSplit(split);
+  const created = await db.transaction(async (t) => {
+    const rows = await t.insert(expenseSplitsTable).values(
+      lines.map(l => ({
+        transactionId,
+        issuerId: userId,
+        recipientId: l.recipientId,
+        splitAmount: String(l.amount),
+        groupId,
+        issuerCurrency: issuerCurrency ?? "USD",
+        // Snapshot the transaction amount now so we can compute the correct fraction
+        // at accept-time even if the issuer later changes currency (which rewrites tx.amount).
+        originalTransactionAmount: tx.amount,
+        status: "pending",
+      })),
+    ).returning();
+
+    await t.update(transactionsTable)
+      .set({
+        splitGroupId: groupId,
+        splitGroupStatus: "pending",
+        splitId: rows[0].id,
+        splitRole: "issuer",
+        preSplitAmount: tx.amount,
+      })
+      .where(eq(transactionsTable.id, transactionId));
+
+    return rows;
+  });
+
+  const enriched = await enrichSplits(created);
   res.status(201).json(enriched);
 });
 
@@ -225,8 +241,22 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       throw Object.assign(new Error("Split is not pending"), { statusCode: 409 });
     }
 
+    // Recompute the group's overall state now that this row has resolved —
+    // other siblings may still be pending, so the issuer's transaction only
+    // fully "settles" (loses its grey/pending look) once every recipient
+    // in the group has responded.
+    const siblings = await tx.select().from(expenseSplitsTable)
+      .where(eq(expenseSplitsTable.groupId, split.groupId));
+    const state = computeGroupState(siblings.map(s => s.id === id ? "accepted" : s.status));
+
     await tx.update(transactionsTable)
-      .set({ amount: newIssuerAmt, splitId: split.id, splitRole: "issuer", preSplitAmount: origTx.amount })
+      .set({
+        amount: newIssuerAmt,
+        splitId: split.id,
+        splitRole: "issuer",
+        preSplitAmount: origTx.preSplitAmount ?? origTx.amount,
+        splitGroupStatus: state === "pending" ? "pending" : "settled",
+      })
       .where(eq(transactionsTable.id, split.transactionId));
 
     const [inserted] = await tx.insert(transactionsTable).values({
@@ -280,9 +310,42 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Split is not pending" }); return;
   }
 
-  await db.update(expenseSplitsTable)
-    .set({ status: "declined" })
-    .where(eq(expenseSplitsTable.id, id));
+  const declined = await db.transaction(async (tx) => {
+    const [claimed] = await tx.update(expenseSplitsTable)
+      .set({ status: "declined" })
+      .where(and(eq(expenseSplitsTable.id, id), eq(expenseSplitsTable.status, "pending")))
+      .returning();
+    if (!claimed) {
+      throw Object.assign(new Error("Split is not pending"), { statusCode: 409 });
+    }
+
+    const siblings = await tx.select().from(expenseSplitsTable)
+      .where(eq(expenseSplitsTable.groupId, split.groupId));
+    const state = computeGroupState(siblings.map(s => s.id === id ? "declined" : s.status));
+
+    if (state === "settled") {
+      // At least one sibling was accepted and everyone has now responded —
+      // the issuer's transaction is final, just drop the "pending" look.
+      await tx.update(transactionsTable)
+        .set({ splitGroupStatus: "settled" })
+        .where(eq(transactionsTable.id, split.transactionId));
+    } else if (state === "all_declined") {
+      // Nobody accepted anything — revert the issuer's transaction to a plain,
+      // unsplit row so it can be split again later. The amount itself was
+      // never touched by declines, so it's already correct.
+      await tx.update(transactionsTable)
+        .set({ splitGroupId: null, splitGroupStatus: null, splitId: null, splitRole: null, preSplitAmount: null })
+        .where(eq(transactionsTable.id, split.transactionId));
+    }
+    // else state === "pending": other recipients still haven't responded — no-op on the issuer's row.
+
+    return true;
+  }).catch((err) => {
+    if (err?.statusCode === 409) return false;
+    throw err;
+  });
+
+  if (!declined) { res.status(409).json({ error: "Split is not pending" }); return; }
 
   res.json({ ok: true });
 });

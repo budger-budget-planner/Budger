@@ -38,6 +38,8 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     splitId: tx.splitId ?? null,
     splitRole: tx.splitRole ?? null,
     preSplitAmount: tx.preSplitAmount != null ? parseFloat(tx.preSplitAmount) : null,
+    splitGroupId: tx.splitGroupId ?? null,
+    splitGroupStatus: tx.splitGroupStatus ?? null,
     currencyUnavailable: tx.currencyUnavailable ?? false,
     foundedWithRealizedGoal: tx.foundedWithRealizedGoal ?? false,
     recurringPaymentId: tx.recurringPaymentId ?? null,

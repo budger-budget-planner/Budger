@@ -33,6 +33,13 @@ export const transactionsTable = pgTable("transactions", {
   /** For issuer split transactions: the original transaction amount BEFORE the split was deducted.
    *  Kept in sync with `amount` during currency conversions so it always reflects the user's currency. */
   preSplitAmount: numeric("pre_split_amount", { precision: 12, scale: 2 }),
+  /** Set on the ISSUER's transaction when a (possibly multi-recipient) split request is created.
+   *  Links to `expense_splits.group_id` for every sibling row created in that request. */
+  splitGroupId: text("split_group_id"),
+  /** 'pending' while at least one recipient in the group hasn't responded yet;
+   *  'settled' once every recipient has accepted or declined (and at least one accepted).
+   *  Cleared to null (along with splitGroupId/splitRole/preSplitAmount) if every recipient declines. */
+  splitGroupStatus: text("split_group_status"),
   /** True when the transaction was captured in a currency the app does not support.
    *  These rows appear in the list but are excluded from all totals and summaries. */
   currencyUnavailable: boolean("currency_unavailable").notNull().default(false),

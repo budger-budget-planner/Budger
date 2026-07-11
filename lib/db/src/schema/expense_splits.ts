@@ -8,6 +8,10 @@ export const expenseSplitsTable = pgTable("expense_splits", {
   issuerId: integer("issuer_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   recipientId: integer("recipient_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   splitAmount: numeric("split_amount", { precision: 12, scale: 2 }).notNull(),
+  /** Groups every sibling split row created together in one split request against the
+   *  same transaction (arbitrary number of recipients). Matches transactions.split_group_id
+   *  on the issuer's row. Backfilled to a per-row unique value for pre-existing rows. */
+  groupId: text("group_id").notNull(),
   status: text("status").notNull().default("pending"),
   recipientTransactionId: integer("recipient_transaction_id").references(() => transactionsTable.id, { onDelete: "set null" }),
   issuerCurrency: text("issuer_currency").notNull().default("USD"),

@@ -2,9 +2,11 @@
 
 export interface SplitRow {
   id: number;
+  groupId: string;
   transactionId: number;
   transactionDescription: string;
   transactionDate: string;
+  transactionAmount: number | null;
   splitAmount: number;
   issuerCurrency: string;
   issuerId: number;
@@ -24,6 +26,7 @@ export interface SplitRow {
 export function formatSplitRow(
   s: {
     id: number;
+    groupId?: string | null;
     transactionId: number;
     splitAmount: string | number;
     issuerCurrency?: string | null;
@@ -34,15 +37,17 @@ export function formatSplitRow(
     issuerNotified: boolean;
     createdAt: Date;
   },
-  tx: { description?: string | null; date?: string | null } | undefined,
+  tx: { description?: string | null; date?: string | null; amount?: string | number | null } | undefined,
   issuerName: string | undefined,
   recipientName: string | undefined,
 ): SplitRow {
   return {
     id: s.id,
+    groupId: s.groupId ?? "",
     transactionId: s.transactionId,
     transactionDescription: tx?.description ?? "",
     transactionDate: tx?.date ?? "",
+    transactionAmount: tx?.amount != null ? parseFloat(String(tx.amount)) : null,
     splitAmount: parseFloat(String(s.splitAmount)),
     issuerCurrency: s.issuerCurrency ?? "USD",
     issuerId: s.issuerId,
@@ -67,4 +72,46 @@ export function validateSplitAmount(
   if (splitAmount <= 0) return "Split amount must be positive";
   if (splitAmount > transactionAmount) return "Split amount exceeds transaction amount";
   return null;
+}
+
+export interface SplitLine {
+  recipientId: number;
+  amount: number;
+}
+
+/**
+ * Validates a multi-recipient split request against the parent transaction amount.
+ * Ensures: at least one line, no duplicate/self recipients, every amount is positive,
+ * and the sum leaves the issuer with a non-negative remainder.
+ * Returns an error message string, or null if valid.
+ */
+export function validateSplitGroup(
+  lines: SplitLine[],
+  transactionAmount: number,
+  issuerId: number,
+): string | null {
+  if (!Array.isArray(lines) || lines.length === 0) return "Select at least one household member";
+  const seen = new Set<number>();
+  for (const line of lines) {
+    if (!Number.isFinite(line.recipientId)) return "Invalid member selected";
+    if (line.recipientId === issuerId) return "Cannot split with yourself";
+    if (seen.has(line.recipientId)) return "Each member can only appear once";
+    seen.add(line.recipientId);
+    if (!(line.amount > 0)) return "Each selected member needs an amount greater than zero";
+  }
+  const sum = lines.reduce((acc, l) => acc + l.amount, 0);
+  // Allow a tiny epsilon for floating point summation of percentage-derived amounts.
+  if (sum > transactionAmount + 0.01) return "Split amounts exceed the transaction amount";
+  return null;
+}
+
+/**
+ * Given the statuses of every sibling row in a split group, determines the
+ * group's overall state: still waiting on someone, fully settled (>=1 accepted),
+ * or fully declined (should revert the issuer's transaction to a plain, unsplit state).
+ */
+export function computeGroupState(statuses: string[]): "pending" | "settled" | "all_declined" {
+  if (statuses.some(s => s === "pending")) return "pending";
+  if (statuses.some(s => s === "accepted")) return "settled";
+  return "all_declined";
 }
