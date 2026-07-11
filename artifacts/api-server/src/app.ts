@@ -116,11 +116,20 @@ app.use(
 // screenshot-extraction endpoint (cost/abuse protection, since it calls a
 // paid Gemini API per request). Keyed by IP; generous enough not to affect
 // normal use, tight enough to block scripted abuse.
+//
+// /auth/me is excluded: it's a read-only session check, not a credential
+// guess, and the client refetches it on window focus (e.g. switching apps
+// on mobile). Counting it here let a few genuine PIN attempts get crowded
+// out by ordinary refetch traffic and trip the limiter within minutes.
+// Only successful requests are skipped from the count so repeated failed
+// PIN/password attempts still accumulate toward the limit as intended.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 60,
+  limit: 150,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === "/me",
+  skipSuccessfulRequests: true,
   message: { error: "Too many attempts, please try again later" },
 });
 const aiLimiter = rateLimit({
