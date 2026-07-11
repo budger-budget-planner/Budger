@@ -18,3 +18,9 @@ id = "hB44ZRlK8GOSDNKhU238z"
 uri = "file://output/Budger_App_Architecture_Guide.docx"
 type = "word_document"
 title = "Budger App Architecture Guide"
+
+[[outputs]]
+id = "KgPrtLVz685HWo5oeDjc7"
+uri = "file://output/Budger_Przewodnik_Architektura_PL.docx"
+type = "word_document"
+title = "Budger - Przewodnik po Architekturze (PL)"
