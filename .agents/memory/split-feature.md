@@ -22,6 +22,11 @@ Nullable `preSplitAmount numeric(12,2)` column on transactions. Set when a split
 ## Icons
 As of 2026-07-11, `Scissors` (not `GitFork`) is the split icon throughout HomeSpending.tsx (SplitSheet header, split action button, inline transaction indicator, split-sent toast). An earlier note here claiming `GitFork` was used exclusively was stale — verify against the actual import list before trusting either name.
 
+## Issuer-amount deduction must be direct subtraction, not multiplicative fraction (fixed 2026-07-11)
+The fraction-based formula (`newIssuerAmt = origTx.amount * (1 - splitAmount/originalTransactionAmount)`) compounds incorrectly across multiple accepted siblings in the same group: each accept re-applies "1 - fraction" to the tx.amount already shrunk by a prior accept, over-deducting (e.g. two independent 100/500 splits: 500 × 0.8 × 0.8 = 320 instead of 500 − 100 − 100 = 300). Fixed by converting `split.splitAmount` from `issuerCurrency` into whatever currency `origTx.amount` currently uses (locked/foreign tx → `transactionCurrency`; else issuer's `users.currency`) via live rates, then subtracting directly — exact and composes correctly regardless of order or count of accepts.
+
+**Why:** the prior fix (see below) targeted the case where a *single* currency conversion event happens between split creation and accept, but broke as soon as a transaction had ≥2 recipients since it re-derives from the live (already-mutated) tx.amount on every accept instead of the pristine snapshot.
+
 ## Multi-recipient split groups (2026-07-11 rework)
 The original 2-person (issuer/recipient) split was reworked into multi-recipient: one issuer picks any number of household members, enters an amount or percentage per person (single global mode toggle, not per-row), and each recipient accepts/declines independently and asynchronously.
 

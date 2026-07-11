@@ -186,25 +186,6 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const [origTx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, split.transactionId));
   if (!origTx) { res.status(404).json({ error: "Original transaction not found" }); return; }
 
-  // Use the fraction of the original transaction that was split.
-  // This is correct even when the issuer later converts currency
-  // (which rewrites origTx.amount in-place): the fraction stays valid.
-  // e.g. split 1000 PLN from 2000 PLN → fraction=0.5
-  //      issuer then converts to GBP: origTx.amount becomes £400
-  //      newIssuerAmt = £400 * (1 - 0.5) = £200  ✓
-  //
-  // Legacy splits (created before this fix) have originalTransactionAmount=0.
-  // For those, fall back to direct subtraction — best-effort for same-currency case.
-  const origTxAmt = parseFloat(split.originalTransactionAmount ?? "0");
-  let newIssuerAmt: string;
-  if (origTxAmt > 0) {
-    const fraction = parseFloat(split.splitAmount) / origTxAmt;
-    newIssuerAmt = (parseFloat(origTx.amount) * (1 - fraction)).toFixed(2);
-  } else {
-    // Legacy row: fall back to direct subtraction (pre-fix behavior)
-    newIssuerAmt = (parseFloat(origTx.amount) - parseFloat(split.splitAmount)).toFixed(2);
-  }
-
   // Accept body may tell us the recipient's own account currency, so we can convert
   // into it. The converted amount itself is always computed here, server-side, using
   // live rates — never trusted from the client. A client-supplied amount could be
@@ -214,6 +195,33 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const { recipientCurrency } = req.body as { recipientCurrency?: string };
 
   const rates = await fetchRates();
+
+  // Determine the currency `origTx.amount` is currently expressed in, so this
+  // split's amount can be converted into the same units before subtracting it.
+  // Locked/foreign transactions carry an explicit `transactionCurrency`; otherwise
+  // the amount is in the issuer's current account currency.
+  const [issuerUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.issuerId));
+  const currentTxCurrency = origTx.transactionCurrency ?? issuerUser?.currency ?? split.issuerCurrency ?? "USD";
+
+  // Subtract this split's amount directly (converted into whatever currency
+  // origTx.amount currently uses) instead of a multiplicative fraction of the
+  // original transaction amount. The multiplicative approach (fraction of
+  // originalTransactionAmount applied to the CURRENT tx.amount) compounds
+  // incorrectly once a transaction has more than one accepted recipient: after
+  // the first accept shrinks tx.amount, re-applying "1 - fraction" to the
+  // already-shrunk amount over-deducts. e.g. two independent 100/500 (20%)
+  // splits: 500 * 0.8 * 0.8 = 320 instead of the correct 500 - 100 - 100 = 300.
+  // Direct subtraction is exact and composes correctly across any number of
+  // independent, out-of-order accepts, and still handles a currency change
+  // between split creation and accept via the conversion above.
+  const splitAmountInCurrentCurrency = convertAmount(
+    parseFloat(split.splitAmount),
+    split.issuerCurrency ?? "USD",
+    currentTxCurrency,
+    rates,
+  );
+  const newIssuerAmt = (parseFloat(origTx.amount) - splitAmountInCurrentCurrency).toFixed(2);
+
   const recipientAmount = computeRecipientAmount(
     parseFloat(split.splitAmount),
     split.issuerCurrency ?? "USD",
