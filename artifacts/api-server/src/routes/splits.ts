@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
+import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable, notificationItemsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { validateSplitGroup, computeGroupState, formatSplitRow, computeRecipientAmount, type SplitLine } from "../lib/split-helpers";
@@ -201,6 +201,7 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   // Locked/foreign transactions carry an explicit `transactionCurrency`; otherwise
   // the amount is in the issuer's current account currency.
   const [issuerUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.issuerId));
+  const [recipientUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.recipientId));
   const currentTxCurrency = origTx.transactionCurrency ?? issuerUser?.currency ?? split.issuerCurrency ?? "USD";
 
   // Subtract this split's amount directly (converted into whatever currency
@@ -297,6 +298,20 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       .set({ recipientTransactionId: inserted.id })
       .where(eq(expenseSplitsTable.id, id));
 
+    // Notify the issuer that their split request was accepted, so they don't
+    // have to keep checking back — matches the decline notification below.
+    const recipientName = recipientUser?.name ?? "Someone";
+    const amountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
+    await tx.insert(notificationItemsTable).values({
+      userId: split.issuerId,
+      type: "split_accepted",
+      titleEn: "Split request accepted",
+      titlePl: "Prośba o podział zaakceptowana",
+      bodyEn: `${recipientName} accepted your request for ${amountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
+      bodyPl: `${recipientName} zaakceptował(a) Twoją prośbę o ${amountLabel}${origTx.description ? ` za "${origTx.description}"` : ""}.`,
+      dedupKey: `split_accepted_${split.id}`,
+    });
+
     return inserted;
   }).catch((err) => {
     if (err?.statusCode === 409) return null;
@@ -322,6 +337,9 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
   if (split.status !== "pending") {
     res.status(400).json({ error: "Split is not pending" }); return;
   }
+
+  const [origTx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, split.transactionId));
+  const [recipientUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.recipientId));
 
   const declined = await db.transaction(async (tx) => {
     const [claimed] = await tx.update(expenseSplitsTable)
@@ -351,6 +369,19 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
         .where(eq(transactionsTable.id, split.transactionId));
     }
     // else state === "pending": other recipients still haven't responded — no-op on the issuer's row.
+
+    // Notify the issuer that their split request was declined.
+    const recipientName = recipientUser?.name ?? "Someone";
+    const amountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
+    await tx.insert(notificationItemsTable).values({
+      userId: split.issuerId,
+      type: "split_declined",
+      titleEn: "Split request declined",
+      titlePl: "Prośba o podział odrzucona",
+      bodyEn: `${recipientName} declined your request for ${amountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
+      bodyPl: `${recipientName} odrzucił(a) Twoją prośbę o ${amountLabel}${origTx?.description ? ` za "${origTx.description}"` : ""}.`,
+      dedupKey: `split_declined_${split.id}`,
+    });
 
     return true;
   }).catch((err) => {
