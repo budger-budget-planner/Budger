@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, expenseSplitsTable, transactionsTable, usersTable, categoriesTable, goalContributionsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
-import { validateSplitGroup, computeGroupState, formatSplitRow, type SplitLine } from "../lib/split-helpers";
+import { validateSplitGroup, computeGroupState, formatSplitRow, computeRecipientAmount, type SplitLine } from "../lib/split-helpers";
 import crypto from "node:crypto";
 
 const router: IRouter = Router();
@@ -205,16 +205,21 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     newIssuerAmt = (parseFloat(origTx.amount) - parseFloat(split.splitAmount)).toFixed(2);
   }
 
-  // Accept body may include a pre-converted amount+currency from the recipient's frontend
-  const { convertedAmount, recipientCurrency } = req.body as {
-    convertedAmount?: number;
-    recipientCurrency?: string;
-  };
+  // Accept body may tell us the recipient's own account currency, so we can convert
+  // into it. The converted amount itself is always computed here, server-side, using
+  // live rates — never trusted from the client. A client-supplied amount could be
+  // stale (rates not loaded yet), cached from an earlier day, or simply wrong, and
+  // would silently charge the recipient something other than the true equivalent of
+  // what the issuer requested.
+  const { recipientCurrency } = req.body as { recipientCurrency?: string };
 
-  // Use converted amount if provided (cross-currency household), else fall back to raw split amount
-  const recipientAmount = (convertedAmount != null && convertedAmount > 0)
-    ? convertedAmount.toFixed(2)
-    : split.splitAmount;
+  const rates = await fetchRates();
+  const recipientAmount = computeRecipientAmount(
+    parseFloat(split.splitAmount),
+    split.issuerCurrency ?? "USD",
+    recipientCurrency,
+    rates,
+  ).toFixed(2);
 
   // If the original transaction is currency-locked, the recipient's transaction
   // must inherit that lock + currency so summary.ts excludes it from totals

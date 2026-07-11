@@ -606,17 +606,14 @@ export default function HouseholdPage() {
   async function acceptSplit(id: number, split: any) {
     setSplitActionLoading(id);
     try {
-      // Pass converted amount+currency so the recipient's ledger entry is in their own currency
-      const issuerCur = split.issuerCurrency ?? prefs2.currency;
-      const convertedAmount = splitRates
-        ? convertSplitAmount(split.splitAmount, issuerCur)
-        : split.splitAmount;
-
+      // Tell the server which currency the recipient's ledger entry should land in —
+      // the server always computes the conversion itself using live rates (never
+      // trusts a client-side amount), so this always matches what was requested.
       await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ convertedAmount, recipientCurrency: prefs2.currency }),
+        body: JSON.stringify({ recipientCurrency: prefs2.currency }),
       });
       refetchIncoming();
       queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });

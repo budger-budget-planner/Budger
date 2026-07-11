@@ -1,5 +1,7 @@
 /** Pure helpers extracted from routes/splits.ts — importable and testable without a DB. */
 
+import { convertAmount } from "./rates";
+
 export interface SplitRow {
   id: number;
   groupId: string;
@@ -103,6 +105,31 @@ export function validateSplitGroup(
   // Allow a tiny epsilon for floating point summation of percentage-derived amounts.
   if (sum > transactionAmount + 0.01) return "Split amounts exceed the transaction amount";
   return null;
+}
+
+/**
+ * Computes the amount to record on the RECIPIENT's new ledger entry when they accept
+ * a split, converting from the issuer's transaction currency into the recipient's own
+ * account currency using live exchange rates.
+ *
+ * This is computed server-side (authoritative) rather than trusting a client-supplied
+ * pre-converted amount: the client's own rate cache can be stale, not-yet-loaded (a
+ * race with the "fetch rates on mount" effect returns the RAW, unconverted amount),
+ * or simply out of sync with the rates fetched here — any of which would silently
+ * charge the recipient the wrong amount instead of the true equivalent of what was
+ * requested.
+ *
+ * Returns the raw `splitAmount` unchanged when there is nothing to convert (no
+ * recipient currency provided, or issuer/recipient already share a currency).
+ */
+export function computeRecipientAmount(
+  splitAmount: number,
+  issuerCurrency: string,
+  recipientCurrency: string | undefined | null,
+  rates: Record<string, number>,
+): number {
+  if (!recipientCurrency || recipientCurrency === issuerCurrency) return splitAmount;
+  return convertAmount(splitAmount, issuerCurrency, recipientCurrency, rates);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatSplitRow, validateSplitAmount, validateSplitGroup, computeGroupState } from "../lib/split-helpers";
+import { formatSplitRow, validateSplitAmount, validateSplitGroup, computeGroupState, computeRecipientAmount } from "../lib/split-helpers";
 
 // ─── formatSplitRow ──────────────────────────────────────────────────────────
 
@@ -149,5 +149,33 @@ describe("computeGroupState", () => {
   });
   it("is all_declined when everyone declined", () => {
     expect(computeGroupState(["declined", "declined"])).toBe("all_declined");
+  });
+});
+
+// ─── computeRecipientAmount ──────────────────────────────────────────────────
+
+describe("computeRecipientAmount", () => {
+  const rates = { USD: 1, PLN: 3.95, EUR: 0.92, GBP: 0.79 };
+
+  it("converts the split amount from the issuer's currency into the recipient's currency", () => {
+    // 200 PLN requested; recipient's account is USD.
+    const result = computeRecipientAmount(200, "PLN", "USD", rates);
+    expect(result).toBeCloseTo(200 / 3.95, 5);
+    expect(result).toBeLessThan(60); // sanity: must shrink, never come out ~= the PLN face value
+  });
+
+  it("returns the raw amount unchanged when issuer and recipient share a currency", () => {
+    expect(computeRecipientAmount(50, "USD", "USD", rates)).toBe(50);
+  });
+
+  it("returns the raw amount unchanged when no recipient currency is known", () => {
+    expect(computeRecipientAmount(50, "PLN", undefined, rates)).toBe(50);
+    expect(computeRecipientAmount(50, "PLN", null as any, rates)).toBe(50);
+  });
+
+  it("is the exact inverse of converting back, up to floating point", () => {
+    const usd = computeRecipientAmount(200, "PLN", "USD", rates);
+    const back = computeRecipientAmount(usd, "USD", "PLN", rates);
+    expect(back).toBeCloseTo(200, 5);
   });
 });
