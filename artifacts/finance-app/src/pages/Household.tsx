@@ -1083,7 +1083,11 @@ export default function HouseholdPage() {
                     <p className="text-sm font-medium text-white">
                       <span className="text-pink-300">{split.issuerName}</span>{" "}
                       {t("split.wants_you_to_pay")}{" "}
-                      <span className="font-bold">{fmtAmt(convertSplitAmount(split.splitAmount, split.issuerCurrency ?? prefs2.currency), prefs2.currency)}</span>
+                      <span className="font-bold">
+                        {split.recipientAmount != null
+                          ? fmtAmt(split.recipientAmount, split.recipientCurrency ?? prefs2.currency)
+                          : fmtAmt(convertSplitAmount(split.splitAmount, split.issuerCurrency ?? prefs2.currency), prefs2.currency)}
+                      </span>
                     </p>
                     <p className="text-xs text-white/50 mt-0.5 truncate">
                       {t("split.for")} &ldquo;{split.transactionDescription}&rdquo; · {split.transactionDate}

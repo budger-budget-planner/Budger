@@ -9,7 +9,21 @@ const router: IRouter = Router();
 
 // Batch-fetches the transactions/users referenced by a list of splits in three
 // queries total instead of three per split (was N+1: 1 + 3*N round trips).
-async function enrichSplits(splits: any[]) {
+//
+// `viewerConversion`, when supplied, makes every row carry a `recipientAmount`
+// converted server-side into the viewer's own currency — using the exact same
+// authoritative rates/logic the accept handler uses. This is what the
+// "pending request" UI must display: previously the frontend converted the
+// raw `splitAmount` itself using its own rates cache (fetched directly from
+// frankfurter.app, which browsers block via CORS and silently fall back to a
+// stale/hardcoded rate table), while the accept handler always converts
+// server-side with live rates. The two could disagree, so the amount shown
+// before accepting didn't match what actually landed on the recipient's
+// transaction after accepting.
+async function enrichSplits(
+  splits: any[],
+  viewerConversion?: { viewerCurrency: string; rates: Record<string, number> },
+) {
   if (splits.length === 0) return [];
 
   const txIds = [...new Set(splits.map(s => s.transactionId))];
@@ -27,6 +41,7 @@ async function enrichSplits(splits: any[]) {
     txMap.get(s.transactionId),
     userMap.get(s.issuerId)?.name,
     userMap.get(s.recipientId)?.name,
+    viewerConversion,
   ));
 }
 
@@ -42,7 +57,14 @@ router.get("/splits/incoming", async (req, res): Promise<void> => {
   const splits = await db.select().from(expenseSplitsTable)
     .where(and(eq(expenseSplitsTable.recipientId, userId), eq(expenseSplitsTable.status, "pending")));
 
-  res.json(await enrichSplits(splits));
+  let viewerConversion: { viewerCurrency: string; rates: Record<string, number> } | undefined;
+  if (splits.length > 0) {
+    const [viewer] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
+    const rates = await fetchRates();
+    viewerConversion = { viewerCurrency: viewer?.currency ?? "USD", rates };
+  }
+
+  res.json(await enrichSplits(splits, viewerConversion));
 });
 
 router.get("/splits/issued", async (req, res): Promise<void> => {

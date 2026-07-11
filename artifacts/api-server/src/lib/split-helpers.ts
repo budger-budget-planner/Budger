@@ -19,6 +19,18 @@ export interface SplitRow {
   recipientTransactionId: number | null;
   issuerNotified: boolean;
   createdAt: string;
+  /**
+   * The amount that will actually be recorded on the recipient's ledger entry
+   * if they accept, converted server-side into `recipientCurrency` using the
+   * same authoritative rates/logic as the accept handler. Only populated when
+   * the caller supplies a viewer currency (i.e. for the recipient's own
+   * "incoming" list) — otherwise falls back to `splitAmount`/`issuerCurrency`
+   * unconverted. The frontend must display this value (not do its own
+   * client-side conversion) so the pending request always matches what gets
+   * charged after accepting.
+   */
+  recipientAmount?: number;
+  recipientCurrency?: string;
 }
 
 /**
@@ -39,19 +51,35 @@ export function formatSplitRow(
     issuerNotified: boolean;
     createdAt: Date;
   },
-  tx: { description?: string | null; date?: string | null; amount?: string | number | null } | undefined,
+  tx: {
+    description?: string | null;
+    date?: string | null;
+    amount?: string | number | null;
+    currencyLocked?: boolean | null;
+    transactionCurrency?: string | null;
+  } | undefined,
   issuerName: string | undefined,
   recipientName: string | undefined,
+  /**
+   * When provided, computes `recipientAmount`/`recipientCurrency` the same
+   * way the accept handler would: locked/foreign transactions keep the raw
+   * split amount (already in the locked currency), otherwise it's converted
+   * from `issuerCurrency` into `viewerCurrency` using `rates`.
+   */
+  viewerConversion?: { viewerCurrency: string; rates: Record<string, number> },
 ): SplitRow {
-  return {
+  const splitAmount = parseFloat(String(s.splitAmount));
+  const issuerCurrency = s.issuerCurrency ?? "USD";
+
+  const row: SplitRow = {
     id: s.id,
     groupId: s.groupId ?? "",
     transactionId: s.transactionId,
     transactionDescription: tx?.description ?? "",
     transactionDate: tx?.date ?? "",
     transactionAmount: tx?.amount != null ? parseFloat(String(tx.amount)) : null,
-    splitAmount: parseFloat(String(s.splitAmount)),
-    issuerCurrency: s.issuerCurrency ?? "USD",
+    splitAmount,
+    issuerCurrency,
     issuerId: s.issuerId,
     issuerName: issuerName ?? "",
     recipientId: s.recipientId,
@@ -61,6 +89,24 @@ export function formatSplitRow(
     issuerNotified: s.issuerNotified,
     createdAt: s.createdAt.toISOString(),
   };
+
+  if (viewerConversion) {
+    const isLocked = !!tx?.currencyLocked && !!tx?.transactionCurrency;
+    if (isLocked) {
+      row.recipientAmount = splitAmount;
+      row.recipientCurrency = tx!.transactionCurrency as string;
+    } else {
+      row.recipientAmount = computeRecipientAmount(
+        splitAmount,
+        issuerCurrency,
+        viewerConversion.viewerCurrency,
+        viewerConversion.rates,
+      );
+      row.recipientCurrency = viewerConversion.viewerCurrency;
+    }
+  }
+
+  return row;
 }
 
 /**
