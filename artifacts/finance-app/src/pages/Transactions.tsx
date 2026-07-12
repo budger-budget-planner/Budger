@@ -478,11 +478,11 @@ function ReceiptModal({
                   </Button>
                   <Button
                     size="sm"
-                    variant="destructive"
+                    variant="ghost"
                     onClick={() => deleteReceipt.mutate({ id: tx.id })}
                     disabled={isOffline || deleteReceipt.isPending}
                     data-testid="button-delete-receipt"
-                    className="gap-1.5"
+                    className="gap-1.5 bg-destructive/10 text-destructive"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Remove
                   </Button>

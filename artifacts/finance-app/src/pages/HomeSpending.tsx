@@ -407,7 +407,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
                 <Button variant="outline" className="gap-2" onClick={() => setLightbox(true)}>
                   <ZoomIn className="w-4 h-4" /> View
                 </Button>
-                <Button variant="destructive" className="gap-2"
+                <Button variant="ghost" className="gap-2 bg-destructive/10 text-destructive"
                   onClick={() => deleteReceipt.mutate({ id: tx.id })}
                   disabled={deleteReceipt.isPending}>
                   <Trash2 className="w-4 h-4" /> Remove
