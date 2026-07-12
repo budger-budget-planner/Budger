@@ -36,7 +36,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, Image, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -316,18 +316,22 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   const queryClient  = useQueryClient();
   const libraryRef   = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
-  // Holds the receipt image immediately after a successful upload so the
-  // preview is visible at once without waiting for the query refetch.
-  const [localReceiptImage, setLocalReceiptImage] = useState<string | null>(null);
+  // Holds the receipt image immediately after a successful upload/delete so
+  // the preview updates at once without waiting for the query refetch.
+  // `undefined` = no local override yet (use tx.receiptImage); `null` =
+  // explicitly cleared (removed). Using `null` for "no override" would make
+  // `localReceiptImage ?? tx.receiptImage` fall through to the stale server
+  // value right after a delete, since `??` treats null the same as unset.
+  const [localReceiptImage, setLocalReceiptImage] = useState<string | null | undefined>(undefined);
 
   // Reset local state whenever the dialog closes or the transaction changes.
   useEffect(() => {
-    if (!open) setLocalReceiptImage(null);
+    if (!open) setLocalReceiptImage(undefined);
   }, [open]);
 
-  // The effective receipt image: prefer the freshly-uploaded local version
-  // over the (potentially stale) server-fetched version.
-  const effectiveReceiptImage = localReceiptImage ?? tx.receiptImage ?? null;
+  // The effective receipt image: prefer the freshly-uploaded/deleted local
+  // override over the (potentially stale) server-fetched version.
+  const effectiveReceiptImage = localReceiptImage !== undefined ? localReceiptImage : (tx.receiptImage ?? null);
 
   const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: (data: any) => {
     // Show the image immediately from the server response instead of a
@@ -412,7 +416,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
             )}
             <Button variant="outline" className="w-full gap-2"
               onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
-              <Image className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
               {uploadReceipt.isPending ? t("home.uploading") : effectiveReceiptImage ? t("home.replace_photo") : t("home.add_photo")}
             </Button>
             <Button variant="ghost" className="w-full" onClick={onClose}>{t("common.done")}</Button>
