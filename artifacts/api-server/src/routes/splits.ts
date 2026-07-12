@@ -285,15 +285,24 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       .where(eq(expenseSplitsTable.groupId, split.groupId));
     const state = computeGroupState(siblings.map(s => s.id === id ? "accepted" : s.status));
 
-    await tx.update(transactionsTable)
-      .set({
-        amount: newIssuerAmt,
-        splitId: split.id,
-        splitRole: "issuer",
-        preSplitAmount: origTx.preSplitAmount ?? origTx.amount,
-        splitGroupStatus: state === "pending" ? "pending" : "settled",
-      })
-      .where(eq(transactionsTable.id, split.transactionId));
+    // Only update the issuer transaction if there's still a non-zero remainder.
+    // If the split was for 100% of the cost, the issuer's transaction becomes
+    // zero — delete it instead of leaving a -0 record on their ledger.
+    // The cascade on expense_splits.transaction_id will clean up the split
+    // rows, but we must insert the recipient transaction first so it exists.
+    const issuerAmtIsZero = parseFloat(newIssuerAmt) === 0;
+
+    if (!issuerAmtIsZero) {
+      await tx.update(transactionsTable)
+        .set({
+          amount: newIssuerAmt,
+          splitId: split.id,
+          splitRole: "issuer",
+          preSplitAmount: origTx.preSplitAmount ?? origTx.amount,
+          splitGroupStatus: state === "pending" ? "pending" : "settled",
+        })
+        .where(eq(transactionsTable.id, split.transactionId));
+    }
 
     const [inserted] = await tx.insert(transactionsTable).values({
       amount: finalAmount,
@@ -330,6 +339,8 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
         : {}),
     }).returning();
 
+    // Set recipientTransactionId before we potentially cascade-delete the
+    // split row (issuerAmtIsZero path below), so the value is committed.
     await tx.update(expenseSplitsTable)
       .set({ recipientTransactionId: inserted.id })
       .where(eq(expenseSplitsTable.id, id));
@@ -347,6 +358,13 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       bodyPl: `${recipientName} zaakceptował(a) Twoją prośbę o ${amountLabel}${origTx.description ? ` za "${origTx.description}"` : ""}.`,
       dedupKey: `split_accepted_${split.id}`,
     });
+
+    // 100% split: remove the issuer's transaction entirely instead of leaving
+    // a -0.00 entry on their ledger. The FK cascade on expense_splits
+    // (onDelete: "cascade") will clean up the split rows automatically.
+    if (issuerAmtIsZero) {
+      await tx.delete(transactionsTable).where(eq(transactionsTable.id, split.transactionId));
+    }
 
     return inserted;
   }).catch((err) => {

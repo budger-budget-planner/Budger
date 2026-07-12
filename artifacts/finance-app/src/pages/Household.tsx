@@ -591,16 +591,6 @@ export default function HouseholdPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: declinedIssuedSplits, refetch: refetchDeclined } = useQuery<any[]>({
-    queryKey: ["splits-issued-declined"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/issued`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 30_000,
-  });
-
   const [splitActionLoading, setSplitActionLoading] = useState<number | null>(null);
 
   async function acceptSplit(id: number, split: any) {
@@ -632,12 +622,6 @@ export default function HouseholdPage() {
     } finally {
       setSplitActionLoading(null);
     }
-  }
-
-  async function dismissDeclinedSplit(id: number) {
-    await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/dismiss`, { method: "PATCH", credentials: "include" });
-    refetchDeclined();
-    queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
   }
 
   // ── Great Larder ─────────────────────────────────────────────────────────
@@ -1107,44 +1091,6 @@ export default function HouseholdPage() {
                       {t("split.decline")}
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Declined split notifications (issuer view) ── */}
-      {declinedIssuedSplits && declinedIssuedSplits.length > 0 && (
-        <div className="px-4 mt-3">
-          <div className="rounded-2xl border border-zinc-600/40 bg-zinc-700/20 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-600/20">
-              <GitFork className="w-4 h-4 text-zinc-400" />
-              <p className="text-sm font-semibold text-zinc-300">{t("split.pending_title")}</p>
-            </div>
-            <div className="divide-y divide-zinc-600/10">
-              {declinedIssuedSplits.map((split: any) => (
-                <div key={split.id} className="flex items-start gap-3 px-4 py-3">
-                  <div className="w-9 h-9 rounded-full bg-zinc-600/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <XCircle className="w-4 h-4 text-zinc-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">
-                      <span className="text-zinc-300">{split.recipientName}</span>{" "}
-                      {t("split.declined_msg")}{" "}
-                      <span className="font-bold">{sym2}{split.splitAmount.toFixed(2)}</span>
-                    </p>
-                    <p className="text-xs text-white/50 mt-0.5 truncate">
-                      &ldquo;{split.transactionDescription}&rdquo;
-                    </p>
-                  </div>
-                  <button
-                    className="text-white/30 hover:text-white/70 p-1 flex-shrink-0"
-                    onClick={() => dismissDeclinedSplit(split.id)}
-                    title={t("split.dismiss")}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
               ))}
             </div>
