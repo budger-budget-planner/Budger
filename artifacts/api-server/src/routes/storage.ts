@@ -86,7 +86,12 @@ router.put(
     }
 
     const dataUrl = `data:${contentType};base64,${body.toString('base64')}`;
-    setPendingUpload(uuid, dataUrl);
+    try {
+      setPendingUpload(uuid, dataUrl);
+    } catch (err: any) {
+      res.status(err?.statusCode === 415 ? 415 : 500).json({ error: err?.message ?? 'Failed to store image' });
+      return;
+    }
     res.status(200).json({ ok: true });
   },
 );
@@ -115,7 +120,11 @@ router.post('/storage/uploads', async (req: Request, res: Response) => {
     const uuid = randomUUID();
     setPendingUpload(uuid, data);
     res.json({ objectPath: `/objects/uploads/${uuid}` });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode === 415) {
+      res.status(415).json({ error: error.message });
+      return;
+    }
     req.log.error({ err: error }, 'Error storing upload');
     res.status(500).json({ error: 'Failed to store image' });
   }

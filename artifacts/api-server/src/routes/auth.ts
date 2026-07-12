@@ -350,6 +350,12 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
+  // Regenerate the session ID on privilege elevation (anonymous → authenticated)
+  // to prevent session fixation attacks. regenerate() issues a fresh ID while
+  // clearing the session data, so userId must be re-set afterwards.
+  await new Promise<void>((resolve, reject) =>
+    req.session.regenerate(err => (err ? reject(err) : resolve())),
+  );
   (req.session as any).userId = updated.id;
   await new Promise<void>((resolve, reject) =>
     req.session.save(err => (err ? reject(err) : resolve())),
@@ -395,12 +401,16 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     await db.update(usersTable).set({ pinLength: password.length }).where(eq(usersTable.id, user.id));
   }
 
+  // Regenerate the session ID on privilege elevation (anonymous → authenticated)
+  // to prevent session fixation attacks. regenerate() issues a fresh ID while
+  // clearing the session data, so userId must be re-set afterwards.
+  // Then explicitly persist to PostgreSQL BEFORE sending the response —
+  // without save(), a fast client (/auth/me arriving before the async write
+  // commits) gets a 401 and the app stays stuck on the login screen.
+  await new Promise<void>((resolve, reject) =>
+    req.session.regenerate(err => (err ? reject(err) : resolve())),
+  );
   (req.session as any).userId = user.id;
-  // Explicitly persist the session to PostgreSQL BEFORE sending the response.
-  // Without this, express-session writes the session asynchronously in a res.end hook,
-  // so a fast client (e.g. React Query's invalidateQueries → /auth/me) can arrive
-  // before the session row is committed and gets a 401 — causing the recurring
-  // "login succeeds but app stays on login screen" bug.
   await new Promise<void>((resolve, reject) =>
     req.session.save(err => (err ? reject(err) : resolve())),
   );
