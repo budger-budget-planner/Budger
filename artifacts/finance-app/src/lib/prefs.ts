@@ -125,25 +125,40 @@ function swipeHintKey(): string {
 }
 
 /**
- * Decides whether the swipe-to-reveal-actions hint animation should play right now,
- * and records this as the latest "seen" timestamp so it isn't repeated on every visit.
+ * Checks whether the swipe-hint animation is due for this user *without* recording
+ * a "seen" timestamp. Use this on mount so that a tab-leave before the animation
+ * actually fires does not consume the hint for the week.
  *
  * Rules:
- *  - First time ever called for this user (e.g. right after onboarding) → show it.
- *  - Otherwise, only show it again if at least a week has passed since it was last shown.
+ *  - Never seen before → true.
+ *  - Seen within the last week → false.
+ *  - Seen more than a week ago → true.
+ */
+export function peekSwipeHintDue(): boolean {
+  const raw = localStorage.getItem(swipeHintKey());
+  if (raw == null) return true;
+  const lastSeen = parseInt(raw, 10);
+  return isNaN(lastSeen) || (Date.now() - lastSeen) >= SWIPE_HINT_WEEK_MS;
+}
+
+/**
+ * Records the current timestamp as the last time the swipe hint was shown.
+ * Call this at the moment the animation is about to start (after the 4 s delay),
+ * so a tab-leave *during* the animation correctly counts as "seen" and won't
+ * repeat on return, while a tab-leave *before* the delay completes leaves the
+ * hint unconsumed.
+ */
+export function markSwipeHintSeen(): void {
+  localStorage.setItem(swipeHintKey(), String(Date.now()));
+}
+
+/**
+ * @deprecated Use peekSwipeHintDue() + markSwipeHintSeen() instead.
+ * Kept for backwards compatibility — checks and stamps in one call.
  */
 export function checkSwipeHintDue(): boolean {
-  const key = swipeHintKey();
-  const now = Date.now();
-  const raw = localStorage.getItem(key);
-  let due: boolean;
-  if (raw == null) {
-    due = true;
-  } else {
-    const lastSeen = parseInt(raw, 10);
-    due = isNaN(lastSeen) || (now - lastSeen) >= SWIPE_HINT_WEEK_MS;
-  }
-  localStorage.setItem(key, String(now));
+  const due = peekSwipeHintDue();
+  if (due) markSwipeHintSeen();
   return due;
 }
 

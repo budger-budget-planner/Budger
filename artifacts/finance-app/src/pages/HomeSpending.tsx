@@ -46,7 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
-import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
+import { loadPrefs, savePrefs, currencySymbol, fmtAmt, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
 
@@ -797,16 +797,16 @@ function SwipeableTxRow({
       const id = setTimeout(() => { if (!cancelled) fn(); }, ms);
       timers.push(id);
     };
-    go(() => setAnimating(true), 2000);
-    go(() => setOffset(-7.5), 2100);         // left ×1 (half)
-    go(() => setOffset(0),    2260);         // back
-    go(() => setOffset(-15),  2370);         // left ×2 (full)
-    go(() => setOffset(0),    2530);         // back
-    go(() => setOffset(9.5),  3360);         // right ×1 (half)
-    go(() => setOffset(0),    3520);         // back
-    go(() => setOffset(19),   3630);         // right ×2 (full)
-    go(() => setOffset(0),    3790);         // back
-    go(() => setAnimating(false), 3900);
+    go(() => setAnimating(true), 0);
+    go(() => setOffset(-7.5), 100);          // left ×1 (half)
+    go(() => setOffset(0),    260);          // back
+    go(() => setOffset(-15),  370);          // left ×2 (full)
+    go(() => setOffset(0),    530);          // back
+    go(() => setOffset(9.5),  1360);         // right ×1 (half)
+    go(() => setOffset(0),    1520);         // back
+    go(() => setOffset(19),   1630);         // right ×2 (full)
+    go(() => setOffset(0),    1790);         // back
+    go(() => setAnimating(false), 1900);
     return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
@@ -1067,9 +1067,10 @@ export default function HomeSpending() {
   useEffect(() => () => {
     if (larderLongPressTimer.current) clearTimeout(larderLongPressTimer.current);
   }, []);
-  // Occurrence rule for the swipe hint wiggle: only due on first login after onboarding,
-  // or after a week of inactivity — computed once when this page first mounts.
-  const [swipeHintDue] = useState(() => checkSwipeHintDue());
+  // Occurrence rule: due on first login after onboarding, or after a week of inactivity.
+  // We peek (no stamp) here so that a tab-leave before the animation fires does NOT
+  // consume the hint. The stamp happens only when the 4 s delay completes below.
+  const [swipeHintDue] = useState(() => peekSwipeHintDue());
   // Don't let the wiggle start until the splash screen has fully finished — otherwise
   // it plays underneath the splash overlay before the user can even see the row.
   const appReady = useAppReady();
@@ -1407,22 +1408,43 @@ export default function HomeSpending() {
   // Merged, de-duped date list (pending dates may not appear in DB yet)
   const allDates = [...new Set([...Object.keys(pendingRpByDate), ...Object.keys(pendingByDate), ...dates])].sort((a, b) => b.localeCompare(a));
 
-  // Top-most visible transaction ID for the swipe hint wiggle.
+  // ── Swipe-hint wiggle: delayed, tab-aware ────────────────────────────────────
   //
-  // Lock-once pattern: we pick the top transaction the first time conditions are
-  // met (no search, has data, hint is due, splash done) and freeze that ID for the
-  // rest of this mount. Without the lock, adding a new transaction shifts topTxId
-  // to the freshly-inserted row and fires the wiggle again — which is wrong.
-  // The wiggle should trigger only for the very first record ever created, or for
-  // the top record when the user returns after a week of inactivity.
-  const wiggleTxRef = useRef<number | null | "pending">("pending");
-  const _candidate = (!searchQuery && dates.length > 0 && swipeHintDue && appReady)
+  // wiggleTxId  — the transaction to wiggle, locked the first time conditions
+  //               are met (state so the 4 s useEffect can react to it).
+  // wiggleActive — flips true after the 4 s delay fires; passed as showHint.
+  //
+  // Tab-leave BEFORE 4 s  → cleanup cancels the timer; stamp never written;
+  //                          on return peekSwipeHintDue() is still true → fresh 4 s.
+  // Tab-leave DURING anim → stamp was written at the 4 s mark; on return
+  //                          peekSwipeHintDue() returns false → no repeat.
+  const [wiggleTxId, setWiggleTxId] = useState<number | null>(null);
+  const wiggleLocked = useRef(false);
+  const [wiggleActive, setWiggleActive] = useState(false);
+
+  // Lock the wiggle target the first time we have a candidate.
+  const _wiggleCandidate = (!searchQuery && dates.length > 0 && swipeHintDue && appReady)
     ? grouped[dates[0]]?.[0]?.id ?? null
     : null;
-  if (wiggleTxRef.current === "pending" && _candidate !== null) {
-    wiggleTxRef.current = _candidate;
-  }
-  const topTxId = wiggleTxRef.current === "pending" ? null : wiggleTxRef.current;
+  useEffect(() => {
+    if (wiggleLocked.current || _wiggleCandidate === null) return;
+    wiggleLocked.current = true;
+    setWiggleTxId(_wiggleCandidate);
+  }, [_wiggleCandidate]);
+
+  // Start a 4 s countdown once the target is locked.
+  // Cleanup on unmount (tab leave) cancels the timer so the clock resets on return.
+  useEffect(() => {
+    if (wiggleTxId === null || wiggleActive) return;
+    const id = setTimeout(() => {
+      markSwipeHintSeen(); // stamp now — mid-animation tab-leave counts as "seen"
+      setWiggleActive(true);
+    }, 4000);
+    return () => clearTimeout(id);
+  }, [wiggleTxId, wiggleActive]);
+
+  // topTxId drives showHint on the matching TransactionRow
+  const topTxId = wiggleActive ? wiggleTxId : null;
 
   return (
     <div className="flex flex-col min-h-full">
