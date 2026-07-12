@@ -1,9 +1,10 @@
 import { Readable } from 'stream';
+import { randomUUID } from 'crypto';
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from '@workspace/api-zod';
-import { Router, type IRouter, type Request, type Response } from 'express';
+import express, { Router, type IRouter, type Request, type Response } from 'express';
 import { db, transactionsTable } from '@workspace/db';
 import { eq, and } from 'drizzle-orm';
 
@@ -11,58 +12,23 @@ import {
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
+import { setPendingUpload, popPendingUpload } from '../lib/pending-uploads';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
 /**
- * POST /storage/uploads
- *
- * Server-side receipt upload — accepts a base64 data URL in JSON body.
- * Decodes and saves the image directly to private object storage via the
- * server SDK, avoiding any browser CORS restrictions with GCS signed URLs
- * (which fail on iOS Safari / mobile WebKit).
- *
- * Body: { data: "data:image/jpeg;base64,..." }
- * Response: { objectPath: "/objects/uploads/<uuid>" }
- */
-router.post('/storage/uploads', async (req: Request, res: Response) => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const { data } = req.body as { data?: string };
-  if (!data || typeof data !== 'string' || !data.startsWith('data:')) {
-    res.status(400).json({ error: 'Missing or invalid image data' });
-    return;
-  }
-
-  try {
-    // Parse "data:<contentType>;base64,<payload>"
-    const commaIdx = data.indexOf(',');
-    if (commaIdx === -1) throw new Error('Malformed data URL');
-    const meta = data.slice(5, commaIdx); // e.g. "image/jpeg;base64"
-    const contentType = meta.split(';')[0] || 'image/jpeg';
-    const b64 = data.slice(commaIdx + 1);
-    const buffer = Buffer.from(b64, 'base64');
-
-    const objectPath = await objectStorageService.uploadObjectEntity(buffer, contentType);
-    res.json({ objectPath });
-  } catch (error) {
-    req.log.error({ err: error }, 'Error uploading receipt');
-    res.status(500).json({ error: 'Failed to upload image' });
-  }
-});
-
-/**
  * POST /storage/uploads/request-url
  *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
- * Requires a valid session so anonymous callers cannot mint write-capable URLs.
+ * Returns a server-side upload URL instead of a GCS signed URL.
+ * Direct-to-GCS PUT requests fail on iOS Safari due to CORS; routing through
+ * our own server avoids this entirely and requires no object storage config.
+ *
+ * The client flow:
+ *   1. POST here  → { uploadURL: "/api/storage/uploads/<uuid>", objectPath: "/objects/uploads/<uuid>" }
+ *   2. PUT uploadURL with raw image bytes  → stored in pending-uploads memory cache
+ *   3. POST /transactions/:id/receipt with { imageData: objectPath }
+ *      → server resolves objectPath → base64 data URL → stored in DB
  */
 router.post(
   '/storage/uploads/request-url',
@@ -79,26 +45,81 @@ router.post(
       return;
     }
 
-    try {
-      const { name, size, contentType } = parsed.data;
+    const { name, size, contentType } = parsed.data;
+    const uuid = randomUUID();
 
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      const objectPath =
-        objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-      res.json(
-        RequestUploadUrlResponse.parse({
-          uploadURL,
-          objectPath,
-          metadata: { name, size, contentType },
-        }),
-      );
-    } catch (error) {
-      req.log.error({ err: error }, 'Error generating upload URL');
-      res.status(500).json({ error: 'Failed to generate upload URL' });
-    }
+    res.json(
+      RequestUploadUrlResponse.parse({
+        uploadURL: `/api/storage/uploads/${uuid}`,
+        objectPath: `/objects/uploads/${uuid}`,
+        metadata: { name, size, contentType },
+      }),
+    );
   },
 );
+
+/**
+ * PUT /storage/uploads/:uuid
+ *
+ * Receives raw image bytes from the client (old upload flow).
+ * Converts to a base64 data URL and stores in the pending-uploads cache.
+ * The receipt endpoint resolves these paths when saving to the DB.
+ */
+router.put(
+  '/storage/uploads/:uuid',
+  express.raw({ type: '*/*', limit: '25mb' }),
+  async (req: Request, res: Response) => {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { uuid } = req.params;
+    const contentType =
+      (req.headers['content-type'] || 'image/jpeg').split(';')[0].trim();
+    const body = req.body as Buffer;
+
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      res.status(400).json({ error: 'Empty body' });
+      return;
+    }
+
+    const dataUrl = `data:${contentType};base64,${body.toString('base64')}`;
+    setPendingUpload(uuid, dataUrl);
+    res.status(200).json({ ok: true });
+  },
+);
+
+/**
+ * POST /storage/uploads
+ *
+ * Alternative server-side upload: accepts a base64 data URL in JSON body.
+ * Used by newer frontend code that skips the signed-URL dance entirely.
+ * Body: { data: "data:image/jpeg;base64,..." }
+ */
+router.post('/storage/uploads', async (req: Request, res: Response) => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { data } = req.body as { data?: string };
+  if (!data || typeof data !== 'string' || !data.startsWith('data:')) {
+    res.status(400).json({ error: 'Missing or invalid image data' });
+    return;
+  }
+
+  try {
+    const uuid = randomUUID();
+    setPendingUpload(uuid, data);
+    res.json({ objectPath: `/objects/uploads/${uuid}` });
+  } catch (error) {
+    req.log.error({ err: error }, 'Error storing upload');
+    res.status(500).json({ error: 'Failed to store image' });
+  }
+});
 
 /**
  * GET /storage/public-objects/*

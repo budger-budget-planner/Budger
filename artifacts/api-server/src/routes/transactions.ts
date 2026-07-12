@@ -5,6 +5,7 @@ import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules"
 import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
 import { jsonrepair } from "jsonrepair";
+import { popPendingUpload } from "../lib/pending-uploads";
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -466,9 +467,21 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { imageData } = req.body as { imageData?: string };
+  let { imageData } = req.body as { imageData?: string };
   if (!imageData || typeof imageData !== "string") {
     res.status(400).json({ error: "imageData is required" }); return;
+  }
+
+  // Resolve a pending server-side upload (old client flow via request-url + PUT).
+  // objectPath format: "/objects/uploads/<uuid>"
+  if (imageData.startsWith("/objects/uploads/")) {
+    const uuid = imageData.slice("/objects/uploads/".length);
+    const resolved = popPendingUpload(uuid);
+    if (!resolved) {
+      res.status(400).json({ error: "Upload not found or expired. Please try again." });
+      return;
+    }
+    imageData = resolved;
   }
 
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
