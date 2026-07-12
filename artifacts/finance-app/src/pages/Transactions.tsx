@@ -394,24 +394,20 @@ function ReceiptModal({
     if (!file) return;
     e.target.value = "";
     try {
-      // Step 1: get a presigned upload URL from the server
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
+      // Compress to JPEG on-device (reduces payload from 5-12 MB to ~200 KB)
+      const dataUrl = await compressImage(file);
+
+      // Upload through our own API server — avoids GCS CORS issues on iOS Safari
+      const uploadRes = await fetch("/api/storage/uploads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+        credentials: "include",
+        body: JSON.stringify({ data: dataUrl }),
       });
-      if (!urlRes.ok) throw new Error("Failed to get upload URL");
-      const { uploadURL, objectPath } = await urlRes.json();
+      if (!uploadRes.ok) throw new Error("Failed to upload image");
+      const { objectPath } = await uploadRes.json();
 
-      // Step 2: upload file directly to GCS (bypasses our server entirely)
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Failed to upload file");
-
-      // Step 3: save the objectPath on the transaction record
+      // Save the objectPath on the transaction record
       uploadReceipt.mutate({ id: tx.id, data: { imageData: objectPath } });
     } catch {
       alert(t("tx.image_error"));

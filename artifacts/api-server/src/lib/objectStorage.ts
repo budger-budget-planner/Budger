@@ -133,6 +133,24 @@ export class ObjectStorageService {
     });
   }
 
+  /**
+   * Upload a buffer directly to private object storage.
+   * Returns the canonical /objects/... path for the stored file.
+   * Use this for server-side uploads that must avoid browser CORS restrictions.
+   */
+  async uploadObjectEntity(buffer: Buffer, contentType: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    let entityDir = privateObjectDir;
+    if (!entityDir.endsWith('/')) entityDir = `${entityDir}/`;
+    const fullPath = `${entityDir}uploads/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType, resumable: false });
+    return `/objects/uploads/${objectId}`;
+  }
+
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith('/objects/')) {
       throw new ObjectNotFoundError();

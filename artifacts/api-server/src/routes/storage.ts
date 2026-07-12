@@ -16,6 +16,47 @@ const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
 /**
+ * POST /storage/uploads
+ *
+ * Server-side receipt upload — accepts a base64 data URL in JSON body.
+ * Decodes and saves the image directly to private object storage via the
+ * server SDK, avoiding any browser CORS restrictions with GCS signed URLs
+ * (which fail on iOS Safari / mobile WebKit).
+ *
+ * Body: { data: "data:image/jpeg;base64,..." }
+ * Response: { objectPath: "/objects/uploads/<uuid>" }
+ */
+router.post('/storage/uploads', async (req: Request, res: Response) => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { data } = req.body as { data?: string };
+  if (!data || typeof data !== 'string' || !data.startsWith('data:')) {
+    res.status(400).json({ error: 'Missing or invalid image data' });
+    return;
+  }
+
+  try {
+    // Parse "data:<contentType>;base64,<payload>"
+    const commaIdx = data.indexOf(',');
+    if (commaIdx === -1) throw new Error('Malformed data URL');
+    const meta = data.slice(5, commaIdx); // e.g. "image/jpeg;base64"
+    const contentType = meta.split(';')[0] || 'image/jpeg';
+    const b64 = data.slice(commaIdx + 1);
+    const buffer = Buffer.from(b64, 'base64');
+
+    const objectPath = await objectStorageService.uploadObjectEntity(buffer, contentType);
+    res.json({ objectPath });
+  } catch (error) {
+    req.log.error({ err: error }, 'Error uploading receipt');
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+/**
  * POST /storage/uploads/request-url
  *
  * Request a presigned URL for file upload.
