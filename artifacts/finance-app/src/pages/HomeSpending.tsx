@@ -130,7 +130,11 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
           placeholder="0.00"
           value={form.amount}
           onChange={e => {
-            const v = e.target.value;
+            // Normalize a typed comma to a period: many non-US mobile
+            // keyboards (e.g. Polish, German) emit "," as the decimal key
+            // when inputMode="decimal" is set, which the digits-and-dot
+            // regex below would otherwise silently reject.
+            const v = e.target.value.replace(",", ".");
             if (v === "" || /^\d*\.?\d*$/.test(v)) set("amount", v);
           }}
           onBlur={() => {
@@ -270,7 +274,8 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
                     placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
                     value={form.goalAmount}
                     onChange={e => {
-                      const v = e.target.value;
+                      // Same comma → period normalization as the amount field above.
+                      const v = e.target.value.replace(",", ".");
                       if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
                     }}
                     onBlur={() => {
