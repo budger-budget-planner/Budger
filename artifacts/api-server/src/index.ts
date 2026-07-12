@@ -199,22 +199,8 @@ async function start() {
   // ── 1. Ensure schema exists (critical for fresh databases after remix / deploy) ──
   await ensureDbSchema();
 
-  // ── 2. Ensure sessions table exists ──────────────────────────────────────────
-  if (process.env.DATABASE_URL) {
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS "sessions" (
-          "sid"    varchar      NOT NULL,
-          "sess"   json         NOT NULL,
-          "expire" timestamp(6) NOT NULL,
-          CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
-        );
-        CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "sessions" ("expire");
-      `);
-    } catch (err) {
-      logger.warn({ err }, "Could not ensure sessions table — sessions may not persist");
-    }
-  }
+  // Sessions table is now created via migration 0004_sessions_table.sql —
+  // no separate runtime DDL needed.
 
   const server = app.listen(port, (err?: Error) => {
     if (err) {
@@ -246,15 +232,22 @@ async function start() {
   process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
   process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
 
-  // Last-resort safety nets: the global Express error handler catches errors
-  // from request handlers, but anything thrown outside that flow (a stray
-  // async callback, a timer, a background job) would otherwise crash the
-  // process silently. Log and keep running rather than take down every user.
+  // Last-resort safety nets for errors that escape all request handlers.
+  //
+  // unhandledRejection — a rejected promise nobody caught. Common sources are
+  // third-party libraries with fire-and-forget patterns. Log and keep running;
+  // the process state is almost certainly still consistent.
+  //
+  // uncaughtException — a synchronous throw that escaped the event loop. The
+  // Node.js docs are explicit: process state may be corrupt, so the only safe
+  // response is to exit after flushing logs. We give Pino 500 ms to drain its
+  // write buffer before forcing the exit so the error is never lost.
   process.on("unhandledRejection", (reason) => {
     logger.error({ err: reason }, "Unhandled promise rejection — continuing");
   });
   process.on("uncaughtException", (err) => {
-    logger.error({ err }, "Uncaught exception — continuing");
+    logger.error({ err }, "Uncaught exception — process state may be corrupt, exiting");
+    setTimeout(() => process.exit(1), 500).unref();
   });
 }
 
