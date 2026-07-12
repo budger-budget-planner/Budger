@@ -519,7 +519,6 @@ function ReceiptModal({
         ref={cameraRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
         data-testid="input-receipt-camera"

@@ -48,13 +48,13 @@ router.post(
     const { name, size, contentType } = parsed.data;
     const uuid = randomUUID();
 
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL: `/api/storage/uploads/${uuid}`,
-        objectPath: `/objects/uploads/${uuid}`,
-        metadata: { name, size, contentType },
-      }),
-    );
+    // Do NOT use RequestUploadUrlResponse.parse() — its uploadURL field is
+    // zod.string().url() which rejects relative paths and throws a 500.
+    res.json({
+      uploadURL: `/api/storage/uploads/${uuid}`,
+      objectPath: `/objects/uploads/${uuid}`,
+      metadata: { name, size, contentType },
+    });
   },
 );
 
