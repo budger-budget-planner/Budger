@@ -5,24 +5,22 @@ import BudgerWordmark from "@/components/BudgerWordmark";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
 // ── Startup animation sequence ────────────────────────────────────────────────
-// sniff at 2× speed → lick at 2.25× speed → wink at normal speed
-// Total sequence duration before the exit glide begins: ~2 774 ms
+// sniff at 2× speed → lick at 2.25× speed → reposition
+// Total sequence duration before the exit glide begins: ~2 067 ms
 const SNIFF_MS  = Math.round(1400 / 2);     //  700 ms (2× speed)
 const LICK_MS   = Math.round(2400 / 2.25);  // 1067 ms (2.25× speed)
-const WINK_MS   = 700;                      //  700 ms (normal speed)
-const SETTLE_MS = 200;                      //  short pause after wink before gliding away
+const SETTLE_MS = 200;                      //  short pause after lick before gliding away
 const GAP_MS    = 100;                      //  idle gap between animations (lets CSS reset)
 
 // Absolute timeouts from mount (t = 0 → sniff starts)
 const T_SNIFF_END  = SNIFF_MS;
 const T_LICK_START = T_SNIFF_END  + GAP_MS;
 const T_LICK_END   = T_LICK_START + LICK_MS;
-const T_WINK_START = T_LICK_END   + GAP_MS;
-const T_SEQ_DONE   = T_WINK_START + WINK_MS + SETTLE_MS;
+const T_SEQ_DONE   = T_LICK_END   + SETTLE_MS;
 
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
-type AnimStep = "sniff" | "lick" | "wink" | "idle";
+type AnimStep = "sniff" | "lick" | "idle";
 type Phase    = "showing" | "moving" | "fading";
 type Dest     = "home" | "login" | null;
 
@@ -148,8 +146,6 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
     ids.push(setTimeout(() => setAnimStep("idle"), T_SNIFF_END));
     ids.push(setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); }, T_LICK_START));
-    ids.push(setTimeout(() => setAnimStep("idle"), T_LICK_END));
-    ids.push(setTimeout(() => { setAnimStep("wink"); setAnimDurMs(WINK_MS); }, T_WINK_START));
     ids.push(setTimeout(() => { setAnimStep("idle"); setSeqDone(true); }, T_SEQ_DONE));
 
     return () => ids.forEach(clearTimeout);

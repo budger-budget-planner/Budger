@@ -1407,13 +1407,22 @@ export default function HomeSpending() {
   // Merged, de-duped date list (pending dates may not appear in DB yet)
   const allDates = [...new Set([...Object.keys(pendingRpByDate), ...Object.keys(pendingByDate), ...dates])].sort((a, b) => b.localeCompare(a));
 
-  // Top-most visible transaction ID for the swipe hint wiggle — only wiggled when the
-  // occurrence rule below decides it's due (first login after onboarding, or after a
-  // week of inactivity), not on every visit to the home tab, and only once the splash
-  // screen has fully finished so it never plays hidden underneath it.
-  const topTxId = (!searchQuery && dates.length > 0 && swipeHintDue && appReady)
+  // Top-most visible transaction ID for the swipe hint wiggle.
+  //
+  // Lock-once pattern: we pick the top transaction the first time conditions are
+  // met (no search, has data, hint is due, splash done) and freeze that ID for the
+  // rest of this mount. Without the lock, adding a new transaction shifts topTxId
+  // to the freshly-inserted row and fires the wiggle again — which is wrong.
+  // The wiggle should trigger only for the very first record ever created, or for
+  // the top record when the user returns after a week of inactivity.
+  const wiggleTxRef = useRef<number | null | "pending">("pending");
+  const _candidate = (!searchQuery && dates.length > 0 && swipeHintDue && appReady)
     ? grouped[dates[0]]?.[0]?.id ?? null
     : null;
+  if (wiggleTxRef.current === "pending" && _candidate !== null) {
+    wiggleTxRef.current = _candidate;
+  }
+  const topTxId = wiggleTxRef.current === "pending" ? null : wiggleTxRef.current;
 
   return (
     <div className="flex flex-col min-h-full">
