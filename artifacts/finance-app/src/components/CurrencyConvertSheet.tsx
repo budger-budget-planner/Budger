@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { fmtAmt } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
+import { fetchRates, getConversionRate } from "@/lib/rates";
 
 export function CurrencyConvertSheet({
   tx,
@@ -31,11 +32,10 @@ export function CurrencyConvertSheet({
     setRateLoading(true);
     setRateError(false);
     setRate(null);
-    fetch(`https://open.er-api.com/v6/latest/${from}`)
-      .then(r => r.json())
-      .then(data => {
-        const r = data?.rates?.[to];
-        if (typeof r === "number" && r > 0) {
+    fetchRates()
+      .then(rates => {
+        const r = getConversionRate(from, to, rates);
+        if (r > 0) {
           setRate(r);
         } else {
           setRateError(true);
