@@ -82,6 +82,8 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    // Prevent mobile browsers from serving stale JS from disk cache.
+    headers: { "Cache-Control": "no-store" },
     fs: {
       strict: true,
     },

@@ -361,28 +361,54 @@ function FoundedWithRealizedGoalToggle({ tx, isOffline }: { tx: any; isOffline?:
  * This component converts any data URL to a blob URL at mount time, which
  * has no size restriction and renders correctly on all platforms.
  */
-function ReceiptImg({ src, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string }) {
-  const [blobSrc, setBlobSrc] = useState<string>(src);
+/**
+ * Renders a receipt image safely on iOS Safari.
+ *
+ * iOS Safari refuses to display data URLs larger than ~2 MB in <img> tags.
+ * This component converts any data URL to a blob URL before rendering, which
+ * has no size restriction and works on all platforms.
+ *
+ * A skeleton placeholder is shown while the blob URL is being created so the
+ * broken-image icon is never visible.
+ */
+function ReceiptImg({ src, className, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string }) {
+  // Start null so we never flash a raw data URL (which breaks on iOS Safari).
+  const [blobSrc, setBlobSrc] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!src) { setBlobSrc(null); return; }
+
     if (!src.startsWith("data:")) {
+      // Regular URL (object-storage path) — use as-is.
       setBlobSrc(src);
       return;
     }
+
+    // Convert data URL → blob URL to bypass iOS Safari's inline data URL limit.
+    let revoked = false;
+    let objectUrl: string | null = null;
     try {
       const commaIdx = src.indexOf(",");
-      if (commaIdx === -1) return;
+      if (commaIdx === -1) { setBlobSrc(src); return; }
       const mime = (src.slice(5, commaIdx).match(/^([^;]+)/) ?? [])[1] ?? "image/jpeg";
       const bytes = Uint8Array.from(atob(src.slice(commaIdx + 1)), c => c.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-      setBlobSrc(url);
-      return () => URL.revokeObjectURL(url);
+      objectUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      if (!revoked) setBlobSrc(objectUrl);
     } catch {
       setBlobSrc(src); // fallback: try the data URL directly
     }
+    return () => {
+      revoked = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [src]);
 
-  return <img src={blobSrc} {...props} />;
+  if (!blobSrc) {
+    // Show a neutral skeleton while the blob URL is being prepared.
+    return <div className={`animate-pulse bg-muted rounded-xl ${className ?? ""}`} style={{ minHeight: 160 }} />;
+  }
+
+  return <img src={blobSrc} className={className} {...props} />;
 }
 
 function ReceiptModal({
@@ -400,10 +426,24 @@ function ReceiptModal({
   const sym = currencySymbol(loadPrefs().currency);
   const libraryRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
+  // Holds the receipt image immediately after a successful upload so the
+  // preview is visible at once without waiting for the query refetch.
+  const [localReceiptImage, setLocalReceiptImage] = useState<string | null>(null);
+
+  // Reset local state whenever the dialog closes or the transaction changes.
+  useEffect(() => {
+    if (!open) setLocalReceiptImage(null);
+  }, [open]);
+
+  // The effective receipt image: prefer the freshly-uploaded local version
+  // over the (potentially stale) server-fetched version.
+  const effectiveReceiptImage = localReceiptImage ?? tx.receiptImage ?? null;
 
   const uploadReceipt = useUploadReceipt({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data: any) => {
+        // Show the image immediately from the server response.
+        if (data?.receiptImage) setLocalReceiptImage(data.receiptImage);
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
@@ -412,6 +452,7 @@ function ReceiptModal({
   const deleteReceipt = useDeleteReceipt({
     mutation: {
       onSuccess: () => {
+        setLocalReceiptImage(null);
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
@@ -425,12 +466,11 @@ function ReceiptModal({
     try {
       let dataUrl: string;
       try {
-        // Try canvas compression first (reduces 5-12 MB → ~200 KB)
-        dataUrl = await compressImage(file);
+        // Compress to 800 px / 65 % quality → keeps uploads under ~300 KB.
+        dataUrl = await compressImage(file, 800, 0.65);
       } catch {
         // Canvas can fail on iOS for HEIC/HEIF or under memory pressure.
-        // Fall back to reading the raw file as a base64 data URL — works for
-        // any format iOS provides and is still displayable on the same device.
+        // Fall back to reading the raw file as a base64 data URL.
         dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -458,10 +498,10 @@ function ReceiptModal({
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
 
-            {tx.receiptImage ? (
+            {effectiveReceiptImage ? (
               <div className="relative group rounded-xl overflow-hidden border border-border">
                 <ReceiptImg
-                  src={receiptSrc(tx.receiptImage)!}
+                  src={receiptSrc(effectiveReceiptImage)!}
                   alt="Receipt"
                   className="w-full object-cover max-h-64 cursor-pointer"
                   onClick={() => setLightbox(true)}
@@ -503,7 +543,7 @@ function ReceiptModal({
               data-testid="button-add-receipt"
             >
               <ImagePlus className="w-4 h-4" />
-              {tx.receiptImage ? "Replace photo" : "Add photo"}
+              {effectiveReceiptImage ? "Replace photo" : "Add photo"}
             </Button>
 
             <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
@@ -512,7 +552,7 @@ function ReceiptModal({
       </Dialog>
 
       {/* Lightbox */}
-      {lightbox && tx.receiptImage && (
+      {lightbox && effectiveReceiptImage && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setLightbox(false)}
@@ -524,7 +564,7 @@ function ReceiptModal({
             <X className="w-6 h-6" />
           </button>
           <ReceiptImg
-            src={receiptSrc(tx.receiptImage)!}
+            src={receiptSrc(effectiveReceiptImage)!}
             alt="Receipt full size"
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}
