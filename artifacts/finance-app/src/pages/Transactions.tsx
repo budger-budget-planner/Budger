@@ -394,9 +394,21 @@ function ReceiptModal({
     if (!file) return;
     e.target.value = "";
     try {
-      // Compress to JPEG (5-12 MB → ~200 KB) then store the base64 data URL
-      // directly in the transaction record — no object storage required.
-      const dataUrl = await compressImage(file);
+      let dataUrl: string;
+      try {
+        // Try canvas compression first (reduces 5-12 MB → ~200 KB)
+        dataUrl = await compressImage(file);
+      } catch {
+        // Canvas can fail on iOS for HEIC/HEIF or under memory pressure.
+        // Fall back to reading the raw file as a base64 data URL — works for
+        // any format iOS provides and is still displayable on the same device.
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("FileReader failed"));
+          reader.readAsDataURL(file);
+        });
+      }
       uploadReceipt.mutate({ id: tx.id, data: { imageData: dataUrl } });
     } catch {
       alert(t("tx.image_error"));
@@ -458,14 +470,7 @@ function ReceiptModal({
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={async () => {
-                  const result = await requestCameraPermission();
-                  if (result === "denied") {
-                    alert(t("camera.denied"));
-                    return;
-                  }
-                  cameraRef.current?.click();
-                }}
+                onClick={() => cameraRef.current?.click()}
                 disabled={isOffline || uploadReceipt.isPending}
                 data-testid="button-capture-receipt"
               >
