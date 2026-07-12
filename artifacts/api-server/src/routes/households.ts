@@ -19,6 +19,21 @@ const MEMBER_COLORS = [
 function isHead(role: string) { return role === "head" || role === "owner"; }
 function isParent(role: string) { return role === "parent"; }
 
+/** Extracts the requesterId stored in a head_request notification body.
+ *  New format: JSON `{"requesterId":123}` — robust and unambiguous.
+ *  Legacy format: plain numeric string `"123"` — parseInt fallback for
+ *  any notifications that pre-date the JSON migration. */
+function parseHeadRequesterId(body: string | null): number {
+  if (!body) return NaN;
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === "object" && typeof parsed.requesterId === "number") {
+      return parsed.requesterId;
+    }
+  } catch { /* fall through to legacy parseInt */ }
+  return parseInt(body, 10);
+}
+
 export async function pickNextColor(householdId: number): Promise<string> {
   const members = await db.select().from(householdMembersTable)
     .where(eq(householdMembersTable.householdId, householdId));
@@ -467,13 +482,16 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
 
   const requesterName = user.name ?? "A member";
 
+  // Store the requesterId as structured JSON so it can be parsed unambiguously —
+  // avoids brittle parseInt() on a plain string that might change format.
+  const headRequestBody = JSON.stringify({ requesterId: userId });
   await db.insert(notificationItemsTable).values({
     userId: headMember.userId,
     type: "head_request",
     titleEn: `${requesterName} wants to become Head`,
     titlePl: `${requesterName} chce zostać Głową Rodziny`,
-    bodyEn: String(userId),
-    bodyPl: String(userId),
+    bodyEn: headRequestBody,
+    bodyPl: headRequestBody,
   });
 
   res.json({ success: true });
@@ -503,7 +521,7 @@ router.get("/households/head-requests", async (req, res): Promise<void> => {
   const seen = new Set<number>();
   const result = [];
   for (const item of items) {
-    const requesterId = parseInt(item.bodyEn);
+    const requesterId = parseHeadRequesterId(item.bodyEn);
     if (isNaN(requesterId) || seen.has(requesterId)) continue;
     seen.add(requesterId);
     const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, requesterId));
@@ -535,7 +553,7 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
   if (!notif) { res.status(404).json({ error: "Request not found" }); return; }
 
-  const requesterId = parseInt(notif.bodyEn);
+  const requesterId = parseHeadRequesterId(notif.bodyEn);
   if (isNaN(requesterId)) { res.status(400).json({ error: "Invalid request data" }); return; }
 
   const [requesterMembership] = await db.select().from(householdMembersTable)

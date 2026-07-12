@@ -208,7 +208,11 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   }
 
   const name = `${firstName} ${lastName}`;
-  const verificationToken = crypto.randomBytes(24).toString("hex");
+  // Generate a plaintext token to embed in the verification URL, but store only
+  // its SHA-256 hash — mirrors the PIN reset pattern so a DB read cannot be
+  // replayed to verify someone else's account.
+  const verificationTokenPlaintext = crypto.randomBytes(24).toString("hex");
+  const verificationToken = crypto.createHash("sha256").update(verificationTokenPlaintext).digest("hex");
   const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
   // Starts (or restarts) the 15-minute clock for completing the whole sign-up flow.
   const signupExpiresAt = new Date(Date.now() + SIGNUP_COMPLETION_TTL_MS);
@@ -246,7 +250,7 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
   }
 
   // Build a fully-qualified link so it also works when clicked from a real inbox.
-  const relativeVerifyPath = `/verify-email?token=${verificationToken}`;
+  const relativeVerifyPath = `/verify-email?token=${verificationTokenPlaintext}`;
   const domain = (process.env.REPLIT_DOMAINS ?? "").split(",")[0].trim();
   const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
   const absoluteVerifyUrl = `${origin}${relativeVerifyPath}`;
@@ -271,7 +275,10 @@ router.post("/auth/verify-email", async (req, res): Promise<void> => {
   }
   const { token } = parsed.data;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.verificationToken, token));
+  // Hash the incoming plaintext token before looking it up — the DB stores only
+  // the hash, never the plaintext, so a DB leak cannot be replayed.
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.verificationToken, tokenHash));
   if (!user || !user.verificationTokenExpiresAt || user.verificationTokenExpiresAt.getTime() < Date.now()) {
     res.status(400).json({ error: "This verification link is invalid or has expired" });
     return;
