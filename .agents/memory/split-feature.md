@@ -34,6 +34,13 @@ When a recipient accepts a split, `finalAmount` is already converted into the re
 
 **How to apply:** on split accept, only set `transactionCurrency`/`currencyLocked` when the *original* transaction (`origTx`) was itself locked/foreign — propagate that lock as-is. For a plain cross-currency accept, leave `transactionCurrency` null so the row rides normal bulk currency conversion like any other transaction. If you find existing rows with this stale tag (recipient split rows, not locked, `transactionCurrency` set), repair by converting `amount` into the account's current currency at a live rate and clearing the tag — don't just clear the tag, since the amount is still denominated in the old currency's units.
 
+## Bulk currency conversion drifts split-linked recipient amounts on round trips (fixed 2026-07-12)
+Once a recipient split transaction rides normal bulk conversion (see above), `/convert-currency` used to treat its stored `amount` like any regular transaction: multiply by whatever live rate the current request supplies. That amount is only a converted *snapshot* taken at accept time, not a ground truth — repeatedly multiplying it by fresh live rates on every subsequent account-currency switch compounds normal rate drift, so switching back to the original request's currency does not reproduce the original number (e.g. a 100 zł request accepted as ~23 EUR came back as ~98.75 zł instead of exactly 100 zł).
+
+**Why:** `expenseSplits.splitAmount` + `expenseSplits.issuerCurrency` is the actual canonical source of truth for a split — the stored transaction `amount` is always derivable from it. Converting the derived snapshot instead of the canonical source lets floating-point/live-rate drift accumulate across currency switches instead of resetting to the correct value.
+
+**How to apply:** in `/convert-currency`, any transaction with `splitId` set and `splitRole === "recipient"` should have its target-currency amount recomputed directly from its linked `expenseSplits` row (`convertAmount(splitAmount, issuerCurrency, targetCurrency, rates)`), not from `parseFloat(tx.amount) * rate`. This guarantees an exact match whenever the target currency equals the split's original `issuerCurrency`, and avoids compounding drift across any number of currency switches. Applies to `artifacts/api-server/src/routes/currencies.ts`.
+
 ## Multi-recipient split groups (2026-07-11 rework)
 The original 2-person (issuer/recipient) split was reworked into multi-recipient: one issuer picks any number of household members, enters an amount or percentage per person (single global mode toggle, not per-row), and each recipient accepts/declines independently and asynchronously.
 

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable, larderEntriesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable, larderEntriesTable, expenseSplitsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
+import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,28 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   let converted = 0;
 
   const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+
+  // Split-linked recipient transactions (splitId + splitRole "recipient") were
+  // created from a canonical source amount: expenseSplits.splitAmount, in
+  // expenseSplits.issuerCurrency. Their stored `amount` is just a converted
+  // snapshot taken at accept time. If we convert that snapshot the same way as
+  // a regular transaction — multiplying by whatever live rate this request
+  // happens to use — repeated currency switches drift away from the true split
+  // amount (e.g. a 100 zl request accepted as ~23 EUR would come back as
+  // ~98.75 zl instead of exactly 100 zl once the account currency returns to
+  // PLN, because the accept-time rate and the current live rate are never
+  // exactly reciprocal). Instead, re-derive these rows fresh from the
+  // canonical splitAmount/issuerCurrency on every conversion so they always
+  // land on the mathematically correct value for the target currency,
+  // regardless of how many times the account currency has changed since.
+  const splitIds = [...new Set(txs.filter(t => t.splitId != null && t.splitRole === "recipient").map(t => t.splitId as number))];
+  const splitsById = new Map<number, { splitAmount: string; issuerCurrency: string }>();
+  if (splitIds.length > 0) {
+    const splitRows = await db.select().from(expenseSplitsTable).where(inArray(expenseSplitsTable.id, splitIds));
+    for (const s of splitRows) splitsById.set(s.id, { splitAmount: s.splitAmount, issuerCurrency: s.issuerCurrency });
+  }
+  const liveRates = splitIds.length > 0 ? await fetchRates() : null;
+
   for (const tx of txs) {
     // Skip rows permanently locked in their original currency
     if (tx.currencyLocked) continue;
@@ -42,7 +65,10 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
     // Skip genuine foreign-currency rows (not a larder mistake)
     if (tx.transactionCurrency && !isMistakenLarderLock) continue;
 
-    const newAmt = roundMoney(parseFloat(tx.amount) * rate);
+    const canonicalSplit = tx.splitId != null && tx.splitRole === "recipient" ? splitsById.get(tx.splitId) : undefined;
+    const newAmt = canonicalSplit && liveRates
+      ? roundMoney(convertAmount(parseFloat(canonicalSplit.splitAmount), canonicalSplit.issuerCurrency, to, liveRates))
+      : roundMoney(parseFloat(tx.amount) * rate);
     const updates: Record<string, unknown> = { amount: newAmt };
 
     // Keep the pre-split snapshot in the same currency as amount
