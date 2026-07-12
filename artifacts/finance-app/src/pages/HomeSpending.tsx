@@ -44,7 +44,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { receiptSrc, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc, compressImage } from "@/lib/imageUtils";
+import { ReceiptImg } from "@/components/ReceiptImg";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, checkSwipeHintDue } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
@@ -313,19 +314,34 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
 
 function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onClose: () => void; sym: string }) {
   const queryClient  = useQueryClient();
-  const cameraRef    = useRef<HTMLInputElement>(null);
   const libraryRef   = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
-  const [localImage, setLocalImage] = useState<string | null>(receiptSrc(tx.receiptImage));
+  // Holds the receipt image immediately after a successful upload so the
+  // preview is visible at once without waiting for the query refetch.
+  const [localReceiptImage, setLocalReceiptImage] = useState<string | null>(null);
 
-  const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: () => {
+  // Reset local state whenever the dialog closes or the transaction changes.
+  useEffect(() => {
+    if (!open) setLocalReceiptImage(null);
+  }, [open]);
+
+  // The effective receipt image: prefer the freshly-uploaded local version
+  // over the (potentially stale) server-fetched version.
+  const effectiveReceiptImage = localReceiptImage ?? tx.receiptImage ?? null;
+
+  const uploadReceipt = useUploadReceipt({ mutation: { onSuccess: (data: any) => {
+    // Show the image immediately from the server response instead of a
+    // client-derived path — the upload endpoint may resolve/rewrite the
+    // stored value, so the response is the only value guaranteed to be
+    // servable right away.
+    if (data?.receiptImage) setLocalReceiptImage(data.receiptImage);
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   }}});
   const deleteReceipt = useDeleteReceipt({ mutation: { onSuccess: () => {
+    setLocalReceiptImage(null);
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
-    setLocalImage(null);
   }}});
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -333,30 +349,23 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     if (!file) return;
     e.target.value = "";
     try {
-      // Step 1: get a presigned upload URL from the server
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-      });
-      if (!urlRes.ok) throw new Error("Failed to get upload URL");
-      const { uploadURL, objectPath } = await urlRes.json();
-
-      // Step 2: upload file directly to GCS (bypasses our server entirely)
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Failed to upload file");
-
-      // Step 3: save the objectPath on the transaction record
-      uploadReceipt.mutate(
-        { id: tx.id, data: { imageData: objectPath } },
-        { onSuccess: () => setLocalImage(receiptSrc(objectPath)) },
-      );
+      let dataUrl: string;
+      try {
+        // Compress to 800 px / 65 % quality → keeps uploads under ~300 KB.
+        dataUrl = await compressImage(file, 800, 0.65);
+      } catch {
+        // Canvas can fail on iOS for HEIC/HEIF or under memory pressure.
+        // Fall back to reading the raw file as a base64 data URL.
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("FileReader failed"));
+          reader.readAsDataURL(file);
+        });
+      }
+      uploadReceipt.mutate({ id: tx.id, data: { imageData: dataUrl } });
     } catch {
-      alert("Could not process image. Please try again.");
+      alert(t("tx.image_error"));
     }
   }
 
@@ -372,73 +381,58 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
               </span>
               {" "}· {tx.categoryName ?? (!(tx as any).categoryId && (tx as any).recurringPaymentId ? t("tx.recurring_payment") : t("common.uncategorized"))} · {tx.date}
             </div>
-            {localImage ? (
-              <>
-                <div className="relative rounded-xl overflow-hidden border border-border">
-                  <img src={localImage} alt="Receipt"
-                    className="w-full object-cover max-h-64 cursor-pointer"
-                    onClick={() => setLightbox(true)} />
-                  {(uploadReceipt.isPending || deleteReceipt.isPending) && (
-                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                      <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="gap-2" onClick={() => setLightbox(true)}>
-                    <ZoomIn className="w-4 h-4" /> View
-                  </Button>
-                  <Button variant="destructive" className="gap-2"
-                    onClick={() => deleteReceipt.mutate({ id: tx.id })}
-                    disabled={deleteReceipt.isPending}>
-                    <Trash2 className="w-4 h-4" /> Remove
-                  </Button>
-                </div>
-              </>
+            {effectiveReceiptImage ? (
+              <div className="relative rounded-xl overflow-hidden border border-border">
+                <ReceiptImg src={receiptSrc(effectiveReceiptImage)!} alt="Receipt"
+                  className="w-full object-cover max-h-64 cursor-pointer"
+                  onClick={() => setLightbox(true)} />
+                {(uploadReceipt.isPending || deleteReceipt.isPending) && (
+                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageOff className="w-8 h-8 opacity-40" />
                 <p className="text-sm text-center">{t("home.no_receipt")}</p>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="gap-2"
-                onClick={async () => {
-                  const result = await requestCameraPermission();
-                  if (result === "denied") {
-                    alert(t("camera.denied"));
-                    return;
-                  }
-                  cameraRef.current?.click();
-                }} disabled={uploadReceipt.isPending}>
-                <Camera className="w-4 h-4" />
-                {uploadReceipt.isPending ? t("home.uploading") : t("home.camera")}
-              </Button>
-              <Button variant="outline" className="gap-2"
-                onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
-                <Image className="w-4 h-4" /> {t("home.library")}
-              </Button>
-            </div>
+            {effectiveReceiptImage && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => setLightbox(true)}>
+                  <ZoomIn className="w-4 h-4" /> View
+                </Button>
+                <Button variant="destructive" className="gap-2"
+                  onClick={() => deleteReceipt.mutate({ id: tx.id })}
+                  disabled={deleteReceipt.isPending}>
+                  <Trash2 className="w-4 h-4" /> Remove
+                </Button>
+              </div>
+            )}
+            <Button variant="outline" className="w-full gap-2"
+              onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
+              <Image className="w-4 h-4" />
+              {uploadReceipt.isPending ? t("home.uploading") : effectiveReceiptImage ? t("home.replace_photo") : t("home.add_photo")}
+            </Button>
             <Button variant="ghost" className="w-full" onClick={onClose}>{t("common.done")}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {lightbox && localImage && (
+      {lightbox && effectiveReceiptImage && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setLightbox(false)}>
           <button className="absolute top-4 right-4 text-white/80 hover:text-white"
             onClick={() => setLightbox(false)}>
             <X className="w-6 h-6" />
           </button>
-          <img src={localImage} alt="Receipt full size"
+          <ReceiptImg src={receiptSrc(effectiveReceiptImage)!} alt="Receipt full size"
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()} />
         </div>
       )}
 
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment"
-        className="hidden" onChange={handleFileChange} />
       <input ref={libraryRef} type="file" accept="image/*"
         className="hidden" onChange={handleFileChange} />
     </>
