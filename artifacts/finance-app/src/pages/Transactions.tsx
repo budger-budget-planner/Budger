@@ -394,21 +394,10 @@ function ReceiptModal({
     if (!file) return;
     e.target.value = "";
     try {
-      // Compress to JPEG on-device (reduces payload from 5-12 MB to ~200 KB)
+      // Compress to JPEG (5-12 MB → ~200 KB) then store the base64 data URL
+      // directly in the transaction record — no object storage required.
       const dataUrl = await compressImage(file);
-
-      // Upload through our own API server — avoids GCS CORS issues on iOS Safari
-      const uploadRes = await fetch("/api/storage/uploads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ data: dataUrl }),
-      });
-      if (!uploadRes.ok) throw new Error("Failed to upload image");
-      const { objectPath } = await uploadRes.json();
-
-      // Save the objectPath on the transaction record
-      uploadReceipt.mutate({ id: tx.id, data: { imageData: objectPath } });
+      uploadReceipt.mutate({ id: tx.id, data: { imageData: dataUrl } });
     } catch {
       alert(t("tx.image_error"));
     }
