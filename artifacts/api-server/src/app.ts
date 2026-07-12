@@ -62,14 +62,30 @@ app.use(
 // so the PWA service-worker can load cross-origin assets normally.
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-// CORS — only allow origins served from this Replit project (production) and
-// localhost (development). REPLIT_DOMAINS is a comma-separated list of all
-// domains assigned to this deployment (e.g. "myapp.replit.app").
+// CORS — this API is consumed by a decoupled frontend that may be hosted on
+// a different domain entirely (e.g. a Vercel deployment), so origins must be
+// allow-listed explicitly rather than assumed to be same-origin.
+//
+// Sources of allowed origins:
+//   - REPLIT_DOMAINS: comma-separated domains assigned to this Replit project
+//     (e.g. "myapp.replit.app"). Auto-populated by the platform.
+//   - CORS_ORIGINS: comma-separated list of additional external origins to
+//     allow, e.g. "https://my-frontend.vercel.app,https://my-app.com". Set
+//     this once the frontend is deployed to Vercel (or any other host).
+//   - localhost / 0.0.0.0 on any port — always allowed for local development.
 const allowedOrigins = new Set<string>();
 if (process.env.REPLIT_DOMAINS) {
   for (const d of process.env.REPLIT_DOMAINS.split(",")) {
     const domain = d.trim();
     if (domain) allowedOrigins.add(`https://${domain}`);
+  }
+}
+if (process.env.CORS_ORIGINS) {
+  for (const o of process.env.CORS_ORIGINS.split(",")) {
+    // Strip trailing slashes — the Origin header never includes one, so a
+    // stray "https://example.com/" in the env var would silently never match.
+    const origin = o.trim().replace(/\/+$/, "");
+    if (origin) allowedOrigins.add(origin);
   }
 }
 app.use(
@@ -88,6 +104,10 @@ app.use(
       callback(new Error("CORS: origin not allowed"));
     },
     credentials: true,
+    // Explicitly allow the headers the frontend actually sends cross-origin.
+    // Without this, the CSRF token header gets stripped by preflight.
+    allowedHeaders: ["Content-Type", "X-Csrf-Token", "X-Client-Timestamp"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
 
@@ -104,6 +124,8 @@ const sessionStore = process.env.DATABASE_URL
     })
   : undefined;
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(
   session({
     store: sessionStore,
@@ -111,11 +133,15 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      // In production the app runs behind Replit's HTTPS proxy — cookies must
-      // be Secure. In development (HTTP) keep it off so the session still works.
-      secure: process.env.NODE_ENV === "production",
+      // The frontend is a separately-hosted, cross-origin client (e.g. on
+      // Vercel), so the session cookie must be sent on cross-site requests.
+      // That requires SameSite=None, which browsers only honor when the
+      // cookie is also Secure — so the two flip together based on env.
+      // In local dev (plain HTTP) we fall back to Lax so cookies still work
+      // across different localhost ports without HTTPS.
+      secure: isProduction,
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   }),

@@ -13,6 +13,7 @@ A full-stack financial tracking web app for individuals and households. Named af
 - `pnpm --filter @workspace/db run migrate` — apply pending migrations manually (startup does this automatically)
 - `pnpm --filter @workspace/db run push` — push DB schema changes without migration history (dev/emergency only)
 - Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret
+- Optional env: `CORS_ORIGINS` — comma-separated list of extra allowed origins for a decoupled frontend (e.g. `https://my-frontend.vercel.app`). Set this once the frontend is deployed off-Replit.
 
 ## Stack
 
@@ -37,6 +38,9 @@ A full-stack financial tracking web app for individuals and households. Named af
 ## Architecture decisions
 
 - Session-based auth (no third-party auth): login by name+email upserts user, stores userId in express-session cookie. No passwords needed.
+- Backend is a pure JSON API (no server-rendered views/templates, no static file serving) so it can be deployed independently of the frontend.
+- CORS is allow-listed via `cors`: Replit's own domains (`REPLIT_DOMAINS`) plus any origins in `CORS_ORIGINS` (for an externally-hosted frontend, e.g. Vercel), plus localhost for dev. `credentials: true` so the session cookie is sent cross-origin.
+- Session cookie is `SameSite=None; Secure` in production (required for a cross-origin frontend) and `SameSite=Lax` in development (works over plain HTTP on localhost). CSRF token header defense stays in place regardless.
 - Apple Pay via Web Payments API (`window.PaymentRequest`): simulated flow in dev; requires HTTPS + merchant cert for real Apple Pay.
 - Household sharing via token-based invite links (7-day expiry). Invite link copied to clipboard, accepted via `/invite/:token` page.
 - Browser Notification API for reminders: scheduled with `setTimeout` in-browser; settings stored in DB.
