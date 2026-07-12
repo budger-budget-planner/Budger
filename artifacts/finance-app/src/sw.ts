@@ -40,9 +40,17 @@ self.addEventListener("message", (event) => {
 // ── API caching: NetworkFirst ──────────────────────────────────────────────
 // Tries the network first (5 s timeout), falls back to the last cached
 // response when offline.  Only caches GET requests.
+//
+// /api/csrf-token is deliberately EXCLUDED (see below): it hands out a
+// per-session security token, and NetworkFirst's cache fallback on a slow
+// or flaky connection would serve a stale token that no longer matches the
+// server's live session — every subsequent mutation then fails with
+// "Invalid or missing CSRF token" until the cache is cleared.
 registerRoute(
   ({ request }) =>
-    request.method === "GET" && request.url.includes("/api/"),
+    request.method === "GET" &&
+    request.url.includes("/api/") &&
+    !request.url.includes("/api/csrf-token"),
   new NetworkFirst({
     cacheName: "budger-api-v1",
     networkTimeoutSeconds: 5,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import LarderCard from "@/pages/LarderTab";
 import {
@@ -248,8 +249,8 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     setGlSaving(true);
-    fetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
-      method: "POST", credentials: "include",
+    apiFetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ goalId: goal.id, amount }),
     }).then(async r => {
@@ -734,9 +735,8 @@ function EditGoalDialog({
       ? convertAmount(budgetNum, userCurrency, goalCurrency, rates)
       : budgetNum;
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose-edit`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose-edit`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), color, budget: canonicalBudget, currency: goalCurrency, deadline: dateTbd ? "TBD" : deadline, divideByMonths: dateTbd ? false : divideByMonths }),
       });
@@ -765,9 +765,8 @@ function EditGoalDialog({
   async function handlePropose() {
     setProposeState("pending");
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/goals/${goal.id}/propose`, {
         method: "POST",
-        credentials: "include",
       });
       if (r.status === 409) {
         setProposeState("already");
@@ -954,8 +953,8 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     setGlSaving(true);
-    fetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
-      method: "POST", credentials: "include",
+    apiFetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ goalId: goal.id, amount }),
     }).then(async r => {
@@ -1289,8 +1288,8 @@ export default function GoalsPage() {
         if (newProposeToHousehold && created?.id) {
           setProposingAfterCreate(true);
           try {
-            await fetch(`${import.meta.env.BASE_URL}api/goals/${created.id}/propose`, {
-              method: "POST", credentials: "include",
+            await apiFetch(`${import.meta.env.BASE_URL}api/goals/${created.id}/propose`, {
+              method: "POST",
             });
             refetchMyShareProposals();
             queryClient.invalidateQueries({ queryKey: ["goal-my-share-proposals-badge"] });
@@ -1344,8 +1343,8 @@ export default function GoalsPage() {
 
   async function handleApproveProposal(proposalId: number) {
     if (!isOnline) return;
-    await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
-      method: "POST", credentials: "include",
+    await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
+      method: "POST",
     });
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
@@ -1354,8 +1353,8 @@ export default function GoalsPage() {
 
   async function handleDeclineProposal(proposalId: number, reason: string) {
     if (!isOnline) return;
-    await fetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
-      method: "POST", credentials: "include",
+    await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: reason.trim() || null }),
     });
@@ -1365,8 +1364,8 @@ export default function GoalsPage() {
   }
 
   async function handleApproveEditProposal(proposalId: number) {
-    await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/approve`, {
-      method: "POST", credentials: "include",
+    await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/approve`, {
+      method: "POST",
     });
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
@@ -1374,8 +1373,8 @@ export default function GoalsPage() {
   }
 
   async function handleDeclineEditProposal(proposalId: number, reason: string) {
-    await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
-      method: "POST", credentials: "include",
+    await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: reason.trim() || null }),
     });

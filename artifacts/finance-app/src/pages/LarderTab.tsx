@@ -1,4 +1,5 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
+import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
@@ -343,9 +344,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
   async function handleClearHistory() {
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/history`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/history`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!r.ok) throw new Error("Failed");
       invalidate();
@@ -372,10 +372,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     }
     setAddLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/add`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ amount, currency: addAsset || prefs.currency }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
@@ -405,10 +404,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     }
     setSpendLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
@@ -446,10 +444,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         setSendGlLoading(false);
         return;
       }
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ amount, assetCurrency: sendGlAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
@@ -480,10 +477,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     }
     setDedLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }

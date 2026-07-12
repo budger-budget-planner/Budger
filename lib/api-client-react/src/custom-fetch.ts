@@ -416,7 +416,26 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers, credentials: "include" });
+  let response = await fetch(input, { ...init, method, headers, credentials: "include" });
+
+  // A stale/mismatched CSRF token (e.g. served from a cache, or left over
+  // after a session rotation / server restart) surfaces as a 403. Self-heal
+  // by fetching a fresh token and retrying once, transparently, instead of
+  // surfacing the error to the caller.
+  if (
+    response.status === 403 &&
+    !_authTokenGetter &&
+    CSRF_METHODS.has(method)
+  ) {
+    resetCsrfToken();
+    try {
+      const retryHeaders = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+      retryHeaders.set("x-csrf-token", await getCsrfToken());
+      response = await fetch(input, { ...init, method, headers: retryHeaders, credentials: "include" });
+    } catch {
+      // Retry setup failed — fall through and report the original response.
+    }
+  }
 
   if (!response.ok) {
     // Clear the CSRF token cache on 403 so the next attempt re-fetches a

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
 import {
@@ -599,9 +600,8 @@ export default function HouseholdPage() {
       // Tell the server which currency the recipient's ledger entry should land in —
       // the server always computes the conversion itself using live rates (never
       // trusts a client-side amount), so this always matches what was requested.
-      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
+      await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipientCurrency: prefs2.currency }),
       });
@@ -616,7 +616,7 @@ export default function HouseholdPage() {
   async function declineSplit(id: number) {
     setSplitActionLoading(id);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/splits/${id}/decline`, { method: "PATCH", credentials: "include" });
+      await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/decline`, { method: "PATCH" });
       refetchIncoming();
       queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
     } finally {
@@ -687,8 +687,8 @@ export default function HouseholdPage() {
     if (amt > glFundAssetBalance + 0.005) return;
     setGlLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
-        method: "POST", credentials: "include",
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: glFundDesc.trim(), amount: amt, assetCurrency: glFundAsset || undefined }),
       });
@@ -708,8 +708,8 @@ export default function HouseholdPage() {
     if (amt > glDedicateAssetBalance + 0.005) return;
     setGlDedicateLoading(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
-        method: "POST", credentials: "include",
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt, assetCurrency: glDedicateAsset || undefined }),
       });
@@ -724,8 +724,8 @@ export default function HouseholdPage() {
   async function handleGlApprove(id: number) {
     setGlApproving(id);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/approve`, {
-        method: "POST", credentials: "include",
+      await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/approve`, {
+        method: "POST",
       });
       refetchGL();
     } finally { setGlApproving(null); }
@@ -734,8 +734,8 @@ export default function HouseholdPage() {
   async function handleGlReject(id: number) {
     setGlApproving(id);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/reject`, {
-        method: "POST", credentials: "include",
+      await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/reject`, {
+        method: "POST",
       });
       refetchGL();
     } finally { setGlApproving(null); }
@@ -744,7 +744,7 @@ export default function HouseholdPage() {
   async function handleRequestHead() {
     setHeadRequestLoading(true);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/households/request-head`, { method: "POST", credentials: "include" });
+      await apiFetch(`${import.meta.env.BASE_URL}api/households/request-head`, { method: "POST" });
       setHeadRequestSent(true);
     } finally { setHeadRequestLoading(false); }
   }
@@ -752,7 +752,7 @@ export default function HouseholdPage() {
   async function handleApproveHeadRequest(notifId: number) {
     setHeadActionLoading(notifId);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/approve`, { method: "POST", credentials: "include" });
+      await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/approve`, { method: "POST" });
       refetchHeadRequests();
       invalidateHousehold(queryClient);
     } finally { setHeadActionLoading(null); }
@@ -761,7 +761,7 @@ export default function HouseholdPage() {
   async function handleDeclineHeadRequest(notifId: number) {
     setHeadActionLoading(notifId);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/decline`, { method: "POST", credentials: "include" });
+      await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/decline`, { method: "POST" });
       refetchHeadRequests();
     } finally { setHeadActionLoading(null); }
   }
@@ -885,9 +885,8 @@ export default function HouseholdPage() {
   async function handleDeleteHousehold() {
     setDeletingHousehold(true);
     try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/households`, {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/households`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (r.ok) {
         setDeleteHouseholdOpen(false);

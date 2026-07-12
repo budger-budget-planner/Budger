@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
@@ -323,9 +324,8 @@ function FoundedWithRealizedGoalToggle({ tx, isOffline }: { tx: any; isOffline?:
     setChecked(next);
     setSaving(true);
     try {
-      const res = await fetch(`/api/transactions/${tx.id}`, {
+      const res = await apiFetch(`/api/transactions/${tx.id}`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ foundedWithRealizedGoal: next }),
       });
@@ -642,9 +642,8 @@ export default function TransactionsPage() {
   async function saveName(txId: number) {
     const trimmed = nameEditValue.trim();
     if (!trimmed) return;
-    const res = await fetch(`/api/transactions/${txId}`, {
+    const res = await apiFetch(`/api/transactions/${txId}`, {
       method: "PATCH",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: trimmed }),
     });
@@ -700,9 +699,8 @@ export default function TransactionsPage() {
                 contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
               } catch { /* keep original if fetch fails */ }
             }
-            fetch("/api/goal-contributions", {
+            apiFetch("/api/goal-contributions", {
               method: "POST",
-              credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 goalId: goalContribution.goalId,
@@ -716,9 +714,8 @@ export default function TransactionsPage() {
               queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
             });
           } else if (larderAmount && larderAmount > 0) {
-            fetch("/api/larder/entries", {
+            apiFetch("/api/larder/entries", {
               method: "POST",
-              credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 amount: larderAmount,
@@ -754,9 +751,8 @@ export default function TransactionsPage() {
     setIsSaving(true);
     try {
       // Step 1: Update the transaction
-      const patchRes = await fetch(`/api/transactions/${txId}`, {
+      const patchRes = await apiFetch(`/api/transactions/${txId}`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: parseFloat(form.amount),
@@ -780,7 +776,7 @@ export default function TransactionsPage() {
         const contribsRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
         const linked: any[] = contribsRes.ok ? await contribsRes.json() : [];
         await Promise.all(linked.map((c: any) =>
-          fetch(`/api/goal-contributions/${c.id}`, { method: "DELETE", credentials: "include" }),
+          apiFetch(`/api/goal-contributions/${c.id}`, { method: "DELETE" }),
         ));
 
         if (goalContribution) {
@@ -793,9 +789,8 @@ export default function TransactionsPage() {
               contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
             } catch { /* keep original if fetch fails */ }
           }
-          await fetch("/api/goal-contributions", {
+          await apiFetch("/api/goal-contributions", {
             method: "POST",
-            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               goalId: goalContribution.goalId,
@@ -816,12 +811,11 @@ export default function TransactionsPage() {
         (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
       );
       await Promise.all(priorLarderEntries.map(e =>
-        fetch(`/api/larder/entries/${e.id}`, { method: "DELETE", credentials: "include" }),
+        apiFetch(`/api/larder/entries/${e.id}`, { method: "DELETE" }),
       ));
       if (nowHasLarder) {
-        await fetch("/api/larder/entries", {
+        await apiFetch("/api/larder/entries", {
           method: "POST",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amount: larderAmount,

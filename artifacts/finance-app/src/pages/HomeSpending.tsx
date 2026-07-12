@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import {
@@ -531,9 +532,8 @@ function SplitSheet({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/splits`, {
+      const res = await apiFetch(`${import.meta.env.BASE_URL}api/splits`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactionId: tx.id, issuerCurrency, splits: lines }),
       });
@@ -701,7 +701,7 @@ async function syncGoalContribution(opts: {
   const idsToDelete = new Set<number>(linkedContribs.map((c: any) => c.id));
   if (existingContribId != null && !isLarder) idsToDelete.add(existingContribId);
   await Promise.all([...idsToDelete].map(id =>
-    fetch(`/api/goal-contributions/${id}`, { method: "DELETE", credentials: "include" }),
+    apiFetch(`/api/goal-contributions/${id}`, { method: "DELETE" }),
   ));
 
   // Find and delete any prior Larder entry created by dedicating this transaction
@@ -712,13 +712,12 @@ async function syncGoalContribution(opts: {
     (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
   );
   await Promise.all(priorLarderEntries.map(e =>
-    fetch(`/api/larder/entries/${e.id}`, { method: "DELETE", credentials: "include" }),
+    apiFetch(`/api/larder/entries/${e.id}`, { method: "DELETE" }),
   ));
 
   if (isGoalExpense && isLarder && parseFloat(goalAmount) > 0) {
-    await fetch("/api/larder/entries", {
+    await apiFetch("/api/larder/entries", {
       method: "POST",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         amount: parseFloat(goalAmount),
@@ -742,9 +741,8 @@ async function syncGoalContribution(opts: {
         contribAmount = convertAmount(accountAmt, userCurrency, goalCurrency, rates);
       } catch { /* keep unconverted if fetch fails */ }
     }
-    await fetch("/api/goal-contributions", {
+    await apiFetch("/api/goal-contributions", {
       method: "POST",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         goalId: parseInt(goalId),
