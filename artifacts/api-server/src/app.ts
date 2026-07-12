@@ -4,7 +4,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
@@ -112,17 +112,32 @@ app.use(
   }),
 );
 
-// Rate limiting — auth endpoints (brute-force protection) and the AI
-// screenshot-extraction endpoint (cost/abuse protection, since it calls a
-// paid Gemini API per request). Keyed by IP; generous enough not to affect
-// normal use, tight enough to block scripted abuse.
+// Rate limiting — three tiers:
 //
-// /auth/me is excluded: it's a read-only session check, not a credential
-// guess, and the client refetches it on window focus (e.g. switching apps
-// on mobile). Counting it here let a few genuine PIN attempts get crowded
-// out by ordinary refetch traffic and trip the limiter within minutes.
-// Only successful requests are skipped from the count so repeated failed
-// PIN/password attempts still accumulate toward the limit as intended.
+// 1. globalApiLimiter — applied to every /api route. Keyed by authenticated
+//    userId when available, falling back to IP. userId-keying means a shared
+//    NAT (office, mobile carrier) doesn't let one noisy client block everyone
+//    else on the same network. 600 req / 15 min ≈ 40 req/min — the app's
+//    normal polling pattern (10-15 endpoints every 30 s) peaks around 30 req/min,
+//    so this gives ~2× headroom for real use while stopping scripted floods.
+//
+// 2. authLimiter — tighter overlay on /api/auth for brute-force protection.
+//    /auth/me is excluded: it's a read-only session check the client calls on
+//    every window focus event; counting it would crowd out genuine PIN attempts.
+//    skipSuccessfulRequests keeps failed guesses accumulating toward the cap.
+//
+// 3. aiLimiter — cost/abuse guard on the paid Gemini endpoint.
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req.session as any)?.userId;
+    return userId ? `user:${userId}` : ipKeyGenerator(req);
+  },
+  message: { error: "Too many requests, please slow down" },
+});
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 150,
@@ -139,6 +154,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later" },
 });
+app.use("/api", globalApiLimiter);
 app.use("/api/auth", authLimiter);
 app.use("/api/transactions/extract-screenshot", aiLimiter);
 
