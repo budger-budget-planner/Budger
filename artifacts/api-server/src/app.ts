@@ -5,9 +5,18 @@ import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
+import { randomBytes } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
+
+// Extend express-session with app-specific fields.
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+    csrfToken?: string;
+  }
+}
 
 const PgSession = connectPgSimple(session);
 
@@ -157,6 +166,37 @@ const aiLimiter = rateLimit({
 app.use("/api", globalApiLimiter);
 app.use("/api/auth", authLimiter);
 app.use("/api/transactions/extract-screenshot", aiLimiter);
+
+// ── CSRF protection ───────────────────────────────────────────────────────────
+// Synchronizer-token pattern: GET /api/csrf-token issues a per-session random
+// token stored in the encrypted session cookie. Mutating requests must echo it
+// back in the x-csrf-token header. Together with sameSite: strict cookies this
+// gives defence-in-depth against CSRF on modern browsers.
+//
+// The token endpoint must be registered BEFORE the csrfProtection middleware so
+// it can be reached without a token in hand (bootstrapping case).
+
+app.get("/api/csrf-token", (req, res) => {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = randomBytes(32).toString("hex");
+  }
+  res.json({ token: req.session.csrfToken });
+});
+
+const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function csrfProtection(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if (CSRF_SAFE_METHODS.has(req.method)) return next();
+  const sessionToken = req.session.csrfToken;
+  const headerToken = req.headers["x-csrf-token"] as string | undefined;
+  if (!sessionToken || !headerToken || sessionToken !== headerToken) {
+    res.status(403).json({ error: "Invalid or missing CSRF token" });
+    return;
+  }
+  next();
+}
+
+app.use("/api", csrfProtection);
 
 app.use("/api", router);
 

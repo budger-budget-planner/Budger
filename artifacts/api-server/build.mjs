@@ -21,7 +21,12 @@ async function buildAll() {
   await cp(migrationsSource, migrationsDest, { recursive: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      // instrument.ts must be a separate bundle so `node --import` can load it
+      // before Express (or any other module) is imported by index.mjs.
+      path.resolve(artifactDir, "src/instrument.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -34,6 +39,16 @@ async function buildAll() {
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
+      // ── Sentry & OpenTelemetry ─────────────────────────────────────────────
+      // Externalised so they are loaded from node_modules at runtime instead of
+      // being bundled. @sentry/node v10 alone adds ~2 MB to the bundle because
+      // it embeds the full OpenTelemetry SDK. Keeping it external cuts the
+      // bundle to well under 2 MB and speeds up cold starts.
+      "@sentry/*",
+      // ── Other large runtime deps ───────────────────────────────────────────
+      // resend bundles its own HTTP client + form-data encoder; externalising
+      // it saves another ~200 KB.
+      "resend",
       "*.node",
       "sharp",
       "better-sqlite3",

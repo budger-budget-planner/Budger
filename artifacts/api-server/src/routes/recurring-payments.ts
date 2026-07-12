@@ -99,153 +99,166 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
 
 
 // GET /recurring-payments — list all for current user, auto-apply scheduled
-router.get("/recurring-payments", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+router.get("/recurring-payments", async (req, res, next): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const monthKey = currentMonthKey();
+    const monthKey = currentMonthKey();
 
-  // Auto-apply any scheduled payments that are due
-  await autoApplyScheduled(userId, monthKey);
+    // Auto-apply any scheduled payments that are due. A failure here (e.g. a
+    // transient DB error) must not prevent the user from seeing their list —
+    // log and continue rather than surfacing a 500.
+    try {
+      await autoApplyScheduled(userId, monthKey);
+    } catch (autoErr) {
+      req.log?.warn({ err: autoErr }, "recurring-payments: auto-apply failed — continuing without it");
+    }
 
-  const rps = await db.select().from(recurringPaymentsTable)
-    .where(eq(recurringPaymentsTable.userId, userId))
-    .orderBy(recurringPaymentsTable.createdAt);
+    const rps = await db.select().from(recurringPaymentsTable)
+      .where(eq(recurringPaymentsTable.userId, userId))
+      .orderBy(recurringPaymentsTable.createdAt);
 
-  const appliedMap = await getAppliedMap(userId, monthKey);
+    const appliedMap = await getAppliedMap(userId, monthKey);
 
-  res.json(rps.map(rp => formatRP(rp, appliedMap.has(rp.id), appliedMap.get(rp.id) ?? null)));
+    res.json(rps.map(rp => formatRP(rp, appliedMap.has(rp.id), appliedMap.get(rp.id) ?? null)));
+  } catch (err) { next(err); }
 });
 
 // POST /recurring-payments — create
-router.post("/recurring-payments", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+router.post("/recurring-payments", async (req, res, next): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
+    const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
 
-  if (!name || typeof name !== "string" || !name.trim()) {
-    res.status(400).json({ error: "name is required" }); return;
-  }
-  if (!color || typeof color !== "string") {
-    res.status(400).json({ error: "color is required" }); return;
-  }
-  if (!type || !["manual", "scheduled"].includes(type)) {
-    res.status(400).json({ error: "type must be manual or scheduled" }); return;
-  }
-  if (!amount || typeof amount !== "number" || amount <= 0) {
-    res.status(400).json({ error: "amount must be a positive number" }); return;
-  }
-  if (type === "scheduled") {
-    if (!dayOfMonth || typeof dayOfMonth !== "number" || dayOfMonth < 1 || dayOfMonth > 31) {
-      res.status(400).json({ error: "dayOfMonth must be 1-31 for scheduled payments" }); return;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ error: "name is required" }); return;
     }
-  }
+    if (!color || typeof color !== "string") {
+      res.status(400).json({ error: "color is required" }); return;
+    }
+    if (!type || !["manual", "scheduled"].includes(type)) {
+      res.status(400).json({ error: "type must be manual or scheduled" }); return;
+    }
+    if (!amount || typeof amount !== "number" || amount <= 0) {
+      res.status(400).json({ error: "amount must be a positive number" }); return;
+    }
+    if (type === "scheduled") {
+      if (!dayOfMonth || typeof dayOfMonth !== "number" || dayOfMonth < 1 || dayOfMonth > 31) {
+        res.status(400).json({ error: "dayOfMonth must be 1-31 for scheduled payments" }); return;
+      }
+    }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
 
-  const [rp] = await db.insert(recurringPaymentsTable).values({
-    userId,
-    householdId: user?.householdId ?? undefined,
-    name: name.trim(),
-    color,
-    type,
-    amount: String(amount),
-    dayOfMonth: type === "scheduled" ? dayOfMonth : null,
-    addToLarder: addToLarder === true,
-  }).returning();
+    const [rp] = await db.insert(recurringPaymentsTable).values({
+      userId,
+      householdId: user?.householdId ?? undefined,
+      name: name.trim(),
+      color,
+      type,
+      amount: String(amount),
+      dayOfMonth: type === "scheduled" ? dayOfMonth : null,
+      addToLarder: addToLarder === true,
+    }).returning();
 
-  await syncTotalBudgetFloor(userId);
+    await syncTotalBudgetFloor(userId);
 
-  const monthKey = currentMonthKey();
-  res.status(201).json(formatRP(rp, false, null));
+    res.status(201).json(formatRP(rp, false, null));
+  } catch (err) { next(err); }
 });
 
 // PATCH /recurring-payments/:id — update
-router.patch("/recurring-payments/:id", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [existing] = await db.select().from(recurringPaymentsTable)
-    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
-  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const [existing] = await db.select().from(recurringPaymentsTable)
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
-  const updates: Record<string, any> = {};
+    const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
+    const updates: Record<string, any> = {};
 
-  if (name !== undefined) {
-    if (typeof name !== "string" || !name.trim()) { res.status(400).json({ error: "name is required" }); return; }
-    updates.name = name.trim();
-  }
-  if (color !== undefined) updates.color = color;
-  if (type !== undefined) {
-    if (!["manual", "scheduled"].includes(type)) { res.status(400).json({ error: "Invalid type" }); return; }
-    updates.type = type;
-  }
-  if (amount !== undefined) {
-    if (typeof amount !== "number" || amount <= 0) { res.status(400).json({ error: "amount must be positive" }); return; }
-    updates.amount = String(amount);
-  }
-  if (dayOfMonth !== undefined) {
-    if (dayOfMonth !== null && (typeof dayOfMonth !== "number" || dayOfMonth < 1 || dayOfMonth > 31)) {
-      res.status(400).json({ error: "dayOfMonth must be 1-31 or null" }); return;
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim()) { res.status(400).json({ error: "name is required" }); return; }
+      updates.name = name.trim();
     }
-    updates.dayOfMonth = dayOfMonth;
-  }
-  if (addToLarder !== undefined) {
-    updates.addToLarder = addToLarder === true;
-  }
+    if (color !== undefined) updates.color = color;
+    if (type !== undefined) {
+      if (!["manual", "scheduled"].includes(type)) { res.status(400).json({ error: "Invalid type" }); return; }
+      updates.type = type;
+    }
+    if (amount !== undefined) {
+      if (typeof amount !== "number" || amount <= 0) { res.status(400).json({ error: "amount must be positive" }); return; }
+      updates.amount = String(amount);
+    }
+    if (dayOfMonth !== undefined) {
+      if (dayOfMonth !== null && (typeof dayOfMonth !== "number" || dayOfMonth < 1 || dayOfMonth > 31)) {
+        res.status(400).json({ error: "dayOfMonth must be 1-31 or null" }); return;
+      }
+      updates.dayOfMonth = dayOfMonth;
+    }
+    if (addToLarder !== undefined) {
+      updates.addToLarder = addToLarder === true;
+    }
 
-  // Validate resulting state: scheduled always needs a valid dayOfMonth
-  const resultType = updates.type ?? existing.type;
-  const resultDay = "dayOfMonth" in updates ? updates.dayOfMonth : existing.dayOfMonth;
-  if (resultType === "scheduled" && (resultDay == null || resultDay < 1 || resultDay > 31)) {
-    res.status(400).json({ error: "Scheduled payments require dayOfMonth 1-31" }); return;
-  }
-  // Clear dayOfMonth when switching to manual
-  if (resultType === "manual") updates.dayOfMonth = null;
+    // Validate resulting state: scheduled always needs a valid dayOfMonth
+    const resultType = updates.type ?? existing.type;
+    const resultDay = "dayOfMonth" in updates ? updates.dayOfMonth : existing.dayOfMonth;
+    if (resultType === "scheduled" && (resultDay == null || resultDay < 1 || resultDay > 31)) {
+      res.status(400).json({ error: "Scheduled payments require dayOfMonth 1-31" }); return;
+    }
+    // Clear dayOfMonth when switching to manual
+    if (resultType === "manual") updates.dayOfMonth = null;
 
-  const [rp] = await db.update(recurringPaymentsTable)
-    .set(updates)
-    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)))
-    .returning();
+    const [rp] = await db.update(recurringPaymentsTable)
+      .set(updates)
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)))
+      .returning();
 
-  if (updates.amount !== undefined) {
-    await syncTotalBudgetFloor(userId);
-  }
+    if (updates.amount !== undefined) {
+      await syncTotalBudgetFloor(userId);
+    }
 
-  const monthKey = currentMonthKey();
-  const appliedMap = await getAppliedMap(userId, monthKey);
-  res.json(formatRP(rp, appliedMap.has(rp.id), appliedMap.get(rp.id) ?? null));
+    const monthKey = currentMonthKey();
+    const appliedMap = await getAppliedMap(userId, monthKey);
+    res.json(formatRP(rp, appliedMap.has(rp.id), appliedMap.get(rp.id) ?? null));
+  } catch (err) { next(err); }
 });
 
 // DELETE /recurring-payments/:id — delete
-router.delete("/recurring-payments/:id", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+router.delete("/recurring-payments/:id", async (req, res, next): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [existing] = await db.select().from(recurringPaymentsTable)
-    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
-  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const [existing] = await db.select().from(recurringPaymentsTable)
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  // Delete logs for this payment
-  await db.delete(recurringPaymentLogsTable)
-    .where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
+    // Delete logs for this payment
+    await db.delete(recurringPaymentLogsTable)
+      .where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
 
-  await db.delete(recurringPaymentsTable)
-    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+    await db.delete(recurringPaymentsTable)
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
 
-  res.status(204).send();
+    res.status(204).send();
+  } catch (err) { next(err); }
 });
 
 // POST /recurring-payments/:id/apply — apply a manual recurring payment (creates transaction + log)
-router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => {
+router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<void> => { try {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
@@ -324,6 +337,6 @@ router.post("/recurring-payments/:id/apply", async (req, res): Promise<void> => 
   }
 
   res.json(formatRP(rp, true, tx.id));
-});
+} catch (err) { next(err); } });
 
 export default router;

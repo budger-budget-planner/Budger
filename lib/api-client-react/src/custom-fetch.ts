@@ -18,6 +18,48 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 
+// ---------------------------------------------------------------------------
+// CSRF token cache (web / session-cookie mode only)
+// ---------------------------------------------------------------------------
+// We fetch a per-session CSRF token from the server once and cache it in
+// memory. On a 403 response we clear the cache so the next mutating request
+// re-fetches a fresh token (handles session expiry / rotation).
+//
+// Skipped entirely when _authTokenGetter is set (Expo / bearer-token mode):
+// those environments don't use session cookies and therefore don't need CSRF
+// protection.
+
+let _csrfToken: string | null = null;
+let _csrfInflight: Promise<string> | null = null;
+
+function resolveCsrfUrl(): string {
+  const base = _baseUrl ? _baseUrl.replace(/\/+$/, "") : "";
+  return `${base}/api/csrf-token`;
+}
+
+async function getCsrfToken(): Promise<string> {
+  if (_csrfToken) return _csrfToken;
+  if (_csrfInflight) return _csrfInflight;
+  _csrfInflight = fetch(resolveCsrfUrl(), { credentials: "include" })
+    .then((r) => r.json())
+    .then((d) => {
+      _csrfToken = (d as { token: string }).token;
+      _csrfInflight = null;
+      return _csrfToken as string;
+    })
+    .catch((err) => {
+      _csrfInflight = null;
+      throw err;
+    });
+  return _csrfInflight;
+}
+
+/** Reset the cached CSRF token (e.g. after logout or a 403 response). */
+export function resetCsrfToken(): void {
+  _csrfToken = null;
+  _csrfInflight = null;
+}
+
 /**
  * Set a base URL that is prepended to every relative request URL
  * (i.e. paths that start with `/`).
@@ -358,11 +400,28 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // Attach CSRF token for state-changing requests in web / session-cookie mode.
+  // Skipped in bearer-token mode (_authTokenGetter set) — those flows don't use
+  // session cookies and are not vulnerable to CSRF.
+  const CSRF_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+  if (!_authTokenGetter && CSRF_METHODS.has(method) && !headers.has("x-csrf-token")) {
+    try {
+      const csrfToken = await getCsrfToken();
+      headers.set("x-csrf-token", csrfToken);
+    } catch {
+      // If the token fetch fails (e.g. server unreachable) we continue without
+      // it — the server will respond with 403 which the caller can handle.
+    }
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers, credentials: "include" });
 
   if (!response.ok) {
+    // Clear the CSRF token cache on 403 so the next attempt re-fetches a
+    // fresh token (guards against stale tokens after session rotation).
+    if (response.status === 403) resetCsrfToken();
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }
