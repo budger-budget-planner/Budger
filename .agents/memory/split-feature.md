@@ -27,6 +27,13 @@ The fraction-based formula (`newIssuerAmt = origTx.amount * (1 - splitAmount/ori
 
 **Why:** the prior fix (see below) targeted the case where a *single* currency conversion event happens between split creation and accept, but broke as soon as a transaction had ≥2 recipients since it re-derives from the live (already-mutated) tx.amount on every accept instead of the pristine snapshot.
 
+## Accepted split recipient rows must NOT carry `transactionCurrency` (fixed 2026-07-12)
+When a recipient accepts a split, `finalAmount` is already converted into the recipient's *current* account currency (`recipientCurrency` from the request body). Tagging the new row with `transactionCurrency: recipientCurrency` (done previously whenever it differed from `issuerCurrency`) made it indistinguishable from a genuine foreign/locked transaction: `/convert-currency` skips any row with `transactionCurrency` set, and the frontend's `hasForeign` check (`transactionCurrency` set + not locked + differs from the current account currency) flags it for the manual "convert or lock" prompt (`CurrencyConvertSheet`) the next time the user changes their account currency — even though the row was never actually foreign, just created while the account happened to be in that currency.
+
+**Why:** this caused two problems together: (1) the row silently stopped auto-converting on future account-currency switches, and (2) if the user later changed currency, the stale tag showed the manual conversion modal, which re-derives the amount via a fresh live-rate round trip through the *original* issuer currency and can drift from what the user actually agreed to.
+
+**How to apply:** on split accept, only set `transactionCurrency`/`currencyLocked` when the *original* transaction (`origTx`) was itself locked/foreign — propagate that lock as-is. For a plain cross-currency accept, leave `transactionCurrency` null so the row rides normal bulk currency conversion like any other transaction. If you find existing rows with this stale tag (recipient split rows, not locked, `transactionCurrency` set), repair by converting `amount` into the account's current currency at a live rate and clearing the tag — don't just clear the tag, since the amount is still denominated in the old currency's units.
+
 ## Multi-recipient split groups (2026-07-11 rework)
 The original 2-person (issuer/recipient) split was reworked into multi-recipient: one issuer picks any number of household members, enters an amount or percentage per person (single global mode toggle, not per-row), and each recipient accepts/declines independently and asynchronously.
 

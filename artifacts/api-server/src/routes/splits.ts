@@ -307,13 +307,27 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       splitRole: "recipient",
       // Carry over receipt image if the original had one
       ...(origTx.receiptImage ? { receiptImage: origTx.receiptImage } : {}),
-      // Currency: locked transactions keep their lock + currency;
-      // cross-currency (non-locked) transactions get the recipient's currency tagged.
+      // Currency: only a locked/foreign original transaction propagates a
+      // `transactionCurrency` tag (the recipient inherits the same lock, since
+      // `finalAmount` above is the raw, unconverted split amount in that
+      // locked currency). A plain cross-currency accept does NOT set
+      // `transactionCurrency` here — `finalAmount` (`recipientAmount`) was
+      // already converted into the recipient's CURRENT account currency, so
+      // this row is a normal "default" transaction already expressed in
+      // account currency, just like any other. Tagging it with
+      // `transactionCurrency: recipientCurrency` used to make it
+      // indistinguishable from a genuine foreign/locked row: `/convert-currency`
+      // skips any row with `transactionCurrency` set, and the frontend's
+      // `hasForeign` check (transactionCurrency set + not locked + differs
+      // from the CURRENT account currency) would flag it as needing manual
+      // conversion the next time the user changed their account currency —
+      // even though it was never actually held in a foreign currency, it was
+      // just created while the account happened to be in `recipientCurrency`.
+      // Leaving it untagged lets it ride along with normal bulk currency
+      // conversion automatically, with no manual "convert or lock" prompt.
       ...(isLocked
         ? { currencyLocked: true, transactionCurrency: origTx.transactionCurrency }
-        : recipientCurrency && recipientCurrency !== split.issuerCurrency
-          ? { transactionCurrency: recipientCurrency }
-          : {}),
+        : {}),
     }).returning();
 
     await tx.update(expenseSplitsTable)
