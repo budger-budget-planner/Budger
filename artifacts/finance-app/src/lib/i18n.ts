@@ -780,6 +780,83 @@ const translations: Record<string, Record<Lang, string>> = {
     pl: "Budger automatycznie wyodrębnia sprzedawcę, kwotę i datę. Popraw, jeśli trzeba, odznacz to, czego nie chcesz, i dotknij Importuj.",
   },
 
+  // ── Transaction Badges tutorial ──
+  "badges.setup_title":  { en: "Transaction Badges",                    pl: "Odznaki transakcji"                      },
+  "badges.configure_btn":{ en: "What do the badges mean?",              pl: "Co oznaczają odznaki?"                   },
+  "badges.configure_desc":{ en: "A quick guide to the colored labels shown on your transactions.", pl: "Krótki przewodnik po kolorowych etykietach na Twoich transakcjach." },
+
+  "badges.s1_title": {
+    en: "Small labels, extra context",
+    pl: "Małe etykiety, dodatkowy kontekst",
+  },
+  "badges.s1_desc": {
+    en: "Badges are the colored pills under a transaction's name. Each one tells you something extra — how it was paid, whether it's shared, or if it's tied to a goal. Tap a row to expand it and see them with text.",
+    pl: "Odznaki to kolorowe etykiety pod nazwą transakcji. Każda mówi coś dodatkowego — jak zapłacono, czy jest współdzielona lub powiązana z celem. Dotknij wiersza, aby go rozwinąć i zobaczyć pełny opis.",
+  },
+
+  "badges.s2_title": {
+    en: "From Larder — paid straight from savings",
+    pl: "Ze Spiżarni — zapłacone z oszczędności",
+  },
+  "badges.s2_desc": {
+    en: "The black-and-white sparkling badge means this expense was funded directly from your Larder balance, not from your regular spending money.",
+    pl: "Czarno-biała, błyszcząca odznaka oznacza, że wydatek został sfinansowany bezpośrednio ze Spiżarni, a nie z bieżących pieniędzy na wydatki.",
+  },
+
+  "badges.s3_title": {
+    en: "Split — shared with your household",
+    pl: "Podział — współdzielone z domownikami",
+  },
+  "badges.s3_desc": {
+    en: "The pink Split badge appears on any expense divided between household members. It shows on both sides — for whoever issued the split and whoever received a share.",
+    pl: "Różowa odznaka Podział pojawia się przy wydatkach podzielonych między domowników. Widoczna jest po obu stronach — u osoby, która podzieliła wydatek, i u tej, która otrzymała swoją część.",
+  },
+
+  "badges.s4_title": {
+    en: "Goal & Larder — money set aside",
+    pl: "Cel i Spiżarnia — odłożone pieniądze",
+  },
+  "badges.s4_desc": {
+    en: "The violet badge shows a target icon plus an amount. It means part of this transaction contributed to a savings goal, or was dedicated straight into your Larder.",
+    pl: "Fioletowa odznaka pokazuje ikonę celu i kwotę. Oznacza, że część tej transakcji zasiliła cel oszczędnościowy lub trafiła bezpośrednio do Spiżarni.",
+  },
+
+  "badges.s5_title": {
+    en: "Realized Goal — already-completed savings",
+    pl: "Zrealizowany cel — ukończone oszczędności",
+  },
+  "badges.s5_desc": {
+    en: "The teal checkmark badge marks expenses paid from a goal that was already realized. Since the money was set aside earlier, it's excluded from this month's spending total.",
+    pl: "Turkusowa odznaka z ptaszkiem oznacza wydatki opłacone ze zrealizowanego celu. Ponieważ pieniądze zostały odłożone wcześniej, nie liczą się do sumy wydatków w tym miesiącu.",
+  },
+
+  "badges.s6_title": {
+    en: "Receipt — a photo is attached",
+    pl: "Paragon — dołączone zdjęcie",
+  },
+  "badges.s6_desc": {
+    en: "The white camera badge means a receipt photo is saved with this transaction. Tap the row and use the receipt button to view or replace it.",
+    pl: "Biała odznaka z aparatem oznacza, że do transakcji zapisano zdjęcie paragonu. Dotknij wiersza i użyj przycisku paragonu, aby je zobaczyć lub zmienić.",
+  },
+
+  "badges.s7_title": {
+    en: "Locked currency — won't auto-convert",
+    pl: "Zablokowana waluta — bez auto-przeliczania",
+  },
+  "badges.s7_desc": {
+    en: "The gray lock badge shows the original currency code. It means the amount is locked to that currency and won't shift if exchange rates change later.",
+    pl: "Szara odznaka z kłódką pokazuje kod oryginalnej waluty. Oznacza, że kwota jest zablokowana w tej walucie i nie zmieni się wraz z kursem wymiany.",
+  },
+
+  "badges.s8_title": {
+    en: "Collapsed rows show colored dots",
+    pl: "Zwinięte wiersze pokazują kolorowe kropki",
+  },
+  "badges.s8_desc": {
+    en: "When a row is collapsed, its badges shrink into small dots in the same colors — so you can spot what's going on at a glance, then tap to see the full picture.",
+    pl: "Gdy wiersz jest zwinięty, jego odznaki zamieniają się w małe kropki w tych samych kolorach — dzięki temu widać sytuację od razu, a po dotknięciu zobaczysz pełny opis.",
+  },
+
   // ── Capturing Online Payments tutorial ──
   "ss.setup_title":     { en: "Capturing Online Payments",                   pl: "Przechwytywanie płatności online"        },
   "ss.configure_btn":   { en: "Set up online payment capture",               pl: "Skonfiguruj przechwytywanie płatności"   },

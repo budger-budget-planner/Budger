@@ -4,7 +4,7 @@ import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
   Smartphone, ExternalLink, Circle, Sparkles, Crown,
-  FileText, ShieldCheck, Clock, WifiOff,
+  FileText, ShieldCheck, Clock, WifiOff, Tag,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import ApplePaySlides from "@/components/ApplePaySlides";
 import ShareSheetSlides from "@/components/ShareSheetSlides";
+import BadgesSlides from "@/components/BadgesSlides";
 import BadgerLogo from "@/components/BadgerLogo";
 import {
   loadSmartAlertPrefs, saveSmartAlertPrefs, type SmartAlertPrefs,
@@ -285,6 +286,7 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
 function ManualsPanel({ onBack }: { onBack: () => void }) {
   const [showApplePay, setShowApplePay] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showBadges, setShowBadges] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -311,6 +313,7 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
 
   if (showApplePay) return <ApplePaySlides modal onClose={() => setShowApplePay(false)} />;
   if (showShareSheet) return <ShareSheetSlides modal onClose={() => setShowShareSheet(false)} />;
+  if (showBadges) return <BadgesSlides modal onClose={() => setShowBadges(false)} />;
 
   return (
     <div className="flex flex-col h-full">
@@ -349,6 +352,19 @@ function ManualsPanel({ onBack }: { onBack: () => void }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold leading-snug">{t("ss.configure_btn")}</p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("ss.configure_desc")}</p>
+          </div>
+          <ChevronLeft className="w-4 h-4 text-muted-foreground flex-shrink-0 rotate-180" />
+        </button>
+
+        {/* Badges tutorial */}
+        <button onClick={() => setShowBadges(true)}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-card border border-border transition active:scale-95 text-left">
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+            <Tag className="w-5 h-5 text-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-snug">{t("badges.configure_btn")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t("badges.configure_desc")}</p>
           </div>
           <ChevronLeft className="w-4 h-4 text-muted-foreground flex-shrink-0 rotate-180" />
         </button>
