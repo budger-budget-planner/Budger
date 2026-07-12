@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
+import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
 type QueryClient = ReturnType<typeof useQueryClient>;
@@ -117,9 +118,12 @@ export function useMutationWithQueue<TVars>(
       setIsPending(true);
       setWasQueued(false);
 
-      fetch(ep, {
+      // apiFetch attaches the x-csrf-token header (required by the server's
+      // CSRF middleware for POST/PUT/PATCH/DELETE) and transparently retries
+      // once on a stale-token 403 — plain fetch() here would send no token
+      // at all and every mutation would be rejected.
+      apiFetch(ep, {
         method,
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "X-Client-Timestamp": String(Date.now()),
