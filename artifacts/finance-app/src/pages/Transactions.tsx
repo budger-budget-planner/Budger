@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { t } from "@/lib/i18n";
-import { receiptSrc, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
@@ -33,7 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, ImagePlus, Target, RefreshCw, Lock, Clock, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -355,6 +355,36 @@ function FoundedWithRealizedGoalToggle({ tx, isOffline }: { tx: any; isOffline?:
   );
 }
 
+/**
+ * Renders a receipt image safely on iOS Safari.
+ * iOS Safari refuses to display data URLs larger than ~2 MB in <img> tags.
+ * This component converts any data URL to a blob URL at mount time, which
+ * has no size restriction and renders correctly on all platforms.
+ */
+function ReceiptImg({ src, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string }) {
+  const [blobSrc, setBlobSrc] = useState<string>(src);
+
+  useEffect(() => {
+    if (!src.startsWith("data:")) {
+      setBlobSrc(src);
+      return;
+    }
+    try {
+      const commaIdx = src.indexOf(",");
+      if (commaIdx === -1) return;
+      const mime = (src.slice(5, commaIdx).match(/^([^;]+)/) ?? [])[1] ?? "image/jpeg";
+      const bytes = Uint8Array.from(atob(src.slice(commaIdx + 1)), c => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      setBlobSrc(url);
+      return () => URL.revokeObjectURL(url);
+    } catch {
+      setBlobSrc(src); // fallback: try the data URL directly
+    }
+  }, [src]);
+
+  return <img src={blobSrc} {...props} />;
+}
+
 function ReceiptModal({
   tx,
   open,
@@ -368,7 +398,6 @@ function ReceiptModal({
 }) {
   const queryClient = useQueryClient();
   const sym = currencySymbol(loadPrefs().currency);
-  const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
 
@@ -431,7 +460,7 @@ function ReceiptModal({
 
             {tx.receiptImage ? (
               <div className="relative group rounded-xl overflow-hidden border border-border">
-                <img
+                <ReceiptImg
                   src={receiptSrc(tx.receiptImage)!}
                   alt="Receipt"
                   className="w-full object-cover max-h-64 cursor-pointer"
@@ -466,28 +495,16 @@ function ReceiptModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => cameraRef.current?.click()}
-                disabled={isOffline || uploadReceipt.isPending}
-                data-testid="button-capture-receipt"
-              >
-                <Camera className="w-4 h-4" />
-                Camera
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => libraryRef.current?.click()}
-                disabled={isOffline || uploadReceipt.isPending}
-                data-testid="button-library-receipt"
-              >
-                <Image className="w-4 h-4" />
-                Library
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => libraryRef.current?.click()}
+              disabled={isOffline || uploadReceipt.isPending}
+              data-testid="button-add-receipt"
+            >
+              <ImagePlus className="w-4 h-4" />
+              {tx.receiptImage ? "Replace photo" : "Add photo"}
+            </Button>
 
             <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
           </div>
@@ -506,7 +523,7 @@ function ReceiptModal({
           >
             <X className="w-6 h-6" />
           </button>
-          <img
+          <ReceiptImg
             src={receiptSrc(tx.receiptImage)!}
             alt="Receipt full size"
             className="max-w-full max-h-full object-contain rounded-xl"
@@ -515,14 +532,6 @@ function ReceiptModal({
         </div>
       )}
 
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-        data-testid="input-receipt-camera"
-      />
       <input
         ref={libraryRef}
         type="file"
