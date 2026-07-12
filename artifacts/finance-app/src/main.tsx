@@ -25,6 +25,12 @@ if (sentryDsn) {
 document.documentElement.classList.add("dark");
 
 scheduleRateRefreshes();
-// Service worker registration is handled by vite-plugin-pwa (autoUpdate).
+// When a new service worker takes control (after skipWaiting + clients.claim),
+// reload the page so the browser discards old cached JS and loads fresh code.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+}
 
 createRoot(document.getElementById("root")!).render(<App />);

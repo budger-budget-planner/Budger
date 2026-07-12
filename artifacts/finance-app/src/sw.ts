@@ -17,6 +17,26 @@ interface SyncEvent extends ExtendableEvent {
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
+// Activate immediately on install — don't wait for old tabs to close.
+// This is critical in dev: without skipWaiting the SW serves stale JS
+// until the user manually closes every tab running the old version.
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+// Take control of all open clients immediately after activation.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+// Handle explicit SKIP_WAITING message sent by the registration code
+// (vite-plugin-pwa calls this when registerType === 'autoUpdate').
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // ── API caching: NetworkFirst ──────────────────────────────────────────────
 // Tries the network first (5 s timeout), falls back to the last cached
 // response when offline.  Only caches GET requests.

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { t } from "@/lib/i18n";
-import { receiptSrc } from "@/lib/imageUtils";
+import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {

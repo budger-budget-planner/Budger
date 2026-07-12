@@ -15,3 +15,4 @@
 - [Goal realization race fix](goal-realization-race.md) — realizedAt update uses WHERE realizedAt IS NULL inside a transaction; derive wasJustRealized from RETURNING row count, not pre-loaded snapshot
 - [Receipt object storage migration](receipt-object-storage.md) — receipts migrated from base64 DB column to GCS; receiptSrc() handles both legacy and new paths; storage routes use session auth not passport
 - [Summary SQL date pushdown](summary-date-pushdown.md) — all summary endpoints filter by date at SQL level; month inputs must pass YYYY-MM regex before use in LIKE to prevent wildcard injection
+- [Frontend fix "not applying"](frontend-fix-not-applying.md) — verify the edit actually compiles (grep for missing imports) and check for stuck service workers/broken cache-bust hacks before assuming the fix itself is wrong
