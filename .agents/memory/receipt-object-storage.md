@@ -1,15 +1,14 @@
 ---
-name: Receipt object storage migration
-description: How receipt images are stored and served after migration from base64 to GCS object storage.
+name: Receipt file storage (Supabase)
+description: How receipt images are stored and served — Supabase Storage, direct public URLs, no proxy route.
 ---
 
-receipts were previously stored as base64 data URLs directly in `transactions.receiptImage` (text column). Now:
+Receipts upload directly to a **public** Supabase Storage bucket (`budger-media`) via `@supabase/supabase-js`, server-side, using the service role key (bypasses bucket RLS for writes/deletes). No signed URLs, no GCS, no auth-gated serving proxy.
 
-- New uploads: presigned URL flow → file goes to GCS → objectPath (e.g. `/objects/uploads/uuid`) stored in `receiptImage`
-- Legacy rows: base64 `data:image/...` strings still in DB — supported transparently
-- Display: `receiptSrc(value)` in `imageUtils.ts` — returns base64 as-is, prefixes `/api/storage` for objectPaths
-- Serving URL: `/api/storage/objects/uploads/uuid` → `GET /storage/objects/*path` route in storage.ts
-- Auth: **both** the upload URL endpoint and the object serving endpoint use `req.session.userId` session check — NOT passport's `req.isAuthenticated()` (which is not configured in this app)
-- Migration script: `artifacts/api-server/src/scripts/migrate-receipts.ts` — skips rows already starting with `/objects/`
+- Upload: `POST /transactions/:id/receipt` decodes the incoming base64 data URL and calls `ObjectStorageService.uploadObjectEntity(buffer, contentType)` (`artifacts/api-server/src/lib/objectStorage.ts`), which uploads to `uploads/<uuid>.<ext>` and returns the permanent public URL. That URL — not base64 — is what gets stored in `transactions.receiptImage`.
+- Delete: `uploadObjectEntity`'s counterpart `deleteObjectEntity(url)` parses the object path back out of a public URL and removes it; it's a safe no-op for URLs that don't belong to the bucket (e.g. leftover legacy base64 values), so it's safe to call unconditionally on delete/replace.
+- Display: `receiptSrc(value)` in `imageUtils.ts` — `data:` legacy base64 as-is, `http`-prefixed Supabase public URLs as-is (loaded directly by the browser, no backend proxy).
+- No `GET /storage/objects/*` proxy exists anymore — was removed because the bucket is public, so there's nothing for a session-gated proxy to protect. If receipts ever need to become private again, that ownership-check pattern (join against `transactions.receiptImage` + `userId`) is the one to bring back, alongside switching the bucket to private + signed URLs.
+- One-time backfill: `artifacts/api-server/src/scripts/migrate-receipts.ts` converts any remaining base64 rows to real Supabase objects; safe to re-run (skips non-`data:` rows).
 
-**Why:** The storage.ts template uses `req.isAuthenticated()` (passport pattern) but this app uses session-based auth. Always replace with `(req.session as any)?.userId` guard when using the object-storage skill template here.
+**Why:** user explicitly requested files go straight into their own Supabase project via the official SDK, and confirmed the bucket is intentionally public — simplifying away the previous GCS proxy/ACL machinery entirely.

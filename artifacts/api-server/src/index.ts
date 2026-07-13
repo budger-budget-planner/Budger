@@ -4,7 +4,7 @@ import "./lib/sentry";
 
 import app from "./app";
 import { logger } from "./lib/logger";
-import { pool, db } from "@workspace/db";
+import { pool, db, DATABASE_URL } from "@workspace/db";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import path from "path";
 /** Minimal duck-typed interface for the pg PoolClient used in baseline logic */
@@ -16,9 +16,9 @@ interface DBPoolClient {
 
 // Fail fast if the database is not configured — every route depends on it
 // and starting without one only produces confusing per-request errors later.
-if (!process.env.DATABASE_URL) {
+if (!DATABASE_URL) {
   // Use console.error here because the logger may not be initialised yet.
-  console.error("[fatal] DATABASE_URL is required but not set — refusing to start.");
+  console.error("[fatal] DATABASE_URL (or NEON_DATABASE_URL) is required but not set — refusing to start.");
   process.exit(1);
 }
 
@@ -145,7 +145,7 @@ async function baselineLegacyPushDatabase(client: DBPoolClient): Promise<void> {
  *   4. The next startup applies it automatically
  */
 async function ensureDbSchema(): Promise<void> {
-  if (!process.env.DATABASE_URL) return;
+  if (!DATABASE_URL) return;
 
   logger.info("Running DB migrations…");
 

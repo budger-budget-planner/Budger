@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
+import { DATABASE_URL } from "@workspace/db";
 
 // Extend express-session with app-specific fields.
 declare module "express-session" {
@@ -116,9 +117,9 @@ app.use(
 app.use(express.json({ limit: "30mb" }));
 app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 
-const sessionStore = process.env.DATABASE_URL
+const sessionStore = DATABASE_URL
   ? new PgSession({
-      conString: process.env.DATABASE_URL,
+      conString: DATABASE_URL,
       tableName: "sessions",
       createTableIfMissing: true,
     })

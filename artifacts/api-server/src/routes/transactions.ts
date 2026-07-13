@@ -6,6 +6,9 @@ import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
 import { jsonrepair } from "jsonrepair";
 import { popPendingUpload } from "../lib/pending-uploads";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const objectStorageService = new ObjectStorageService();
 import {
   CreateTransactionBody,
   UpdateTransactionBody,
@@ -487,6 +490,30 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
+  // Upload directly to Supabase Storage rather than persisting the base64
+  // blob in Postgres; receiptImage stores the resulting permanent public URL.
+  if (imageData.startsWith("data:")) {
+    const match = imageData.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) { res.status(400).json({ error: "Unrecognised image data" }); return; }
+    const [, contentType, b64] = match;
+    const buffer = Buffer.from(b64, "base64");
+    try {
+      imageData = await objectStorageService.uploadObjectEntity(buffer, contentType);
+    } catch (err) {
+      logger.error({ err }, "Error uploading receipt to Supabase Storage");
+      res.status(500).json({ error: "Failed to upload receipt image" });
+      return;
+    }
+  }
+
+  // Clean up the previous receipt's stored object (best-effort — never blocks
+  // the update on a storage error; no-ops for legacy base64 values).
+  if (existing.receiptImage && existing.receiptImage !== imageData) {
+    objectStorageService.deleteObjectEntity(existing.receiptImage).catch((err) => {
+      logger.warn({ err }, "Failed to delete previous receipt object");
+    });
+  }
+
   const [tx] = await db.update(transactionsTable)
     .set({ receiptImage: imageData })
     .where(eq(transactionsTable.id, id))
@@ -510,6 +537,12 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
 
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (existing.receiptImage) {
+    objectStorageService.deleteObjectEntity(existing.receiptImage).catch((err) => {
+      logger.warn({ err }, "Failed to delete receipt object");
+    });
+  }
 
   const [tx] = await db.update(transactionsTable)
     .set({ receiptImage: null })

@@ -14,6 +14,8 @@ A full-stack financial tracking web app for individuals and households. Named af
 - `pnpm --filter @workspace/db run push` — push DB schema changes without migration history (dev/emergency only)
 - Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret
 - Optional env: `CORS_ORIGINS` — comma-separated list of extra allowed origins for a decoupled frontend (e.g. `https://my-frontend.vercel.app`). Set this once the frontend is deployed off-Replit.
+- Database: primary datastore is **Neon Postgres** via `NEON_DATABASE_URL` (secret). `lib/db/src/index.ts` resolves `DATABASE_URL = NEON_DATABASE_URL || DATABASE_URL` — Replit's platform-managed `DATABASE_URL` is left untouched but no longer used while `NEON_DATABASE_URL` is set. All db-consuming code (api-server startup, session store) imports the resolved `DATABASE_URL` from `@workspace/db`, not `process.env.DATABASE_URL` directly.
+- File storage: receipt images upload directly to **Supabase Storage** (public bucket `budger-media`) via `@supabase/supabase-js`, using `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (server-side, bypasses bucket RLS) + `SUPABASE_BUCKET`. `transactions.receipt_image` stores the resulting permanent public URL. See `artifacts/api-server/src/lib/objectStorage.ts`.
 
 ## Stack
 
@@ -45,7 +47,7 @@ A full-stack financial tracking web app for individuals and households. Named af
 - Household sharing via token-based invite links (7-day expiry). Invite link copied to clipboard, accepted via `/invite/:token` page.
 - Browser Notification API for reminders: scheduled with `setTimeout` in-browser; settings stored in DB.
 - All API routes under `/api` prefix; frontend makes requests with `credentials: 'include'` for session cookies.
-- Receipt images stored as base64 data URLs directly in the `transactions.receipt_image` DB column.
+- Receipt images upload directly to Supabase Storage on save; `transactions.receipt_image` stores the resulting public URL (legacy rows may still hold a base64 data URL — `receiptSrc()` in the frontend handles both transparently).
 - Category budgets stored as `numeric` in the `categories.budget` column.
 
 ## Product

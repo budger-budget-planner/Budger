@@ -1,21 +1,13 @@
-import { Readable } from 'stream';
 import { randomUUID } from 'crypto';
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from '@workspace/api-zod';
 import express, { Router, type IRouter, type Request, type Response } from 'express';
-import { db, transactionsTable } from '@workspace/db';
-import { eq, and } from 'drizzle-orm';
 
-import {
-  ObjectNotFoundError,
-  ObjectStorageService,
-} from '../lib/objectStorage';
-import { setPendingUpload, popPendingUpload } from '../lib/pending-uploads';
+import { setPendingUpload } from '../lib/pending-uploads';
 
 const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
 
 /**
  * POST /storage/uploads/request-url
@@ -130,99 +122,10 @@ router.post('/storage/uploads', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /storage/public-objects/*
- *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
- */
-router.get(
-  '/storage/public-objects/*filePath',
-  async (req: Request, res: Response) => {
-    try {
-      const raw = req.params.filePath;
-      const filePath = Array.isArray(raw) ? raw.join('/') : raw;
-      const file = await objectStorageService.searchPublicObject(filePath);
-      if (!file) {
-        res.status(404).json({ error: 'File not found' });
-        return;
-      }
-
-      const response = await objectStorageService.downloadObject(file);
-
-      res.status(response.status);
-      response.headers.forEach((value, key) => res.setHeader(key, value));
-
-      if (response.body) {
-        const nodeStream = Readable.fromWeb(
-          response.body as ReadableStream<Uint8Array>,
-        );
-        nodeStream.pipe(res);
-      } else {
-        res.end();
-      }
-    } catch (error) {
-      req.log.error({ err: error }, 'Error serving public object');
-      res.status(500).json({ error: 'Failed to serve public object' });
-    }
-  },
-);
-
-/**
- * GET /storage/objects/*
- *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * Requires a valid session — receipt images are private to the owning user.
- */
-router.get('/storage/objects/*path', async (req: Request, res: Response) => {
-  const userId = (req.session as any)?.userId;
-  if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  try {
-    const raw = req.params.path;
-    const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-
-    // Ownership check: receipt objects are only ever referenced from the
-    // uploading user's own transaction row (transactions.receiptImage stores
-    // the objectPath once uploaded). Without this, any authenticated user
-    // could read any other user's receipt by guessing/observing the path.
-    const [owningTx] = await db.select().from(transactionsTable)
-      .where(and(eq(transactionsTable.receiptImage, objectPath), eq(transactionsTable.userId, userId)));
-    if (!owningTx) {
-      res.status(404).json({ error: 'Object not found' });
-      return;
-    }
-
-    const objectFile =
-      await objectStorageService.getObjectEntityFile(objectPath);
-
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(
-        response.body as ReadableStream<Uint8Array>,
-      );
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
-  } catch (error) {
-    if (error instanceof ObjectNotFoundError) {
-      req.log.warn({ err: error }, 'Object not found');
-      res.status(404).json({ error: 'Object not found' });
-      return;
-    }
-    req.log.error({ err: error }, 'Error serving object');
-    res.status(500).json({ error: 'Failed to serve object' });
-  }
-});
+// Note: there used to be GET /storage/public-objects/* and /storage/objects/*
+// proxy routes here that served files out of Replit Object Storage (GCS).
+// Files now live in the public Supabase Storage bucket and are addressed by
+// their permanent public URL (returned directly from the receipt upload
+// endpoint), so no authenticated proxy route is needed to view them.
 
 export default router;

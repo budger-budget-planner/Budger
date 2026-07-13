@@ -1,12 +1,14 @@
 /**
  * Converts a stored receiptImage value to a displayable URL.
- * New uploads store an object path (e.g. "/objects/uploads/uuid");
- * legacy rows store a base64 data URL — both are supported transparently.
+ * New uploads store a permanent Supabase Storage public URL (https://...);
+ * legacy rows may still hold a base64 data URL — both are supported
+ * transparently until migrated.
  */
 export function receiptSrc(receiptImage: string | null | undefined): string | null {
   if (!receiptImage) return null;
   if (receiptImage.startsWith("data:")) return receiptImage;          // legacy base64
-  return `/api/storage${receiptImage}`;                               // new: /objects/uploads/uuid
+  if (receiptImage.startsWith("http")) return receiptImage;           // Supabase public URL
+  return `/api/storage${receiptImage}`;                                // legacy: /objects/uploads/uuid
 }
 
 /**
