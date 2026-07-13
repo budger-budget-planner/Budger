@@ -36,3 +36,9 @@ id = "64siG2Stho0cog_sRPHns"
 uri = "file://output/Budger_Dokumentacja_Przekazania_PL.docx"
 type = "word_document"
 title = "Budger - Dokumentacja Przekazania Projektu (PL)"
+
+[[outputs]]
+id = "piYAcZEJ97zpVcK_XvtCj"
+uri = "file://export/budger-fullstack.zip"
+type = "unspecified"
+title = "Budger — standalone frontend + backend (Vercel-ready)"

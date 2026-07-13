@@ -1,0 +1,44 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import storageRouter from "./storage";
+import authRouter from "./auth";
+import categoriesRouter from "./categories";
+import categorySharesRouter from "./category-shares";
+import transactionsRouter from "./transactions";
+import householdsRouter from "./households";
+import invitesRouter from "./invites";
+import notificationsRouter from "./notifications";
+import summaryRouter from "./summary";
+import goalsRouter from "./goals";
+import currenciesRouter from "./currencies";
+import webhookRouter from "./webhook";
+import merchantCategoriesRouter from "./merchant-categories";
+import splitsRouter from "./splits";
+import liveActivityRouter from "./live-activity";
+import recurringPaymentsRouter from "./recurring-payments";
+import larderRouter from "./larder";
+import greatLarderRouter from "./great-larder";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(storageRouter);
+router.use(authRouter);
+router.use(webhookRouter);
+router.use(merchantCategoriesRouter);
+router.use(categoriesRouter);
+router.use(categorySharesRouter);
+router.use(transactionsRouter);
+router.use(splitsRouter);
+router.use(householdsRouter);
+router.use(invitesRouter);
+router.use(notificationsRouter);
+router.use(summaryRouter);
+router.use(goalsRouter);
+router.use(currenciesRouter);
+router.use(liveActivityRouter);
+router.use(recurringPaymentsRouter);
+router.use(larderRouter);
+router.use(greatLarderRouter);
+
+export default router;
