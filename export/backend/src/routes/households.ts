@@ -331,7 +331,12 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     recurringPaymentId: null as null,
   })).sort((a, b) => b.total - a.total);
 
-  res.json([...result, ...rpItems]);
+  // Only surface rpItems that were actually applied this month — unapplied
+  // recurring templates (total = 0) are not expenses yet and should not appear
+  // on the personal dashboard.
+  const appliedRpItems = rpItems.filter(rp => appliedRPIds.has(rp.recurringPaymentId!));
+
+  res.json([...result, ...appliedRpItems]);
 });
 
 // Update a member's role — head only
