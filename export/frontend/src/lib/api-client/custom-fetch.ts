@@ -37,7 +37,7 @@ function resolveCsrfUrl(): string {
   return `${base}/api/csrf-token`;
 }
 
-async function getCsrfToken(): Promise<string> {
+export async function getCsrfToken(): Promise<string> {
   if (_csrfToken) return _csrfToken;
   if (_csrfInflight) return _csrfInflight;
   _csrfInflight = fetch(resolveCsrfUrl(), { credentials: "include" })

@@ -16,6 +16,7 @@
  */
 
 import { t } from "./i18n";
+import { apiFetch } from "./api";
 
 const DB_NAME   = "budger-offline";
 const STORE     = "mutation_queue";
@@ -175,7 +176,7 @@ export async function replayQueue(
       const hasBody =
         op.method !== "GET" && op.method !== "DELETE" && op.payload != null;
 
-      const resp = await fetch(op.endpoint, {
+      const resp = await apiFetch(op.endpoint, {
         method: op.method,
         credentials: "include",
         headers: {

@@ -16,6 +16,7 @@
  */
 
 import { t } from "./i18n";
+import { getCsrfToken, resetCsrfToken } from "./api-client/custom-fetch";
 
 const DB_NAME   = "budger-offline";
 const STORE     = "mutation_queue";
@@ -175,15 +176,46 @@ export async function replayQueue(
       const hasBody =
         op.method !== "GET" && op.method !== "DELETE" && op.payload != null;
 
-      const resp = await fetch(op.endpoint, {
+      const CSRF_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+      const isMutating = CSRF_METHODS.has(op.method);
+      const replayHeaders = new Headers({
+        "Content-Type": "application/json",
+        "X-Client-Timestamp": String(op.timestamp),
+      });
+      if (isMutating) {
+        try {
+          replayHeaders.set("x-csrf-token", await getCsrfToken());
+        } catch {
+          resetCsrfToken();
+        }
+      }
+
+      let resp = await fetch(op.endpoint, {
         method: op.method,
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Client-Timestamp": String(op.timestamp),
-        },
+        headers: replayHeaders,
         ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
       });
+
+      // Self-heal a stale/rotated CSRF token: retry once with a fresh one.
+      if (isMutating && resp.status === 403) {
+        resetCsrfToken();
+        const retryHeaders = new Headers({
+          "Content-Type": "application/json",
+          "X-Client-Timestamp": String(op.timestamp),
+        });
+        try {
+          retryHeaders.set("x-csrf-token", await getCsrfToken());
+          resp = await fetch(op.endpoint, {
+            method: op.method,
+            credentials: "include",
+            headers: retryHeaders,
+            ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
+          });
+        } catch {
+          // Retry setup failed — fall through and report the 403.
+        }
+      }
 
       const ok =
         resp.ok || (resp.status === 404 && op.method === "DELETE");
