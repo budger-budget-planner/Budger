@@ -218,28 +218,28 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   // Viewing own data is always allowed
   if (targetUserId !== currentUserId) {
-    // Get viewer's role
+    // Resolve viewer's role — cast to number to guarantee integer comparison
     const [viewerMembership] = await db.select().from(householdMembersTable)
-      .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+      .where(and(
+        eq(householdMembersTable.userId, Number(currentUserId)),
+        eq(householdMembersTable.householdId, Number(currentUser.householdId)),
+      ));
     const viewerRole = viewerMembership?.role ?? "child";
 
-    // Get target's role
-    const [targetMembership] = await db.select().from(householdMembersTable)
-      .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
-    const targetRole = targetMembership?.role ?? "child";
+    // HEAD ALWAYS SEES EVERYONE — check this first, skip all privacy logic
+    if (!isHead(viewerRole) && targetUser.dashboardBlocked) {
+      // Resolve target's role for parent-level checks
+      const [targetMembership] = await db.select().from(householdMembersTable)
+        .where(and(
+          eq(householdMembersTable.userId, Number(targetUserId)),
+          eq(householdMembersTable.householdId, Number(currentUser.householdId)),
+        ));
+      const targetRole = targetMembership?.role ?? "child";
 
-    if (targetUser.dashboardBlocked) {
-      // Head sees everyone
-      if (isHead(viewerRole)) {
-        // allowed
-      } else if (isParent(viewerRole)) {
-        // Parent cannot see head's private dashboard
-        if (isHead(targetRole)) {
-          res.status(403).json({ error: "blocked" }); return;
-        }
-        // Parent can see other parents' and children's dashboards even if blocked
+      if (isParent(viewerRole) && !isHead(targetRole)) {
+        // Parent can see non-head blocked dashboards
       } else {
-        // Child cannot see any private dashboard
+        // Child sees nothing private; parent cannot see head's private dashboard
         res.status(403).json({ error: "blocked" }); return;
       }
     }
