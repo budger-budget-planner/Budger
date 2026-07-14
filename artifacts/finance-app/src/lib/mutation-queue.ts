@@ -176,9 +176,13 @@ export async function replayQueue(
       const hasBody =
         op.method !== "GET" && op.method !== "DELETE" && op.payload != null;
 
+      // apiFetch (not plain fetch) attaches the x-csrf-token header and
+      // retries once on a stale-token 403. Queued ops are replayed after the
+      // device has been offline for a while, so the cached CSRF token from
+      // page load is very likely stale — a raw fetch() here reliably fails
+      // every queued mutation with "Invalid or missing CSRF token".
       const resp = await apiFetch(op.endpoint, {
         method: op.method,
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "X-Client-Timestamp": String(op.timestamp),

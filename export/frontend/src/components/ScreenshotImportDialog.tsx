@@ -533,7 +533,6 @@ export function ScreenshotImportDialog({
                         </Select>
                         <Input
                           type="text"
-                          inputMode="numeric"
                           value={dateText}
                           onChange={e => handleDateDraftChange(i, e.target.value)}
                           className={`h-8 text-sm ${!dateValid ? "border-destructive" : ""}`}

@@ -124,6 +124,24 @@ const SW_STORE     = "mutation_queue";
 const SW_DB_VER    = 1;
 const SW_LOCK_NAME = "budger-mutation-queue-replay";
 
+// ── CSRF token for background-sync replay ───────────────────────────────────
+// Mirrors mutation-queue.ts / lib/api.ts: mutating requests need a fresh
+// x-csrf-token header or the server's synchronizer-token middleware rejects
+// them with 403 "Invalid or missing CSRF token". The SW has no access to the
+// page's in-memory token cache (separate global scope), so it keeps its own
+// and fetches/refreshes it independently, with the same one-retry-on-403
+// self-heal behavior as the page-side apiFetch().
+const SW_CSRF_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+let swCsrfToken: string | null = null;
+
+async function swGetCsrfToken(): Promise<string> {
+  if (swCsrfToken) return swCsrfToken;
+  const resp = await fetch("/api/csrf-token", { credentials: "include" });
+  const data = (await resp.json()) as { token: string };
+  swCsrfToken = data.token;
+  return swCsrfToken;
+}
+
 interface SwQueuedOp {
   id: string;
   endpoint: string;
@@ -191,15 +209,25 @@ async function swReplayQueueInner(db: IDBDatabase): Promise<void> {
       const hasBody =
         op.method !== "GET" && op.method !== "DELETE" && op.payload != null;
 
-      const resp = await fetch(op.endpoint, {
-        method: op.method,
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Client-Timestamp": String(op.timestamp),
-        },
-        ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
-      });
+      const needsCsrf = SW_CSRF_METHODS.has(op.method);
+      const doFetch = (csrfToken?: string) =>
+        fetch(op.endpoint, {
+          method: op.method,
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Client-Timestamp": String(op.timestamp),
+            ...(csrfToken ? { "X-Csrf-Token": csrfToken } : {}),
+          },
+          ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
+        });
+
+      let resp = await doFetch(needsCsrf ? await swGetCsrfToken() : undefined);
+      if (needsCsrf && resp.status === 403) {
+        // Stale/rotated token — refetch once and retry, same as the page-side apiFetch().
+        swCsrfToken = null;
+        resp = await doFetch(await swGetCsrfToken());
+      }
 
       const ok = resp.ok || (resp.status === 404 && op.method === "DELETE");
 
