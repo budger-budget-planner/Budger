@@ -59,8 +59,11 @@ function currSwitchKey(uid: number | null | undefined): string {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const mainRef        = useRef<HTMLDivElement>(null);
-  const [waveIntensity, setWaveIntensity] = useState(0);
-  const [larderReached, setLarderReached] = useState(false);
+  // Drive wave opacity imperatively via a DOM ref — avoids re-rendering the
+  // full Layout (and its expensive page children) on every scroll frame.
+  const waveRef          = useRef<HTMLDivElement>(null);
+  const larderReachedRef = useRef(false);
+  const locationRef      = useRef(location);
 
   // Drain queued offline mutations whenever connectivity returns
   useQueueReplay();
@@ -99,19 +102,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.scrollTo(0, 0);
   }, [location]);
 
-  // Reset wave state when switching tabs
+  // Keep locationRef current so the scroll handler (registered once) always
+  // knows which tab is active without stale-closure issues.
+  useEffect(() => { locationRef.current = location; }, [location]);
+
+  // Reset wave when switching tabs — also set the correct initial opacity so
+  // the wave is already at 0.55 when the user arrives on goals/household.
   useEffect(() => {
-    setWaveIntensity(0);
-    setLarderReached(false);
+    larderReachedRef.current = false;
+    const wave = waveRef.current;
+    if (!wave) return;
+    const isWaveTab = location === '/goals' || location === '/household';
+    wave.style.opacity = (isWaveTab && !loadPrefs().disableAnimations) ? '0.55' : '0';
   }, [location]);
 
-  // Intensify wave as user scrolls down within the page
+  // Drive wave opacity directly on the DOM — no React state, no re-render.
+  // This is the critical path: called on every scroll frame for goals/household.
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
     const onScroll = () => {
+      const wave = waveRef.current;
+      if (!wave) return;
+      const isWaveTab = locationRef.current === '/goals' || locationRef.current === '/household';
+      if (!isWaveTab || loadPrefs().disableAnimations || larderReachedRef.current) {
+        wave.style.opacity = '0';
+        return;
+      }
       const max = el.scrollHeight - el.clientHeight;
-      setWaveIntensity(max > 0 ? el.scrollTop / max : 0);
+      const intensity = max > 0 ? el.scrollTop / max : 0;
+      wave.style.opacity = String(Math.min(1, 0.55 + 0.45 * intensity));
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
@@ -119,7 +139,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Listen for Larder / GL card becoming visible — wave fades to card borders
   useEffect(() => {
-    const handler = (e: Event) => setLarderReached((e as CustomEvent<{ visible: boolean }>).detail.visible);
+    const handler = (e: Event) => {
+      const visible = (e as CustomEvent<{ visible: boolean }>).detail.visible;
+      larderReachedRef.current = visible;
+      if (waveRef.current) waveRef.current.style.opacity = visible ? '0' : waveRef.current.style.opacity;
+    };
     document.addEventListener('larder-reached', handler);
     return () => document.removeEventListener('larder-reached', handler);
   }, []);
@@ -874,16 +898,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         @keyframes nw5{0%{transform:translateX(-60px);opacity:.20}50%{opacity:.65;transform:translateX(40vw)}100%{transform:translateX(-60px);opacity:.20}}
         @keyframes nw6{0%{transform:translateX(80vw);opacity:.15}45%{opacity:.55;transform:translateX(20vw)}100%{transform:translateX(80vw);opacity:.15}}
       `}</style>
-      {/* Wave beams — fixed, sit just above the nav bar top border */}
+      {/* Wave beams — fixed, sit just above the nav bar top border.
+          Opacity is driven imperatively via waveRef (no React state on scroll). */}
       <div
+        ref={waveRef}
         className="fixed inset-x-0 overflow-visible pointer-events-none"
         style={{
           bottom: NAV_HEIGHT,
           height: 0,
           zIndex: 41,
-          opacity: !loadPrefs().disableAnimations && (location === '/goals' || location === '/household') && !larderReached
-            ? Math.min(1, 0.55 + 0.45 * waveIntensity)
-            : 0,
+          opacity: 0,            // initial; overwritten by location + scroll effects
           transition: "opacity 0.8s ease",
         }}
       >
