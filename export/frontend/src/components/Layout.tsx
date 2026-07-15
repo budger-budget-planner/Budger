@@ -384,6 +384,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeCurrency(code: string) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
+    // Snapshot the current currency synchronously — before any await — so the
+    // async body always uses the currency that was active at call time, not
+    // whatever React's closure captures after subsequent re-renders.
+    const fromCurrency = prefs.currency;
     // Close the profile sheet and navigate home BEFORE showing the wink so
     // the home screen renders underneath the overlay. All async work below runs
     // during the ~3 s animation; when the animation ends the overlay awaits the
@@ -398,8 +402,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // the animation. By the time the wink ends (~3.29 s) they are typically done.
     const workPromise = (async () => {
       try {
-        const rates = await fetchRates();
-        const rate  = getConversionRate(prefs.currency, code, rates);
+        // Always force-fetch fresh rates for a currency switch — never use a
+        // same-day cache that may be hours old for this permanent conversion.
+        const rates = await forceFetchRates();
+        const rate  = getConversionRate(fromCurrency, code, rates);
 
         // The server converts and persists the user's *current* totalBudget (as
         // stored in the DB right now) and returns the resulting value. We must use
@@ -412,7 +418,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ from: prefs.currency, to: code, rate }),
+          body: JSON.stringify({ from: fromCurrency, to: code, rate }),
         });
         const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
         const newBudget: number | null = convertData && "totalBudget" in convertData
