@@ -26,6 +26,7 @@ import {
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
+import { setAppBadgeCount } from "@/lib/app-badge";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { discardOp, opLabel } from "@/lib/mutation-queue";
 import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
@@ -1384,6 +1385,14 @@ export function NotificationCenter({ userId }: { userId: number | string }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const hasBadge = unreadCount > 0;
+
+  // Mirror the in-app unread count onto the home-screen app icon (Badging API).
+  // Covers: initial load, new items arriving (nc-updated / 5s poll refresh),
+  // and marking items read/dismissed — all of which already flow through
+  // `notifications` state above.
+  useEffect(() => {
+    setAppBadgeCount(unreadCount);
+  }, [unreadCount]);
 
   const ACTION_BTNS: { id: Panel & string; labelKey: string; icon: React.ReactNode }[] = [
     { id: "alarm",   labelKey: "nc.alarm",   icon: <AlarmClock className="w-5 h-5" /> },

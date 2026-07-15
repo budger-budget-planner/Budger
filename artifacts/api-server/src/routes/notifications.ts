@@ -295,6 +295,29 @@ async function sendDailyReminders() {
   }
 }
 
+// Removes a device's push subscription so the server stops sending it real
+// pushes. Called when the user turns off the "Enable Notifications" toggle
+// (browser permission itself can't be revoked from JS, so this — plus the
+// browser-side unsubscribe — is the actual "off" switch). If no endpoint is
+// given (e.g. the browser had no live subscription object anymore), fall
+// back to removing every subscription on file for this user so stale
+// endpoints can't keep receiving pushes either.
+router.delete("/notifications/push-subscribe", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : undefined;
+
+  if (endpoint) {
+    await db.delete(pushSubscriptionsTable)
+      .where(and(eq(pushSubscriptionsTable.userId, userId), eq(pushSubscriptionsTable.endpoint, endpoint)));
+  } else {
+    await db.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, userId));
+  }
+
+  res.json({ ok: true });
+});
+
 // Run every minute
 setInterval(() => {
   sendDailyReminders().catch((err) => {
