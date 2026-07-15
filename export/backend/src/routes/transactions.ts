@@ -7,9 +7,6 @@ import { logger } from "../lib/logger";
 import { jsonrepair } from "jsonrepair";
 import { popPendingUpload } from "../lib/pending-uploads";
 import { ObjectStorageService } from "../lib/objectStorage";
-import { sendPushToUser } from "../lib/push-sender";
-import { getUnreadNotificationCount } from "../lib/notification-counts";
-import { notificationItemsTable, householdMembersTable } from "../db";
 
 const objectStorageService = new ObjectStorageService();
 import {
@@ -147,54 +144,7 @@ router.post("/transactions", async (req, res): Promise<void> => {
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
 
   res.status(201).json(enrichTransaction(tx, category, currentUser));
-
-  // Notify other household members — mirrors the layout of a real bank push
-  // (app name as title, merchant + amount as body) so members see at a glance
-  // when someone else spends money. Fire-and-forget: never blocks or fails
-  // the response the actor is waiting on.
-  notifyHouseholdOfTransaction(tx, currentUser).catch(err =>
-    logger.warn({ err, txId: tx.id }, "transactions: household notification fan-out failed"));
 });
-
-async function notifyHouseholdOfTransaction(tx: typeof transactionsTable.$inferSelect, actor: typeof usersTable.$inferSelect | undefined) {
-  if (!actor?.householdId) return;
-
-  const members = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.householdId, actor.householdId));
-  const targetUserIds = members.map(m => m.userId).filter(id => id !== actor.id);
-  if (targetUserIds.length === 0) return;
-
-  const amount = parseFloat(tx.amount);
-  const currency = tx.transactionCurrency ?? actor.currency;
-  const amountStr = `${amount.toFixed(2)} ${currency}`;
-  const actorName = actor.name ?? "Someone";
-
-  const titleEn = `${actorName} added an expense`;
-  const titlePl = `${actorName} dodał(a) wydatek`;
-  const bodyEn = `${tx.description} • ${amountStr}`;
-  const bodyPl = bodyEn; // merchant + amount don't need translation
-
-  for (const targetUserId of targetUserIds) {
-    await db.insert(notificationItemsTable).values({
-      userId: targetUserId,
-      type: "transaction_added",
-      titleEn,
-      titlePl,
-      bodyEn,
-      bodyPl,
-      dedupKey: `tx-${tx.id}-${targetUserId}`,
-    }).onConflictDoNothing();
-
-    const badgeCount = await getUnreadNotificationCount(targetUserId);
-    await sendPushToUser(targetUserId, {
-      title: titleEn,
-      body: bodyEn,
-      url: "/",
-      tag: `tx-${tx.id}`,
-      badgeCount,
-    });
-  }
-}
 
 // ── POST /transactions/extract-screenshot — AI vision extraction, no DB write ──
 //

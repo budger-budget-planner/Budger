@@ -7,6 +7,8 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
+import { sendPushToUser } from "../lib/push-sender";
+import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
 
@@ -252,6 +254,16 @@ router.post("/great-larder/fund", async (req, res): Promise<void> => {
         bodyPl: `${user.name} chce dodać ${larderAmount} ${currency} do Wielkiej Spiżarni`,
         dedupKey,
       }).onConflictDoNothing();
+
+      // Real system push, mirroring the in-app NC row just written.
+      const fundBadge = await getUnreadNotificationCount(headId);
+      sendPushToUser(headId, {
+        title: "Great Larder fund request",
+        body: `${user.name} wants to add ${larderAmount} ${currency} to the Great Larder`,
+        url: "/?sheet=great-larder",
+        tag: dedupKey,
+        badgeCount: fundBadge,
+      }).catch(() => {});
     }
   }
 
@@ -296,6 +308,16 @@ router.post("/great-larder/entries/:id/approve", async (req, res): Promise<void>
     dedupKey: `great-larder-fund-approved-${entryId}`,
   }).onConflictDoNothing();
 
+  // Real system push, mirroring the in-app NC row just written.
+  const approvedBadge = await getUnreadNotificationCount(entry.contributedByUserId);
+  sendPushToUser(entry.contributedByUserId, {
+    title: "Great Larder fund approved",
+    body: `Your fund of ${entry.amount} ${entry.currency} was approved and added to the Great Larder`,
+    url: "/?sheet=great-larder",
+    tag: `great-larder-fund-approved-${entryId}`,
+    badgeCount: approvedBadge,
+  }).catch(() => {});
+
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, entry.contributedByUserId));
   res.json(fmtEntry(updated, u?.name ?? "Unknown"));
 });
@@ -336,6 +358,16 @@ router.post("/great-larder/entries/:id/reject", async (req, res): Promise<void> 
     bodyPl: `Twój wniosek o ${entry.amount} ${entry.currency} nie został zaakceptowany`,
     dedupKey: `great-larder-fund-rejected-${entryId}`,
   }).onConflictDoNothing();
+
+  // Real system push, mirroring the in-app NC row just written.
+  const rejectedBadge = await getUnreadNotificationCount(entry.contributedByUserId);
+  sendPushToUser(entry.contributedByUserId, {
+    title: "Great Larder fund rejected",
+    body: `Your fund request of ${entry.amount} ${entry.currency} was not approved`,
+    url: "/?sheet=great-larder",
+    tag: `great-larder-fund-rejected-${entryId}`,
+    badgeCount: rejectedBadge,
+  }).catch(() => {});
 
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, entry.contributedByUserId));
   res.json(fmtEntry(updated, u?.name ?? "Unknown"));
@@ -418,6 +450,16 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
         bodyPl: `${user.name} chce wydać ${nativeAmount} ${assetCurrency} z Wielkiej Spiżarni`,
         dedupKey: `great-larder-spend-pending-${entry.id}`,
       }).onConflictDoNothing();
+
+      // Real system push, mirroring the in-app NC row just written.
+      const spendBadge = await getUnreadNotificationCount(headId);
+      sendPushToUser(headId, {
+        title: "Great Larder spend request",
+        body: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
+        url: "/?sheet=great-larder",
+        tag: `great-larder-spend-pending-${entry.id}`,
+        badgeCount: spendBadge,
+      }).catch(() => {});
     }
   }
 

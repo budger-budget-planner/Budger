@@ -79,7 +79,6 @@ function ncIcon(type: NCNotifType) {
     case "head_request":      return <Crown className="w-4 h-4" />;
     case "split_accepted":    return <CheckCircle className="w-4 h-4" />;
     case "split_declined":    return <AlertTriangle className="w-4 h-4" />;
-    case "transaction_added": return <Tag className="w-4 h-4" />;
     default: return <Bell className="w-4 h-4" />;
   }
 }
@@ -99,7 +98,6 @@ function ncIconBg(type: NCNotifType) {
     case "split_accepted":   return "bg-emerald-500/15 text-emerald-400";
     case "split_declined":   return "bg-destructive/15 text-destructive";
     case "head_request":     return "bg-amber-500/15 text-amber-400";
-    case "transaction_added":return "bg-sky-500/15 text-sky-400";
     default:                 return "bg-muted text-muted-foreground";
   }
 }

@@ -15,8 +15,7 @@ export type NCNotifType =
   | "goal_created" | "goal_changed"
   | "goal_realized"
   | "head_request"
-  | "split_accepted" | "split_declined"
-  | "transaction_added";
+  | "split_accepted" | "split_declined";
 
 export type NCNotification = {
   id: string;

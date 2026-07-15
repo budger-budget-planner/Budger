@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "../db";
+import { sendPushToUser } from "../lib/push-sender";
+import { getUnreadNotificationCount } from "../lib/notification-counts";
 import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger, maskEmail } from "../lib/logger";
@@ -598,6 +600,18 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           }))
         ).onConflictDoNothing();
 
+        // Real system push, mirroring the in-app NC rows just written.
+        Promise.all(otherMembers.map(async (m) => {
+          const badge = await getUnreadNotificationCount(m.userId);
+          return sendPushToUser(m.userId, {
+            title: "Household leadership changed",
+            body: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
+            url: "/?sheet=household",
+            tag: `household-head-transferred-${householdId}`,
+            badgeCount: badge,
+          });
+        })).catch(() => {});
+
         // Personal notification for the newly-promoted head specifically
         await db.insert(notificationItemsTable).values({
           userId: newHead.userId,
@@ -607,6 +621,16 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           bodyEn: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household and now have full management access.`,
           bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) losowo wybrany(-a) na nowego lidera gospodarstwa i masz teraz pełny dostęp do zarządzania.`,
         }).onConflictDoNothing();
+
+        // Real system push for the newly-promoted head.
+        const newHeadBadge = await getUnreadNotificationCount(newHead.userId);
+        sendPushToUser(newHead.userId, {
+          title: "You are now the household head",
+          body: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household.`,
+          url: "/?sheet=household",
+          tag: `household-you-are-now-head-${householdId}`,
+          badgeCount: newHeadBadge,
+        }).catch(() => {});
       } else {
         // No parents to hand off to — notify remaining members anyway
         if (otherMembers.length > 0) {
@@ -620,6 +644,18 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
               bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
             }))
           ).onConflictDoNothing();
+
+          // Real system push, mirroring the in-app NC rows just written.
+          Promise.all(otherMembers.map(async (m) => {
+            const badge = await getUnreadNotificationCount(m.userId);
+            return sendPushToUser(m.userId, {
+              title: "Member leaving household",
+              body: `${displayName} has requested account deletion and will be removed from your household.`,
+              url: "/?sheet=household",
+              tag: `household-member-deletion-${householdId}-${userId}`,
+              badgeCount: badge,
+            });
+          })).catch(() => {});
         }
       }
     } else {
@@ -635,6 +671,18 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
             bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
           }))
         ).onConflictDoNothing();
+
+        // Real system push, mirroring the in-app NC rows just written.
+        Promise.all(otherMembers.map(async (m) => {
+          const badge = await getUnreadNotificationCount(m.userId);
+          return sendPushToUser(m.userId, {
+            title: "Member leaving household",
+            body: `${displayName} has requested account deletion and will be removed from your household.`,
+            url: "/?sheet=household",
+            tag: `household-member-deletion-${householdId}-${userId}`,
+            badgeCount: badge,
+          });
+        })).catch(() => {});
       }
     }
   }
