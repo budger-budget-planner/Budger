@@ -1410,20 +1410,6 @@ export default function HouseholdPage() {
                         </div>
                       </div>
 
-                      {!isMe && iAmHead && (
-                        <button
-                          className="opacity-0 group-hover:opacity-100 p-1 text-red-400/70 hover:text-red-400 transition-opacity flex-shrink-0"
-                          onClick={e => {
-                            e.stopPropagation();
-                            if (confirm(t("hh.remove_member_confirm", { name: m.name }))) {
-                              removeMember.mutate({ userId: m.userId });
-                            }
-                          }}
-                          data-testid={`button-remove-member-${m.userId}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
                     </div>
                   </button>
                 );

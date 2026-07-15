@@ -629,7 +629,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   onPointerUp={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
                   onPointerLeave={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
                   onPointerCancel={() => { if (glLongPressTimer.current) { clearTimeout(glLongPressTimer.current); glLongPressTimer.current = null; } }}
-                  className={`relative inline-flex flex-col items-center justify-center px-2.5 py-1 border border-white/50 bg-black text-[10px] font-semibold text-white/80 active:scale-95 select-none touch-none transition-all duration-300 ease-in-out ${hintVisible ? "rounded-2xl" : "rounded-full"}`}
+                  className={`relative inline-flex flex-col items-center justify-center px-2.5 py-1 border border-white/50 bg-black text-[10px] font-semibold text-white/80 active:scale-95 select-none touch-manipulation transition-all duration-300 ease-in-out ${hintVisible ? "rounded-2xl" : "rounded-full"}`}
                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.18)" }}
                   title={glBadgeCollapsed ? t("larder.source_transfer") : undefined}
                 >
