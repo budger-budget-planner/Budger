@@ -6,7 +6,7 @@
  * (value starts with "http") are skipped.
  *
  * Run with:
- *   pnpm --filter @workspace/api-server tsx src/scripts/migrate-receipts.ts
+ *   pnpm tsx src/scripts/migrate-receipts.ts
  */
 
 import { db, transactionsTable } from "../db";

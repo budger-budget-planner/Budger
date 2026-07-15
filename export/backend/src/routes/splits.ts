@@ -4,6 +4,8 @@ import { eq, and, inArray } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { validateSplitGroup, computeGroupState, formatSplitRow, computeRecipientAmount, type SplitLine } from "../lib/split-helpers";
 import crypto from "node:crypto";
+import { sendPushToUser } from "../lib/push-sender";
+import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
 
@@ -375,6 +377,18 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   if (!recipientTx) { res.status(409).json({ error: "Split is not pending" }); return; }
 
   res.json({ ok: true, recipientTransactionId: recipientTx.id });
+
+  // Real system push, mirroring the in-app NC row just written.
+  const acceptedName = recipientUser?.name ?? "Someone";
+  const acceptedAmountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
+  const acceptedBadge = await getUnreadNotificationCount(split.issuerId);
+  sendPushToUser(split.issuerId, {
+    title: "Split request accepted",
+    body: `${acceptedName} accepted your request for ${acceptedAmountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
+    url: "/",
+    tag: `split-accepted-${split.id}`,
+    badgeCount: acceptedBadge,
+  }).catch(() => {});
 });
 
 router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
@@ -446,6 +460,18 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
   if (!declined) { res.status(409).json({ error: "Split is not pending" }); return; }
 
   res.json({ ok: true });
+
+  // Real system push, mirroring the in-app NC row just written.
+  const declinedName = recipientUser?.name ?? "Someone";
+  const declinedAmountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
+  const declinedBadge = await getUnreadNotificationCount(split.issuerId);
+  sendPushToUser(split.issuerId, {
+    title: "Split request declined",
+    body: `${declinedName} declined your request for ${declinedAmountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
+    url: "/",
+    tag: `split-declined-${split.id}`,
+    badgeCount: declinedBadge,
+  }).catch(() => {});
 });
 
 router.patch("/splits/:id/dismiss", async (req, res): Promise<void> => {

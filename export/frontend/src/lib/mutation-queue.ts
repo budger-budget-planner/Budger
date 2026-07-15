@@ -16,7 +16,7 @@
  */
 
 import { t } from "./i18n";
-import { apiFetch } from "./api";
+import { getCsrfToken, resetCsrfToken } from "./api-client/custom-fetch";
 
 const DB_NAME   = "budger-offline";
 const STORE     = "mutation_queue";
@@ -176,19 +176,46 @@ export async function replayQueue(
       const hasBody =
         op.method !== "GET" && op.method !== "DELETE" && op.payload != null;
 
-      // apiFetch (not plain fetch) attaches the x-csrf-token header and
-      // retries once on a stale-token 403. Queued ops are replayed after the
-      // device has been offline for a while, so the cached CSRF token from
-      // page load is very likely stale — a raw fetch() here reliably fails
-      // every queued mutation with "Invalid or missing CSRF token".
-      const resp = await apiFetch(op.endpoint, {
+      const CSRF_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+      const isMutating = CSRF_METHODS.has(op.method);
+      const replayHeaders = new Headers({
+        "Content-Type": "application/json",
+        "X-Client-Timestamp": String(op.timestamp),
+      });
+      if (isMutating) {
+        try {
+          replayHeaders.set("x-csrf-token", await getCsrfToken());
+        } catch {
+          resetCsrfToken();
+        }
+      }
+
+      let resp = await fetch(op.endpoint, {
         method: op.method,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Client-Timestamp": String(op.timestamp),
-        },
+        credentials: "include",
+        headers: replayHeaders,
         ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
       });
+
+      // Self-heal a stale/rotated CSRF token: retry once with a fresh one.
+      if (isMutating && resp.status === 403) {
+        resetCsrfToken();
+        const retryHeaders = new Headers({
+          "Content-Type": "application/json",
+          "X-Client-Timestamp": String(op.timestamp),
+        });
+        try {
+          retryHeaders.set("x-csrf-token", await getCsrfToken());
+          resp = await fetch(op.endpoint, {
+            method: op.method,
+            credentials: "include",
+            headers: retryHeaders,
+            ...(hasBody ? { body: JSON.stringify(op.payload) } : {}),
+          });
+        } catch {
+          // Retry setup failed — fall through and report the 403.
+        }
+      }
 
       const ok =
         resp.ok || (resp.status === 404 && op.method === "DELETE");

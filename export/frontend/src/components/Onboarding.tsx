@@ -153,6 +153,7 @@ export default function Onboarding({
     if (!("Notification" in window)) { setNotifStatus("denied"); return; }
     if (Notification.permission === "granted") {
       setNotifStatus("granted");
+      updateNotif.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
       if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       return;
     }

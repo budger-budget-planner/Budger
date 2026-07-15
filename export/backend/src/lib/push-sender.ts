@@ -36,6 +36,11 @@ export type PushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  /** Recipient's total unread Notification Center count at send time — the
+   *  service worker applies this to the home-screen app icon via the Badging
+   *  API. Omit for pushes that aren't tracked as unread items (e.g. it would
+   *  be wrong to stamp a stale/irrelevant count). */
+  badgeCount?: number;
 };
 
 export async function sendPushToUser(userId: number, payload: PushPayload): Promise<void> {

@@ -140,7 +140,7 @@ async function baselineLegacyPushDatabase(client: DBPoolClient): Promise<void> {
  *
  * For new schema changes the workflow is:
  *   1. Edit lib/db/src/schema/
- *   2. pnpm --filter @workspace/db run generate   ← creates a new .sql file
+ *   2. pnpm --filter ./db run generate   ← creates a new .sql file
  *   3. Commit the migration file
  *   4. The next startup applies it automatically
  */

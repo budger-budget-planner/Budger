@@ -22,13 +22,22 @@ import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
+import { setAppBadgeCount } from "@/lib/app-badge";
 import { primeSniffAudio } from "@/lib/badger-notify";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
 import { OfflineMask } from "@/components/OfflineMask";
 import { useQueueReplay } from "@/hooks/useQueueReplay";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
+
+// Bottom nav's on-screen height (icon+label box), before the iOS safe-area
+// inset is added below it. Fixed elements anchored above the nav (wave glow,
+// FABs, toasts) must derive their offsets from this same constant so they
+// stay aligned if the nav's height ever changes again.
+export const NAV_CONTENT_HEIGHT = 80; // px — matches the nav's h-20
+export const NAV_HEIGHT = `calc(${NAV_CONTENT_HEIGHT}px + env(safe-area-inset-bottom, 0px))`;
 
 function navItems() {
   return [
@@ -116,6 +125,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const queryClient    = useQueryClient();
   const { data: user } = useGetMe();
+
+  // Pull-to-refresh: drag the page down ~1/5 of the screen to manually
+  // re-fetch every query currently on screen. Disabled while offline since
+  // there's nothing fresh to fetch.
+  async function handlePullRefresh() {
+    const minVisible = new Promise((resolve) => setTimeout(resolve, 600));
+    await Promise.all([
+      queryClient.refetchQueries({ type: "active" }),
+      minVisible,
+    ]);
+  }
+  const { pull: ptrPull, pullPx: ptrPullPx, refreshing: ptrRefreshing, dragging: ptrDragging } =
+    usePullToRefresh(mainRef, handlePullRefresh, !isOnline);
 
   const { data: incomingInvites } = useListIncomingInvites();
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
@@ -349,6 +371,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       onSuccess: () => {
         setActiveUserId(null);
         queryClient.clear();
+        setAppBadgeCount(0); // clear the home-screen badge — it belongs to this account's unread count
         resetSplash(); // re-show splash → sequence plays → lands on login
       },
     },
@@ -718,9 +741,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {!isOnline && location !== "/" && <OfflineMask />}
 
       {/* ── Page content ── */}
-      <main ref={mainRef} className="flex-1 overflow-auto pb-24">
-        {children}
-      </main>
+      <div className="relative flex-1 overflow-hidden">
+        {/* Pull-to-refresh indicator — slides in from behind the content as
+            the user drags down; spins while the refetch is in flight. */}
+        <div
+          className="absolute inset-x-0 top-0 z-30 flex items-center justify-center pointer-events-none"
+          style={{
+            height: `${ptrRefreshing ? 56 : ptrPullPx}px`,
+            opacity: ptrPull > 0 || ptrRefreshing ? 1 : 0,
+            transition: ptrDragging ? "none" : "height 0.25s ease, opacity 0.25s ease",
+          }}
+        >
+          <div
+            className="w-9 h-9 rounded-full bg-card border border-border shadow-sm flex items-center justify-center"
+            style={{ transform: `scale(${Math.min(1, 0.55 + ptrPull * 0.45)})` }}
+          >
+            <RefreshCw
+              className={`w-4 h-4 text-muted-foreground ${ptrRefreshing ? "animate-spin" : ""}`}
+              style={ptrRefreshing ? undefined : { transform: `rotate(${ptrPull * 360}deg)` }}
+            />
+          </div>
+        </div>
+
+        <main
+          ref={mainRef}
+          className="h-full overflow-auto"
+          style={{
+            paddingBottom: NAV_HEIGHT,
+            transform: `translateY(${ptrRefreshing ? 56 : ptrPullPx}px)`,
+            transition: ptrDragging ? "none" : "transform 0.25s ease",
+          }}
+        >
+          {children}
+        </main>
+      </div>
 
       {/* Ocean wave glow — Goals & Household tabs only; opacity scales with scroll */}
       <style>{`
@@ -733,8 +787,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       `}</style>
       {/* Wave beams — fixed, sit just above the nav bar top border */}
       <div
-        className="fixed bottom-16 inset-x-0 overflow-visible pointer-events-none"
+        className="fixed inset-x-0 overflow-visible pointer-events-none"
         style={{
+          bottom: NAV_HEIGHT,
           height: 0,
           zIndex: 41,
           opacity: !loadPrefs().disableAnimations && (location === '/goals' || location === '/household') && !larderReached
@@ -751,10 +806,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div style={{ position:"absolute", top:"-5px", left:0, width:"85px",  height:"9px",  background:"radial-gradient(ellipse 42px 4px at center, rgba(255,255,255,0.58) 0%, transparent 100%)", animation:"nw6 7.5s ease-in-out 5.5s infinite" }} />
       </div>
 
-      {/* ── Bottom navigation — 5 tabs evenly spaced ── */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 h-16
+      {/* ── Bottom navigation — 5 tabs evenly spaced ──
+          Height is NAV_CONTENT_HEIGHT (icon+label box) plus the iOS safe-area
+          inset added as extra bottom padding, so the icon stripe itself stays
+          at a fixed on-screen height and only gets pushed up clear of the
+          home-indicator area — never resized. */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 px-2
                       bg-card/95 backdrop-blur border-t border-border
-                      flex items-stretch">
+                      flex items-stretch"
+           style={{ height: NAV_HEIGHT, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {nav.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           const isHousehold = href === "/household";
@@ -766,18 +826,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               onClick={isGoals ? markGoalsSeen : undefined}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors
+              className={`flex-1 flex flex-col items-center justify-center gap-0 transition-colors
                           ${active ? "text-foreground" : showBadge ? "text-pink-400" : "text-muted-foreground"}`}
               data-testid={`nav-${href.replace("/", "") || "home"}`}
             >
-              <div className={`relative p-1.5 rounded-xl transition-colors ${active ? "bg-muted" : ""}`}>
-                <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.6} />
+              <div className="relative p-2.5">
+                <Icon className="w-6 h-6" strokeWidth={active ? 2.2 : 1.6} />
                 {showBadge && (
-                  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-pink-500 border border-black" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 border border-black" />
                 )}
               </div>
               {active && (
-                <span className="text-[10px] font-medium leading-none">{label}</span>
+                <span className="text-[10px] font-medium leading-none -mt-1.5">{label}</span>
               )}
             </Link>
           );

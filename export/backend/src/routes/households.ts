@@ -7,6 +7,8 @@ import {
   RemoveHouseholdMemberParams,
   GetMemberSpendingParams,
 } from "../api-zod";
+import { sendPushToUser } from "../lib/push-sender";
+import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
 
@@ -218,28 +220,33 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   // Viewing own data is always allowed
   if (targetUserId !== currentUserId) {
-    // Resolve viewer's role — cast to number to guarantee integer comparison
+    // Look up roles by userId alone (a user has exactly one household_members
+    // row — enforced by a unique constraint) rather than filtering by
+    // currentUser.householdId as well. Double-filtering silently fell back to
+    // the "child" (least-privileged) role whenever a user's `users.household_id`
+    // and their `household_members` row ever drifted out of sync, which could
+    // wrongly deny a genuine head access to a member's dashboard.
     const [viewerMembership] = await db.select().from(householdMembersTable)
-      .where(and(
-        eq(householdMembersTable.userId, Number(currentUserId)),
-        eq(householdMembersTable.householdId, Number(currentUser.householdId)),
-      ));
+      .where(eq(householdMembersTable.userId, currentUserId));
     const viewerRole = viewerMembership?.role ?? "child";
 
-    // HEAD ALWAYS SEES EVERYONE — check this first, skip all privacy logic
-    if (!isHead(viewerRole) && targetUser.dashboardBlocked) {
-      // Resolve target's role for parent-level checks
-      const [targetMembership] = await db.select().from(householdMembersTable)
-        .where(and(
-          eq(householdMembersTable.userId, Number(targetUserId)),
-          eq(householdMembersTable.householdId, Number(currentUser.householdId)),
-        ));
-      const targetRole = targetMembership?.role ?? "child";
+    // Get target's role
+    const [targetMembership] = await db.select().from(householdMembersTable)
+      .where(eq(householdMembersTable.userId, targetUserId));
+    const targetRole = targetMembership?.role ?? "child";
 
-      if (isParent(viewerRole) && !isHead(targetRole)) {
-        // Parent can see non-head blocked dashboards
+    if (targetUser.dashboardBlocked) {
+      // Head sees everyone
+      if (isHead(viewerRole)) {
+        // allowed
+      } else if (isParent(viewerRole)) {
+        // Parent cannot see head's private dashboard
+        if (isHead(targetRole)) {
+          res.status(403).json({ error: "blocked" }); return;
+        }
+        // Parent can see other parents' and children's dashboards even if blocked
       } else {
-        // Child sees nothing private; parent cannot see head's private dashboard
+        // Child cannot see any private dashboard
         res.status(403).json({ error: "blocked" }); return;
       }
     }
@@ -291,18 +298,22 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   // only accounted for via the RP rows (prevents double-counting).
   const rpTxIds = new Set(validRpLogs.map(l => l.transactionId).filter(Boolean) as number[]);
 
-  const rpItems = memberRPs.map(rp => ({
-    categoryId: null as null,
-    categoryName: rp.name,
-    categoryColor: rp.color,
-    categoryIcon: "repeat",
-    budget: parseFloat(rp.amount),
-    total: appliedRPIds.has(rp.id) ? parseFloat(rp.amount) : 0,
-    count: appliedRPIds.has(rp.id) ? 1 : 0,
-    percentage: 0,
-    isRecurringPayment: true,
-    recurringPaymentId: rp.id,
-  }));
+  // Only show recurring payments that were actually recorded this month —
+  // an unapplied template is not an expense yet and shouldn't appear on the dashboard.
+  const rpItems = memberRPs
+    .filter(rp => appliedRPIds.has(rp.id))
+    .map(rp => ({
+      categoryId: null as null,
+      categoryName: rp.name,
+      categoryColor: rp.color,
+      categoryIcon: "repeat",
+      budget: parseFloat(rp.amount),
+      total: parseFloat(rp.amount),
+      count: 1,
+      percentage: 0,
+      isRecurringPayment: true,
+      recurringPaymentId: rp.id,
+    }));
 
   // Re-group excluding RP transactions (they are represented by rpItems)
   const groupedFiltered = new Map<string, { total: number; count: number; category: any }>();
@@ -331,12 +342,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     recurringPaymentId: null as null,
   })).sort((a, b) => b.total - a.total);
 
-  // Only surface rpItems that were actually applied this month — unapplied
-  // recurring templates (total = 0) are not expenses yet and should not appear
-  // on the personal dashboard.
-  const appliedRpItems = rpItems.filter(rp => appliedRPIds.has(rp.recurringPaymentId!));
-
-  res.json([...result, ...appliedRpItems]);
+  res.json([...result, ...rpItems]);
 });
 
 // Update a member's role — head only
@@ -499,6 +505,18 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
     bodyPl: headRequestBody,
   });
 
+  // Deliver as a real system push too, like every other NC item — the raw
+  // JSON body above is for in-app parsing only, so the push gets its own
+  // human-readable copy instead.
+  const headRequestBadge = await getUnreadNotificationCount(headMember.userId);
+  sendPushToUser(headMember.userId, {
+    title: `${requesterName} wants to become Head`,
+    body: "Tap to review the request.",
+    url: "/?sheet=household",
+    tag: `head-request-${userId}`,
+    badgeCount: headRequestBadge,
+  }).catch(() => {});
+
   res.json({ success: true });
 });
 
@@ -591,6 +609,15 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     bodyEn: "Your request to become Head was approved.",
     bodyPl: "Twoja prośba o zostanie Głową Rodziny została zaakceptowana.",
   });
+
+  const promotedBadge = await getUnreadNotificationCount(requesterId);
+  sendPushToUser(requesterId, {
+    title: "You are now Head of Household",
+    body: "Your request to become Head was approved.",
+    url: "/?sheet=household",
+    tag: `head-promoted-${requesterId}`,
+    badgeCount: promotedBadge,
+  }).catch(() => {});
 
   res.json({ success: true });
 });
