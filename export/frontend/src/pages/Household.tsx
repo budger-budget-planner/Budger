@@ -1608,7 +1608,7 @@ export default function HouseholdPage() {
 
           {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
           {canSeeGreatLarder && (
-            <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl"
+            <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
                 background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
                 border: glVisible ? "1px solid rgba(255,255,255,0.48)" : "1px solid rgba(255,255,255,0.12)",
