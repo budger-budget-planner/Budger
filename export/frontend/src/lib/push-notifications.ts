@@ -85,35 +85,3 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
 export function isPushSupported(): boolean {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
-
-// Tears down push delivery for this device: unsubscribes the browser-side
-// PushManager subscription (so the OS/browser stops routing pushes to it)
-// and tells the server to forget the matching endpoint so it stops sending.
-// Browser permission itself can't be revoked from JS — this is the only
-// real "off" switch available to an in-app toggle.
-export async function unsubscribeFromPushNotifications(): Promise<void> {
-  let endpoint: string | undefined;
-  try {
-    if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      const sub = await reg?.pushManager.getSubscription();
-      if (sub) {
-        endpoint = sub.endpoint;
-        await sub.unsubscribe().catch(() => {});
-      }
-    }
-  } catch {
-    /* best-effort browser-side unsubscribe */
-  }
-
-  try {
-    await fetch("/api/notifications/push-subscribe", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ endpoint }),
-    });
-  } catch {
-    /* best-effort server-side cleanup */
-  }
-}

@@ -73,7 +73,7 @@ export async function fetchRates(): Promise<Record<string, number>> {
 export async function forceFetchRates(): Promise<Record<string, number>> {
   try {
     const res = await fetch(
-      "https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR,GBP,PLN",
+      "https://api.frankfurter.app/latest?base=USD&symbols=EUR,GBP,PLN",
       { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) throw new Error("fetch failed");

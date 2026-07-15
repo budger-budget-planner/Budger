@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import { logger, maskEmail } from "./logger";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
-const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? "noreply@budger.app";
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? "Budger <onboarding@resend.dev>";
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 

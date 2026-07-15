@@ -85,23 +85,6 @@ self.addEventListener("push", (event) => {
   } satisfies Record<string, unknown>;
 
   event.waitUntil(self.registration.showNotification(title, options));
-
-  // Mirror the server-computed unread count onto the home-screen app icon
-  // (Badging API) so it stays correct even when the app isn't open to receive
-  // the "push" event's would-be main-thread update. Only acts when the server
-  // included a badgeCount — pushes that don't track unread state (e.g. plain
-  // reminders) leave whatever badge is already showing untouched.
-  const rawBadgeCount = (data as Record<string, unknown>).badgeCount;
-  const badgeCount = typeof rawBadgeCount === "number" ? rawBadgeCount : Number(rawBadgeCount);
-  const swNavigator = (self as unknown as { navigator?: Navigator }).navigator as
-    | (Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> })
-    | undefined;
-  if (rawBadgeCount !== undefined && !Number.isNaN(badgeCount) && swNavigator && "setAppBadge" in swNavigator) {
-    event.waitUntil(
-      (badgeCount > 0 ? swNavigator.setAppBadge?.(badgeCount) : swNavigator.clearAppBadge?.())?.catch(() => {}) ??
-        Promise.resolve(),
-    );
-  }
 });
 
 self.addEventListener("notificationclick", (event) => {

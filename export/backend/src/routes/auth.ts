@@ -2,8 +2,6 @@ import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "../db";
-import { sendPushToUser } from "../lib/push-sender";
-import { getUnreadNotificationCount } from "../lib/notification-counts";
 import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger, maskEmail } from "../lib/logger";
@@ -23,7 +21,6 @@ import {
   UpdateMeResponse,
 } from "../api-zod";
 import { sendPinResetEmail } from "../lib/email-sender";
-import { getFrontendOrigin } from "../lib/frontend-origin";
 
 // Verification links expire after 30 minutes.
 const VERIFICATION_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -254,7 +251,9 @@ router.post("/auth/register-start", async (req, res): Promise<void> => {
 
   // Build a fully-qualified link so it also works when clicked from a real inbox.
   const relativeVerifyPath = `/verify-email?token=${verificationTokenPlaintext}`;
-  const absoluteVerifyUrl = `${getFrontendOrigin(req)}${relativeVerifyPath}`;
+  const domain = (process.env.REPLIT_DOMAINS ?? "").split(",")[0].trim();
+  const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
+  const absoluteVerifyUrl = `${origin}${relativeVerifyPath}`;
 
   const sent = await sendVerificationEmail({ to: normalizedEmail, firstName, verifyUrl: absoluteVerifyUrl, language: resolvedLanguage as "en" | "pl" });
   if (sent) {
@@ -458,7 +457,9 @@ router.post("/auth/forgot-pin", async (req, res): Promise<void> => {
     .set({ pinResetToken: tokenHash, pinResetTokenExpiresAt: expiresAt })
     .where(eq(usersTable.id, user.id));
 
-  const resetUrl = `${getFrontendOrigin(req)}/reset-pin?token=${plaintextToken}`;
+  const domain = process.env.REPLIT_DEV_DOMAIN ?? req.get("host");
+  const origin = domain ? `https://${domain}` : `${req.protocol}://${req.get("host")}`;
+  const resetUrl = `${origin}/reset-pin?token=${plaintextToken}`;
 
   const sent = await sendPinResetEmail({
     to: email,
@@ -600,18 +601,6 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           }))
         ).onConflictDoNothing();
 
-        // Real system push, mirroring the in-app NC rows just written.
-        Promise.all(otherMembers.map(async (m) => {
-          const badge = await getUnreadNotificationCount(m.userId);
-          return sendPushToUser(m.userId, {
-            title: "Household leadership changed",
-            body: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
-            url: "/?sheet=household",
-            tag: `household-head-transferred-${householdId}`,
-            badgeCount: badge,
-          });
-        })).catch(() => {});
-
         // Personal notification for the newly-promoted head specifically
         await db.insert(notificationItemsTable).values({
           userId: newHead.userId,
@@ -621,16 +610,6 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           bodyEn: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household and now have full management access.`,
           bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) losowo wybrany(-a) na nowego lidera gospodarstwa i masz teraz pełny dostęp do zarządzania.`,
         }).onConflictDoNothing();
-
-        // Real system push for the newly-promoted head.
-        const newHeadBadge = await getUnreadNotificationCount(newHead.userId);
-        sendPushToUser(newHead.userId, {
-          title: "You are now the household head",
-          body: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household.`,
-          url: "/?sheet=household",
-          tag: `household-you-are-now-head-${householdId}`,
-          badgeCount: newHeadBadge,
-        }).catch(() => {});
       } else {
         // No parents to hand off to — notify remaining members anyway
         if (otherMembers.length > 0) {
@@ -644,18 +623,6 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
               bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
             }))
           ).onConflictDoNothing();
-
-          // Real system push, mirroring the in-app NC rows just written.
-          Promise.all(otherMembers.map(async (m) => {
-            const badge = await getUnreadNotificationCount(m.userId);
-            return sendPushToUser(m.userId, {
-              title: "Member leaving household",
-              body: `${displayName} has requested account deletion and will be removed from your household.`,
-              url: "/?sheet=household",
-              tag: `household-member-deletion-${householdId}-${userId}`,
-              badgeCount: badge,
-            });
-          })).catch(() => {});
         }
       }
     } else {
@@ -671,18 +638,6 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
             bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
           }))
         ).onConflictDoNothing();
-
-        // Real system push, mirroring the in-app NC rows just written.
-        Promise.all(otherMembers.map(async (m) => {
-          const badge = await getUnreadNotificationCount(m.userId);
-          return sendPushToUser(m.userId, {
-            title: "Member leaving household",
-            body: `${displayName} has requested account deletion and will be removed from your household.`,
-            url: "/?sheet=household",
-            tag: `household-member-deletion-${householdId}-${userId}`,
-            badgeCount: badge,
-          });
-        })).catch(() => {});
       }
     }
   }

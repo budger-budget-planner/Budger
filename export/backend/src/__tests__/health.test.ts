@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import express from "express";
 import request from "supertest";
 
-// ── Mock ../db before any app imports ─────────────────────────────
+// ── Mock @workspace/db before any app imports ─────────────────────────────
 vi.mock("../db", () => ({
   pool: { query: vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] }) },
   db: {},

@@ -50,17 +50,6 @@ import { ReceiptImg } from "@/components/ReceiptImg";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
-import { NAV_HEIGHT } from "@/components/Layout";
-
-// Both FABs anchor above the bottom tab bar using its shared NAV_HEIGHT
-// constant (icon+label box + iOS safe-area inset) instead of hardcoded
-// pixel offsets, so they stay correctly stacked above the tab stripe if
-// the nav's height ever changes — see NAV_CONTENT_HEIGHT in Layout.tsx.
-const FAB_GAP = 16; // px — breathing room between the nav and the first FAB
-const FAB_SIZE = 56; // px — w-14/h-14
-const FAB_STACK_GAP = 8; // px — gap between the two stacked FABs
-const ADD_FAB_BOTTOM = `calc(${NAV_HEIGHT} + ${FAB_GAP}px)`;
-const RECURRING_FAB_BOTTOM = `calc(${NAV_HEIGHT} + ${FAB_GAP + FAB_SIZE + FAB_STACK_GAP}px)`;
 
 function DdMmYyyyInput({ value, onChange, required }: { value: string; onChange: (iso: string) => void; required?: boolean }) {
   function isoToDisplay(iso: string): string {
@@ -1982,9 +1971,8 @@ export default function HomeSpending() {
       {isCurrentMonth && (
         <button
           onClick={() => { setRpSheetOpen(true); setRpExpanded(null); }}
-          className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
+          className="fixed bottom-36 right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
                      shadow-xl flex items-center justify-center transition active:scale-90"
-          style={{ bottom: RECURRING_FAB_BOTTOM }}
           title={t("rp.open_sheet")}
         >
           <RefreshCw className="w-6 h-6" />
@@ -1995,9 +1983,8 @@ export default function HomeSpending() {
       <button
         onClick={() => setAddOpen(true)}
         data-testid="button-add-transaction"
-        className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
+        className="fixed bottom-20 right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
                    shadow-xl flex items-center justify-center transition active:scale-90"
-        style={{ bottom: ADD_FAB_BOTTOM }}
       >
         <Plus className="w-6 h-6" />
       </button>
@@ -2297,8 +2284,7 @@ export default function HomeSpending() {
 
       {/* ── Split sent toast ── */}
       {splitSent && (
-        <div className="fixed inset-x-0 flex justify-center z-50 pointer-events-none"
-             style={{ bottom: "calc(112px + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="fixed bottom-24 inset-x-0 flex justify-center z-50 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4">
             <Scissors className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-medium">{t("split.request_sent")}</p>
