@@ -20,6 +20,7 @@ import {
 import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
 import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
+import { apiFetch } from "@/lib/api";
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { setAppBadgeCount } from "@/lib/app-badge";
@@ -414,10 +415,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         // user just edited their budget on another page that keeps its own prefs
         // state), and overwriting with a value derived from stale local state would
         // silently revert the budget the user just set.
-        const convertRes = await fetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
+        const convertRes = await apiFetch(`${import.meta.env.BASE_URL}api/convert-currency`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ from: fromCurrency, to: code, rate }),
         });
         const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
