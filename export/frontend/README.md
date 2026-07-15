@@ -1,71 +1,42 @@
-# Budger — Frontend (React + Vite PWA)
+# Budger — Standalone Deployment Package
 
-React 19 + Vite 7 + Tailwind v4 progressive web app. Talks to the Budger
-backend over `/api/...` (relative paths — see "Connecting to the backend"
-below for how that resolves in production).
+This is Budger, split out of its original pnpm monorepo into two independent,
+deployable projects:
 
-## Local development
 
-```bash
-npm install
-cp .env.example .env   # optional — only VITE_SENTRY_DSN currently
-npm run dev
-```
+- **`frontend/`** — React + Vite PWA. Deploy to Vercel.
+- **`backend/`** — Express API + Postgres (Neon) + Supabase Storage. Deploy
+  to any Node host (Render, Railway, Fly.io, a VPS, …).
 
-The dev server expects a backend running locally too (see
-`../backend/README.md`) and proxies nothing on its own — for local dev, run
-Vite and the API on the same origin, or edit `vite.config.ts` to add a
-`server.proxy` rule for `/api`.
+Each folder is self-contained: its own `package.json` with pinned real
+dependency versions (no workspace/catalog references), its own `tsconfig.json`,
+and no dependency on the other folder or on the original monorepo.
 
-## Deploying to Vercel
+## Recommended deploy order
 
-1. Push this folder to its own git repo, import it into Vercel.
-2. Framework preset: **Vite**. Vercel will pick up `vercel.json` in this
-   folder automatically — no further config needed there.
-3. **Before your first deploy**, deploy the backend (see
-   `../backend/README.md`) and grab its live URL.
-4. Open `vercel.json` and replace `REPLACE_WITH_YOUR_BACKEND_URL` in the
-   `rewrites` block with your backend's real domain, e.g.:
-   ```json
-   { "source": "/api/:path*", "destination": "https://budger-api.onrender.com/api/:path*" }
-   ```
-   This makes Vercel transparently proxy `/api/*` calls to your backend.
-   Because the browser only ever talks to your Vercel domain, session
-   cookies work with **zero CORS configuration** — this is the recommended
-   setup and matches how the app already calls its API (relative `/api/...`
-   paths, no code changes needed).
-5. Add `VITE_SENTRY_DSN` in Vercel's project settings if you use Sentry
-   (optional — the app runs fine without it).
-6. Deploy.
+1. **Backend first** — follow `backend/README.md`. You need its live URL
+   before finishing the frontend setup.
+2. **Frontend second** — follow `frontend/README.md`, plugging the backend's
+   URL into `frontend/vercel.json`.
 
-### Alternative: fully cross-origin (no rewrite proxy)
+## What changed from the monorepo version
 
-If you'd rather call the backend directly from the browser (different
-domain, no Vercel proxy), set `CORS_ORIGINS` on the backend to this app's
-Vercel URL, and call
-`import("@/lib/api-client").setBaseUrl("https://your-backend-url")` once at
-app startup (e.g. in `src/main.tsx`) — then remove the `/api` rewrite from
-`vercel.json` (keep the SPA fallback rewrite). Note this path still needs
-a few of the app's raw `fetch()` calls (outside the generated API client) to
-be pointed at the same backend origin — the default rewrite-proxy setup
-above avoids that entirely and is recommended unless you have a specific
-reason not to use it.
+- Shared packages (`@workspace/db`, `@workspace/api-zod`,
+  `@workspace/api-client-react`) were copied in as local source
+  (`backend/src/db`, `backend/src/api-zod`, `frontend/src/lib/api-client`)
+  with imports rewritten to relative paths — no workspace protocol, no pnpm
+  catalog.
+- Replit-specific Vite plugins (cartographer, dev banner, runtime error
+  overlay) and the `BASE_PATH`/artifact-routing logic were removed from
+  `vite.config.ts` — this app now always deploys at the domain root.
+- Email links that must point at the frontend (email verification, PIN
+  reset) now resolve via a `FRONTEND_URL` env var instead of Replit's
+  `REPLIT_DOMAINS`/`REPLIT_DEV_DOMAIN` (see `backend/src/lib/frontend-origin.ts`).
+  Both are still checked as a fallback in case you deploy this back onto
+  Replit — the priority is `FRONTEND_URL` → Replit env vars → request host.
+- Nothing about the database or file storage logic changed — this package
+  already talks to Neon Postgres and Supabase Storage directly, not to any
+  Replit-managed service.
 
-## PWA notes
 
-- The service worker (`src/sw.ts`) and `public/manifest.json` assume the app
-  is deployed at the domain root (`/`), which matches a standard Vercel
-  deployment. If you ever deploy under a sub-path instead, you'll need to
-  update `start_url` in `manifest.json` and the icon paths accordingly.
-- Build output goes to `dist/` (Vercel's default expectation for a Vite
-  app — already set as `outputDirectory` in `vercel.json`).
-
-## Structure
-
-- `src/pages/`, `src/components/` — app UI
-- `src/lib/api-client/` — generated React Query hooks + Zod schemas
-  (flattened from the original monorepo's shared `@workspace/api-client-react`
-  package), imported as `@/lib/api-client`
-- `src/sw.ts` — PWA service worker (push notifications, offline mutation
-  queue)
 
