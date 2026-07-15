@@ -1816,7 +1816,7 @@ export default function HomeSpending() {
                                   )}
                                   {hasLarderDedication && (
                                     <span
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400 select-none touch-none cursor-pointer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/60 bg-violet-500/10 text-[10px] font-medium text-violet-400 select-none touch-manipulation cursor-pointer"
                                       onClick={(e) => e.stopPropagation()}
                                       onPointerDown={(e) => {
                                         e.stopPropagation();
