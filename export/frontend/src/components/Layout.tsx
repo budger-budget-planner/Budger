@@ -51,6 +51,11 @@ function navItems() {
 }
 
 
+// Per-user localStorage key for the currency-switch rate limiter.
+function currSwitchKey(uid: number | null | undefined): string {
+  return `budger_curr_switch_v1_${uid ?? "guest"}`;
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const mainRef        = useRef<HTMLDivElement>(null);
@@ -362,6 +367,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // instantly, but the actual update is hidden behind the splash until reload.
   const [langSwitchTarget, setLangSwitchTarget] = useState<string | null>(null);
   const [currSwitchTarget, setCurrSwitchTarget] = useState<string | null>(null);
+  // ── Currency-switch rate limiter ─────────────────────────────────────────
+  const [currSwitchCount, setCurrSwitchCount]     = useState(0);
+  const [currLockedUntil, setCurrLockedUntil]     = useState<number | null>(null);
+  const [currLockCountdown, setCurrLockCountdown] = useState("");
   const { toast } = useToast();
 
   const resetSplash = useSplashReset();
@@ -385,6 +394,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   function changeCurrency(code: string) {
     if (code === prefs.currency || converting || currSwitchTarget) return;
+    // Block while rate-limited.
+    if (currLockedUntil && currLockedUntil > Date.now()) return;
+
+    // Track switch count; apply 15-min lock on the 3rd change.
+    const newCount = currSwitchCount + 1;
+    const lockUntil = newCount >= 3 ? Date.now() + 15 * 60 * 1_000 : null;
+    setCurrSwitchCount(newCount);
+    if (lockUntil) setCurrLockedUntil(lockUntil);
+    const _uid = (user as any)?.id ?? null;
+    try {
+      localStorage.setItem(currSwitchKey(_uid), JSON.stringify({ count: newCount, lockedUntil: lockUntil }));
+    } catch { /* ignore */ }
+
     // Snapshot the current currency synchronously — before any await — so the
     // async body always uses the currency that was active at call time, not
     // whatever React's closure captures after subsequent re-renders.
@@ -511,6 +533,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [showProfile]);
 
+  // Load persisted currency-switch state once the user id is known.
+  useEffect(() => {
+    const uid = (user as any)?.id ?? null;
+    try {
+      const raw = JSON.parse(localStorage.getItem(currSwitchKey(uid)) ?? "null");
+      if (raw) {
+        const now = Date.now();
+        if (raw.lockedUntil && raw.lockedUntil > now) {
+          setCurrSwitchCount(raw.count ?? 3);
+          setCurrLockedUntil(raw.lockedUntil);
+        } else if (raw.lockedUntil) {
+          // Lock has expired — clear stale entry
+          localStorage.removeItem(currSwitchKey(uid));
+        } else {
+          setCurrSwitchCount(raw.count ?? 0);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [(user as any)?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live countdown while currency is locked; auto-resets when time is up.
+  useEffect(() => {
+    if (!currLockedUntil) { setCurrLockCountdown(""); return; }
+    function tick() {
+      const remaining = (currLockedUntil as number) - Date.now();
+      if (remaining <= 0) {
+        const uid = (user as any)?.id ?? null;
+        try { localStorage.removeItem(currSwitchKey(uid)); } catch { /* ignore */ }
+        setCurrLockedUntil(null);
+        setCurrSwitchCount(0);
+        setCurrLockCountdown("");
+        return;
+      }
+      const mins = Math.floor(remaining / 60_000);
+      const secs = Math.floor((remaining % 60_000) / 1_000);
+      setCurrLockCountdown(`${mins}:${secs.toString().padStart(2, "0")}`);
+    }
+    tick();
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [currLockedUntil]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const nav = navItems();
 
   // ── Badger logo: tap opens the AI screenshot scanner ──
@@ -636,14 +700,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         key={c.code}
                         onClick={() => changeCurrency(c.code)}
-                        disabled={!isOnline || converting || isSelected || !!currSwitchTarget}
+                        disabled={!isOnline || converting || isSelected || !!currSwitchTarget || !!(currLockedUntil && currLockedUntil > Date.now())}
                         className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition active:scale-95 disabled:cursor-default ${
                           isSelected
-                            ? isOnline
+                            ? isOnline && !(currLockedUntil && currLockedUntil > Date.now())
                               ? "border-foreground bg-foreground text-background"
                               : "border-zinc-600 bg-zinc-700 text-white"
                             : "border-border bg-muted/40 text-foreground hover:bg-muted"
-                        } ${(!isOnline || converting) && !isSelected ? "opacity-40" : ""}`}
+                        } ${((!isOnline || converting) || !!(currLockedUntil && currLockedUntil > Date.now())) && !isSelected ? "opacity-40" : ""}`}
                       >
                         <span className="text-sm font-bold">{c.symbol} {c.code}</span>
                         {rateStr && !isSelected && (
@@ -655,6 +719,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     );
                   })}
                 </div>
+
+                {/* Currency-switch rate-limit disclaimer */}
+                {(currSwitchCount > 0 || currLockedUntil != null) && (
+                  <div className={`rounded-xl border px-3 py-2.5 text-xs leading-snug ${
+                    currLockedUntil != null
+                      ? "border-zinc-600 bg-zinc-800/60 text-zinc-400"
+                      : currSwitchCount >= 2
+                        ? "border-amber-800/50 bg-amber-950/30 text-amber-300"
+                        : "border-zinc-700 bg-zinc-800/40 text-zinc-400"
+                  }`}>
+                    {currLockedUntil != null
+                      ? t("profile.curr_switch_locked", { countdown: currLockCountdown })
+                      : currSwitchCount === 1
+                        ? t("profile.curr_switch_used_1")
+                        : t("profile.curr_switch_used_2")
+                    }
+                  </div>
+                )}
+
                 <button
                   onClick={handleRefreshRates}
                   disabled={!isOnline || refreshingRates}
