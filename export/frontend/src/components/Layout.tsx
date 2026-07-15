@@ -22,6 +22,7 @@ import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
+import { setAppBadgeCount } from "@/lib/app-badge";
 import { primeSniffAudio } from "@/lib/badger-notify";
 import { useToast } from "@/hooks/use-toast";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -370,6 +371,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       onSuccess: () => {
         setActiveUserId(null);
         queryClient.clear();
+        setAppBadgeCount(0); // clear the home-screen badge — it belongs to this account's unread count
         resetSplash(); // re-show splash → sequence plays → lands on login
       },
     },
