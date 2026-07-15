@@ -38,3 +38,4 @@ and no dependency on the other folder or on the original monorepo.
   already talks to Neon Postgres and Supabase Storage directly, not to any
   Replit-managed service.
 
+
