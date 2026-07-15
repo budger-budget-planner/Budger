@@ -768,8 +768,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           className="h-full overflow-auto"
           style={{
             paddingBottom: NAV_HEIGHT,
-            transform: `translateY(${ptrRefreshing ? 56 : ptrPullPx}px)`,
-            transition: ptrDragging ? "none" : "transform 0.25s ease",
+            marginTop: ptrRefreshing ? 56 : ptrPullPx,
+            transition: ptrDragging ? "none" : "margin-top 0.25s ease",
           }}
         >
           {children}
