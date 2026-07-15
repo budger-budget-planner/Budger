@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
@@ -1978,29 +1979,36 @@ export default function HomeSpending() {
         )}
       </div>
 
-      {/* ── Recurring payments button (only on current month when any manual RPs exist) ── */}
-      {isCurrentMonth && (
-        <button
-          onClick={() => { setRpSheetOpen(true); setRpExpanded(null); }}
-          className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
-                     shadow-xl flex items-center justify-center transition active:scale-90"
-          style={{ bottom: RECURRING_FAB_BOTTOM }}
-          title={t("rp.open_sheet")}
-        >
-          <RefreshCw className="w-6 h-6" />
-        </button>
-      )}
+      {/* ── FABs — portalled to document.body so they escape the overflow:auto
+           scroll container and truly fix to the viewport on iOS Safari ── */}
+      {createPortal(
+        <>
+          {/* Recurring payments button (only on current month when any manual RPs exist) */}
+          {isCurrentMonth && (
+            <button
+              onClick={() => { setRpSheetOpen(true); setRpExpanded(null); }}
+              className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
+                         shadow-xl flex items-center justify-center transition active:scale-90"
+              style={{ bottom: RECURRING_FAB_BOTTOM }}
+              title={t("rp.open_sheet")}
+            >
+              <RefreshCw className="w-6 h-6" />
+            </button>
+          )}
 
-      {/* ── Floating add button ── */}
-      <button
-        onClick={() => setAddOpen(true)}
-        data-testid="button-add-transaction"
-        className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
-                   shadow-xl flex items-center justify-center transition active:scale-90"
-        style={{ bottom: ADD_FAB_BOTTOM }}
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+          {/* Floating add button */}
+          <button
+            onClick={() => setAddOpen(true)}
+            data-testid="button-add-transaction"
+            className="fixed right-5 z-30 w-14 h-14 rounded-full bg-foreground text-background
+                       shadow-xl flex items-center justify-center transition active:scale-90"
+            style={{ bottom: ADD_FAB_BOTTOM }}
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </>,
+        document.body
+      )}
 
       {/* ── Recurring Payments sheet ── */}
       {rpSheetOpen && (
