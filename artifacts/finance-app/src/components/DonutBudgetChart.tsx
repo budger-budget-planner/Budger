@@ -157,7 +157,9 @@ function buildChart(
   const unbudgeted = spending.filter(s => s.budget == null || s.budget <= 0);
 
   const sumBudgets  = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
-  const uncatBudget = Math.max(0, totalBudget - sumBudgets);
+  // Round to cents so floating-point noise (e.g. 11052 - 11051.9997 = 0.0003)
+  // doesn't produce a near-zero budget that makes the % blow up to 196000 %.
+  const uncatBudget = Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
   const uncatSpent  = unbudgeted.reduce((a, s) => a + s.total, 0);
   const uncatRemain = Math.max(0, uncatBudget - uncatSpent);
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
@@ -195,7 +197,9 @@ function buildChart(
     }
   }
 
-  if (sumBudgets < totalBudget && (uncatBudget > 0 || uncatSpent > 0)) {
+  // Show uncategorised segment whenever there is spending, even when all
+  // budget is allocated (budget = 0 → no percentage shown in the legend).
+  if (uncatBudget > 0 || uncatSpent > 0) {
     const catKey = "cat-uncat";
     const parts  = [];
     const over   = uncatSpent > uncatBudget;
