@@ -68,3 +68,4 @@ reason not to use it.
   package), imported as `@/lib/api-client`
 - `src/sw.ts` — PWA service worker (push notifications, offline mutation
   queue)
+
