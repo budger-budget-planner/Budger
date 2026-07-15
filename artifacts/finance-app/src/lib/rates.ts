@@ -64,26 +64,109 @@ function loadAnyCache(): Record<string, number> | null {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Rate providers — tried in order; first success wins.
+// 1. ExchangeRate-API  — free, no key, updates every 12 h  (most frequent)
+// 2. Frankfurter       — ECB-backed, free, no key, updates once per business day
+// 3. fawazahmed0       — open-source, served from jsDelivr CDN + CF Pages mirror
+// ---------------------------------------------------------------------------
+
+interface RateProvider {
+  name: string;
+  fetch: () => Promise<Record<string, number>>;
+}
+
+const providers: RateProvider[] = [
+  {
+    // Primary: updates every 12 hours — https://www.exchangerate-api.com/
+    name: "ExchangeRate-API",
+    async fetch() {
+      const res = await fetch("https://open.er-api.com/v6/latest/USD", {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.result !== "success" || !json.rates)
+        throw new Error("unexpected response shape");
+      const rates: Record<string, number> = { USD: 1 };
+      for (const sym of SUPPORTED) {
+        if (sym !== "USD" && typeof json.rates[sym] === "number")
+          rates[sym] = json.rates[sym];
+      }
+      return rates;
+    },
+  },
+  {
+    // Fallback 1: ECB data — https://www.frankfurter.app/
+    name: "Frankfurter",
+    async fetch() {
+      const res = await fetch(
+        "https://api.frankfurter.app/latest?base=USD&symbols=EUR,GBP,PLN",
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.rates) throw new Error("unexpected response shape");
+      return { USD: 1, ...json.rates } as Record<string, number>;
+    },
+  },
+  {
+    // Fallback 2: open-source GitHub project, two CDN mirrors for extra safety
+    // https://github.com/fawazahmed0/exchange-api
+    name: "fawazahmed0",
+    async fetch() {
+      const mirrors = [
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+        "https://latest.currency-api.pages.dev/v1/currencies/usd.json",
+      ];
+      let lastErr: unknown;
+      for (const url of mirrors) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          // Response uses lowercase currency codes: { usd: { eur, gbp, pln, … } }
+          const usd = json.usd;
+          if (!usd) throw new Error("unexpected response shape");
+          const rates: Record<string, number> = { USD: 1 };
+          for (const sym of SUPPORTED) {
+            if (sym !== "USD" && typeof usd[sym.toLowerCase()] === "number")
+              rates[sym] = usd[sym.toLowerCase()];
+          }
+          return rates;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr;
+    },
+  },
+];
+
 export async function fetchRates(): Promise<Record<string, number>> {
   const cached = loadCached();
   if (cached) return cached.rates;
   return forceFetchRates();
 }
 
+/**
+ * Fetch fresh rates, trying each provider in order.
+ * Saves to localStorage on first success; falls back to any stale cache or
+ * hardcoded constants if every provider fails.
+ */
 export async function forceFetchRates(): Promise<Record<string, number>> {
-  try {
-    const res = await fetch(
-      "https://api.frankfurter.app/latest?base=USD&symbols=EUR,GBP,PLN",
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (!res.ok) throw new Error("fetch failed");
-    const json = await res.json();
-    const rates: Record<string, number> = { USD: 1, ...json.rates };
-    saveCache(rates);
-    return rates;
-  } catch {
-    return loadAnyCache() ?? FALLBACK_RATES;
+  for (const provider of providers) {
+    try {
+      const rates = await provider.fetch();
+      saveCache(rates);
+      return rates;
+    } catch (err) {
+      console.warn(`[rates] ${provider.name} failed, trying next provider`, err);
+    }
   }
+  // All providers failed — use stale cache if available, otherwise hardcoded fallback
+  console.warn("[rates] All providers failed — using cached/fallback rates");
+  return loadAnyCache() ?? FALLBACK_RATES;
 }
 
 /** Milliseconds until the next 12:00 AM or 12:00 PM local time. */
@@ -128,7 +211,7 @@ export function getConversionRate(
   rates: Record<string, number>
 ): number {
   const fromRate = rates[from] ?? FALLBACK_RATES[from] ?? 1;
-  const toRate   = rates[to]   ?? FALLBACK_RATES[to]   ?? 1;
+  const toRate = rates[to] ?? FALLBACK_RATES[to] ?? 1;
   return toRate / fromRate;
 }
 
