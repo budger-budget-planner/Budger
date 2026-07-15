@@ -36,8 +36,8 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 // inset is added below it. Fixed elements anchored above the nav (wave glow,
 // FABs, toasts) must derive their offsets from this same constant so they
 // stay aligned if the nav's height ever changes again.
-const NAV_CONTENT_HEIGHT = 80; // px — matches the nav's h-20
-const NAV_HEIGHT = `calc(${NAV_CONTENT_HEIGHT}px + env(safe-area-inset-bottom, 0px))`;
+export const NAV_CONTENT_HEIGHT = 80; // px — matches the nav's h-20
+export const NAV_HEIGHT = `calc(${NAV_CONTENT_HEIGHT}px + env(safe-area-inset-bottom, 0px))`;
 
 function navItems() {
   return [
