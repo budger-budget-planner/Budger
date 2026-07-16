@@ -409,7 +409,7 @@ export function ScreenshotImportDialog({
                   onChange={e => setNameInput(e.target.value)}
                   onBlur={handleNameSave}
                   onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                  placeholder="give me a name…"
+                  placeholder={t("ss.mascot_placeholder")}
                   maxLength={24}
                   className="w-36 text-xs text-center bg-transparent outline-none
                              text-muted-foreground/60 placeholder:text-muted-foreground/25
