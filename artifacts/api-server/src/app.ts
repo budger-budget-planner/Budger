@@ -9,7 +9,7 @@ import { randomBytes } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
-import { DATABASE_URL } from "@workspace/db";
+import { DATABASE_URL } from "./db";
 
 // Extend express-session with app-specific fields.
 declare module "express-session" {
@@ -122,6 +122,11 @@ const sessionStore = DATABASE_URL
       conString: DATABASE_URL,
       tableName: "sessions",
       createTableIfMissing: true,
+      // Automatically delete expired session rows once per hour so the table
+      // doesn't accumulate 30 days of abandoned sessions (each login that is
+      // killed and reopened leaves a row; without pruning they pile up and can
+      // fill Neon's storage limit).
+      pruneSessionInterval: 3600,
     })
   : undefined;
 
