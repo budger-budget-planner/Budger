@@ -297,6 +297,7 @@ function MemberSheet({
   onRoleChange,
   onRemove,
   rates,
+  anchorY,
 }: {
   member: MemberRow;
   onClose: () => void;
@@ -305,6 +306,7 @@ function MemberSheet({
   onRoleChange?: (newRole: string) => void;
   onRemove?: () => void;
   rates: Record<string, number> | null;
+  anchorY: number;
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
   const [savingRole, setSavingRole] = useState(false);
@@ -334,6 +336,31 @@ function MemberSheet({
   const canEditRole = isViewerHead && !isMe;
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
 
+  // ── Anchor-aware positioning ─────────────────────────────────────────────
+  // Position the panel just below (or above) the row the user tapped,
+  // clamped so it never overflows the viewport or hides behind the nav bar.
+  const vpH = window.innerHeight;
+  const GAP = 10;
+  const TOP_CLEARANCE = 60;   // allow for status bar / top chrome
+  const BOTTOM_CLEARANCE = 100; // nav bar (80) + a little breathing room
+
+  const spaceBelow = vpH - anchorY - GAP - BOTTOM_CLEARANCE;
+  const spaceAbove = anchorY - GAP - TOP_CLEARANCE;
+
+  // Prefer opening below; only flip above if below is genuinely too tight
+  // and above offers meaningfully more room.
+  const openBelow = spaceBelow >= 220 || spaceBelow >= spaceAbove - 50;
+
+  const panelPositionStyle: React.CSSProperties = openBelow
+    ? {
+        top: Math.max(anchorY + GAP, TOP_CLEARANCE),
+        maxHeight: Math.max(spaceBelow, 220),
+      }
+    : {
+        bottom: vpH - anchorY + GAP,
+        maxHeight: Math.max(spaceAbove, 220),
+      };
+
   async function handleRoleSave() {
     if (selectedRole === member.role) { onClose(); return; }
     setSavingRole(true);
@@ -348,11 +375,10 @@ function MemberSheet({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[85vh] flex flex-col"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-white/20" />
-        </div>
+      <div
+        className="fixed left-0 right-0 z-50 bg-[#111] rounded-2xl flex flex-col overflow-hidden"
+        style={panelPositionStyle}
+      >
         <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
@@ -784,6 +810,7 @@ export default function HouseholdPage() {
   const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
+  const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1374,7 +1401,11 @@ export default function HouseholdPage() {
                     key={m.userId}
                     data-testid={`row-member-${m.userId}`}
                     className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors group"
-                    onClick={() => setSelectedMember(m as MemberRow)}
+                    onClick={(e) => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setMemberAnchorY(rect.bottom);
+                      setSelectedMember(m as MemberRow);
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -1782,6 +1813,7 @@ export default function HouseholdPage() {
           member={selectedMember}
           isMe={selectedMember.userId === me?.id}
           viewerRole={myRole}
+          anchorY={memberAnchorY}
           onClose={() => setSelectedMember(null)}
           onRoleChange={async (newRole) => {
             await handleRoleChange(selectedMember.userId, newRole);
