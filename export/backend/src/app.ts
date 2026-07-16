@@ -219,6 +219,10 @@ const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function csrfProtection(req: express.Request, res: express.Response, next: express.NextFunction): void {
   if (CSRF_SAFE_METHODS.has(req.method)) return next();
+  // Webhook endpoints authenticate via a per-user token in the URL path, not
+  // via session cookies, so they cannot supply a CSRF token. They are safe to
+  // exempt because any attacker would also need to know the user's secret token.
+  if (req.path.startsWith("/webhook/")) return next();
   const sessionToken = req.session.csrfToken;
   const headerToken = req.headers["x-csrf-token"] as string | undefined;
   if (!sessionToken || !headerToken || sessionToken !== headerToken) {
