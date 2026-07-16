@@ -210,29 +210,35 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const targetUserId = params.data.userId;
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
-  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+  // ── CRITICAL: coerce both sides to Number before comparing.
+  // currentUserId is stored as a number in the session; targetUserId comes from
+  // a URL param and may arrive as a string depending on how the Zod schema
+  // parses it. A strict !== across different types is always true, which caused
+  // the self-check to silently fail — the caller's own private dashboard was
+  // evaluated against the role-fallback path and could be blocked for themselves.
+  const isSelf = Number(targetUserId) === Number(currentUserId);
 
-  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, targetUserId));
+  // Fetch both users in parallel — they are independent queries.
+  const [[currentUser], [targetUser]] = await Promise.all([
+    db.select().from(usersTable).where(eq(usersTable.id, Number(currentUserId))),
+    db.select().from(usersTable).where(eq(usersTable.id, Number(targetUserId))),
+  ]);
+
+  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
   if (!targetUser || targetUser.householdId !== currentUser.householdId) {
     res.status(404).json({ error: "Member not found" }); return;
   }
 
-  // Viewing own data is always allowed
-  if (targetUserId !== currentUserId) {
-    // Look up roles by userId alone (a user has exactly one household_members
-    // row — enforced by a unique constraint) rather than filtering by
-    // currentUser.householdId as well. Double-filtering silently fell back to
-    // the "child" (least-privileged) role whenever a user's `users.household_id`
-    // and their `household_members` row ever drifted out of sync, which could
-    // wrongly deny a genuine head access to a member's dashboard.
-    const [viewerMembership] = await db.select().from(householdMembersTable)
-      .where(eq(householdMembersTable.userId, currentUserId));
+  // Viewing own data is always allowed — skip the privacy block entirely.
+  if (!isSelf) {
+    // Fetch both memberships in parallel — independent queries.
+    // Look up by userId alone (not householdId) — see earlier comment about
+    // drift between users.household_id and household_members rows.
+    const [[viewerMembership], [targetMembership]] = await Promise.all([
+      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(currentUserId))),
+      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(targetUserId))),
+    ]);
     const viewerRole = viewerMembership?.role ?? "child";
-
-    // Get target's role
-    const [targetMembership] = await db.select().from(householdMembersTable)
-      .where(eq(householdMembersTable.userId, targetUserId));
     const targetRole = targetMembership?.role ?? "child";
 
     if (targetUser.dashboardBlocked) {
@@ -255,45 +261,37 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, targetUserId));
-  const categories = await db.select().from(categoriesTable);
+  // Fire all four data queries in parallel. Filtering is done in SQL so we
+  // only transfer this month's rows rather than the member's full history.
+  const [txs, categories, memberRPs, validRpLogs] = await Promise.all([
+    db.select().from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.userId, Number(targetUserId)),
+        sql`${transactionsTable.date} like ${monthPrefix + "%"}`,
+        eq(transactionsTable.currencyLocked, false),
+        eq(transactionsTable.foundedWithRealizedGoal, false),
+        eq(transactionsTable.isLarderFund, false),
+      )),
+    db.select().from(categoriesTable),
+    db.select().from(recurringPaymentsTable)
+      .where(eq(recurringPaymentsTable.userId, Number(targetUserId))),
+    db.select({
+        recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
+        transactionId: recurringPaymentLogsTable.transactionId,
+      })
+      .from(recurringPaymentLogsTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, recurringPaymentLogsTable.transactionId))
+      .where(and(
+        eq(recurringPaymentLogsTable.userId, Number(targetUserId)),
+        eq(recurringPaymentLogsTable.monthKey, monthPrefix),
+      )),
+  ]);
+
   const catMap = new Map(categories.map(c => [c.id, c]));
+  // txs already pre-filtered by SQL — no JS re-filter needed.
+  const filtered = txs;
 
-  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal && !t.isLarderFund);
-
-  const grouped = new Map<string, { total: number; count: number; category: any }>();
-  for (const tx of filtered) {
-    const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
-    const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
-    if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
-    const entry = grouped.get(key)!;
-    entry.total += parseFloat(tx.amount);
-    entry.count += 1;
-  }
-
-  const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
-
-  // Fetch recurring payments for this member and merge them in.
-  // INNER JOIN with transactions: only consider logs whose transaction still exists,
-  // so a deleted transaction doesn't permanently mark the RP as "applied".
-  const memberRPs = await db.select().from(recurringPaymentsTable)
-    .where(eq(recurringPaymentsTable.userId, targetUserId));
-  const validRpLogs = await db
-    .select({
-      recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
-      transactionId: recurringPaymentLogsTable.transactionId,
-    })
-    .from(recurringPaymentLogsTable)
-    .innerJoin(
-      transactionsTable,
-      eq(transactionsTable.id, recurringPaymentLogsTable.transactionId),
-    )
-    .where(and(
-      eq(recurringPaymentLogsTable.userId, targetUserId),
-      eq(recurringPaymentLogsTable.monthKey, monthPrefix),
-    ));
-  const appliedRPIds  = new Set(validRpLogs.map(l => l.recurringPaymentId));
+  const appliedRPIds = new Set(validRpLogs.map(l => l.recurringPaymentId));
   // Exclude RP-linked transactions from the regular category grouping so they are
   // only accounted for via the RP rows (prevents double-counting).
   const rpTxIds = new Set(validRpLogs.map(l => l.transactionId).filter(Boolean) as number[]);
