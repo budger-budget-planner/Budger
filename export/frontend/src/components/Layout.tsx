@@ -411,6 +411,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [currSwitchCount, setCurrSwitchCount]     = useState(0);
   const [currLockedUntil, setCurrLockedUntil]     = useState<number | null>(null);
   const [currLockCountdown, setCurrLockCountdown] = useState("");
+  // Warning banner is only visible for 30 s after a change (invisible timer,
+  // not shown in the UI). Locked state stays visible via currLockedUntil.
+  const [currWarnVisible, setCurrWarnVisible]     = useState(false);
+  const currWarnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
 
   const resetSplash = useSplashReset();
@@ -446,6 +450,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(currSwitchKey(_uid), JSON.stringify({ count: newCount, lockedUntil: lockUntil }));
     } catch { /* ignore */ }
+
+    // Show the warning banner; auto-hide after 30 s unless we just locked
+    // (locked state stays visible via currLockedUntil until the lock expires).
+    setCurrWarnVisible(true);
+    if (currWarnTimerRef.current) clearTimeout(currWarnTimerRef.current);
+    if (!lockUntil) {
+      currWarnTimerRef.current = setTimeout(() => setCurrWarnVisible(false), 30_000);
+    }
 
     // Snapshot the current currency synchronously — before any await — so the
     // async body always uses the currency that was active at call time, not
@@ -604,6 +616,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         setCurrLockedUntil(null);
         setCurrSwitchCount(0);
         setCurrLockCountdown("");
+        setCurrWarnVisible(false); // lock expired — hide banner
         return;
       }
       const mins = Math.floor(remaining / 60_000);
@@ -761,7 +774,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Currency-switch rate-limit disclaimer */}
-                {(currSwitchCount > 0 || currLockedUntil != null) && (
+                {(currWarnVisible || currLockedUntil != null) && (
                   <div className={`rounded-xl border px-3 py-2.5 text-xs leading-snug ${
                     currLockedUntil != null
                       ? "border-zinc-600 bg-zinc-800/60 text-zinc-400"
