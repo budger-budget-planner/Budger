@@ -19,6 +19,7 @@ import DonutBudgetChart from "@/components/DonutBudgetChart";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { AmtHero } from "@/components/AmtHero";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 import { useLiveActivity } from "@/hooks/useLiveActivity";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -184,7 +185,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-2 mb-5">
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.total_spent")}</p>
-          <p className="text-2xl font-bold" data-testid="text-total-spent">{fmtAmt(totalSpending, prefs.currency)}</p>
+          <p className="text-2xl font-bold" data-testid="text-total-spent"><AmtHero amount={totalSpending} currency={prefs.currency} /></p>
           {realizedExcluded > 0 ? (
             <p className="text-xs text-teal-400">+{fmtAmt(realizedExcluded, prefs.currency)} {t("home.realized_goal_excluded")}</p>
           ) : (
@@ -234,7 +235,7 @@ export default function DashboardPage() {
 
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_goals")}</p>
-          <p className="text-2xl font-bold">{fmtAmtRound(totalGoalContributions, prefs.currency)}</p>
+          <p className="text-2xl font-bold"><AmtHero amount={totalGoalContributions} currency={prefs.currency} /></p>
           <p className="text-xs text-muted-foreground">
             {activeGoalsWithContribs.length > 0
               ? prefs.language === "pl"

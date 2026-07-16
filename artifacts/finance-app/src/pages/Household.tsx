@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
+import { AmtHero } from "@/components/AmtHero";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -1679,7 +1680,7 @@ export default function HouseholdPage() {
                     <>
                       <p className="text-4xl font-bold tracking-tight text-white"
                         style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
-                        {fmtAmtRound(greatLarder.total, greatLarder.currency)}
+                        <AmtHero amount={greatLarder.total} currency={greatLarder.currency} />
                       </p>
                       {/* Currency breakdown — shown when savings span multiple currencies */}
                       {(() => {

@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
+import { AmtHero } from "@/components/AmtHero";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -581,7 +582,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               className="text-5xl font-bold tracking-tight text-white tabular-nums"
               style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
             >
-              {fmtAmt(total, prefs.currency)}
+              <AmtHero amount={total} currency={prefs.currency} />
             </p>
             {/* Currency breakdown — shown when savings span multiple currencies,
                 or a subtle label when all contributions share one currency */}
