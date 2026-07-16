@@ -8,6 +8,12 @@ import { useEffect, useRef, useState } from "react";
  *
  * The user must drag down roughly 1/5 of the viewport height to commit to a
  * refresh; releasing short of that snaps back with no effect.
+ *
+ * PERFORMANCE: the non-passive touchmove listener is registered dynamically —
+ * only added in handleStart when scrollTop === 0 (PTR can engage), and always
+ * removed in handleEnd. When the user is anywhere below the top, there is NO
+ * non-passive listener on the container, so the browser can use the
+ * compositor-thread fast path for scrolling.
  */
 export function usePullToRefresh(
   containerRef: React.RefObject<HTMLElement | null>,
@@ -43,13 +49,6 @@ export function usePullToRefresh(
       setDragging(false);
     }
 
-    function handleStart(e: TouchEvent) {
-      if (disabledRef.current || refreshingRef.current) return;
-      if (el!.scrollTop > 0) { startY.current = null; return; }
-      startY.current = e.touches[0].clientY;
-      startX.current = e.touches[0].clientX;
-    }
-
     function handleMove(e: TouchEvent) {
       if (startY.current == null || disabledRef.current || refreshingRef.current) return;
       const dy = e.touches[0].clientY - startY.current;
@@ -58,12 +57,12 @@ export function usePullToRefresh(
       if (!committed.current) {
         // Wait for a clear, mostly-vertical downward drag before claiming the
         // gesture — bails out cleanly for horizontal swipes (carousels, etc.).
-        if (dy <= 6 || Math.abs(dx) > dy || el!.scrollTop > 0) return;
+        if (dy <= 6 || Math.abs(dx) > dy || el.scrollTop > 0) return;
         committed.current = true;
         setDragging(true);
       }
 
-      if (dy <= 0 || el!.scrollTop > 0) { reset(); return; }
+      if (dy <= 0 || el.scrollTop > 0) { reset(); return; }
       if (e.cancelable) e.preventDefault();
 
       const threshold = window.innerHeight / 5; // ~1/5 of the screen
@@ -73,7 +72,20 @@ export function usePullToRefresh(
       setPull(pullRef.current);
     }
 
+    function handleStart(e: TouchEvent) {
+      if (disabledRef.current || refreshingRef.current) return;
+      if (el.scrollTop > 0) { startY.current = null; return; }
+      startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
+      // Only add the non-passive listener when at the top — this lets the
+      // browser use the fast compositor scroll path at all other positions.
+      el.addEventListener("touchmove", handleMove, { passive: false });
+    }
+
     async function handleEnd() {
+      // Always clean up the dynamically-added move listener.
+      el.removeEventListener("touchmove", handleMove);
+
       if (!committed.current) { startY.current = null; return; }
       committed.current = false;
       startY.current = null;
@@ -100,7 +112,6 @@ export function usePullToRefresh(
     }
 
     el.addEventListener("touchstart", handleStart, { passive: true });
-    el.addEventListener("touchmove", handleMove, { passive: false });
     el.addEventListener("touchend", handleEnd, { passive: true });
     el.addEventListener("touchcancel", handleEnd, { passive: true });
     return () => {
