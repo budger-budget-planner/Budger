@@ -40,12 +40,14 @@ export function useSmartNotifications() {
 
     const sym = currencySymbol(loadPrefs().currency);
     checkBudgetThresholdNotifications(
-      spendingSummary.map((e: any) => ({
-        categoryId: e.categoryId,
-        categoryName: e.categoryName,
-        total: e.total,
-        budget: e.budget,
-      })),
+      spendingSummary
+        .filter((e: any) => !e.recurringPaymentId)
+        .map((e: any) => ({
+          categoryId: e.categoryId,
+          categoryName: e.categoryName,
+          total: e.total,
+          budget: e.budget,
+        })),
       sym,
     );
   }, [spendingSummary]);
