@@ -104,7 +104,7 @@ export function checkGoalNotifications(
     const bodyEn = `You're ${totalPct}% of the way to your goal (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). ${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} remaining — ${sym}${remaining.toFixed(2)} to go!`;
     const bodyPl = `Jesteś w ${totalPct}% drogi do celu (${sym}${goal.contributed.toFixed(2)} / ${sym}${goal.budget.toFixed(2)}). Pozostało ${monthsLeft} ${monthsLeft === 1 ? "miesiąc" : "miesięcy"} — jeszcze ${sym}${remaining.toFixed(2)}!`;
 
-    showNotification("Budger", { body: bodyEn, url: "/", tag: `goal-overall-${goal.goalId}` });
+    showNotification("", { body: bodyEn, url: "/", tag: `goal-overall-${goal.goalId}` });
     addNCNotification({ type: "goal_overall", titleEn, titlePl, bodyEn, bodyPl, dedupKey: `goal_notify_${thisMonthKey()}` });
   }
 }
