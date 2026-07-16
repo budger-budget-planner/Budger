@@ -969,6 +969,7 @@ export const UpdateNotificationSettingsBody = zod.object({
   enabled: zod.boolean(),
   reminderTime: zod.string(),
   days: zod.array(zod.string()),
+  timezone: zod.string().optional(),
 });
 
 export const UpdateNotificationSettingsResponse = zod.object({
@@ -976,6 +977,7 @@ export const UpdateNotificationSettingsResponse = zod.object({
   userId: zod.number(),
   enabled: zod.boolean(),
   reminderTime: zod.string(),
+  timezone: zod.string(),
   days: zod.array(zod.string()),
   createdAt: zod.string(),
 });

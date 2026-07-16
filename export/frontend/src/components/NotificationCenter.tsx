@@ -150,7 +150,48 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [permStatus]);
 
+  // Cleanup all timers when component unmounts.
   useEffect(() => () => { reminderTimers.current.forEach(clearTimeout); }, []);
+
+  // Re-register client-side timers whenever alerts or permission status changes.
+  // This runs on mount (covering app-open) and after any alert state update,
+  // so the timer is always fresh regardless of when the user last saved settings.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    reminderTimers.current.forEach(clearTimeout);
+    reminderTimers.current = [];
+
+    for (const alert of alerts) {
+      if (!alert.enabled || alert.days.length === 0) continue;
+      const [h, m] = alert.time.split(":").map(Number);
+      const now = new Date();
+      const next = new Date();
+      next.setHours(h, m, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      const id = setTimeout(async () => {
+        if ("Notification" in window && Notification.permission === "granted") {
+          await showNotification(t("notif.budger_reminder"), {
+            body: t("notif.dont_forget"),
+            url: "/?sheet=alerts",
+            tag: "daily-reminder",
+          });
+          addNCNotification({
+            type: "daily_reminder",
+            titleEn: "Budger Reminder",
+            titlePl: "Przypomnienie Budger",
+            bodyEn: "Don't forget to log today's spending!",
+            bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
+          });
+          const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
+          triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
+        }
+      }, next.getTime() - now.getTime());
+      reminderTimers.current.push(id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts, permStatus]);
 
   function toggleDay(alertId: string, day: string) {
     setAlerts(prev => prev.map(a => {
@@ -172,40 +213,10 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
     }
     saveAlerts(alerts);
     const first = alerts[0];
-    update.mutate({ data: { enabled: first?.enabled ?? false, reminderTime: first?.time ?? "20:00", days: first?.days ?? [] } });
-
-    reminderTimers.current.forEach(clearTimeout);
-    reminderTimers.current = [];
-
-    if ("Notification" in window && Notification.permission === "granted") {
-      for (const alert of alerts) {
-        if (!alert.enabled || alert.days.length === 0) continue;
-        const [h, m] = alert.time.split(":").map(Number);
-        const now = new Date();
-        const next = new Date();
-        next.setHours(h, m, 0, 0);
-        if (next <= now) next.setDate(next.getDate() + 1);
-        const id = setTimeout(async () => {
-          if ("Notification" in window && Notification.permission === "granted") {
-            await showNotification(t("notif.budger_reminder"), {
-              body: t("notif.dont_forget"),
-              url: "/?sheet=alerts",
-              tag: "daily-reminder",
-            });
-            addNCNotification({
-              type: "daily_reminder",
-              titleEn: "Budger Reminder",
-              titlePl: "Przypomnienie Budger",
-              bodyEn: "Don't forget to log today's spending!",
-              bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
-            });
-            const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
-            triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
-          }
-        }, next.getTime() - now.getTime());
-        reminderTimers.current.push(id);
-      }
-    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    update.mutate({ data: { enabled: first?.enabled ?? false, reminderTime: first?.time ?? "20:00", days: first?.days ?? [], timezone: tz } });
+    // Client-side timers are managed by the useEffect([alerts, permStatus]) above —
+    // no manual registration needed here; setAlerts triggers it automatically.
   }
 
   return (

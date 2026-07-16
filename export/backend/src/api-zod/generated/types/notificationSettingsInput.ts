@@ -10,4 +10,5 @@ export interface NotificationSettingsInput {
   enabled: boolean;
   reminderTime: string;
   days: string[];
+  timezone?: string;
 }

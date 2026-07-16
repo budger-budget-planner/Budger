@@ -11,6 +11,7 @@ export interface NotificationSettings {
   userId: number;
   enabled: boolean;
   reminderTime: string;
+  timezone: string;
   days: string[];
   createdAt: string;
 }

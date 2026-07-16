@@ -9,6 +9,7 @@ export const notificationSettingsTable = pgTable("notification_settings", {
   userId: integer("user_id").notNull().unique().references(() => usersTable.id, { onDelete: "cascade" }),
   enabled: boolean("enabled").notNull().default(false),
   reminderTime: text("reminder_time").notNull().default("20:00"),
+  timezone: text("timezone").notNull().default("UTC"),
   days: text("days").array().notNull().default(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

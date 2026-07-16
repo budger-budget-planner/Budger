@@ -16,6 +16,7 @@ function formatSettings(s: any) {
     userId: s.userId,
     enabled: s.enabled,
     reminderTime: s.reminderTime,
+    timezone: s.timezone ?? "UTC",
     days: s.days,
     createdAt: s.createdAt.toISOString(),
   };
@@ -259,12 +260,60 @@ router.delete("/notifications/push-subscribe", async (req, res): Promise<void> =
 
 // ── Daily reminder scheduler ──────────────────────────────────────────────────
 
-async function sendDailyReminders() {
-  if (!PUSH_CONFIGURED) return; // push-sender logs a warn at startup; no need to repeat every minute
+/**
+ * Returns the current HH:MM in the given IANA timezone.
+ * Falls back to UTC if the timezone string is invalid.
+ */
+function getLocalHHMM(timezone: string): string {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
+    const hh = parts.find(p => p.type === "hour")?.value ?? "00";
+    const mm = parts.find(p => p.type === "minute")?.value ?? "00";
+    // Some environments emit "24" for midnight — normalise it.
+    return `${hh === "24" ? "00" : hh}:${mm}`;
+  } catch {
+    const now = new Date();
+    return `${String(now.getUTCHours()).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")}`;
+  }
+}
 
-  const now = new Date();
-  const currentHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const currentDayKey = DAY_KEYS[now.getDay()];
+/**
+ * Returns the current day-of-week key ("mon"…"sun") in the given IANA timezone.
+ */
+function getLocalDayKey(timezone: string): string {
+  try {
+    const now = new Date();
+    const dayName = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+    }).format(now).toLowerCase(); // "mon", "tue", …, "sun"
+    return dayName;
+  } catch {
+    return DAY_KEYS[new Date().getUTCDay()];
+  }
+}
+
+// In-memory dedup: prevents double-sends when the interval fires twice near a
+// minute boundary (e.g. after a server restart). Key: `userId:YYYY-MM-DD:HH:MM`.
+// Cleared at midnight UTC so tomorrow's reminders can fire normally.
+const sentReminderKeys = new Set<string>();
+
+function todayUTCStr(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+// Reset dedup set every 24 h.
+setInterval(() => sentReminderKeys.clear(), 24 * 60 * 60 * 1000);
+
+async function sendDailyReminders() {
+  if (!PUSH_CONFIGURED) return;
 
   let settingsList: any[] = [];
   try {
@@ -275,11 +324,20 @@ async function sendDailyReminders() {
     return;
   }
 
-  const dueUsers = settingsList.filter(s =>
-    s.reminderTime === currentHHMM && s.days.includes(currentDayKey)
-  );
+  // Check each user's reminder time in their own timezone.
+  const dueUsers = settingsList.filter(s => {
+    const tz = s.timezone || "UTC";
+    const localHHMM  = getLocalHHMM(tz);
+    const localDay   = getLocalDayKey(tz);
+    return s.reminderTime === localHHMM && s.days.includes(localDay);
+  });
 
   for (const settings of dueUsers) {
+    // Dedup: skip if we already sent this user's reminder for this minute today.
+    const dedupKey = `${settings.userId}:${todayUTCStr()}:${settings.reminderTime}`;
+    if (sentReminderKeys.has(dedupKey)) continue;
+    sentReminderKeys.add(dedupKey);
+
     let subs: any[] = [];
     try {
       subs = await db.select().from(pushSubscriptionsTable)
@@ -318,12 +376,29 @@ async function sendDailyReminders() {
   }
 }
 
-// Run every minute
-setInterval(() => {
-  sendDailyReminders().catch((err) => {
-    logger.warn({ err }, "daily-reminder: unhandled error in reminder job");
-  });
-}, 60_000);
+// ── Minute-aligned scheduler ─────────────────────────────────────────────────
+// Align the first tick to the top of the next wall-clock minute so the check
+// always lands at :00 seconds rather than at a random offset depending on when
+// the process started.  After the first aligned tick, run every 60 s.
+// This prevents missing a user's minute window on server restarts.
+function scheduleDailyReminders() {
+  const now = new Date();
+  const msUntilNextMinute =
+    (60 - now.getSeconds()) * 1_000 - now.getMilliseconds() + 50; // +50 ms buffer
+
+  setTimeout(() => {
+    sendDailyReminders().catch(err =>
+      logger.warn({ err }, "daily-reminder: unhandled error in reminder job"),
+    );
+    setInterval(() => {
+      sendDailyReminders().catch(err =>
+        logger.warn({ err }, "daily-reminder: unhandled error in reminder job"),
+      );
+    }, 60_000);
+  }, msUntilNextMinute);
+}
+
+scheduleDailyReminders();
 
 // Smart alerts (budget thresholds + goal check-ins) — server-side push so
 // they fire even when the app is closed.  Import triggers its own scheduler.
