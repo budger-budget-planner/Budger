@@ -73,7 +73,7 @@ self.addEventListener("push", (event) => {
   const iconUrl   = data.icon  || new URL("favicon.svg", scope).href;
   const targetUrl = data.url   || new URL("?sheet=alerts", scope).href;
 
-  const title = data.title || "Budger";
+  const title = typeof data.title === "string" ? data.title : "";
   const options = {
     body: data.body || "Time to log your spending.",
     icon: iconUrl,

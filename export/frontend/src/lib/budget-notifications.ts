@@ -50,7 +50,7 @@ export function checkBudgetThresholdNotifications(
     if (!state[key]["75"]) {
       state[key]["75"] = true;
       changed = true;
-      showNotification("Budger", {
+      showNotification("", {
         body: `You've used ${Math.round(pct)}% of your ${catName} budget. ${sym}${remaining} remaining this month.`,
         url: "/",
         tag: `budget-75-${key}`,
@@ -71,7 +71,7 @@ export function checkBudgetThresholdNotifications(
     if (!state[key]["90"]) {
       state[key]["90"] = true;
       changed = true;
-      showNotification("Budger", {
+      showNotification("", {
         body: `You've used ${Math.round(pct)}% of your ${catName} budget. Only ${sym}${remaining} left — slow down!`,
         url: "/",
         tag: `budget-90-${key}`,
@@ -111,7 +111,7 @@ export function checkBudgetThresholdNotifications(
       if (!state["total"]["90"]) {
         state["total"]["90"] = true;
         changed = true;
-        showNotification("Budger", {
+        showNotification("", {
           body: `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${sym}${totalRemaining} left — watch your spending!`,
           url: "/",
           tag: "budget-90-total",
@@ -130,7 +130,7 @@ export function checkBudgetThresholdNotifications(
       if (!state["total"]["75"]) {
         state["total"]["75"] = true;
         changed = true;
-        showNotification("Budger", {
+        showNotification("", {
           body: `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${sym}${totalRemaining} remaining.`,
           url: "/",
           tag: "budget-75-total",
