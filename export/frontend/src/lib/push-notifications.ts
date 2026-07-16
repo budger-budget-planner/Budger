@@ -1,4 +1,5 @@
 // Web Push notification utilities
+import { apiFetch } from "./api";
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -49,10 +50,11 @@ export async function savePushSubscriptionToServer(sub: PushSubscription): Promi
   const p256dh = btoa(String.fromCharCode(...new Uint8Array(key)));
   const authStr = btoa(String.fromCharCode(...new Uint8Array(auth)));
 
-  await fetch("/api/notifications/push-subscribe", {
+  // Must use apiFetch (not raw fetch) — the backend requires an x-csrf-token
+  // header on all POST mutations; raw fetch omits it and gets a silent 403.
+  await apiFetch("/api/notifications/push-subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ endpoint: sub.endpoint, p256dh, auth: authStr }),
   });
 }
@@ -107,10 +109,10 @@ export async function unsubscribeFromPushNotifications(): Promise<void> {
   }
 
   try {
-    await fetch("/api/notifications/push-subscribe", {
+    // Must use apiFetch — DELETE mutations require x-csrf-token header.
+    await apiFetch("/api/notifications/push-subscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ endpoint }),
     });
   } catch {

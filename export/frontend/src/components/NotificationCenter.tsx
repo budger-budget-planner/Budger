@@ -439,8 +439,6 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (Notification.permission === "denied")  return "denied";
     return "prompt";
   });
-  const updateNotifPush = useUpdateNotificationSettings();
-
   // Offline sync status (shown in the Sync section above Smart alerts)
   const [syncExpanded, setSyncExpanded] = useState(false);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
@@ -492,7 +490,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       if (!("Notification" in window)) return;
       if (Notification.permission === "granted") {
         setPushStatus("granted");
-        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        // Only register the push subscription — do NOT overwrite notification
+        // settings here. The AlarmPanel is the canonical source of truth for
+        // enabled/reminderTime/days. Overwriting them with wrong defaults
+        // (hardcoded "20:00" and numeric day strings) breaks the scheduler.
         if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       }
     }
@@ -505,7 +506,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (!("Notification" in window)) { setPushStatus("unsupported"); return; }
     if (Notification.permission === "granted") {
       setPushStatus("granted");
-      updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+      // Only subscribe — don't overwrite alarm settings with hardcoded defaults.
       if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       return;
     }
@@ -514,7 +515,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         setPushStatus("granted");
-        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        // Only subscribe — don't overwrite alarm settings with hardcoded defaults.
         if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       } else {
         setPushStatus("denied");
