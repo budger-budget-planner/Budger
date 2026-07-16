@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
-import { receiptSrc, compressImage, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
@@ -386,7 +386,6 @@ function ReceiptModal({
   const queryClient = useQueryClient();
   const sym = currencySymbol(loadPrefs().currency);
   const libraryRef = useRef<HTMLInputElement>(null);
-  const cameraRef  = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
   // Holds the receipt image immediately after a successful upload/delete so
   // the preview updates at once without waiting for the query refetch.
@@ -450,13 +449,6 @@ function ReceiptModal({
     }
   }
 
-  async function handleCameraClick() {
-    if (isOffline || uploadReceipt.isPending) return;
-    const result = await requestCameraPermission();
-    if (result === "denied") { alert(t("camera.denied")); return; }
-    cameraRef.current?.click();
-  }
-
   return (
     <>
       <Dialog open={open && !lightbox} onOpenChange={onClose}>
@@ -508,28 +500,16 @@ function ReceiptModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={handleCameraClick}
-                disabled={isOffline || uploadReceipt.isPending}
-                data-testid="button-camera-receipt"
-              >
-                <Camera className="w-4 h-4" />
-                {t("receipt.camera")}
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => libraryRef.current?.click()}
-                disabled={isOffline || uploadReceipt.isPending}
-                data-testid="button-add-receipt"
-              >
-                <Image className="w-4 h-4" />
-                {t("receipt.library")}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => libraryRef.current?.click()}
+              disabled={isOffline || uploadReceipt.isPending}
+              data-testid="button-add-receipt"
+            >
+              <Plus className="w-4 h-4" />
+              {effectiveReceiptImage ? "Replace" : "Add"}
+            </Button>
 
             <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
           </div>
@@ -564,15 +544,6 @@ function ReceiptModal({
         className="hidden"
         onChange={handleFileChange}
         data-testid="input-receipt-library"
-      />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleFileChange}
-        data-testid="input-receipt-camera"
       />
     </>
   );

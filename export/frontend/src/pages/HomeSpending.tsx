@@ -38,7 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { receiptSrc, compressImage, requestCameraPermission } from "@/lib/imageUtils";
+import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
@@ -333,7 +333,6 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
 function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onClose: () => void; sym: string }) {
   const queryClient  = useQueryClient();
   const libraryRef   = useRef<HTMLInputElement>(null);
-  const cameraRef    = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
   // Holds the receipt image immediately after a successful upload/delete so
   // the preview updates at once without waiting for the query refetch.
@@ -392,16 +391,6 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     }
   }
 
-  async function handleCameraClick() {
-    if (uploadReceipt.isPending) return;
-    // Proactively request camera permission so iOS shows the system prompt
-    // before we open the capture input. Falls through on unavailability so
-    // the capture input still works on devices without getUserMedia support.
-    const result = await requestCameraPermission();
-    if (result === "denied") { alert(t("camera.denied")); return; }
-    cameraRef.current?.click();
-  }
-
   return (
     <>
       <Dialog open={open && !lightbox} onOpenChange={onClose}>
@@ -443,18 +432,11 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
                 </Button>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="gap-2"
-                onClick={handleCameraClick} disabled={uploadReceipt.isPending}>
-                <Camera className="w-4 h-4" />
-                {t("receipt.camera")}
-              </Button>
-              <Button variant="outline" className="gap-2"
-                onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
-                <Image className="w-4 h-4" />
-                {t("receipt.library")}
-              </Button>
-            </div>
+            <Button variant="outline" className="w-full gap-2"
+              onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
+              <Plus className="w-4 h-4" />
+              {uploadReceipt.isPending ? t("home.uploading") : effectiveReceiptImage ? t("home.replace_photo") : t("home.add_photo")}
+            </Button>
             <Button variant="ghost" className="w-full" onClick={onClose}>{t("common.done")}</Button>
           </div>
         </DialogContent>
@@ -474,8 +456,6 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
       )}
 
       <input ref={libraryRef} type="file" accept="image/*"
-        className="hidden" onChange={handleFileChange} />
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment"
         className="hidden" onChange={handleFileChange} />
     </>
   );
