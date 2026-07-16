@@ -443,7 +443,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     // Track switch count; apply 15-min lock on the 3rd change.
     const newCount = currSwitchCount + 1;
-    const lockUntil = newCount >= 3 ? Date.now() + 15 * 60 * 1_000 : null;
+    const lockUntil = newCount >= 3 ? Date.now() + 5 * 60 * 1_000 : null;
     setCurrSwitchCount(newCount);
     if (lockUntil) setCurrLockedUntil(lockUntil);
     const _uid = (user as any)?.id ?? null;
