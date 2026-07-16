@@ -79,7 +79,10 @@ self.addEventListener("push", (event) => {
     icon: iconUrl,
     badge: new URL("favicon.svg", scope).href,
     tag: data.tag || "budger-reminder",
-    renotify: true,
+    // false = same tag replaces the previous notification instead of stacking a
+    // duplicate. If the server sends to more than one subscription (e.g. after a
+    // rolling deploy where two processes both fire), the user still sees only one.
+    renotify: false,
     requireInteraction: false,
     data: { url: targetUrl },
   } satisfies Record<string, unknown>;

@@ -13,6 +13,10 @@ export const notificationSettingsTable = pgTable("notification_settings", {
   days: text("days").array().notNull().default(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  // DB-level dedup: atomically claimed by whichever server process wins the
+  // UPDATE … WHERE last_reminder_sent_at IS NULL OR < NOW()-55min race.
+  // Persists across process restarts / rolling deploys unlike the in-memory Set.
+  lastReminderSentAt: timestamp("last_reminder_sent_at", { withTimezone: true }),
 });
 
 export const insertNotificationSettingsSchema = createInsertSchema(notificationSettingsTable).omit({ id: true, createdAt: true, updatedAt: true });

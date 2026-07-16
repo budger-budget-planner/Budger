@@ -43,6 +43,13 @@
       "when": 1784200000000,
       "tag": "0005_notification_timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784213700000,
+      "tag": "0006_push_reminder_dedup",
+      "breakpoints": true
     }
   ]
 }

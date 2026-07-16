@@ -299,19 +299,6 @@ function getLocalDayKey(timezone: string): string {
   }
 }
 
-// In-memory dedup: prevents double-sends when the interval fires twice near a
-// minute boundary (e.g. after a server restart). Key: `userId:YYYY-MM-DD:HH:MM`.
-// Cleared at midnight UTC so tomorrow's reminders can fire normally.
-const sentReminderKeys = new Set<string>();
-
-function todayUTCStr(): string {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
-// Reset dedup set every 24 h.
-setInterval(() => sentReminderKeys.clear(), 24 * 60 * 60 * 1000);
-
 async function sendDailyReminders() {
   if (!PUSH_CONFIGURED) return;
 
@@ -333,10 +320,24 @@ async function sendDailyReminders() {
   });
 
   for (const settings of dueUsers) {
-    // Dedup: skip if we already sent this user's reminder for this minute today.
-    const dedupKey = `${settings.userId}:${todayUTCStr()}:${settings.reminderTime}`;
-    if (sentReminderKeys.has(dedupKey)) continue;
-    sentReminderKeys.add(dedupKey);
+    // DB-level atomic dedup: atomically claim the send slot by updating
+    // lastReminderSentAt only when it is NULL or older than 55 minutes.
+    // This prevents double-sends across rolling deploys or process restarts
+    // where an in-memory Set would be cleared and let both processes fire.
+    let claimed: { id: number }[] = [];
+    try {
+      claimed = await db.update(notificationSettingsTable)
+        .set({ lastReminderSentAt: new Date() })
+        .where(and(
+          eq(notificationSettingsTable.userId, settings.userId),
+          sql`(${notificationSettingsTable.lastReminderSentAt} IS NULL OR ${notificationSettingsTable.lastReminderSentAt} < NOW() - INTERVAL '55 minutes')`
+        ))
+        .returning({ id: notificationSettingsTable.id });
+    } catch (err) {
+      logger.warn({ err, userId: settings.userId }, "daily-reminder: dedup claim failed, skipping");
+      continue;
+    }
+    if (claimed.length === 0) continue; // another process already claimed this minute
 
     let subs: any[] = [];
     try {
