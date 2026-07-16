@@ -26,6 +26,7 @@ import {
 import { t, getDayLabels } from "@/lib/i18n";
 import { triggerBadgerNotification, hapticSniff, canHaptic } from "@/lib/badger-notify";
 import { addNCNotification, loadNCNotifications, markAllNCRead, dismissNCNotification, setNCNotificationRead, type NCNotification, type NCNotifType } from "@/lib/nc-store";
+import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifications";
 import { setAppBadgeCount } from "@/lib/app-badge";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { discardOp, opLabel } from "@/lib/mutation-queue";
@@ -412,6 +413,15 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [previewing, setPreviewing] = useState(false);
   const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Push notification permission state
+  const [pushStatus, setPushStatus] = useState<"unsupported" | "prompt" | "loading" | "granted" | "denied">(() => {
+    if (!("Notification" in window)) return "unsupported";
+    if (Notification.permission === "granted") return "granted";
+    if (Notification.permission === "denied")  return "denied";
+    return "prompt";
+  });
+  const updateNotifPush = useUpdateNotificationSettings();
+
   // Offline sync status (shown in the Sync section above Smart alerts)
   const [syncExpanded, setSyncExpanded] = useState(false);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
@@ -453,6 +463,46 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     setForceOffline(v);
     try { localStorage.setItem("budger_force_offline", v ? "1" : "0"); } catch { /**/ }
     window.dispatchEvent(new Event(v ? "offline" : "online"));
+  }
+
+  // Auto-recheck push permission when user comes back from iOS device Settings
+  useEffect(() => {
+    if (pushStatus !== "denied") return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        setPushStatus("granted");
+        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [pushStatus]);
+
+  async function requestPushPermission() {
+    setPushStatus("loading");
+    if (!("Notification" in window)) { setPushStatus("unsupported"); return; }
+    if (Notification.permission === "granted") {
+      setPushStatus("granted");
+      updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+      if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+      return;
+    }
+    if (Notification.permission === "denied") { setPushStatus("denied"); return; }
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        setPushStatus("granted");
+        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+      } else {
+        setPushStatus("denied");
+      }
+    } catch {
+      setPushStatus("denied");
+    }
   }
 
   async function handlePreview() {
@@ -634,6 +684,69 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         </section>
+
+        {/* 2b. Push notifications */}
+        {pushStatus !== "unsupported" && (
+          <section>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {t("notif.push_section")}
+            </p>
+            <div className={`flex items-start justify-between gap-3 py-4 px-4 rounded-2xl border transition-colors ${
+              pushStatus === "granted"
+                ? "bg-emerald-500/10 border-emerald-500/30"
+                : pushStatus === "denied"
+                ? "bg-destructive/10 border-destructive/30"
+                : "bg-card border-border"
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 ${
+                  pushStatus === "granted" ? "text-emerald-400"
+                  : pushStatus === "denied"  ? "text-destructive"
+                  : "text-muted-foreground"
+                }`}>
+                  {pushStatus === "granted"
+                    ? <Bell className="w-4 h-4" />
+                    : <BellOff className="w-4 h-4" />
+                  }
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{t("ob.notif_title")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {pushStatus === "granted"
+                      ? t("ob.notif_enabled")
+                      : pushStatus === "denied"
+                      ? t("notif.enable_notif")
+                      : (lang === "pl"
+                          ? "Otrzymuj alerty budżetowe i aktualizacje celów."
+                          : "Get budget alerts and goal updates on your device.")
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0">
+                {pushStatus === "prompt" && (
+                  <button
+                    onClick={requestPushPermission}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground transition active:scale-95"
+                  >
+                    {t("ob.notif_enable_btn")}
+                  </button>
+                )}
+                {pushStatus === "loading" && (
+                  <span className="text-xs text-muted-foreground">{t("ob.notif_enabling")}</span>
+                )}
+                {pushStatus === "denied" && (
+                  <button
+                    onClick={requestPushPermission}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted text-foreground transition active:scale-95"
+                  >
+                    {t("ob.try_again")}
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 2. Animations toggle */}
         <section>

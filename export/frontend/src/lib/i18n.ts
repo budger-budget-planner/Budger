@@ -375,6 +375,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "notif.7_days":         { en: "7 or fewer days left in the month", pl: "7 lub mniej dni do końca miesiąca"},
   "notif.once_month":     { en: "Once per month, showing your progress toward each goal", pl: "Raz w miesiącu, pokazując postęp każdego celu"},
   "notif.alerts_saved":   { en: "Alerts saved",              pl: "Alerty zapisane"                },
+  "notif.push_section":   { en: "Push Notifications",        pl: "Powiadomienia push"             },
   "notif.perm_denied":    { en: "Permission denied",         pl: "Odmowa dostępu"                 },
   "notif.enable_notif":   { en: "Enable notifications in your browser settings first.", pl: "Najpierw włącz powiadomienia w ustawieniach przeglądarki."},
   "notif.alert_enabled":  { en: "Alert enabled",             pl: "Alert włączony"                 },
