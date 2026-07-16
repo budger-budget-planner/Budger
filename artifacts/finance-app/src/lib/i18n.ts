@@ -1049,6 +1049,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "camera.denied":  { en: "Camera access was denied. Please allow camera access in your device settings.", pl: "Dostęp do kamery został zablokowany. Zezwól na dostęp do kamery w ustawieniach urządzenia." },
   "receipt.camera": { en: "Camera",  pl: "Aparat"  },
   "receipt.library": { en: "Library", pl: "Galeria" },
+  "ss.mascot_placeholder": { en: "give me a name…", pl: "daj mi imię…" },
 
   "larder.goal_completes_24h":   { en: "This will complete the goal. It will move to Past Goals within 24 hours.", pl: "To zakończy cel. Zostanie przeniesiony do Przeszłych Celów w ciągu 24 godzin." },
   "larder.goal_completed_toast": { en: "Goal completed! It will move to Past Goals within 24 hours.",            pl: "Cel ukończony! Zostanie przeniesiony do Przeszłych Celów w ciągu 24 godzin."   },
