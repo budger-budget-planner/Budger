@@ -341,7 +341,7 @@ function MemberSheet({
   // The panel fills as much vertical space as it needs. A scrollbar only
   // appears when the content genuinely exceeds the available room.
   const vpH = window.innerHeight;
-  const TOP_CLEARANCE = 60;     // status bar / app header height
+  const TOP_CLEARANCE = 70;     // matches the app header h-[4.375rem] = 70 px
   const BOTTOM_CLEARANCE = 100; // nav bar (80) + breathing room
 
   const panelPositionStyle: React.CSSProperties = {
