@@ -21,13 +21,13 @@ export function AmtHero({ amount, currency, className }: AmtHeroProps) {
   if (currency === "PLN") {
     return (
       <span className={className}>
-        {whole}<span className="text-[0.7em]">{frac}</span>{sym}
+        {whole}<span className="text-[0.85em]">{frac}</span>{sym}
       </span>
     );
   }
   return (
     <span className={className}>
-      {sym}{whole}<span className="text-[0.7em]">{frac}</span>
+      {sym}{whole}<span className="text-[0.85em]">{frac}</span>
     </span>
   );
 }
