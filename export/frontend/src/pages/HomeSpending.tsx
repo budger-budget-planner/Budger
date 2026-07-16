@@ -1552,7 +1552,7 @@ export default function HomeSpending() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
-                  <p className="text-2xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                  <p className="text-2xl font-bold"><AmtHero amount={total} currency={prefs.currency} /></p>
                   {lockedEntries.length > 0 && (
                     <p className="text-xs text-zinc-500 mt-0.5">
                       +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
