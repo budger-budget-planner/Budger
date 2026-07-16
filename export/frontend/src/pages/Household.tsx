@@ -336,33 +336,18 @@ function MemberSheet({
   const canEditRole = isViewerHead && !isMe;
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
 
-  // ── Anchor-aware positioning ─────────────────────────────────────────────
-  // Position just below (or above) the tapped row.
-  // maxHeight = the FULL available space to that edge so content shows
-  // completely. overflow-y-auto on the outer container means a scrollbar
-  // only appears when the content genuinely exceeds the available height.
+  // ── Fixed top positioning ────────────────────────────────────────────────
+  // Always open from just below the top chrome (status bar / app header).
+  // The panel fills as much vertical space as it needs. A scrollbar only
+  // appears when the content genuinely exceeds the available room.
   const vpH = window.innerHeight;
-  const GAP = 10;
-  const TOP_CLEARANCE = 60;     // status bar / top chrome
+  const TOP_CLEARANCE = 60;     // status bar / app header height
   const BOTTOM_CLEARANCE = 100; // nav bar (80) + breathing room
 
-  const panelTop  = Math.max(anchorY + GAP, TOP_CLEARANCE);
-  const spaceAbove = anchorY - GAP - TOP_CLEARANCE;
-
-  // Prefer below; flip above only when below has less than 220 px AND
-  // above offers meaningfully more room.
-  const openBelow = (vpH - panelTop - BOTTOM_CLEARANCE) >= 220
-    || (vpH - panelTop - BOTTOM_CLEARANCE) >= spaceAbove - 50;
-
-  const panelPositionStyle: React.CSSProperties = openBelow
-    ? {
-        top: panelTop,
-        maxHeight: vpH - panelTop - BOTTOM_CLEARANCE,
-      }
-    : {
-        bottom: vpH - anchorY + GAP,
-        maxHeight: Math.max(spaceAbove, 220),
-      };
+  const panelPositionStyle: React.CSSProperties = {
+    top: TOP_CLEARANCE,
+    maxHeight: vpH - TOP_CLEARANCE - BOTTOM_CLEARANCE,
+  };
 
   async function handleRoleSave() {
     if (selectedRole === member.role) { onClose(); return; }
