@@ -348,8 +348,8 @@ async function sendDailyReminders() {
     }
 
     const payload = JSON.stringify({
-      title: "Budger",
-      body: "Time to log today's spending.",
+      title: "",
+      body: "Don't forget to log today's spending!",
       url: "/",
       tag: "daily-reminder",
     });

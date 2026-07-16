@@ -170,23 +170,19 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
       const next = new Date();
       next.setHours(h, m, 0, 0);
       if (next <= now) next.setDate(next.getDate() + 1);
-      const id = setTimeout(async () => {
-        if ("Notification" in window && Notification.permission === "granted") {
-          await showNotification(t("notif.budger_reminder"), {
-            body: t("notif.dont_forget"),
-            url: "/?sheet=alerts",
-            tag: "daily-reminder",
-          });
-          addNCNotification({
-            type: "daily_reminder",
-            titleEn: "Budger Reminder",
-            titlePl: "Przypomnienie Budger",
-            bodyEn: "Don't forget to log today's spending!",
-            bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
-          });
-          const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
-          triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
-        }
+      const id = setTimeout(() => {
+        // The server-side push handles the OS notification (works even when the
+        // app is closed). Only do the in-app effects here so we don't fire a
+        // second duplicate notification when the app happens to be open.
+        addNCNotification({
+          type: "daily_reminder",
+          titleEn: "Budger Reminder",
+          titlePl: "Przypomnienie Budger",
+          bodyEn: "Don't forget to log today's spending!",
+          bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
+        });
+        const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
+        triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
       }, next.getTime() - now.getTime());
       reminderTimers.current.push(id);
     }

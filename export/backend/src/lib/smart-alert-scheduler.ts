@@ -171,7 +171,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
       const bodyEn  = `You've used ${Math.round(pct)}% of your ${entry.categoryName} budget. Only ${s}${remaining} left — slow down!`;
       const bodyPl  = `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${entry.categoryName}. Pozostało tylko ${s}${remaining} — zwolnij tempo!`;
       const inserted = await tryInsert(userId, "budget_90_cat", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-      if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: `budget-90-${key}` });
+      if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: `budget-90-${key}` });
     } else if (pct >= 75) {
       const dedupKey = `budget_75_cat_cat_${idSegment}_${mk}`;
       const titleEn = `Budget Heads-up — ${entry.categoryName}`;
@@ -179,7 +179,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
       const bodyEn  = `You've used ${Math.round(pct)}% of your ${entry.categoryName} budget. ${s}${remaining} remaining this month.`;
       const bodyPl  = `Wykorzystano ${Math.round(pct)}% budżetu kategorii ${entry.categoryName}. Pozostało ${s}${remaining} w tym miesiącu.`;
       const inserted = await tryInsert(userId, "budget_75_cat", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-      if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: `budget-75-${key}` });
+      if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: `budget-75-${key}` });
     }
   }
 
@@ -198,7 +198,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
     const bodyEn  = `You've used ${Math.round(totalPct)}% of your total monthly budget. Only ${s}${totalRemaining} left — watch your spending!`;
     const bodyPl  = `Wykorzystano ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało tylko ${s}${totalRemaining} — uważaj na wydatki!`;
     const inserted = await tryInsert(userId, "budget_90_total", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-    if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: "budget-90-total" });
+    if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: "budget-90-total" });
   } else if (totalPct >= 75) {
     const dedupKey = `budget_75_total_${mk}`;
     const titleEn = "Monthly Budget Reminder";
@@ -206,7 +206,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
     const bodyEn  = `You've reached ${Math.round(totalPct)}% of your total monthly budget. ${s}${totalRemaining} remaining.`;
     const bodyPl  = `Osiągnięto ${Math.round(totalPct)}% całkowitego budżetu miesięcznego. Pozostało ${s}${totalRemaining}.`;
     const inserted = await tryInsert(userId, "budget_75_total", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-    if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: "budget-75-total" });
+    if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: "budget-75-total" });
   }
 }
 
@@ -264,7 +264,7 @@ async function checkGoalAlerts(
     const bodyEn  = `You have ${activeGoals.length} active savings goals. ${days} day${days !== 1 ? "s" : ""} left this month — open Budger to see if you're on track!`;
     const bodyPl  = `Masz ${activeGoals.length} aktywne cele oszczędnościowe. Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu — sprawdź swój postęp!`;
     const inserted = await tryInsert(userId, "goal_checkin_multi", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-    if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: "goal-checkin" });
+    if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: "goal-checkin" });
     return;
   }
 
@@ -296,7 +296,7 @@ async function checkGoalAlerts(
     const bodyEn  = `${days} day${days !== 1 ? "s" : ""} left this month. You've saved ${s}${contributed.toFixed(2)} of your ${s}${monthlyTarget.toFixed(2)} monthly target (${monthlyPct}%). ${reachedStr}`;
     const bodyPl  = `Pozostało ${days} ${days === 1 ? "dzień" : "dni"} w tym miesiącu. Zaoszczędzono ${s}${contributed.toFixed(2)} z ${s}${monthlyTarget.toFixed(2)} miesięcznego celu (${monthlyPct}%). ${reachedStrPl}`;
     const inserted = await tryInsert(userId, "goal_monthly", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-    if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: `goal-monthly-${goal.id}` });
+    if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: `goal-monthly-${goal.id}` });
   } else {
     // Overall-progress flavour — need all-time contributions
     const allTimeContribs = isHousehold && householdId
@@ -319,7 +319,7 @@ async function checkGoalAlerts(
     const bodyEn  = `You're ${totalPct}% of the way to your goal (${s}${totalContributed.toFixed(2)} / ${s}${budget.toFixed(2)}). ${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} remaining — ${s}${remaining.toFixed(2)} to go!`;
     const bodyPl  = `Jesteś w ${totalPct}% drogi do celu (${s}${totalContributed.toFixed(2)} / ${s}${budget.toFixed(2)}). Pozostało ${monthsLeft} ${monthsLeft === 1 ? "miesiąc" : "miesięcy"} — jeszcze ${s}${remaining.toFixed(2)}!`;
     const inserted = await tryInsert(userId, "goal_overall", titleEn, titlePl, bodyEn, bodyPl, dedupKey);
-    if (inserted) await sendPushToUser(userId, { title: titleEn, body: bodyEn, url: "/", tag: `goal-overall-${goal.id}` });
+    if (inserted) await sendPushToUser(userId, { title: "", body: bodyEn, url: "/", tag: `goal-overall-${goal.id}` });
   }
 }
 
