@@ -380,7 +380,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "notif.enable_notif":   { en: "Enable notifications in your browser settings first.", pl: "Najpierw włącz powiadomienia w ustawieniach przeglądarki."},
   "notif.alert_enabled":  { en: "Alert enabled",             pl: "Alert włączony"                 },
   "notif.alert_disabled": { en: "Alert disabled",            pl: "Alert wyłączony"                },
-  "notif.budger_reminder":{ en: "Budger Reminder",           pl: "Przypomnienie Budger"           },
+  "notif.budger_reminder":{ en: "Budger",                    pl: "Budger"                         },
   "notif.dont_forget":    { en: "Don't forget to log today's spending!", pl: "Nie zapomnij zalogować dzisiejszych wydatków!"},
   "notif.blocked":        { en: "Browser notifications are blocked. Enable them in your device / browser settings to use any alerts.",
                              pl: "Powiadomienia przeglądarki są zablokowane. Włącz je w ustawieniach urządzenia/przeglądarki, aby korzystać z alertów."},

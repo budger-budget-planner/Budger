@@ -191,6 +191,7 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
               body: t("notif.dont_forget"),
               url: "/?sheet=alerts",
               tag: "daily-reminder",
+              silent: true,
             });
             addNCNotification({
               type: "daily_reminder",
