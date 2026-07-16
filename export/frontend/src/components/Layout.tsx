@@ -408,7 +408,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [langSwitchTarget, setLangSwitchTarget] = useState<string | null>(null);
   const [currSwitchTarget, setCurrSwitchTarget] = useState<string | null>(null);
   // ── Currency-switch rate limiter ─────────────────────────────────────────
+  // Rule: 3 changes within a 5-minute sliding window → 15-minute lock.
+  // currWindowStart is the timestamp of the first change in the current window.
+  // It is invisible to the UI; the window timer resets count silently.
   const [currSwitchCount, setCurrSwitchCount]     = useState(0);
+  const [currWindowStart, setCurrWindowStart]     = useState<number | null>(null);
   const [currLockedUntil, setCurrLockedUntil]     = useState<number | null>(null);
   const [currLockCountdown, setCurrLockCountdown] = useState("");
   // Warning banner is only visible for 30 s after a change (invisible timer,
@@ -441,14 +445,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Block while rate-limited.
     if (currLockedUntil && currLockedUntil > Date.now()) return;
 
-    // Track switch count; apply 15-min lock on the 3rd change.
-    const newCount = currSwitchCount + 1;
-    const lockUntil = newCount >= 3 ? Date.now() + 5 * 60 * 1_000 : null;
+    // Sliding 5-minute window: track how many changes happened in the current
+    // window. If the window has already expired, start a fresh one.
+    const now = Date.now();
+    const WINDOW_MS = 5 * 60 * 1_000;
+    const LOCK_MS   = 15 * 60 * 1_000;
+
+    let effectiveCount = currSwitchCount;
+    let windowStart    = currWindowStart;
+    if (windowStart && (now - windowStart) >= WINDOW_MS) {
+      // Window elapsed without hitting the limit — reset silently.
+      effectiveCount = 0;
+      windowStart    = null;
+    }
+    if (!windowStart) windowStart = now; // start of a new window
+
+    const newCount  = effectiveCount + 1;
+    const lockUntil = newCount >= 3 ? now + LOCK_MS : null;
+
     setCurrSwitchCount(newCount);
+    setCurrWindowStart(lockUntil ? null : windowStart); // clear window when locked
     if (lockUntil) setCurrLockedUntil(lockUntil);
+
     const _uid = (user as any)?.id ?? null;
     try {
-      localStorage.setItem(currSwitchKey(_uid), JSON.stringify({ count: newCount, lockedUntil: lockUntil }));
+      localStorage.setItem(currSwitchKey(_uid), JSON.stringify({
+        count: newCount,
+        lockedUntil: lockUntil,
+        windowStart: lockUntil ? null : windowStart,
+      }));
     } catch { /* ignore */ }
 
     // Show the warning banner; auto-hide after 30 s unless we just locked
@@ -595,15 +620,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         if (raw.lockedUntil && raw.lockedUntil > now) {
           setCurrSwitchCount(raw.count ?? 3);
           setCurrLockedUntil(raw.lockedUntil);
+          // Window is cleared when a lock is applied
         } else if (raw.lockedUntil) {
           // Lock has expired — clear stale entry
           localStorage.removeItem(currSwitchKey(uid));
-        } else {
+        } else if (raw.windowStart && (now - raw.windowStart) < 5 * 60 * 1_000) {
+          // Active window — restore count and window start so the timer fires correctly
           setCurrSwitchCount(raw.count ?? 0);
+          setCurrWindowStart(raw.windowStart);
+        } else {
+          // Window expired while app was closed — start fresh
+          localStorage.removeItem(currSwitchKey(uid));
         }
       }
     } catch { /* ignore */ }
   }, [(user as any)?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Silent 5-minute window reset: when the window elapses without a 3rd change
+  // the count resets to 0 and the user gets their 3 slots back — no UI shown.
+  useEffect(() => {
+    if (!currWindowStart || currLockedUntil) return;
+    const remaining = (currWindowStart + 5 * 60 * 1_000) - Date.now();
+    if (remaining <= 0) {
+      setCurrSwitchCount(0);
+      setCurrWindowStart(null);
+      return;
+    }
+    const id = setTimeout(() => {
+      setCurrSwitchCount(0);
+      setCurrWindowStart(null);
+      const uid = (user as any)?.id ?? null;
+      try { localStorage.removeItem(currSwitchKey(uid)); } catch { /* ignore */ }
+    }, remaining);
+    return () => clearTimeout(id);
+  }, [currWindowStart, currLockedUntil]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live countdown while currency is locked; auto-resets when time is up.
   useEffect(() => {
@@ -615,6 +665,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         try { localStorage.removeItem(currSwitchKey(uid)); } catch { /* ignore */ }
         setCurrLockedUntil(null);
         setCurrSwitchCount(0);
+        setCurrWindowStart(null);
         setCurrLockCountdown("");
         setCurrWarnVisible(false); // lock expired — hide banner
         return;
