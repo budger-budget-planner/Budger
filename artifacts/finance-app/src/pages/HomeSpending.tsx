@@ -48,7 +48,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
-import { loadPrefs, savePrefs, currencySymbol, fmtAmt, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
+import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { NAV_HEIGHT } from "@/components/Layout";
@@ -1676,7 +1676,7 @@ export default function HomeSpending() {
                       <p className="text-xs text-muted-foreground mt-0.5">{t("tx.recurring_payment")}</p>
                     </div>
                     <p className="text-sm font-semibold text-foreground flex-shrink-0 mt-0.5">
-                      −{fmtAmt(prp.amount, prefs.currency)}
+                      −{fmtAmtRound(prp.amount, prefs.currency)}
                     </p>
                   </div>
                 ))}
@@ -2059,7 +2059,7 @@ export default function HomeSpending() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{rp.name}</p>
-                            <p className="text-xs text-white/40">{fmtAmt(rp.amount, prefs.currency)}</p>
+                            <p className="text-xs text-white/40">{fmtAmtRound(rp.amount, prefs.currency)}</p>
                           </div>
                           {isApplied ? (
                             <span className="text-xs text-white/30">{t("rp.applied_badge")}</span>
