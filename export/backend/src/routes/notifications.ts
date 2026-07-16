@@ -220,17 +220,29 @@ router.post("/notifications/push-subscribe", async (req, res): Promise<void> => 
 
   const { endpoint, p256dh, auth } = parsed.data;
 
-  const existing = await db.select()
-    .from(pushSubscriptionsTable)
-    .where(eq(pushSubscriptionsTable.endpoint, endpoint));
+  // Replace strategy: delete every OTHER subscription for this user first, then
+  // upsert the incoming one. This prevents stale endpoints from accumulating
+  // when the browser rotates the push subscription (new endpoint after expiry or
+  // re-subscribe). Without this, the scheduler sends to all live rows and the
+  // device receives duplicate APNs messages that can't be deduplicated at the
+  // SW level because they are distinct OS-level pushes.
+  //
+  // Multi-device note: "last subscription wins" — whichever device subscribes
+  // most recently is the one that receives push reminders. This is acceptable
+  // for a personal finance app where daily reminders are per-user not per-device.
+  await db.delete(pushSubscriptionsTable)
+    .where(and(
+      eq(pushSubscriptionsTable.userId, userId),
+      sql`${pushSubscriptionsTable.endpoint} <> ${endpoint}`
+    ));
 
-  if (existing.length === 0) {
-    await db.insert(pushSubscriptionsTable).values({ userId, endpoint, p256dh, auth });
-  } else {
-    await db.update(pushSubscriptionsTable)
-      .set({ userId, p256dh, auth })
-      .where(eq(pushSubscriptionsTable.endpoint, endpoint));
-  }
+  // Upsert the current endpoint (insert or update keys if it already exists).
+  await db.insert(pushSubscriptionsTable)
+    .values({ userId, endpoint, p256dh, auth })
+    .onConflictDoUpdate({
+      target: pushSubscriptionsTable.endpoint,
+      set: { userId, p256dh, auth },
+    });
 
   res.json({ ok: true });
 });
