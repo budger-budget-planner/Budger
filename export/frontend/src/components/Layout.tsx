@@ -159,7 +159,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Pull-to-refresh: drag the page down ~1/5 of the screen to manually
   // re-fetch every query currently on screen. Disabled while offline since
   // there's nothing fresh to fetch.
+  //
+  // Cooldown: like banking apps, we gate refreshes to once per 30 s. This
+  // prevents the notification_items table from growing rapidly when the user
+  // hammers PTR (each refresh fires all active queries simultaneously, which
+  // can trigger new-activity notifications on every cycle).
+  const lastRefreshAt = useRef<number>(0);
+  const PTR_COOLDOWN_MS = 30_000;
+
   async function handlePullRefresh() {
+    const now = Date.now();
+    const elapsed = now - lastRefreshAt.current;
+    if (elapsed < PTR_COOLDOWN_MS) {
+      const secsLeft = Math.ceil((PTR_COOLDOWN_MS - elapsed) / 1000);
+      toast({ title: t("layout.refresh_cooldown", { seconds: secsLeft }), duration: 2500 });
+      return;
+    }
+    lastRefreshAt.current = now;
     const minVisible = new Promise((resolve) => setTimeout(resolve, 600));
     await Promise.all([
       queryClient.refetchQueries({ type: "active" }),
