@@ -332,6 +332,12 @@ function MemberSheet({
   });
   const [confirmRemove, setConfirmRemove] = useState(false);
 
+  // Always scroll back to the top when this panel opens or switches member.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0;
+  }, [member.userId]);
+
   const isViewerHead = isHeadRole(viewerRole);
   const canEditRole = isViewerHead && !isMe;
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
@@ -364,6 +370,7 @@ function MemberSheet({
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       <div
+        ref={panelRef}
         className="fixed left-0 right-0 z-50 bg-[#111] rounded-2xl overflow-y-auto"
         style={panelPositionStyle}
       >
