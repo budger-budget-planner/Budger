@@ -337,24 +337,27 @@ function MemberSheet({
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
 
   // ── Anchor-aware positioning ─────────────────────────────────────────────
-  // Position the panel just below (or above) the row the user tapped,
-  // clamped so it never overflows the viewport or hides behind the nav bar.
+  // Position just below (or above) the tapped row.
+  // maxHeight = the FULL available space to that edge so content shows
+  // completely. overflow-y-auto on the outer container means a scrollbar
+  // only appears when the content genuinely exceeds the available height.
   const vpH = window.innerHeight;
   const GAP = 10;
-  const TOP_CLEARANCE = 60;   // allow for status bar / top chrome
-  const BOTTOM_CLEARANCE = 100; // nav bar (80) + a little breathing room
+  const TOP_CLEARANCE = 60;     // status bar / top chrome
+  const BOTTOM_CLEARANCE = 100; // nav bar (80) + breathing room
 
-  const spaceBelow = vpH - anchorY - GAP - BOTTOM_CLEARANCE;
+  const panelTop  = Math.max(anchorY + GAP, TOP_CLEARANCE);
   const spaceAbove = anchorY - GAP - TOP_CLEARANCE;
 
-  // Prefer opening below; only flip above if below is genuinely too tight
-  // and above offers meaningfully more room.
-  const openBelow = spaceBelow >= 220 || spaceBelow >= spaceAbove - 50;
+  // Prefer below; flip above only when below has less than 220 px AND
+  // above offers meaningfully more room.
+  const openBelow = (vpH - panelTop - BOTTOM_CLEARANCE) >= 220
+    || (vpH - panelTop - BOTTOM_CLEARANCE) >= spaceAbove - 50;
 
   const panelPositionStyle: React.CSSProperties = openBelow
     ? {
-        top: Math.max(anchorY + GAP, TOP_CLEARANCE),
-        maxHeight: Math.max(spaceBelow, 220),
+        top: panelTop,
+        maxHeight: vpH - panelTop - BOTTOM_CLEARANCE,
       }
     : {
         bottom: vpH - anchorY + GAP,
@@ -376,10 +379,10 @@ function MemberSheet({
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       <div
-        className="fixed left-0 right-0 z-50 bg-[#111] rounded-2xl flex flex-col overflow-hidden"
+        className="fixed left-0 right-0 z-50 bg-[#111] rounded-2xl overflow-y-auto"
         style={panelPositionStyle}
       >
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10">
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10 sticky top-0 bg-[#111] z-10">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
             style={{ backgroundColor: member.memberColor }}
@@ -398,7 +401,7 @@ function MemberSheet({
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 pb-6">
           {/* Spending breakdown — shown first */}
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
