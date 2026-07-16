@@ -9,6 +9,7 @@ import { useGetMe } from "@/lib/api-client";
 import Layout from "@/components/Layout";
 import Onboarding from "@/components/Onboarding";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifications";
 // Eager imports — all pages are bundled upfront so every tab switch is instant.
 // The service-worker cache already handles fast first loads, so lazy-splitting
 // pages only hurts UX (visible flash/spinner on first tab visit) with no gain.
@@ -102,6 +103,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   // Track the last userId we applied server prefs for, to avoid re-applying on every render
   const syncedUserIdRef = useRef<number | null>(null);
+
+  // Re-subscribe to Web Push on every app load when permission is already
+  // granted. Push subscriptions can expire or be silently invalidated by the
+  // browser; without this the server's minute-tick scheduler would have a
+  // stale / missing endpoint and never deliver background reminders.
+  useEffect(() => {
+    if (!user) return;
+    if (isPushSupported() && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      subscribeToPushNotifications().catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isLoading && !user) {

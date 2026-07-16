@@ -217,6 +217,14 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
     update.mutate({ data: { enabled: first?.enabled ?? false, reminderTime: first?.time ?? "20:00", days: first?.days ?? [], timezone: tz } });
     // Client-side timers are managed by the useEffect([alerts, permStatus]) above —
     // no manual registration needed here; setAlerts triggers it automatically.
+
+    // CRITICAL: register / refresh the Web Push subscription so the server-side
+    // minute-tick scheduler can reach this device even when the app is closed.
+    // Without this the server has the user's reminder time but no push endpoint
+    // to deliver to — so reminders only fired while the app tab was open.
+    if (anyEnabled && isPushSupported()) {
+      subscribeToPushNotifications().catch(() => {});
+    }
   }
 
   return (
