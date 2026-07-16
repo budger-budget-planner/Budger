@@ -468,11 +468,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (lockUntil) setCurrLockedUntil(lockUntil);
 
     const _uid = (user as any)?.id ?? null;
+    // warnUntil lets the remounted component (softRefresh re-keys the whole tree)
+    // restore the banner — in-memory state is wiped on every currency change.
+    const warnUntil = lockUntil ? null : now + 30_000;
     try {
       localStorage.setItem(currSwitchKey(_uid), JSON.stringify({
         count: newCount,
         lockedUntil: lockUntil,
         windowStart: lockUntil ? null : windowStart,
+        warnUntil,
       }));
     } catch { /* ignore */ }
 
@@ -481,7 +485,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setCurrWarnVisible(true);
     if (currWarnTimerRef.current) clearTimeout(currWarnTimerRef.current);
     if (!lockUntil) {
-      currWarnTimerRef.current = setTimeout(() => setCurrWarnVisible(false), 30_000);
+      currWarnTimerRef.current = setTimeout(() => {
+        setCurrWarnVisible(false);
+        // Clear warnUntil from storage so a future mount doesn't resurrect it.
+        try {
+          const stored = JSON.parse(localStorage.getItem(currSwitchKey(_uid)) ?? "null");
+          if (stored) localStorage.setItem(currSwitchKey(_uid), JSON.stringify({ ...stored, warnUntil: null }));
+        } catch { /* ignore */ }
+      }, 30_000);
     }
 
     // Snapshot the current currency synchronously — before any await — so the
@@ -628,6 +639,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           // Active window — restore count and window start so the timer fires correctly
           setCurrSwitchCount(raw.count ?? 0);
           setCurrWindowStart(raw.windowStart);
+          // Restore warning banner if it was set and hasn't expired yet.
+          if (raw.warnUntil && raw.warnUntil > now) {
+            setCurrWarnVisible(true);
+            const remaining = raw.warnUntil - now;
+            currWarnTimerRef.current = setTimeout(() => {
+              setCurrWarnVisible(false);
+              try {
+                const stored = JSON.parse(localStorage.getItem(currSwitchKey(uid)) ?? "null");
+                if (stored) localStorage.setItem(currSwitchKey(uid), JSON.stringify({ ...stored, warnUntil: null }));
+              } catch { /* ignore */ }
+            }, remaining);
+          }
         } else {
           // Window expired while app was closed — start fresh
           localStorage.removeItem(currSwitchKey(uid));
