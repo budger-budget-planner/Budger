@@ -18,6 +18,11 @@ if (!DATABASE_URL) {
 
 export const pool = new Pool({
   connectionString: DATABASE_URL,
+  // Explicitly opt-in to full TLS verification so pg-connection-string does
+  // not emit the "sslmode 'require' treated as verify-full" deprecation
+  // warning. This matches what sslmode=verify-full does and is the correct
+  // setting for Neon (and any other managed Postgres with a valid cert).
+  ssl: { rejectUnauthorized: true },
   max: 10,                         // cap at 10 connections — prevents exhaustion under load
   connectionTimeoutMillis: 5_000,  // fail fast (5 s) when the pool is full rather than hang
   idleTimeoutMillis: 30_000,       // recycle idle connections after 30 s
