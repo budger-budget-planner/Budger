@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
@@ -366,7 +367,7 @@ function MemberSheet({
     }
   }
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       <div
@@ -573,7 +574,8 @@ function MemberSheet({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
