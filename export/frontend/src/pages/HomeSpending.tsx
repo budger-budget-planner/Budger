@@ -49,6 +49,7 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns
 import { receiptSrc, compressImage } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
+import { AmtHero } from "@/components/AmtHero";
 import { useAppReady } from "@/lib/appReady";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { NAV_HEIGHT } from "@/components/Layout";
@@ -1511,7 +1512,7 @@ export default function HomeSpending() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.total_spent")}</p>
-                  <p className="text-3xl font-bold">{fmtAmt(total, prefs.currency)}</p>
+                  <p className="text-3xl font-bold"><AmtHero amount={total} currency={prefs.currency} /></p>
                   {lockedEntries.length > 0 && (
                     <p className="text-xs text-zinc-500 mt-0.5">
                       +{lockedEntries.map(([cur, amt]) => fmtAmt(amt, cur)).join(", ")} {t("home.not_converted")}
@@ -1542,7 +1543,7 @@ export default function HomeSpending() {
                   {t("common.edit")}
                 </button>
               </div>
-              <p className="text-3xl font-bold leading-tight">{fmtAmt(totalBudget, prefs.currency)}</p>
+              <p className="text-3xl font-bold leading-tight"><AmtHero amount={totalBudget} currency={prefs.currency} /></p>
 
               {/* Divider */}
               <div className="border-t border-border" />
