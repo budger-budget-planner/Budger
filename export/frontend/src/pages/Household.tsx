@@ -1695,10 +1695,13 @@ export default function HouseholdPage() {
 
               <div className="relative z-10 px-5 pt-5 pb-4 space-y-4">
                 {/* Header */}
-                <div className="flex items-center gap-2">
-                  <Warehouse className="w-5 h-5 text-white/60" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <Warehouse className="w-4.5 h-4.5 text-white/50" />
+                  </div>
                   <div>
-                    <p className="text-xs font-semibold tracking-widest uppercase text-white/40">{t("gl.subtitle_card")}</p>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-white/35">{t("gl.title")}</p>
+                    <p className="text-[11px] text-white/25 -mt-0.5">{t("gl.subtitle_card")}</p>
                   </div>
                 </div>
 

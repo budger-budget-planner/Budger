@@ -570,7 +570,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-white/35">
-                Spiżarnia
+                {t("larder.tab")}
               </p>
               <p className="text-[11px] text-white/25 -mt-0.5">{t("larder.subtitle")}</p>
             </div>
