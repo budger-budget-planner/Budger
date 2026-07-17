@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@/lib/i18n";
@@ -28,7 +29,7 @@ import {
   getGetMeQueryKey,
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
-} from "@workspace/api-client-react";
+} from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users, Plus, Mail, X, LogOut, Copy, Check,
@@ -298,6 +299,7 @@ function MemberSheet({
   onRoleChange,
   onRemove,
   rates,
+  anchorY,
 }: {
   member: MemberRow;
   onClose: () => void;
@@ -306,6 +308,7 @@ function MemberSheet({
   onRoleChange?: (newRole: string) => void;
   onRemove?: () => void;
   rates: Record<string, number> | null;
+  anchorY: number;
 }) {
   const { data, isLoading, isError } = useGetMemberSpending(member.userId);
   const [savingRole, setSavingRole] = useState(false);
@@ -331,9 +334,28 @@ function MemberSheet({
   });
   const [confirmRemove, setConfirmRemove] = useState(false);
 
+  // Always scroll back to the top when this panel opens or switches member.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0;
+  }, [member.userId]);
+
   const isViewerHead = isHeadRole(viewerRole);
   const canEditRole = isViewerHead && !isMe;
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
+
+  // ── Fixed top positioning ────────────────────────────────────────────────
+  // Always open from just below the top chrome (status bar / app header).
+  // The panel fills as much vertical space as it needs. A scrollbar only
+  // appears when the content genuinely exceeds the available room.
+  const vpH = window.innerHeight;
+  const TOP_CLEARANCE = 70;     // matches the app header h-[4.375rem] = 70 px
+  const BOTTOM_CLEARANCE = 100; // nav bar (80) + breathing room
+
+  const panelPositionStyle: React.CSSProperties = {
+    top: TOP_CLEARANCE,
+    maxHeight: vpH - TOP_CLEARANCE - BOTTOM_CLEARANCE,
+  };
 
   async function handleRoleSave() {
     if (selectedRole === member.role) { onClose(); return; }
@@ -346,15 +368,15 @@ function MemberSheet({
     }
   }
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111] rounded-t-2xl max-h-[85vh] flex flex-col"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-white/20" />
-        </div>
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10">
+      <div
+        ref={panelRef}
+        className="fixed left-0 right-0 z-50 bg-[#111] rounded-2xl overflow-y-auto"
+        style={panelPositionStyle}
+      >
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10 sticky top-0 bg-[#111] z-10">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
             style={{ backgroundColor: member.memberColor }}
@@ -373,7 +395,7 @@ function MemberSheet({
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 pb-6">
           {/* Spending breakdown — shown first */}
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
@@ -553,7 +575,8 @@ function MemberSheet({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
@@ -785,6 +808,7 @@ export default function HouseholdPage() {
   const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
   const [copied, setCopied]           = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
+  const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1375,7 +1399,11 @@ export default function HouseholdPage() {
                     key={m.userId}
                     data-testid={`row-member-${m.userId}`}
                     className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors group"
-                    onClick={() => setSelectedMember(m as MemberRow)}
+                    onClick={(e) => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setMemberAnchorY(rect.bottom);
+                      setSelectedMember(m as MemberRow);
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -1667,10 +1695,13 @@ export default function HouseholdPage() {
 
               <div className="relative z-10 px-5 pt-5 pb-4 space-y-4">
                 {/* Header */}
-                <div className="flex items-center gap-2">
-                  <Warehouse className="w-5 h-5 text-white/60" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <Warehouse className="w-4.5 h-4.5 text-white/50" />
+                  </div>
                   <div>
-                    <p className="text-xs font-semibold tracking-widest uppercase text-white/40">{t("gl.subtitle_card")}</p>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-white/35">{t("gl.title")}</p>
+                    <p className="text-[11px] text-white/25 -mt-0.5">{t("gl.subtitle_card")}</p>
                   </div>
                 </div>
 
@@ -1783,6 +1814,7 @@ export default function HouseholdPage() {
           member={selectedMember}
           isMe={selectedMember.userId === me?.id}
           viewerRole={myRole}
+          anchorY={memberAnchorY}
           onClose={() => setSelectedMember(null)}
           onRoleChange={async (newRole) => {
             await handleRoleChange(selectedMember.userId, newRole);

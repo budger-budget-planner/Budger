@@ -2,7 +2,7 @@ import { forwardRef, useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@workspace/api-client-react";
+import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@/lib/api-client";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import { fetchRates, convertAmount } from "@/lib/rates";
@@ -570,7 +570,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-white/35">
-                Spiżarnia
+                {t("larder.tab")}
               </p>
               <p className="text-[11px] text-white/25 -mt-0.5">{t("larder.subtitle")}</p>
             </div>
