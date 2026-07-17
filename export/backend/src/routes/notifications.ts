@@ -123,6 +123,11 @@ router.patch("/notifications/alarms/:id", async (req, res): Promise<void> => {
   if (typeof req.body?.reminderTime === "string") updates.reminderTime = req.body.reminderTime;
   if (Array.isArray(req.body?.days)) updates.days = req.body.days;
   if (typeof req.body?.timezone === "string") updates.timezone = req.body.timezone;
+  // Reset dedup timestamp whenever the schedule itself changes so the alarm
+  // fires at the new time instead of being skipped by the 55-minute guard.
+  if (updates.reminderTime !== undefined || updates.days !== undefined) {
+    updates.lastFiredAt = null;
+  }
 
   const [alarm] = await db.update(userAlarmsTable)
     .set(updates)
