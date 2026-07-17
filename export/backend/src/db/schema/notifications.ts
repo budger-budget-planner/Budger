@@ -19,6 +19,20 @@ export const notificationSettingsTable = pgTable("notification_settings", {
   lastReminderSentAt: timestamp("last_reminder_sent_at", { withTimezone: true }),
 });
 
+// ── Per-user alarms (multiple alarms per user) ────────────────────────────────
+// Each row is one independently-scheduled alarm. The old notification_settings
+// table stays for legacy/backward-compat but new alarm logic uses this table.
+export const userAlarmsTable = pgTable("user_alarms", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(true),
+  reminderTime: text("reminder_time").notNull().default("20:00"),
+  timezone: text("timezone").notNull().default("UTC"),
+  days: text("days").array().notNull().default(sql`ARRAY['mon','tue','wed','thu','fri','sat','sun']::text[]`),
+  lastFiredAt: timestamp("last_fired_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertNotificationSettingsSchema = createInsertSchema(notificationSettingsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertNotificationSettings = z.infer<typeof insertNotificationSettingsSchema>;
 export type NotificationSettings = typeof notificationSettingsTable.$inferSelect;

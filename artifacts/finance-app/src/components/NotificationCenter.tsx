@@ -114,27 +114,50 @@ function relTime(ts: number): string {
 }
 
 // ─── Sub-panel: Alarm ─────────────────────────────────────────────────────────
-function AlarmPanel({ onBack }: { onBack: () => void }) {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const { data: settings } = useGetNotificationSettings();
-  const update = useUpdateNotificationSettings({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetNotificationSettingsQueryKey() });
-        toast({ title: t("notif.alerts_saved") });
-      },
-    },
+// Each alarm is stored as a row in user_alarms (server-side). Changes auto-save:
+//   add → POST, toggle/time/days → debounced PATCH, delete → immediate DELETE.
+// No "save" button required.
+
+type ServerAlarm = { id: number; enabled: boolean; reminderTime: string; timezone: string; days: string[] };
+
+async function alarmFetch(path: string, method: string, body?: object) {
+  const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+  // Grab CSRF token (reuse cached value from the app's own fetch layer)
+  let csrfToken = "";
+  try {
+    const r = await fetch(`${base}/api/csrf-token`, { credentials: "include" });
+    if (r.ok) csrfToken = (await r.json()).token ?? "";
+  } catch { /**/ }
+  const res = await fetch(`${base}${path}`, {
+    method,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(csrfToken ? { "x-csrf-token": csrfToken } : {}) },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
-  const [alerts, setAlerts] = useState<Alert[]>(loadAlerts);
+  if (res.status === 204) return null;
+  return res.ok ? res.json() : null;
+}
+
+function AlarmPanel({ onBack }: { onBack: () => void }) {
+  const { toast } = useToast();
+  const [alarms, setAlarms] = useState<ServerAlarm[]>([]);
+  const [loading, setLoading] = useState(true);
   const [permStatus, setPermStatus] = useState<NotificationPermission>("default");
   const reminderTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Per-alarm debounce timers for PATCH
+  const patchTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  // Load alarms from server on mount
   useEffect(() => {
-    if (settings && !localStorage.getItem(ALERTS_KEY)) {
-      setAlerts([{ id: "default", time: settings.reminderTime, days: settings.days, enabled: settings.enabled }]);
-    }
-  }, [settings]);
+    alarmFetch("/api/notifications/alarms", "GET")
+      .then((data: ServerAlarm[] | null) => {
+        if (Array.isArray(data)) {
+          setAlarms(data.length > 0 ? data : []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if ("Notification" in window) setPermStatus(Notification.permission as NotificationPermission);
@@ -152,60 +175,99 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
 
   useEffect(() => () => { reminderTimers.current.forEach(clearTimeout); }, []);
 
-  function toggleDay(alertId: string, day: string) {
-    setAlerts(prev => prev.map(a => {
-      if (a.id !== alertId) return a;
+  // Re-register client-side in-app timers whenever alarms change.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    reminderTimers.current.forEach(clearTimeout);
+    reminderTimers.current = [];
+    for (const alarm of alarms) {
+      if (!alarm.enabled || alarm.days.length === 0) continue;
+      const [h, m] = alarm.reminderTime.split(":").map(Number);
+      const now = new Date();
+      const next = new Date();
+      next.setHours(h, m, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      const id = setTimeout(() => {
+        addNCNotification({
+          type: "daily_reminder",
+          titleEn: "Budger Reminder",
+          titlePl: "Przypomnienie Budger",
+          bodyEn: "Don't forget to log today's spending!",
+          bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
+        });
+        const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
+        triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
+      }, next.getTime() - now.getTime());
+      reminderTimers.current.push(id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alarms, permStatus]);
+
+  // Debounced PATCH for a single alarm's fields
+  function schedulePatch(id: number, changes: Partial<Pick<ServerAlarm, "enabled" | "reminderTime" | "days">>, delay = 0) {
+    clearTimeout(patchTimers.current[id]);
+    patchTimers.current[id] = setTimeout(() => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      alarmFetch(`/api/notifications/alarms/${id}`, "PATCH", { ...changes, timezone: tz }).catch(() => {});
+    }, delay);
+  }
+
+  async function ensurePushPermission(): Promise<boolean> {
+    if (!("Notification" in window)) return false;
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") return false;
+    const p = await Notification.requestPermission();
+    setPermStatus(Notification.permission as NotificationPermission);
+    return p === "granted";
+  }
+
+  async function handleAdd() {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const granted = await ensurePushPermission();
+    if (!granted && "Notification" in window && Notification.permission !== "granted") {
+      toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
+    }
+    const newAlarm: ServerAlarm | null = await alarmFetch("/api/notifications/alarms", "POST", {
+      reminderTime: "09:00",
+      days: ["mon","tue","wed","thu","fri"],
+      timezone: tz,
+      enabled: true,
+    });
+    if (newAlarm) {
+      setAlarms(prev => [...prev, newAlarm]);
+      if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+    }
+  }
+
+  function handleToggle(id: number, enabled: boolean) {
+    setAlarms(prev => prev.map(a => a.id === id ? { ...a, enabled } : a));
+    schedulePatch(id, { enabled });
+    if (enabled && isPushSupported()) {
+      ensurePushPermission().then(granted => {
+        if (granted) subscribeToPushNotifications().catch(() => {});
+        else toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
+      });
+    }
+  }
+
+  function handleTimeChange(id: number, reminderTime: string) {
+    setAlarms(prev => prev.map(a => a.id === id ? { ...a, reminderTime } : a));
+    schedulePatch(id, { reminderTime }, 600);
+  }
+
+  function handleDayToggle(id: number, day: string) {
+    setAlarms(prev => prev.map(a => {
+      if (a.id !== id) return a;
       const days = a.days.includes(day) ? a.days.filter(d => d !== day) : [...a.days, day];
+      schedulePatch(id, { days }, 300);
       return { ...a, days };
     }));
   }
 
-  async function handleSave() {
-    const anyEnabled = alerts.some(a => a.enabled);
-    if (anyEnabled && "Notification" in window && Notification.permission !== "granted") {
-      const granted = await ensurePermission();
-      setPermStatus(Notification.permission as NotificationPermission);
-      if (!granted) {
-        toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
-        return;
-      }
-    }
-    saveAlerts(alerts);
-    const first = alerts[0];
-    update.mutate({ data: { enabled: first?.enabled ?? false, reminderTime: first?.time ?? "20:00", days: first?.days ?? [] } });
-
-    reminderTimers.current.forEach(clearTimeout);
-    reminderTimers.current = [];
-
-    if ("Notification" in window && Notification.permission === "granted") {
-      for (const alert of alerts) {
-        if (!alert.enabled || alert.days.length === 0) continue;
-        const [h, m] = alert.time.split(":").map(Number);
-        const now = new Date();
-        const next = new Date();
-        next.setHours(h, m, 0, 0);
-        if (next <= now) next.setDate(next.getDate() + 1);
-        const id = setTimeout(async () => {
-          if ("Notification" in window && Notification.permission === "granted") {
-            await showNotification(t("notif.budger_reminder"), {
-              body: t("notif.dont_forget"),
-              url: "/?sheet=alerts",
-              tag: "daily-reminder",
-            });
-            addNCNotification({
-              type: "daily_reminder",
-              titleEn: "Budger Reminder",
-              titlePl: "Przypomnienie Budger",
-              bodyEn: "Don't forget to log today's spending!",
-              bodyPl: "Nie zapomnij zalogować dzisiejszych wydatków!",
-            });
-            const hapticOn = localStorage.getItem("budger_haptic_v1") !== "off";
-            triggerBadgerNotification({ haptic: hapticOn && canHaptic() });
-          }
-        }, next.getTime() - now.getTime());
-        reminderTimers.current.push(id);
-      }
-    }
+  async function handleDelete(id: number) {
+    setAlarms(prev => prev.filter(a => a.id !== id));
+    await alarmFetch(`/api/notifications/alarms/${id}`, "DELETE");
   }
 
   return (
@@ -228,35 +290,35 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
-        {alerts.map((alert) => (
-          <div key={alert.id} className={`bg-card border border-border rounded-2xl overflow-hidden transition-opacity ${alert.enabled ? "" : "opacity-60"}`}>
+        {loading && <p className="text-sm text-muted-foreground text-center py-4">…</p>}
+
+        {alarms.map((alarm) => (
+          <div key={alarm.id} className={`bg-card border border-border rounded-2xl overflow-hidden transition-opacity ${alarm.enabled ? "" : "opacity-60"}`}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
-                {alert.enabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
-                <span className="text-sm font-medium">{alert.enabled ? t("notif.on") : t("notif.off")}</span>
+                {alarm.enabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+                <span className="text-sm font-medium">{alarm.enabled ? t("notif.on") : t("notif.off")}</span>
               </div>
               <div className="flex items-center gap-3">
-                {alerts.length > 1 && (
-                  <button onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
-                    className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70">
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                  </button>
-                )}
-                <Switch checked={alert.enabled} onCheckedChange={v => setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, enabled: v } : a))} />
+                <button onClick={() => handleDelete(alarm.id)}
+                  className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70">
+                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                </button>
+                <Switch checked={alarm.enabled} onCheckedChange={v => handleToggle(alarm.id, v)} />
               </div>
             </div>
             <div className="px-4 py-3 space-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{t("notif.time")}</span>
-                <Input type="time" value={alert.time} onChange={e => setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, time: e.target.value } : a))} className="w-36 h-9" />
+                <Input type="time" value={alarm.reminderTime} onChange={e => handleTimeChange(alarm.id, e.target.value)} className="w-36 h-9" />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground w-10 flex-shrink-0">{t("notif.days")}</span>
                 <div className="flex gap-1.5">
                   {DAYS().map(d => {
-                    const active = alert.days.includes(d.key);
+                    const active = alarm.days.includes(d.key);
                     return (
-                      <button key={d.key} type="button" onClick={() => toggleDay(alert.id, d.key)}
+                      <button key={d.key} type="button" onClick={() => handleDayToggle(alarm.id, d.key)}
                         className={`w-8 h-8 rounded-full text-xs font-semibold transition-colors ${active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
                         {d.label}
                       </button>
@@ -264,22 +326,17 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
                   })}
                 </div>
               </div>
-              {alert.days.length === 0 && <p className="text-xs text-destructive pl-12">{t("notif.select_day")}</p>}
+              {alarm.days.length === 0 && <p className="text-xs text-destructive pl-12">{t("notif.select_day")}</p>}
             </div>
           </div>
         ))}
 
-        <button onClick={() => setAlerts(prev => [...prev, { id: makeId(), time: "09:00", days: ["mon","tue","wed","thu","fri"], enabled: true }])}
+        <button onClick={handleAdd}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition active:opacity-70">
           <Plus className="w-4 h-4" />
           {t("nc.add_alarm")}
         </button>
       </div>
-
-      <button onClick={handleSave}
-        className="mt-4 w-full h-12 rounded-2xl bg-foreground text-background text-sm font-bold transition active:scale-95 flex-shrink-0">
-        {t("notif.save")}
-      </button>
     </div>
   );
 }
@@ -420,8 +477,6 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (Notification.permission === "denied")  return "denied";
     return "prompt";
   });
-  const updateNotifPush = useUpdateNotificationSettings();
-
   // Offline sync status (shown in the Sync section above Smart alerts)
   const [syncExpanded, setSyncExpanded] = useState(false);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
@@ -473,7 +528,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       if (!("Notification" in window)) return;
       if (Notification.permission === "granted") {
         setPushStatus("granted");
-        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        // Only register the push subscription — do NOT overwrite notification
+        // settings here. The AlarmPanel is the canonical source of truth for
+        // enabled/reminderTime/days. Overwriting them with wrong defaults
+        // (hardcoded "20:00" and numeric day strings) breaks the scheduler.
         if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       }
     }
@@ -486,7 +544,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (!("Notification" in window)) { setPushStatus("unsupported"); return; }
     if (Notification.permission === "granted") {
       setPushStatus("granted");
-      updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+      // Only subscribe — don't overwrite alarm settings with hardcoded defaults.
       if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       return;
     }
@@ -495,7 +553,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         setPushStatus("granted");
-        updateNotifPush.mutate({ data: { enabled: true, reminderTime: "20:00", days: ["1","2","3","4","5","6","7"] } });
+        // Only subscribe — don't overwrite alarm settings with hardcoded defaults.
         if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
       } else {
         setPushStatus("denied");

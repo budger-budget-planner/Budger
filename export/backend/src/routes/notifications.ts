@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import webpush from "web-push";
-import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable } from "../db";
+import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable, userAlarmsTable } from "../db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { UpdateNotificationSettingsBody, SavePushSubscriptionBody, CreateNotificationItemBody } from "../api-zod";
 import { logger } from "../lib/logger";
@@ -67,6 +67,81 @@ router.put("/notifications", async (req, res): Promise<void> => {
   }
 
   res.json(formatSettings(settings));
+});
+
+// ── User alarms (multi-alarm per user) ───────────────────────────────────────
+
+const MAX_ALARMS_PER_USER = 10;
+
+function formatAlarm(a: any) {
+  return {
+    id: a.id,
+    enabled: a.enabled,
+    reminderTime: a.reminderTime,
+    timezone: a.timezone ?? "UTC",
+    days: a.days,
+    createdAt: a.createdAt.toISOString(),
+  };
+}
+
+router.get("/notifications/alarms", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const alarms = await db.select().from(userAlarmsTable)
+    .where(eq(userAlarmsTable.userId, userId))
+    .orderBy(userAlarmsTable.createdAt);
+  res.json(alarms.map(formatAlarm));
+});
+
+router.post("/notifications/alarms", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const count = await db.select({ id: userAlarmsTable.id }).from(userAlarmsTable)
+    .where(eq(userAlarmsTable.userId, userId));
+  if (count.length >= MAX_ALARMS_PER_USER) {
+    res.status(400).json({ error: `Maximum ${MAX_ALARMS_PER_USER} alarms allowed` });
+    return;
+  }
+
+  const { reminderTime = "09:00", days = ["mon","tue","wed","thu","fri"], timezone = "UTC", enabled = true } = req.body ?? {};
+  const [alarm] = await db.insert(userAlarmsTable)
+    .values({ userId, reminderTime, days, timezone, enabled })
+    .returning();
+  res.status(201).json(formatAlarm(alarm));
+});
+
+router.patch("/notifications/alarms/:id", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const updates: Record<string, any> = {};
+  if (typeof req.body?.enabled === "boolean") updates.enabled = req.body.enabled;
+  if (typeof req.body?.reminderTime === "string") updates.reminderTime = req.body.reminderTime;
+  if (Array.isArray(req.body?.days)) updates.days = req.body.days;
+  if (typeof req.body?.timezone === "string") updates.timezone = req.body.timezone;
+
+  const [alarm] = await db.update(userAlarmsTable)
+    .set(updates)
+    .where(and(eq(userAlarmsTable.id, id), eq(userAlarmsTable.userId, userId)))
+    .returning();
+  if (!alarm) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(formatAlarm(alarm));
+});
+
+router.delete("/notifications/alarms/:id", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db.delete(userAlarmsTable)
+    .where(and(eq(userAlarmsTable.id, id), eq(userAlarmsTable.userId, userId)));
+  res.status(204).send();
 });
 
 // ── Notification-center feed items ──────────────────────────────────────────────
@@ -311,31 +386,99 @@ function getLocalDayKey(timezone: string): string {
   }
 }
 
+async function sendPushToUser(userId: number, alarmId: number) {
+  let subs: any[] = [];
+  try {
+    subs = await db.select().from(pushSubscriptionsTable)
+      .where(eq(pushSubscriptionsTable.userId, userId));
+  } catch (err) {
+    logger.warn({ err, userId }, "daily-reminder: failed to fetch subscriptions, skipping user");
+    return;
+  }
+
+  const payload = JSON.stringify({
+    title: "",
+    body: "Don't forget to log today's spending!",
+    url: "/",
+    tag: `daily-reminder-${alarmId}`,
+  });
+
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      );
+    } catch (err: any) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await db.delete(pushSubscriptionsTable)
+          .where(and(
+            eq(pushSubscriptionsTable.userId, userId),
+            eq(pushSubscriptionsTable.endpoint, sub.endpoint)
+          ));
+        logger.info({ userId }, "Removed stale push subscription");
+      } else {
+        logger.warn({ err, userId }, "Push notification failed");
+      }
+    }
+  }
+}
+
 async function sendDailyReminders() {
   if (!PUSH_CONFIGURED) return;
 
+  // ── Fire user_alarms (multi-alarm per user) ───────────────────────────────
+  let alarmsList: any[] = [];
+  try {
+    alarmsList = await db.select().from(userAlarmsTable)
+      .where(eq(userAlarmsTable.enabled, true));
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch user_alarms for push");
+    return;
+  }
+
+  const dueAlarms = alarmsList.filter(a => {
+    const tz = a.timezone || "UTC";
+    return a.reminderTime === getLocalHHMM(tz) && a.days.includes(getLocalDayKey(tz));
+  });
+
+  for (const alarm of dueAlarms) {
+    // Atomic dedup: claim this alarm's send slot for the current minute.
+    let claimed: { id: number }[] = [];
+    try {
+      claimed = await db.update(userAlarmsTable)
+        .set({ lastFiredAt: new Date() })
+        .where(and(
+          eq(userAlarmsTable.id, alarm.id),
+          sql`(${userAlarmsTable.lastFiredAt} IS NULL OR ${userAlarmsTable.lastFiredAt} < NOW() - INTERVAL '55 minutes')`
+        ))
+        .returning({ id: userAlarmsTable.id });
+    } catch (err) {
+      logger.warn({ err, alarmId: alarm.id }, "daily-reminder: dedup claim failed, skipping");
+      continue;
+    }
+    if (claimed.length === 0) continue;
+
+    await sendPushToUser(alarm.userId, alarm.id);
+  }
+
+  // ── Legacy: fire notification_settings single-alarm rows ─────────────────
+  // Kept so users who never opened the new AlarmPanel still get reminders.
   let settingsList: any[] = [];
   try {
     settingsList = await db.select().from(notificationSettingsTable)
       .where(eq(notificationSettingsTable.enabled, true));
   } catch (err) {
-    logger.error({ err }, "Failed to fetch notification settings for push");
+    logger.error({ err }, "Failed to fetch notification_settings for push");
     return;
   }
 
-  // Check each user's reminder time in their own timezone.
-  const dueUsers = settingsList.filter(s => {
+  const dueSettings = settingsList.filter(s => {
     const tz = s.timezone || "UTC";
-    const localHHMM  = getLocalHHMM(tz);
-    const localDay   = getLocalDayKey(tz);
-    return s.reminderTime === localHHMM && s.days.includes(localDay);
+    return s.reminderTime === getLocalHHMM(tz) && s.days.includes(getLocalDayKey(tz));
   });
 
-  for (const settings of dueUsers) {
-    // DB-level atomic dedup: atomically claim the send slot by updating
-    // lastReminderSentAt only when it is NULL or older than 55 minutes.
-    // This prevents double-sends across rolling deploys or process restarts
-    // where an in-memory Set would be cleared and let both processes fire.
+  for (const settings of dueSettings) {
     let claimed: { id: number }[] = [];
     try {
       claimed = await db.update(notificationSettingsTable)
@@ -349,43 +492,9 @@ async function sendDailyReminders() {
       logger.warn({ err, userId: settings.userId }, "daily-reminder: dedup claim failed, skipping");
       continue;
     }
-    if (claimed.length === 0) continue; // another process already claimed this minute
+    if (claimed.length === 0) continue;
 
-    let subs: any[] = [];
-    try {
-      subs = await db.select().from(pushSubscriptionsTable)
-        .where(eq(pushSubscriptionsTable.userId, settings.userId));
-    } catch (err) {
-      logger.warn({ err, userId: settings.userId }, "daily-reminder: failed to fetch subscriptions, skipping user");
-      continue;
-    }
-
-    const payload = JSON.stringify({
-      title: "",
-      body: "Don't forget to log today's spending!",
-      url: "/",
-      tag: "daily-reminder",
-    });
-
-    for (const sub of subs) {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload
-        );
-      } catch (err: any) {
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await db.delete(pushSubscriptionsTable)
-            .where(and(
-              eq(pushSubscriptionsTable.userId, settings.userId),
-              eq(pushSubscriptionsTable.endpoint, sub.endpoint)
-            ));
-          logger.info({ userId: settings.userId }, "Removed stale push subscription");
-        } else {
-          logger.warn({ err, userId: settings.userId }, "Push notification failed");
-        }
-      }
-    }
+    await sendPushToUser(settings.userId, -settings.id);
   }
 }
 

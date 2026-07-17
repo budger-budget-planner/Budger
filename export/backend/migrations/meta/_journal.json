@@ -50,6 +50,13 @@
       "when": 1784213700000,
       "tag": "0006_push_reminder_dedup",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784281200000,
+      "tag": "0007_user_alarms",
+      "breakpoints": true
     }
   ]
 }
