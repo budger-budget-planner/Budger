@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 import { LEGAL } from "@/lib/legal";
 import { loadPrefs } from "@/lib/prefs";
 import { getGetMeQueryKey } from "@/lib/api-client";
+import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { setPendingOnboarding, markSession } from "@/lib/prefs";
 import { Loader2, CheckCircle, XCircle, X } from "lucide-react";
 import BudgerWordmark from "@/components/BudgerWordmark";
@@ -90,9 +91,14 @@ export default function InviteSignupPage() {
     setStep("submitting");
     const base = import.meta.env.BASE_URL;
     try {
+      // Fetch a CSRF token once for both POST requests (needed when opening
+      // from a mail app's in-app browser which starts with a fresh session).
+      let csrfToken = "";
+      try { csrfToken = await getCsrfToken(); } catch { /* server will 403 and we'll report it */ }
+
       const startRes = await fetch(`${base}api/invites/${token}/register-start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
         credentials: "include",
         body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim() }),
       });
@@ -110,9 +116,12 @@ export default function InviteSignupPage() {
       setEmail(userEmail);
 
       // Step 2: register (set PIN, establish session)
+      // Re-fetch CSRF token — the register-start call may have rotated the session.
+      let csrfToken2 = csrfToken;
+      try { csrfToken2 = await getCsrfToken(); } catch { /* fall through */ }
       const regRes = await fetch(`${base}api/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken2 },
         credentials: "include",
         body: JSON.stringify({
           email: userEmail,
@@ -246,7 +255,11 @@ export default function InviteSignupPage() {
         {legalModalEl}
         <div className="w-full max-w-xs flex flex-col gap-6">
           <div className="flex flex-col items-center gap-3">
-            <BudgerWordmark />
+            {/* 0×0 anchor — splash logo flies here and scales to zero (disappears) */}
+            <span data-splash-logo-login style={{ display: "block", width: 0, height: 0 }} />
+            <div data-splash-wordmark-login>
+              <BudgerWordmark />
+            </div>
             <p className="text-center font-semibold text-white">{headerText}</p>
             {inviteData?.inviterName && (
               <p className="text-sm text-white/50 text-center">
