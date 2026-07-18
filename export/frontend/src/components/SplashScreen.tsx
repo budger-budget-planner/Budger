@@ -39,7 +39,7 @@ const WORDMARK_SIZE = 38;
 const TEXT_INTRO_SHIFT_Y = 71; // px
 
 // Scale for "Budger" text in bigText phase (matches the video scene value)
-const TEXT_INTRO_SCALE = 1.55;
+const TEXT_INTRO_SCALE = 2.325;
 
 type AnimStep = "sniff" | "lick" | "idle";
 type Phase    = "bigText" | "shrinkText" | "showing" | "moving" | "fading";
