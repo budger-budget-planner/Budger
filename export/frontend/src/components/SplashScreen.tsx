@@ -4,27 +4,47 @@ import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
 
-// ── Startup animation sequence ────────────────────────────────────────────────
-// sniff at 2× speed → lick at 2.25× speed → reposition
-// Total sequence duration before the exit glide begins: ~2 067 ms
-const SNIFF_MS  = Math.round(1400 / 2);     //  700 ms (2× speed)
-const LICK_MS   = Math.round(2400 / 2.25);  // 1067 ms (2.25× speed)
-const SETTLE_MS = 200;                      //  short pause after lick before gliding away
-const GAP_MS    = 100;                      //  idle gap between animations (lets CSS reset)
+// ── Intro phase timing ────────────────────────────────────────────────────────
+// Phase 1 "bigText"  : large wordmark centered, logo invisible (holds 700 ms)
+// Phase 2 "shrinkText": logo fades/scales in, wordmark contracts (CSS 800 ms transition)
+// Phase 3 "showing"  : normal float — logo 120 px, wordmark 38 px
+const INTRO_BIG_MS         = 1200;  // how long bigText holds
+const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
+const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 
-// Absolute timeouts from mount (t = 0 → sniff starts)
-const T_SNIFF_END  = SNIFF_MS;
-const T_LICK_START = T_SNIFF_END  + GAP_MS;
-const T_LICK_END   = T_LICK_START + LICK_MS;
-const T_SEQ_DONE   = T_LICK_END   + SETTLE_MS;
+// ── Float sequence timing (absolute from mount) ───────────────────────────────
+// sniff at 2× speed → lick at 2.25× speed → glide to destination
+const SNIFF_MS  = Math.round(1400 / 2);    //  700 ms (2× speed)
+const LICK_MS   = Math.round(2400 / 2.25); // 1 067 ms (2.25× speed)
+const SETTLE_MS = 200;
+const GAP_MS    = 100;
 
+const T_SNIFF_START = FLOAT_START_MS + 2000;         // 4 000 ms — one full 2 s pulse before sniff
+const T_SNIFF_END   = T_SNIFF_START + SNIFF_MS;      // 2 400 ms
+const T_LICK_START  = T_SNIFF_END + GAP_MS;          // 2 500 ms
+const T_LICK_END    = T_LICK_START + LICK_MS;        // 3 567 ms
+const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
+
+// ── Sizes ─────────────────────────────────────────────────────────────────────
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
+// Wordmark in float state: 38 px (matches BudgerWordmark default).
+// Login destination: 48 px (BudgerWordmark size={48} in Login.tsx).
+// Scale factor: 48/38 = 1.263 — used as fallback if DOM measurement fails.
+const WORDMARK_SIZE = 38;
+
+// Y-shift to visually center the wordmark when the logo is invisible during bigText.
+// Group layout: logo 120 px + gap 22 px + text ~60 px = 202 px tall.
+// Text center is 172 px from group top → 71 px below group center → needs -71 px shift.
+const TEXT_INTRO_SHIFT_Y = 71; // px
+
+// Scale for "Budger" text in bigText phase (matches the video scene value)
+const TEXT_INTRO_SCALE = 1.55;
+
 type AnimStep = "sniff" | "lick" | "idle";
-type Phase    = "showing" | "moving" | "fading";
+type Phase    = "bigText" | "shrinkText" | "showing" | "moving" | "fading";
 type Dest     = "home" | "login" | null;
 
-// ── Transform types ──────────────────────────────────────────────────────────
 type LogoTransform = { translate: string; scale: number };
 
 // ── Measurement helpers ───────────────────────────────────────────────────────
@@ -32,11 +52,9 @@ function measureLogoTarget(destEl: Element, srcEl?: Element | null): LogoTransfo
   const destRect = destEl.getBoundingClientRect();
   const targetCX = destRect.left + destRect.width  / 2;
   const targetCY = destRect.top  + destRect.height / 2;
-
   const srcRect  = srcEl?.getBoundingClientRect() ?? null;
   const splashCX = srcRect ? srcRect.left + srcRect.width  / 2 : window.innerWidth  / 2;
   const splashCY = srcRect ? srcRect.top  + srcRect.height / 2 : window.innerHeight / 2;
-
   return {
     translate: `translate(${Math.round(targetCX - splashCX)}px, ${Math.round(targetCY - splashCY)}px)`,
     scale: Math.round((destRect.width / SPLASH_SIZE) * 1000) / 1000,
@@ -47,16 +65,12 @@ function measureWordmarkTarget(destEl: Element, srcEl?: Element | null): LogoTra
   const destRect = destEl.getBoundingClientRect();
   const targetCX = destRect.left + destRect.width  / 2;
   const targetCY = destRect.top  + destRect.height / 2;
-
   const srcRect  = srcEl?.getBoundingClientRect() ?? null;
   const srcCX    = srcRect ? srcRect.left + srcRect.width  / 2 : window.innerWidth  / 2;
   const srcCY    = srcRect ? srcRect.top  + srcRect.height / 2 : window.innerHeight / 2;
-
-  // Scale by rendered height ratio (title + tagline block), fallback to known font ratio
   const scale = srcRect && srcRect.height > 0
     ? Math.round((destRect.height / srcRect.height) * 1000) / 1000
-    : Math.round((48 / 38) * 1000) / 1000;
-
+    : Math.round((48 / WORDMARK_SIZE) * 1000) / 1000;
   return {
     translate: `translate(${Math.round(targetCX - srcCX)}px, ${Math.round(targetCY - srcCY)}px)`,
     scale,
@@ -69,13 +83,7 @@ function fallbackTransform(dest: "home" | "login"): LogoTransform {
     : { translate: "translateY(-12vh)", scale: 0.733 };
 }
 
-// ── Generic polling helper ────────────────────────────────────────────────────
-// Waits for `selector` to appear and its rect to be stable across two consecutive
-// frames, then calls onReady with the measured transform. Returns a cancel
-// function so the RAF loop can be stopped on unmount or cleanup.
-//
-// onReady receives null when the element was not found within the poll window —
-// callers must treat null as "skip this animation, fall back to fade".
+// ── Polling helper ────────────────────────────────────────────────────────────
 function pollForTransform(
   selector: string,
   measure: (destEl: Element, srcEl?: Element | null) => LogoTransform,
@@ -90,7 +98,6 @@ function pollForTransform(
     if (cancelled) return;
     const el = document.querySelector(selector);
     attempts++;
-
     if (el) {
       const rect   = el.getBoundingClientRect();
       const stable =
@@ -100,12 +107,7 @@ function pollForTransform(
       lastRect = rect;
       if (stable) { onReady(measure(el, srcEl)); return; }
     }
-
-    if (attempts >= 20) {
-      // Element not found → null tells the caller to degrade gracefully
-      onReady(el ? measure(el, srcEl) : null);
-      return;
-    }
+    if (attempts >= 20) { onReady(el ? measure(el, srcEl) : null); return; }
     requestAnimationFrame(tick);
   }
 
@@ -115,50 +117,48 @@ function pollForTransform(
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
-  // Animation sequence state
-  const [animStep,  setAnimStep]  = useState<AnimStep>("sniff");
+  // Intro + exit phase
+  const [phase, setPhase] = useState<Phase>("bigText");
+
+  // Face animation sequence
+  const [animStep,  setAnimStep]  = useState<AnimStep>("idle");
   const [animDurMs, setAnimDurMs] = useState<number>(SNIFF_MS);
   const [seqDone,   setSeqDone]   = useState(false);
 
   // Exit-glide state — logo
-  const [phase,     setPhase]     = useState<Phase>("showing");
   const [dest,      setDest]      = useState<Dest>(null);
   const [translate, setTranslate] = useState<string>("none");
   const [scale,     setScale]     = useState<number>(1);
 
   // Exit-glide state — wordmark
-  // wordmarkFound tracks whether the destination element was actually measured;
-  // when false the wordmark fades out instead of flying (safe degradation).
   const [wordmarkTranslate, setWordmarkTranslate] = useState<string>("none");
   const [wordmarkScale,     setWordmarkScale]     = useState<number>(1);
   const [wordmarkFound,     setWordmarkFound]     = useState(false);
 
-  // Refs for source-element measurement at fly-time
   const logoRef     = useRef<HTMLDivElement>(null);
   const wordmarkRef = useRef<HTMLDivElement>(null);
 
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
-  // ── Animation sequence (sniff → lick → wink) ─────────────────────────────
+  // ── Full animation sequence ───────────────────────────────────────────────
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = [];
 
-    ids.push(setTimeout(() => setAnimStep("idle"), T_SNIFF_END));
-    ids.push(setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); }, T_LICK_START));
-    ids.push(setTimeout(() => { setAnimStep("idle"); setSeqDone(true); }, T_SEQ_DONE));
+    // Intro phases
+    ids.push(setTimeout(() => setPhase("shrinkText"), INTRO_BIG_MS));
+    ids.push(setTimeout(() => setPhase("showing"),    FLOAT_START_MS));
+
+    // Face animations after float begins
+    ids.push(setTimeout(() => { setAnimStep("sniff"); setAnimDurMs(SNIFF_MS); }, T_SNIFF_START));
+    ids.push(setTimeout(() => setAnimStep("idle"),                               T_SNIFF_END));
+    ids.push(setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },   T_LICK_START));
+    ids.push(setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        T_SEQ_DONE));
 
     return () => ids.forEach(clearTimeout);
   }, []);
 
-  // ── Exit sequence ────────────────────────────────────────────────────────
-  // Fires once the face sequence is done AND auth has resolved. Polls the DOM
-  // for destination rects, waits until ALL required measurements are stable,
-  // then starts the exit glide. Logo and wordmark fly in sync.
-  //
-  // If the wordmark destination element can't be found within the poll window
-  // (null), the wordmark falls back to its existing fade-out behaviour so the
-  // glide still looks correct — the logo is never blocked.
+  // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!seqDone || isLoading || resolvedRef.current) return;
     resolvedRef.current = true;
@@ -173,9 +173,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     let t1: ReturnType<typeof setTimeout> | undefined;
     let t2: ReturnType<typeof setTimeout> | undefined;
 
-    // Gate: enter "moving" only after all required transforms are resolved.
     let logoT:     LogoTransform | null = null;
-    let wordmarkT: LogoTransform | null = null;    // null = not found → fade instead
+    let wordmarkT: LogoTransform | null = null;
     const needed = target === "login" ? 2 : 1;
     let resolved = 0;
 
@@ -191,14 +190,12 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         setWordmarkScale(wordmarkT.scale);
         setWordmarkFound(true);
       }
-      // If wordmarkT is null the wordmark stays at opacity:0 (fade path, see render)
 
       setPhase("moving");
-      t1 = setTimeout(() => setPhase("fading"), 1050); // give logo time to land before home bleeds through
+      t1 = setTimeout(() => setPhase("fading"), 1050);
       t2 = setTimeout(onDone,                   1400);
     }
 
-    // Poll for logo destination
     const cancelLogo = pollForTransform(
       target === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]",
       measureLogoTarget,
@@ -206,13 +203,12 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       logoRef.current,
     );
 
-    // Poll for wordmark destination (login only; no wordmark on home header)
     let cancelWordmark: (() => void) | null = null;
     if (target === "login") {
       cancelWordmark = pollForTransform(
         "[data-splash-wordmark-login]",
         measureWordmarkTarget,
-        (t) => { wordmarkT = t; onAllReady(); },  // null → degrade to fade
+        (t) => { wordmarkT = t; onAllReady(); },
         wordmarkRef.current,
       );
     }
@@ -226,129 +222,139 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     };
   }, [seqDone, isLoading, user, onDone]);
 
-  const isMoving = phase === "moving" || phase === "fading";
-  const isFading = phase === "fading";
-
-  // Wordmark flies only when going to login AND the destination was found.
-  // Falls back to the existing fade-out if the element wasn't measured in time.
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const isBigText    = phase === "bigText";
+  const isShrinkText = phase === "shrinkText";
+  const isIntro      = isBigText || isShrinkText;
+  const isMoving     = phase === "moving" || phase === "fading";
+  const isFading     = phase === "fading";
   const wordmarkFlying = isMoving && dest === "login" && wordmarkFound;
 
   const forceAnim      = animStep !== "idle" ? animStep : null;
   const forceAnimDurMs = forceAnim != null ? animDurMs : undefined;
 
+  // ── Intro styles ──────────────────────────────────────────────────────────
+  // Logo: invisible+tiny in bigText, fades/scales in during shrinkText
+  const logoIntroStyle: React.CSSProperties = isIntro ? {
+    opacity:          isBigText ? 0 : 1,
+    transform:        isBigText ? "scale(0.05)" : "scale(1)",
+    transition:       isShrinkText
+      ? `opacity ${INTRO_TRANSITION_MS}ms cubic-bezier(0.4,0,0.2,1), transform ${INTRO_TRANSITION_MS}ms cubic-bezier(0.4,0,0.2,1)`
+      : "none",
+    transformOrigin:  "center center",
+  } : {};
+
+  // Text: shifted up and scaled in bigText, transitions back during shrinkText.
+  // translateY(-Y) scale(S) applies: first scale around center, then shift up.
+  const textIntroStyle: React.CSSProperties = isIntro ? {
+    transform:        isBigText
+      ? `translateY(-${TEXT_INTRO_SHIFT_Y}px) scale(${TEXT_INTRO_SCALE})`
+      : "translateY(0px) scale(1)",
+    transition:       isShrinkText
+      ? `transform ${INTRO_TRANSITION_MS}ms cubic-bezier(0.4,0,0.2,1)`
+      : "none",
+    transformOrigin:  "center center",
+  } : {};
+
   return (
     <div
       className="splash-screen"
       style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background:
-          "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
-        display: "flex",
-        alignItems: "center",
+        position:       "fixed",
+        inset:          0,
+        zIndex:         9999,
+        background:     "radial-gradient(ellipse at 50% 48%, hsl(0,0%,18%) 0%, hsl(0,0%,8%) 52%, hsl(0,0%,4%) 100%)",
+        display:        "flex",
+        alignItems:     "center",
         justifyContent: "center",
-        paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-        opacity: isFading ? 0 : 1,
-        transition: isFading ? "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-        pointerEvents: isMoving ? "none" : "auto",
+        paddingTop:     "env(safe-area-inset-top)",
+        paddingBottom:  "env(safe-area-inset-bottom)",
+        opacity:        isFading ? 0 : 1,
+        transition:     isFading ? "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+        pointerEvents:  isMoving ? "none" : "auto",
       }}
     >
-      {/*
-        Column group — logo + wordmark centered together as a visual unit.
-        Each child animates on its own translate + scale layers during the exit
-        glide so they can land on separate DOM targets independently.
-      */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 22,
+          display:        "flex",
+          flexDirection:  "column",
+          alignItems:     "center",
+          gap:            22,
         }}
       >
-        {/* ── Logo: translate layer ─────────────────────────────────────────
-            Ref gives the logo's true on-screen center for vector computation. */}
+        {/* ── Logo ────────────────────────────────────────────────────────── */}
+        {/* Outer: glide-to-destination translate */}
         <div
           ref={logoRef}
           style={{
-            transform: isMoving ? translate : "none",
+            transform:  isMoving ? translate : "none",
             transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
             willChange: "transform",
             lineHeight: 0,
           }}
         >
-          {/* ── Logo: scale layer ─────────────────────────────────────────
-              Separate element keeps translate and scale independent —
-              combined matrix interpolation would warp a non-square element. */}
+          {/* Mid: glide-to-destination scale */}
           <div
             style={{
-              transform: isMoving ? `scale(${scale})` : "none",
-              transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-              willChange: "transform",
+              transform:       isMoving ? `scale(${scale})` : "none",
+              transition:      isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+              willChange:      "transform",
               transformOrigin: "center center",
-              lineHeight: 0,
+              lineHeight:      0,
             }}
           >
-            {/* ── Pulse layer ───────────────────────────────────────────
-                Active while showing; stopped when moving so the glide is clean. */}
-            <div className={phase === "showing" ? "splash-pulse" : ""}>
-              <BadgerLogo
-                size={SPLASH_SIZE}
-                forceAnim={forceAnim}
-                forceAnimDurationMs={forceAnimDurMs}
-                growPulse={false}
-              />
+            {/* Inner: intro fade-in/scale-up layer */}
+            <div style={logoIntroStyle}>
+              {/* Pulse: breathe animation during float */}
+              <div className={phase === "showing" ? "splash-pulse" : ""}>
+                <BadgerLogo
+                  size={SPLASH_SIZE}
+                  forceAnim={forceAnim}
+                  forceAnimDurationMs={forceAnimDurMs}
+                  growPulse={false}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Wordmark: translate layer ──────────────────────────────────────
-            When going to login AND the destination was measured: flies from
-            splash center to login position, scaling to match rendered size.
-            Degraded path (wordmarkFound=false): fades out when logo starts
-            moving, same as the original behaviour. */}
+        {/* ── Wordmark ─────────────────────────────────────────────────────── */}
+        {/* Outer: glide-to-destination translate */}
         <div
           ref={wordmarkRef}
           style={{
-            transform: wordmarkFlying ? wordmarkTranslate : "none",
+            transform:  wordmarkFlying ? wordmarkTranslate : "none",
             transition: wordmarkFlying ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
             willChange: wordmarkFlying ? "transform" : "auto",
             pointerEvents: "none",
           }}
         >
-          {/* ── Wordmark: scale layer ─────────────────────────────────────
-              Same separate-layer pattern as the logo. Opacity is applied
-              directly on BudgerWordmark's root div (via style prop) rather
-              than on any ancestor wrapper. A parent-only opacity transition
-              can fail to cascade on iOS Safari when the child renders
-              -webkit-background-clip:text (gradient wordmark), leaving the
-              text visible. Direct application sidesteps the compositing bug. */}
+          {/* Mid: glide-to-destination scale */}
           <div
             style={{
-              transform: wordmarkFlying ? `scale(${wordmarkScale})` : "none",
-              transition: wordmarkFlying
-                ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)"
-                : "none",
-              willChange: wordmarkFlying ? "transform" : "auto",
+              transform:       wordmarkFlying ? `scale(${wordmarkScale})` : "none",
+              transition:      wordmarkFlying ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+              willChange:      wordmarkFlying ? "transform" : "auto",
               transformOrigin: "center center",
             }}
           >
-            <BudgerWordmark
-              size={38}
-              tagline="Budget Planner"
-              style={{
-                // Flying to login: always visible (overlay fade handles disappearance)
-                // Going to home or degraded: fade out immediately when movement starts.
-                // Use filter:opacity() rather than opacity so the gradient-clip text
-                // (–webkit-background-clip:text) is composited before the transparency
-                // is applied — this sidesteps the iOS Safari bug where opacity on a
-                // parent wrapper fails to propagate through gradient-clip compositing.
-                filter: wordmarkFlying ? "none" : (phase === "showing" ? "none" : "opacity(0%)"),
-                transition: wordmarkFlying ? "none" : "filter 0.15s linear",
-              }}
-            />
+            {/* Inner: intro scale-down/shift-down layer */}
+            <div style={textIntroStyle}>
+              <BudgerWordmark
+                size={WORDMARK_SIZE}
+                tagline="Budget Planner"
+                style={{
+                  // Flying to login: always visible (overlay fade handles disappearance)
+                  // Going to home or degraded: fade out when movement starts.
+                  // filter:opacity() sidesteps the iOS Safari gradient-clip compositing bug
+                  // where parent opacity fails to cascade through -webkit-background-clip:text.
+                  filter: wordmarkFlying
+                    ? "none"
+                    : (phase === "showing" || isIntro ? "none" : "opacity(0%)"),
+                  transition: wordmarkFlying ? "none" : "filter 0.15s linear",
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

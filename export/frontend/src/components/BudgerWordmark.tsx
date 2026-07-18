@@ -15,23 +15,25 @@ export default function BudgerWordmark({
 }) {
   return (
     <div className={`flex flex-col items-center ${className}`} style={style}>
-      <span
-        style={{
-          fontFamily: "'Quicksand', sans-serif",
-          fontWeight: 700,
-          fontSize: size,
-          letterSpacing: "-0.005em",
-          lineHeight: 1.3,
-          paddingBottom: "0.1em",
-          display: "inline-block",
-          background: GRADIENT,
-          WebkitBackgroundClip: "text",
-          backgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          color: "transparent",
-        }}
-      >
-        Budger
+      <span style={{ display: "inline-block" }}>
+        <span
+          style={{
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 700,
+            fontSize: size,
+            letterSpacing: "-0.005em",
+            lineHeight: 1.3,
+            paddingBottom: "0.1em",
+            display: "inline-block",
+            background: GRADIENT,
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            color: "transparent",
+          }}
+        >
+          Budger
+        </span>
       </span>
       {tagline && (
         <span
