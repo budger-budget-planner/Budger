@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { t } from "@/lib/i18n";
+import { LEGAL } from "@/lib/legal";
+import { loadPrefs } from "@/lib/prefs";
 import { getGetMeQueryKey } from "@/lib/api-client";
 import { setPendingOnboarding, markSession } from "@/lib/prefs";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, X } from "lucide-react";
 import BudgerWordmark from "@/components/BudgerWordmark";
 
 type Step = "loading" | "name" | "pin" | "confirm" | "submitting" | "done" | "error" | "expired";
@@ -27,6 +29,13 @@ export default function InviteSignupPage() {
   const [confirmPin, setConfirmPin] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [pinMismatch, setPinMismatch] = useState(false);
+
+  // Legal acceptance
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [legalModal, setLegalModal] = useState<null | "terms" | "privacy">(null);
+
+  const lang = (loadPrefs().language ?? "en") as "en" | "pl";
 
   // Fetch invite details on mount
   useEffect(() => {
@@ -55,17 +64,19 @@ export default function InviteSignupPage() {
 
   async function handleNameSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) return;
+    if (!firstName.trim() || !lastName.trim() || !termsAccepted || !privacyAccepted) return;
     setStep("pin");
   }
 
   function handlePinComplete(value: string) {
+    if (value.length < 4) return;
     setPin(value);
     setPinMismatch(false);
     setStep("confirm");
   }
 
   async function handleConfirmPin(value: string) {
+    if (value.length < 4) return;
     setConfirmPin(value);
     if (value !== pin) {
       setPinMismatch(true);
@@ -199,10 +210,40 @@ export default function InviteSignupPage() {
     ? t("invite.signup_title", { name: inviteData.householdName })
     : t("invite.create_account");
 
+  // ── Legal modal ──────────────────────────────────────────────────────
+  const legalModalEl = legalModal !== null && (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+      onClick={() => setLegalModal(null)}
+    >
+      <div
+        className="w-full bg-card rounded-t-2xl max-h-[80vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="font-semibold text-sm text-foreground">
+            {legalModal === "terms" ? t("login.terms_title") : t("login.privacy_title")}
+          </p>
+          <button onClick={() => setLegalModal(null)} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4">
+          <pre className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap font-sans">
+            {legalModal === "terms"
+              ? LEGAL.terms[lang] ?? LEGAL.terms.en
+              : LEGAL.privacy[lang] ?? LEGAL.privacy.en}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+
   // ── Name step ────────────────────────────────────────────────────────
   if (step === "name") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
+        {legalModalEl}
         <div className="w-full max-w-xs flex flex-col gap-6">
           <div className="flex flex-col items-center gap-3">
             <BudgerWordmark />
@@ -240,14 +281,55 @@ export default function InviteSignupPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full mt-2" disabled={!firstName.trim() || !lastName.trim()}>
-              {t("common.continue")}
+
+            {/* Legal acceptance checkboxes */}
+            <div className="space-y-3 pt-1">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded accent-foreground cursor-pointer"
+                />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  {t("login.terms_checkbox")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal("terms")}
+                    className="text-foreground underline underline-offset-4"
+                  >
+                    {t("login.terms_link")}
+                  </button>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={e => setPrivacyAccepted(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded accent-foreground cursor-pointer"
+                />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  {t("login.privacy_checkbox")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal("privacy")}
+                    className="text-foreground underline underline-offset-4"
+                  >
+                    {t("login.privacy_link")}
+                  </button>
+                </span>
+              </label>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full mt-2"
+              disabled={!firstName.trim() || !lastName.trim() || !termsAccepted || !privacyAccepted}
+            >
+              {t("login.continue")}
             </Button>
           </form>
-
-          <p className="text-[11px] text-white/25 text-center leading-relaxed">
-            {t("invite.terms_note")}
-          </p>
         </div>
       </div>
     );
@@ -263,8 +345,10 @@ export default function InviteSignupPage() {
           <PinKeyboard
             value={pin}
             onChange={setPin}
-            onComplete={handlePinComplete}
-            showSubmit={false}
+            showSubmit={true}
+            onSubmit={() => handlePinComplete(pin)}
+            submitLabel={t("login.continue")}
+            submitDisabled={pin.length < 4}
           />
         </div>
       </div>
@@ -280,8 +364,10 @@ export default function InviteSignupPage() {
         <PinKeyboard
           value={confirmPin}
           onChange={setConfirmPin}
-          onComplete={handleConfirmPin}
-          showSubmit={false}
+          showSubmit={true}
+          onSubmit={() => handleConfirmPin(confirmPin)}
+          submitLabel={t("login.continue")}
+          submitDisabled={confirmPin.length < 4}
         />
       </div>
     </div>
