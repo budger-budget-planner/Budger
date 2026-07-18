@@ -312,6 +312,7 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   animation: splash-pulse 2s ease-in-out infinite;
 }
 
+
 @keyframes pin-shake {
   0%, 100% { transform: translateX(0); }
   15%       { transform: translateX(-9px); }

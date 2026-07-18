@@ -9,7 +9,7 @@ import { randomBytes } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
-import { DATABASE_URL } from "./db";
+import { DATABASE_URL } from "@workspace/db";
 
 // Extend express-session with app-specific fields.
 declare module "express-session" {
