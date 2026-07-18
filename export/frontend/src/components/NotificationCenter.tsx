@@ -1310,7 +1310,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
             </div>
             {/* Title */}
-            <div className="flex items-center justify-between px-5 pt-2 pb-4">
+            <div className="flex items-center justify-between px-5 pt-2 pb-3">
               <h3 className="text-base font-semibold text-foreground">{t("prefs.icon_picker_title")}</h3>
               <button
                 onClick={() => setShowIconPicker(false)}
@@ -1319,6 +1319,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                 <X className="w-4 h-4" />
               </button>
             </div>
+            {/* How-to instruction */}
+            <p className="px-5 pb-4 text-xs text-muted-foreground leading-relaxed">
+              {t("prefs.icon_how_to")}
+            </p>
             {/* Icon options */}
             <div className="flex gap-4 px-5 pb-5">
               {(["b", "badger"] as const).map(icon => {
