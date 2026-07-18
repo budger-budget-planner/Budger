@@ -1,0 +1,124 @@
+# Agent Prompt — Unpack, Diff & Push Splash Screen Changes to GitHub
+
+## Context
+
+You are working on the **Budger** finance app monorepo.
+GitHub repo: `https://github.com/budger-budget-planner/Budger.git`
+
+Two zip files have been prepared containing the latest splash screen changes made in the Replit workspace. Your job is to unpack them, compare each file against the current GitHub version, and push the changes as a clean commit.
+
+---
+
+## Step 1 — Prerequisites
+
+Before doing anything else:
+
+1. Read the `git-remote` skill at `.local/skills/git-remote/SKILL.md` for the correct push workflow.
+2. Confirm the GitHub token is available (it is stored in the git remote URL or as a secret — do not log or expose it).
+3. Confirm you are on the `main` branch and that `git status` is clean before starting.
+
+---
+
+## Step 2 — Locate the zip files
+
+Both zips are in:
+```
+output/splash-export/
+  splash-frontend.zip    ← frontend files (finance-app)
+  splash-backend.zip     ← backend files (api-server)
+```
+
+---
+
+## Step 3 — Unpack and place files
+
+### Frontend (`splash-frontend.zip`)
+
+Unzip and place each file at the following paths in the monorepo:
+
+| File in zip            | Destination path                                              |
+|------------------------|---------------------------------------------------------------|
+| `SplashScreen.tsx`     | `artifacts/finance-app/src/components/SplashScreen.tsx`      |
+| `BudgerWordmark.tsx`   | `artifacts/finance-app/src/components/BudgerWordmark.tsx`    |
+| `WinkSplashScreen.tsx` | `artifacts/finance-app/src/components/WinkSplashScreen.tsx`  |
+| `BadgerLogo.tsx`       | `artifacts/finance-app/src/components/BadgerLogo.tsx`        |
+| `SplashPreview.tsx`    | `artifacts/finance-app/src/pages/SplashPreview.tsx`          |
+| `index.css`            | `artifacts/finance-app/src/index.css`                        |
+
+### Backend (`splash-backend.zip`)
+
+| File in zip | Destination path                          |
+|-------------|-------------------------------------------|
+| `app.ts`    | `artifacts/api-server/src/app.ts`         |
+
+---
+
+## Step 4 — Analyze changes vs GitHub
+
+For **each file**, run:
+```bash
+git diff HEAD -- <destination-path>
+```
+
+Look for and summarise:
+- What was **added** (new animations, new CSS classes, new component props)
+- What was **removed** (old animation code, old props, old CSS)
+- What was **fixed** (e.g. broken imports)
+
+Key changes to expect:
+
+### Frontend
+- `SplashScreen.tsx` — `shine` prop removed from `<BudgerWordmark>` call; old `splash-shine` div removed; `textIntroStyle` wrapper simplified
+- `BudgerWordmark.tsx` — `shine` prop entirely removed; component simplified back to pure silver gradient text, no animation logic
+- `index.css` — all shine/glow animation keyframes removed (`budger-coin-flash`, `budger-coin-shine`, `budger-shine-sweep`, `.budger-shine-beam`, `.budger-coin-flash`); splash pulse and pin-shake remain untouched
+- `BadgerLogo.tsx`, `WinkSplashScreen.tsx`, `SplashPreview.tsx` — review for any incidental changes
+
+### Backend
+- `app.ts` — one import fixed: `from "./db"` → `from "@workspace/db"` (this was causing a build failure that blocked login)
+
+---
+
+## Step 5 — Push to GitHub
+
+Once you have confirmed the diffs look correct:
+
+1. Stage only the changed files:
+```bash
+git add \
+  artifacts/finance-app/src/components/SplashScreen.tsx \
+  artifacts/finance-app/src/components/BudgerWordmark.tsx \
+  artifacts/finance-app/src/components/WinkSplashScreen.tsx \
+  artifacts/finance-app/src/components/BadgerLogo.tsx \
+  artifacts/finance-app/src/pages/SplashPreview.tsx \
+  artifacts/finance-app/src/index.css \
+  artifacts/api-server/src/app.ts
+```
+
+2. Commit with a clear message:
+```bash
+git commit -m "Remove shine animation from splash; fix api-server db import
+
+- Remove all glow/shine animation from BudgerWordmark and SplashScreen
+  (coin-flash, sweep-beam, brightness-arc approaches all removed)
+- BudgerWordmark: drop 'shine' prop entirely, restore clean silver gradient
+- SplashScreen: remove shine={isBigText} and old splash-shine div
+- index.css: remove all budger-shine/coin keyframes and classes
+- api-server app.ts: fix broken import './db' → '@workspace/db'
+  (this was causing build failure and blocking user login)"
+```
+
+3. Push:
+```bash
+git push origin main
+```
+
+4. Confirm the push succeeded by checking the remote HEAD matches your local commit SHA.
+
+---
+
+## Notes
+
+- Do **not** push the `output/splash-export/` directory — these zip files are workspace artifacts, not source code.
+- Do **not** modify any other files. Scope the commit strictly to the files listed above.
+- If there are merge conflicts, pull `--rebase` and resolve before pushing.
+- The `NEON_DATABASE_URL` secret must not appear anywhere in committed code.
