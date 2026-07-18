@@ -504,6 +504,203 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
   }
 }
 
+// ── Household invite emails ─────────────────────────────────────────────────
+
+interface HouseholdInviteEmailInput {
+  to: string;
+  inviterName: string;
+  householdName: string;
+  acceptUrl: string;
+  declineUrl: string;
+  expiresAt: Date;
+  language?: "en" | "pl";
+}
+
+interface HouseholdInviteNewUserEmailInput {
+  to: string;
+  inviterName: string;
+  householdName: string;
+  signupUrl: string;
+  expiresAt: Date;
+  language?: "en" | "pl";
+}
+
+function fmtExpiry(date: Date, language: "en" | "pl"): string {
+  return date.toLocaleDateString(language === "pl" ? "pl-PL" : "en-GB", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+}
+
+function buildInviteCard(opts: {
+  inviterName: string;
+  householdName: string;
+  bodyHtml: string;
+  buttonHtml: string;
+  footerHtml: string;
+  language: "en" | "pl";
+}): string {
+  const { inviterName: _in, householdName: _hn, bodyHtml, buttonHtml, footerHtml, language } = opts;
+  const tagline = language === "pl" ? "Twój domowy tracker finansowy" : "Your household finance tracker";
+  return `<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Budger</title>
+</head>
+<body style="margin:0;padding:0;background-color:${C.outerBg};" bgcolor="${C.outerBg}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" bgcolor="${C.outerBg}" style="background-color:${C.outerBg};padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:440px;border-radius:20px;overflow:hidden;border:1px solid ${C.divider};">
+          <tr>
+            <td align="center" bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:36px 32px 24px;">
+              <div style="width:72px;height:72px;background:#2a2a2a;border-radius:16px;line-height:72px;text-align:center;margin:0 auto;">
+                <span style="font-size:32px;font-weight:700;color:${C.textHero};">B</span>
+              </div>
+              <p style="margin:16px 0 0;font-size:22px;font-weight:700;letter-spacing:-0.3px;color:${C.textHero};line-height:1.2;">Budger</p>
+              <p style="margin:4px 0 0;font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:${C.textFaint};">${tagline}</p>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:0 32px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;">&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:28px 32px 24px;">
+              ${bodyHtml}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td align="center" bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding-bottom:8px;">
+                  ${buttonHtml}
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="${C.cardBg}" style="background-color:${C.cardBg};padding:8px 32px 32px;">
+              <div style="height:1px;background-color:${C.divider};font-size:0;line-height:0;margin-bottom:16px;">&nbsp;</div>
+              <p style="margin:0;font-size:11px;color:${C.textFaint};line-height:1.7;">${footerHtml}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export async function sendHouseholdInviteEmail({
+  to, inviterName, householdName, acceptUrl, declineUrl, expiresAt, language = "en",
+}: HouseholdInviteEmailInput): Promise<boolean> {
+  if (!resend) {
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — household invite email NOT delivered");
+    return false;
+  }
+  const isPl = language === "pl";
+  const invEsc = escapeHtml(inviterName);
+  const hhEsc = escapeHtml(householdName);
+  const expiryStr = escapeHtml(fmtExpiry(expiresAt, language));
+
+  const bodyHtml = isPl
+    ? `<p style="margin:0 0 6px;font-size:18px;font-weight:600;color:${C.textHero};line-height:1.3;">Zaproszenie do gospodarstwa 🏠</p>
+       <p style="margin:0 0 24px;font-size:14px;line-height:1.75;color:${C.textSub};">
+         <strong style="color:${C.textHero};">${invEsc}</strong> zaprasza Cię do gospodarstwa <strong style="color:${C.textHero};">${hhEsc}</strong> na Budger.
+       </p>`
+    : `<p style="margin:0 0 6px;font-size:18px;font-weight:600;color:${C.textHero};line-height:1.3;">Household invitation 🏠</p>
+       <p style="margin:0 0 24px;font-size:14px;line-height:1.75;color:${C.textSub};">
+         <strong style="color:${C.textHero};">${invEsc}</strong> has invited you to join the <strong style="color:${C.textHero};">${hhEsc}</strong> household on Budger.
+       </p>`;
+
+  const buttonHtml = `
+    <a href="${acceptUrl}" style="display:inline-block;background-color:${C.btnBg};color:${C.btnText};text-decoration:none;font-weight:700;font-size:15px;padding:15px 36px;border-radius:12px;letter-spacing:-0.1px;margin-right:12px;">
+      ${isPl ? "Akceptuj" : "Accept"}
+    </a>
+    <a href="${declineUrl}" style="display:inline-block;background-color:transparent;color:${C.textFaint};text-decoration:none;font-weight:400;font-size:13px;padding:15px 20px;border-radius:12px;border:1px solid ${C.divider};">
+      ${isPl ? "Odrzuć" : "Decline"}
+    </a>`;
+
+  const footerHtml = isPl
+    ? `Zaproszenie wygasa ${expiryStr}. Jeśli nie znasz tej osoby, możesz bezpiecznie zignorować tę wiadomość.`
+    : `This invitation expires on ${expiryStr}. If you don't recognise the sender, you can safely ignore this email.`;
+
+  const html = buildInviteCard({ inviterName, householdName, bodyHtml, buttonHtml, footerHtml, language });
+  const subject = isPl
+    ? `${invEsc} zaprasza Cię do gospodarstwa na Budger`
+    : `${invEsc} invited you to a household on Budger`;
+
+  try {
+    const { error } = await resend.emails.send({ from: FROM_ADDRESS, to, subject, html });
+    if (error) {
+      logger.warn({ to, error }, "email-sender: failed to send household invite email");
+      return false;
+    }
+    logger.info({ to: maskEmail(to) }, "email-sender: household invite email sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: exception sending household invite email");
+    return false;
+  }
+}
+
+export async function sendHouseholdInviteNewUserEmail({
+  to, inviterName, householdName, signupUrl, expiresAt, language = "en",
+}: HouseholdInviteNewUserEmailInput): Promise<boolean> {
+  if (!resend) {
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — household new-user invite email NOT delivered");
+    return false;
+  }
+  const isPl = language === "pl";
+  const invEsc = escapeHtml(inviterName);
+  const hhEsc = escapeHtml(householdName);
+  const expiryStr = escapeHtml(fmtExpiry(expiresAt, language));
+
+  const bodyHtml = isPl
+    ? `<p style="margin:0 0 6px;font-size:18px;font-weight:600;color:${C.textHero};line-height:1.3;">Zaproszenie do Budger 🏠</p>
+       <p style="margin:0 0 8px;font-size:14px;line-height:1.75;color:${C.textSub};">
+         <strong style="color:${C.textHero};">${invEsc}</strong> zaprasza Cię do dołączenia do gospodarstwa <strong style="color:${C.textHero};">${hhEsc}</strong> na Budger.
+       </p>
+       <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:${C.textFaint};">
+         Nie masz jeszcze konta — kliknij poniżej, aby je założyć i od razu dołączyć.
+       </p>`
+    : `<p style="margin:0 0 6px;font-size:18px;font-weight:600;color:${C.textHero};line-height:1.3;">You've been invited to Budger 🏠</p>
+       <p style="margin:0 0 8px;font-size:14px;line-height:1.75;color:${C.textSub};">
+         <strong style="color:${C.textHero};">${invEsc}</strong> has invited you to join the <strong style="color:${C.textHero};">${hhEsc}</strong> household on Budger.
+       </p>
+       <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:${C.textFaint};">
+         You don't have a Budger account yet — tap below to create one and join right away.
+       </p>`;
+
+  const buttonHtml = `
+    <a href="${signupUrl}" style="display:inline-block;background-color:${C.btnBg};color:${C.btnText};text-decoration:none;font-weight:700;font-size:15px;padding:15px 36px;border-radius:12px;letter-spacing:-0.1px;">
+      ${isPl ? "Utwórz konto i dołącz" : "Create account & join"}
+    </a>`;
+
+  const footerHtml = isPl
+    ? `Zaproszenie wygasa ${expiryStr}. Jeśli nie znasz tej osoby, możesz bezpiecznie zignorować tę wiadomość.`
+    : `This invitation expires on ${expiryStr}. If you don't recognise the sender, you can safely ignore this email.`;
+
+  const html = buildInviteCard({ inviterName, householdName, bodyHtml, buttonHtml, footerHtml, language });
+  const subject = isPl
+    ? `${invEsc} zaprasza Cię do Budger`
+    : `${invEsc} invited you to Budger`;
+
+  try {
+    const { error } = await resend.emails.send({ from: FROM_ADDRESS, to, subject, html });
+    if (error) {
+      logger.warn({ to, error }, "email-sender: failed to send new-user household invite email");
+      return false;
+    }
+    logger.info({ to: maskEmail(to) }, "email-sender: new-user household invite email sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: exception sending new-user household invite email");
+    return false;
+  }
+}
+
 export async function sendVerificationEmail({ to, firstName, verifyUrl, language = "en" }: VerificationEmailInput): Promise<boolean> {
   if (!resend) {
     logger.warn({ to }, "email-sender: RESEND_API_KEY not set — verification email NOT delivered");

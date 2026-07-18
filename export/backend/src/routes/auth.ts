@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
-import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable } from "../db";
+import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable, invitesTable } from "../db";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
 import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
@@ -349,6 +349,52 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   if (!updated) {
     res.status(500).json({ error: "Registration failed — please try again" });
     return;
+  }
+
+  // Auto-accept household invite if user signed up via an invite email
+  if (updated.pendingInviteToken) {
+    try {
+      const [invite] = await db.select().from(invitesTable)
+        .where(eq(invitesTable.token, updated.pendingInviteToken));
+      if (invite && invite.status === "pending" && invite.expiresAt > new Date()) {
+        // Join the household
+        const { pickNextColor } = await import("./households");
+        const color = await pickNextColor(invite.householdId);
+        await db.insert(householdMembersTable).values({
+          userId: updated.id,
+          householdId: invite.householdId,
+          role: invite.role ?? "child",
+          memberColor: color,
+        });
+        await db.update(usersTable)
+          .set({ householdId: invite.householdId })
+          .where(eq(usersTable.id, updated.id));
+        await db.update(invitesTable)
+          .set({ status: "accepted" })
+          .where(eq(invitesTable.id, invite.id));
+        // Notify inviter
+        if (invite.inviterUserId) {
+          const [household] = await db.select({ name: householdsTable.name })
+            .from(householdsTable).where(eq(householdsTable.id, invite.householdId));
+          await db.insert(notificationItemsTable).values({
+            userId: invite.inviterUserId,
+            type: "invite_accepted",
+            titleEn: "Invitation accepted",
+            titlePl: "Zaproszenie przyjęte",
+            bodyEn: `${updated.name || invite.email} signed up and joined "${household?.name ?? "your household"}".`,
+            bodyPl: `${updated.name || invite.email} zarejestrował(-a) się i dołączył(-a) do "${household?.name ?? "Twojego gospodarstwa"}".`,
+            dedupKey: `invite-accepted-${invite.token}`,
+          }).onConflictDoNothing();
+        }
+      }
+    } catch (err) {
+      logger.warn({ err, userId: updated.id }, "auth: failed to auto-accept pending invite after registration");
+    }
+    // Clear the pending invite token (best-effort)
+    await db.update(usersTable)
+      .set({ pendingInviteToken: null })
+      .where(eq(usersTable.id, updated.id))
+      .catch(() => {});
   }
 
   // Regenerate the session ID on privilege elevation (anonymous → authenticated)

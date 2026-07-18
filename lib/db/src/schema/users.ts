@@ -48,6 +48,7 @@ export const usersTable = pgTable("users", {
   // User-assigned nickname for the AI scanning badger (e.g. "Sniffles").
   // Shown in the scanner dialog: "[Name] is sniffing…"
   budgerName: text("budger_name"),
+  pendingInviteToken: text("pending_invite_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, table => [

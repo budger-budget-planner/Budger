@@ -48,6 +48,10 @@ export const usersTable = pgTable("users", {
   // User-assigned nickname for the AI scanning badger (e.g. "Sniffles").
   // Shown in the scanner dialog: "[Name] is sniffing…"
   budgerName: text("budger_name"),
+  // Invite token held for unregistered users who signed up via an invite email.
+  // Set by POST /invites/:token/register-start; auto-accepted and cleared by
+  // POST /auth/register once the PIN is set.
+  pendingInviteToken: text("pending_invite_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, table => [

@@ -22,6 +22,7 @@ import GoalsPage        from "@/pages/Goals";
 import HouseholdPage    from "@/pages/Household";
 import NotificationsPage from "@/pages/Notifications";
 import InvitePage       from "@/pages/Invite";
+import InviteSignupPage from "@/pages/InviteSignup";
 import {
   isOnboardingDone,
   markOnboardingDone,
@@ -148,6 +149,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       if (takePendingOnboarding()) {
         setShowOnboarding(true);
       }
+      // Redirect back to invite page if the user logged in to accept/decline
+      const pendingInviteToken = sessionStorage.getItem("budger_pending_invite");
+      if (pendingInviteToken) {
+        sessionStorage.removeItem("budger_pending_invite");
+        const pendingAction = sessionStorage.getItem("budger_pending_invite_action");
+        if (pendingAction) sessionStorage.removeItem("budger_pending_invite_action");
+        const qs = pendingAction ? `?action=${pendingAction}` : "";
+        navigate(`/invite/${pendingInviteToken}${qs}`);
+      }
     }
   }, [isLoading, user, navigate]);
 
@@ -232,6 +242,7 @@ function AppRoutes() {
       <Route path="/login" component={LoginPage} />
       <Route path="/verify-email" component={LoginPage} />
       <Route path="/reset-pin" component={LoginPage} />
+      <Route path="/invite/:token/signup" component={InviteSignupPage} />
       <Route path="/invite/:token" component={InvitePage} />
       {/*
         wouter v3: <Route> with NO path is an unconditional catch-all (always matches).

@@ -12,6 +12,11 @@ export const invitesTable = pgTable("invites", {
   status: text("status").notNull().default("pending"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Who sent this invite — used to send NC notification on outcome.
+  // Declared without .references() to avoid a circular import with users.ts;
+  // the FK is enforced at the DB level via migration 0008.
+  inviterUserId: integer("inviter_user_id"),
+  inviterName: text("inviter_name"),
 });
 
 export const insertInviteSchema = createInsertSchema(invitesTable).omit({ id: true, createdAt: true });
