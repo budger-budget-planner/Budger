@@ -4,6 +4,7 @@ export type AppPrefs = {
   totalBudget: number | null;
   staySignedIn: boolean;
   disableAnimations: boolean;
+  appIcon: "b" | "badger";
 };
 
 const PREFS_KEY_BASE = "budger_prefs_v1";
@@ -17,6 +18,7 @@ const DEFAULT_PREFS: AppPrefs = {
   totalBudget: null,
   staySignedIn: true,
   disableAnimations: false,
+  appIcon: "b",
 };
 
 /** Store the current user's id so prefs can be namespaced per account. */
