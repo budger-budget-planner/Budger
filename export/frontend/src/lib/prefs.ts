@@ -273,3 +273,39 @@ export const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "pl", label: "Polski"  },
 ];
+
+// ─── App icon preference (cookie-backed so it survives PWA reinstalls) ────────
+// iOS wipes PWA localStorage when the user removes and re-adds the app to the
+// home screen. A cookie is domain-scoped and persists across reinstalls, so we
+// can still remember which icon the user picked and apply it on the next visit
+// before they add to home screen again.
+
+const ICON_COOKIE = "budger_icon";
+
+export function getIconPrefFromCookie(): "b" | "badger" {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)budger_icon=([^;]+)/);
+    const val = match?.[1];
+    return val === "badger" ? "badger" : "b";
+  } catch {
+    return "b";
+  }
+}
+
+export function saveIconPrefToCookie(icon: "b" | "badger"): void {
+  try {
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `${ICON_COOKIE}=${icon}; expires=${expires}; path=/; SameSite=Lax`;
+  } catch { /**/ }
+}
+
+/** Update the <link rel="apple-touch-icon"> in the document head to match the
+ *  stored preference so the next "Add to Home Screen" picks up the right image. */
+export function applyIconPrefToDocument(): void {
+  try {
+    const icon = getIconPrefFromCookie();
+    const href = icon === "badger" ? "/icon-badger.png" : "/icon-b.png";
+    const link = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
+    if (link) link.href = href;
+  } catch { /**/ }
+}

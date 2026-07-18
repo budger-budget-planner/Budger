@@ -1094,7 +1094,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "prefs.icon_b_label":           { en: "Classic",                        pl: "Klasyczna"                            },
   "prefs.icon_badger_label":      { en: "Badger",                         pl: "Borsuk"                               },
   "prefs.icon_apply":             { en: "Apply",                          pl: "Zastosuj"                             },
-  "prefs.icon_applied":           { en: "Icon saved! Remove and re-add Budger to your home screen to apply the change.", pl: "Ikona zapisana! Usuń i dodaj Budger ponownie do ekranu głównego, aby zastosować." },
+  "prefs.icon_applied":           { en: "Icon saved! Open budger.app in Safari, then use Share → Add to Home Screen.", pl: "Ikona zapisana! Otwórz budger.app w Safari i wybierz Udostępnij → Dodaj do ekranu głównego." },
   "larder.you_contributed":  { en: "You contributed",                 pl: "Wpłaciłeś/aś"                       },
   "larder.mode_amount":      { en: "Amount",                          pl: "Kwota"                              },
   "larder.mode_percent":     { en: "Percent",                         pl: "Procent"                            },

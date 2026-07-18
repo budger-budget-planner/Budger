@@ -30,7 +30,7 @@ import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifi
 import { setAppBadgeCount } from "@/lib/app-badge";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { discardOp, opLabel } from "@/lib/mutation-queue";
-import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
+import { loadPrefs, savePrefs, checkNcSwipeHintDue, getIconPrefFromCookie, saveIconPrefToCookie, applyIconPrefToDocument } from "@/lib/prefs";
 import { LEGAL } from "@/lib/legal";
 import { showNotification } from "@/lib/show-notification";
 
@@ -461,7 +461,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { data: user } = useGetMe();
   const [animDisabled, setAnimDisabled] = useState(() => loadPrefs().disableAnimations ?? false);
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [pendingIcon, setPendingIcon] = useState<"b" | "badger">(() => loadPrefs().appIcon ?? "b");
+  const [pendingIcon, setPendingIcon] = useState<"b" | "badger">(() => getIconPrefFromCookie());
   const [forceOffline, setForceOffline] = useState<boolean>(() => {
     try { return localStorage.getItem("budger_force_offline") === "1"; } catch { return false; }
   });
@@ -832,7 +832,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           {/* Change App Icon */}
           <button
             onClick={() => {
-              setPendingIcon(loadPrefs().appIcon ?? "b");
+              setPendingIcon(getIconPrefFromCookie());
               setShowIconPicker(true);
             }}
             className="mt-2 flex items-center justify-between gap-3 w-full py-4 px-4 bg-card border border-border rounded-2xl text-left transition active:scale-[0.98]"
@@ -1355,6 +1355,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
               <button
                 onClick={() => {
                   savePrefs({ ...loadPrefs(), appIcon: pendingIcon });
+                  saveIconPrefToCookie(pendingIcon);
+                  applyIconPrefToDocument();
                   setShowIconPicker(false);
                   toast({ title: t("prefs.icon_applied") });
                 }}

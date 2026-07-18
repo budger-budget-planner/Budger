@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { scheduleRateRefreshes } from "@/lib/rates";
+import { applyIconPrefToDocument } from "@/lib/prefs";
 
 // Initialise Sentry before the React tree mounts so it can instrument
 // every component. VITE_SENTRY_DSN is intentionally public — Sentry
@@ -23,6 +24,11 @@ if (sentryDsn) {
 }
 
 document.documentElement.classList.add("dark");
+
+// Apply the user's saved icon preference to the apple-touch-icon link so the
+// next "Add to Home Screen" action picks up the correct image. Runs before
+// React mounts so the DOM is ready for Safari to read at install time.
+applyIconPrefToDocument();
 
 scheduleRateRefreshes();
 // When a new service worker takes control (after skipWaiting + clients.claim),
