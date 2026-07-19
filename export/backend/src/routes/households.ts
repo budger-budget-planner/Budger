@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable } from "../db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "../db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
   CreateHouseholdBody,
@@ -400,7 +400,10 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
   }
 
   // Fetch household name to store in alert for the removed user
-  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId));
+  const [[household], [removedUser]] = await Promise.all([
+    db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId)),
+    db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, params.data.userId)),
+  ]);
 
   await db.delete(householdMembersTable).where(
     and(
@@ -418,6 +421,18 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
     .set({ householdId: null })
     .where(and(eq(categoriesTable.userId, params.data.userId), eq(categoriesTable.householdId, currentUser.householdId)));
 
+  // Cancel all invite records (any status) for the removed user's email in this
+  // household so stale email links lead to the "revoked" screen rather than
+  // ALREADY_DECIDED when they get re-invited later.
+  if (removedUser?.email) {
+    await db.update(invitesTable)
+      .set({ status: "cancelled" })
+      .where(and(
+        eq(invitesTable.email, removedUser.email),
+        eq(invitesTable.householdId, currentUser.householdId),
+      ));
+  }
+
   res.sendStatus(204);
 });
 
@@ -428,15 +443,27 @@ router.post("/households/leave", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
+  const leavingHouseholdId = user.householdId;
+
   await db.delete(householdMembersTable).where(
-    and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId))
+    and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, leavingHouseholdId))
   );
   await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, userId));
   // Un-share this user's own categories from the household they just left, so
   // they don't keep leaking to the remaining members.
   await db.update(categoriesTable)
     .set({ householdId: null })
-    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)));
+    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, leavingHouseholdId)));
+
+  // Cancel all invite records for this user's email in the household they left
+  // so that stale email links don't cause a confusing ALREADY_DECIDED dead-end
+  // if they get re-invited later.
+  await db.update(invitesTable)
+    .set({ status: "cancelled" })
+    .where(and(
+      eq(invitesTable.email, user.email),
+      eq(invitesTable.householdId, leavingHouseholdId),
+    ));
 
   res.json({ success: true });
 });
