@@ -258,7 +258,7 @@ export default function InviteSignupPage() {
             {/* 0×0 anchor — splash logo flies here and scales to zero (disappears) */}
             <span data-splash-logo-login style={{ display: "block", width: 0, height: 0 }} />
             <div data-splash-wordmark-login>
-              <BudgerWordmark />
+              <BudgerWordmark size={48} tagline="Budget Planner" />
             </div>
             <p className="text-center font-semibold text-white">{headerText}</p>
             {inviteData?.inviterName && (
