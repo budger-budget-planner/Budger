@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useGetMe } from "@workspace/api-client-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
@@ -42,7 +42,7 @@ const TEXT_INTRO_SHIFT_Y = 71; // px
 const TEXT_INTRO_SCALE = 1.9375;
 
 type AnimStep = "sniff" | "lick" | "idle";
-type Phase    = "bigText" | "shrinkText" | "showing" | "moving" | "fading";
+type Phase    = "bigText" | "shrinkText" | "showing" | "moving" | "fading" | "vanishing";
 type Dest     = "home" | "login" | null;
 
 type LogoTransform = { translate: string; scale: number };
@@ -141,6 +141,20 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
+  // Detect URL at mount to determine the correct exit behaviour.
+  // Must run synchronously at mount so the exit effect always sees a stable value.
+  // ‣ /invite/:token       — invite decision page: logo can't fly to home nav;
+  //                          vanish in-place (scale+fade to zero, then overlay out).
+  // ‣ /invite/:token/signup — signup flow: markers exist in the "name" step;
+  //                          force "login" target regardless of auth state.
+  const urlMode = useMemo<"vanish" | "force-login" | "normal">(() => {
+    const p = window.location.pathname;
+    if (/\/invite\/[^/]+\/signup/.test(p)) return "force-login";
+    if (/\/invite\//.test(p)) return "vanish";
+    return "normal";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Full animation sequence ───────────────────────────────────────────────
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = [];
@@ -163,9 +177,22 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     if (!seqDone || isLoading || resolvedRef.current) return;
     resolvedRef.current = true;
 
+    // ── Vanish mode: invite URLs where the landing page isn't the home tab ──
+    // Logo + wordmark shrink/fade in place, then the overlay fades out.
+    if (urlMode === "vanish") {
+      setPhase("vanishing");
+      const t1 = setTimeout(() => setPhase("fading"), 320);
+      const t2 = setTimeout(onDone, 580);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+
     const prefs  = loadPrefs();
+    // "force-login": InviteSignup always has login markers in its "name" step —
+    // use them regardless of whether a different user happens to be signed in.
     const target: "home" | "login" =
-      user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login";
+      urlMode === "force-login"
+        ? "login"
+        : (user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login");
 
     setDest(target);
 
@@ -220,7 +247,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [seqDone, isLoading, user, onDone]);
+  }, [seqDone, isLoading, user, onDone, urlMode]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const isBigText    = phase === "bigText";
@@ -283,12 +310,15 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         }}
       >
         {/* ── Logo ────────────────────────────────────────────────────────── */}
-        {/* Outer: glide-to-destination translate */}
+        {/* Outer: glide-to-destination translate / vanish shrink */}
         <div
           ref={logoRef}
           style={{
-            transform:  isMoving ? translate : "none",
-            transition: isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+            transform:  phase === "vanishing" ? "scale(0)" : (isMoving ? translate : "none"),
+            transition: phase === "vanishing"
+              ? "transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease"
+              : (isMoving ? "transform 1.24s cubic-bezier(0.4, 0, 0.2, 1)" : "none"),
+            opacity:    phase === "vanishing" ? 0 : 1,
             willChange: "transform",
             lineHeight: 0,
           }}
@@ -348,10 +378,14 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
                   // Going to home or degraded: fade out when movement starts.
                   // filter:opacity() sidesteps the iOS Safari gradient-clip compositing bug
                   // where parent opacity fails to cascade through -webkit-background-clip:text.
-                  filter: wordmarkFlying
-                    ? "none"
-                    : (phase === "showing" || isIntro ? "none" : "opacity(0%)"),
-                  transition: wordmarkFlying ? "none" : "filter 0.15s linear",
+                  filter: phase === "vanishing"
+                    ? "opacity(0%)"
+                    : (wordmarkFlying
+                      ? "none"
+                      : (phase === "showing" || isIntro ? "none" : "opacity(0%)")),
+                  transition: phase === "vanishing"
+                    ? "filter 0.32s ease"
+                    : (wordmarkFlying ? "none" : "filter 0.15s linear"),
                 }}
               />
             </div>
