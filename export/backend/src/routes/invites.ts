@@ -217,8 +217,15 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
   const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
   if (!invite) { res.status(404).json({ error: "Invite not found" }); return; }
   if (invite.status === "cancelled") { res.status(410).json({ error: "REVOKED" }); return; }
+  // If the invitee already decided via the in-app module, show a friendly dead-end
+  // rather than "expired" — the email buttons lead here but the invite is settled.
+  if (invite.status === "accepted" || invite.status === "declined") {
+    res.status(410).json({ error: "ALREADY_DECIDED", decision: invite.status });
+    return;
+  }
 
-  const isExpired = invite.status !== "pending" || invite.expiresAt < new Date();
+  // status === "pending" at this point — check time-based expiry
+  const isExpired = invite.expiresAt < new Date();
   if (isExpired) {
     // On expiry, notify the inviter once (dedup prevents repeats)
     if (invite.inviterUserId) {

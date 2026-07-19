@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, AlertCircle, Users } from "lucide-react";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { markSession } from "@/lib/prefs";
+import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 
 type PageState =
   | "loading"
   | "revoked"
   | "expired"
   | "not_found"
+  | "already_decided"       // decided in-app already; email link is a dead-end
   | "registered_view"       // logged-in registered user, choosing to accept or decline
   | "unregistered"          // unregistered user, must sign up
   | "confirming_decline"    // asking for confirmation before declining

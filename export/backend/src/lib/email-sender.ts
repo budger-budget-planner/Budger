@@ -623,8 +623,8 @@ export async function sendHouseholdInviteEmail({
     </a>`;
 
   const footerHtml = isPl
-    ? `Zaproszenie wygasa ${expiryStr}. Jeśli nie znasz tej osoby, możesz bezpiecznie zignorować tę wiadomość.`
-    : `This invitation expires on ${expiryStr}. If you don't recognise the sender, you can safely ignore this email.`;
+    ? `Zaproszenie wygasa ${expiryStr}. Jeśli podjąłeś(-aś) już decyzję w aplikacji, zignoruj tę wiadomość — przyciski powyżej prowadzą do ślepego zaułka. Jeśli nie znasz tej osoby, możesz bezpiecznie zignorować tę wiadomość.`
+    : `This invitation expires on ${expiryStr}. If you've already made your decision in the app, ignore this email — the buttons above will lead to a dead end. If you don't recognise the sender, you can safely ignore this email.`;
 
   const html = buildInviteCard({ inviterName, householdName, bodyHtml, buttonHtml, footerHtml, language });
   const subject = isPl
