@@ -57,7 +57,9 @@ export default function InvitePage() {
       .then(async r => {
         if (r.status === 410) {
           const body = await r.json().catch(() => ({}));
-          setState(body.error === "REVOKED" ? "revoked" : "expired");
+          if (body.error === "REVOKED") { setState("revoked"); return; }
+          if (body.error === "ALREADY_DECIDED") { setState("already_decided"); return; }
+          setState("expired");
           return;
         }
         if (r.status === 404) { setState("not_found"); return; }
@@ -74,8 +76,10 @@ export default function InvitePage() {
   const autoAccept = useCallback(async () => {
     if (!token) return;
     setState("accepting");
+    const csrf = await getCsrfToken().catch(() => "");
     const r = await fetch(`${base}api/invites/${token}/accept`, {
       method: "POST", credentials: "include",
+      headers: { "x-csrf-token": csrf },
     });
     if (r.ok) {
       markSession();
@@ -124,8 +128,10 @@ export default function InvitePage() {
   async function handleAccept() {
     if (!token) return;
     setState("accepting");
+    const csrf = await getCsrfToken().catch(() => "");
     const r = await fetch(`${base}api/invites/${token}/accept`, {
       method: "POST", credentials: "include",
+      headers: { "x-csrf-token": csrf },
     });
     if (r.ok) {
       markSession();
@@ -141,8 +147,10 @@ export default function InvitePage() {
   async function handleDecline() {
     if (!token) return;
     setState("declining");
+    const csrf = await getCsrfToken().catch(() => "");
     const r = await fetch(`${base}api/invites/${token}/decline`, {
       method: "POST", credentials: "include",
+      headers: { "x-csrf-token": csrf },
     });
     if (r.ok) {
       setState("declined");
@@ -262,6 +270,23 @@ export default function InvitePage() {
           <p className="font-semibold text-white">{t("invite.revoked_title")}</p>
           <p className="text-sm text-white/50 mt-1">{t("invite.revoked_msg")}</p>
         </div>
+      </Card>
+    );
+  }
+
+  if (state === "already_decided") {
+    return (
+      <Card>
+        <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
+          <CheckCircle className="w-7 h-7 text-white/40" />
+        </div>
+        <div>
+          <p className="font-semibold text-white">{t("invite.already_decided_title")}</p>
+          <p className="text-sm text-white/50 mt-1">{t("invite.already_decided_msg")}</p>
+        </div>
+        <Button className="w-full" onClick={() => setLocation(me ? "/" : "/login")}>
+          {me ? t("invite.go_to_app") : t("invite.go_to_login")}
+        </Button>
       </Card>
     );
   }

@@ -572,7 +572,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "invite.signup_title":     { en: "Join {name}",                  pl: "Dołącz do {name}"                 },
   "invite.go_to_household":  { en: "Go to Household",              pl: "Przejdź do Gospodarstwa"          },
   "invite.already_decided_title": { en: "Already decided",           pl: "Już zadecydowano"                  },
-  "invite.already_decided_msg":   { en: "You already responded to this invitation in the app.", pl: "Odpowiedź na to zaproszenie została już udzielona w aplikacji." },
+  "invite.already_decided_msg":   { en: "You already responded to this invitation in the app. Log in to your account and enjoy using Budger.", pl: "Odpowiedź na to zaproszenie została już udzielona w aplikacji. Zaloguj się i korzystaj z Budger." },
   "hh.pending_invites":           { en: "Household Invitation",       pl: "Zaproszenie do gospodarstwa"      },
   "invite.a_household":      { en: "the household",                pl: "gospodarstwem"                    },
   "invite.decline_confirm_title": { en: "Decline invitation?",     pl: "Odrzucić zaproszenie?"            },

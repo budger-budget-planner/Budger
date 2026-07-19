@@ -588,6 +588,7 @@ export default function HouseholdPage() {
   const { data: household, isLoading: householdLoading } = useGetHousehold();
   const { data: members } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
+  const { data: incomingInvites } = useListIncomingInvites();
   const { data: goals } = useListGoals();
   const { data: goalSummary } = useGetGoalsSummary({});
 
@@ -804,6 +805,7 @@ export default function HouseholdPage() {
   const [headRequestSent, setHeadRequestSent] = useState(false);
   const [headRequestLoading, setHeadRequestLoading] = useState(false);
   const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
+  const [inviteActionLoading, setInviteActionLoading] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
@@ -866,6 +868,39 @@ export default function HouseholdPage() {
   const updateMemberRole = useUpdateMemberRole({
     mutation: { onSuccess: () => invalidateHousehold(queryClient) },
   });
+
+  async function handleAcceptIncomingInvite(token: string) {
+    setInviteActionLoading(token);
+    try {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/invites/${token}/accept`, {
+        method: "POST",
+      });
+      if (r.ok) {
+        await queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
+      }
+    } catch {
+      // silently ignore — user sees no change, can retry
+    } finally {
+      setInviteActionLoading(null);
+    }
+  }
+
+  async function handleDeclineIncomingInvite(token: string) {
+    setInviteActionLoading(token);
+    try {
+      await apiFetch(`${import.meta.env.BASE_URL}api/invites/${token}/decline`, {
+        method: "POST",
+      });
+      await queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
+    } catch {
+      // silently ignore
+    } finally {
+      setInviteActionLoading(null);
+    }
+  }
 
   async function handleInviteSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1039,6 +1074,59 @@ export default function HouseholdPage() {
                       disabled={splitActionLoading === split.id}
                       onClick={() => declineSplit(split.id)}>
                       {t("split.decline")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Incoming household invitations ── */}
+      {incomingInvites && incomingInvites.length > 0 && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-pink-500/20">
+              <Mail className="w-4 h-4 text-pink-400" />
+              <p className="text-sm font-semibold text-pink-300">
+                {t("hh.incoming_invites")} <span className="text-pink-400/70 font-normal">({incomingInvites.length})</span>
+              </p>
+            </div>
+            <div className="divide-y divide-pink-500/10">
+              {incomingInvites.map((inv: any) => (
+                <div key={inv.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Users className="w-4 h-4 text-pink-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{inv.householdName ?? "—"}</p>
+                    {inv.inviterName && (
+                      <p className="text-xs text-pink-300/80 mt-0.5">
+                        {t("invite.invited_by", { name: inv.inviterName })}
+                      </p>
+                    )}
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {t("invite.expires", { date: new Date(inv.expiresAt).toLocaleDateString() })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
+                      disabled={inviteActionLoading === inv.token}
+                      onClick={() => handleAcceptIncomingInvite(inv.token)}
+                    >
+                      {t("hh.accept")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-3 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                      disabled={inviteActionLoading === inv.token}
+                      onClick={() => handleDeclineIncomingInvite(inv.token)}
+                    >
+                      {t("hh.decline")}
                     </Button>
                   </div>
                 </div>
