@@ -52,7 +52,7 @@ export default function Onboarding({
   const queryClient = useQueryClient();
   const [step, setStep]               = useState<Step>("stay-signed-in");
   const [staySignedIn, setStaySignedIn] = useState(true);
-  const [currency, setCurrency]       = useState("USD");
+  const [currency, setCurrency]       = useState<string>(() => loadPrefs().language === "pl" ? "PLN" : "EUR");
   const [language]                    = useState(() => loadPrefs().language ?? "en");
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");

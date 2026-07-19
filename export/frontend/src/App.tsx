@@ -144,10 +144,23 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         });
         return;
       }
-      // Check sessionStorage flag set by Login.tsx before navigation
-      // This is the reliable way to detect first-login across the navigation boundary
+      // Check sessionStorage flag set by Login.tsx before navigation.
+      // This is the reliable way to detect first-login across the navigation boundary.
       if (takePendingOnboarding()) {
         setShowOnboarding(true);
+      } else if (user.firstLoginDone === false) {
+        // Onboarding was abandoned (e.g. screen locked, session outlived the
+        // sessionStorage flag). Force logout so the next login re-triggers it.
+        clearSession();
+        setActiveUserId(null);
+        logout.mutate({} as any, {
+          onSettled: async () => {
+            queryClient.clear();
+            if ("caches" in window) await caches.delete("budger-api-v1").catch(() => {});
+            resetSplash();
+          },
+        });
+        return;
       }
       // Redirect back to invite page if the user logged in to accept/decline
       const pendingInviteToken = sessionStorage.getItem("budger_pending_invite");

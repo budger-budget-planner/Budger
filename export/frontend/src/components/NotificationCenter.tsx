@@ -13,6 +13,7 @@ import {
   getGetNotificationSettingsQueryKey,
   useGetMe,
 } from "@/lib/api-client";
+import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -585,10 +586,12 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     setDeleteStep("pending");
     setDeleteError("");
     try {
+      let csrfToken = "";
+      try { csrfToken = await getCsrfToken(); } catch { /* server will reject and we'll show error */ }
       const r = await fetch(`${import.meta.env.BASE_URL}api/auth/request-deletion`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
         body: JSON.stringify({ language: lang }),
       });
       if (!r.ok) throw new Error("failed");
