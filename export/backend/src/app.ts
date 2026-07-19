@@ -75,6 +75,9 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false 
 //     this once the frontend is deployed to Vercel (or any other host).
 //   - localhost / 0.0.0.0 on any port — always allowed for local development.
 const allowedOrigins = new Set<string>();
+// Production domain — always allowed regardless of env var configuration.
+allowedOrigins.add("https://budger.app");
+allowedOrigins.add("https://www.budger.app");
 if (process.env.REPLIT_DOMAINS) {
   for (const d of process.env.REPLIT_DOMAINS.split(",")) {
     const domain = d.trim();
@@ -89,6 +92,7 @@ if (process.env.CORS_ORIGINS) {
     if (origin) allowedOrigins.add(origin);
   }
 }
+logger.info({ allowedOrigins: [...allowedOrigins] }, "CORS: allowed origins on startup");
 app.use(
   cors({
     origin: (origin, callback) => {
