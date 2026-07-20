@@ -1,0 +1,69 @@
+Push Plan
+
+Situation
+
+origin/main (GitHub) is 13 commits behind local. The export/ directory — which Vercel/Render deploy from — is partially out of sync with artifacts/. There's also an import path mismatch: artifacts/ uses @workspace/* monorepo imports; export/ uses local relative paths. Files can't be blindly copied — diffs must be applied with the correct import style preserved.
+
+What's already done ✅
+
+File	Status
+export/frontend/src/pages/Household.tsx	Synced today (virtual member, Home icon, count fix, etc.)
+export/frontend/src/lib/i18n.ts	Synced today (hh.virtual_member_name, hh.virtual_member_subtitle)
+Backend changes needed in export/backend/src/
+
+1. DB schema — db/schema/recurring_payments.ts Add one line: scope: text("scope").notNull().default("personal") to the recurring payments table definition. Non-breaking — existing rows default to "personal".
+
+2. DB migration — db/migrations/0006_recurring_scope.sql New file. SQL is already written: ALTER TABLE "recurring_payments" ADD COLUMN IF NOT EXISTS "scope" text NOT NULL DEFAULT 'personal'; — needs to be placed in the export/backend migrations folder.
+
+3. NEW FILE — routes/household-recurring-payments.ts Doesn't exist in export/backend at all. Full CRUD + /apply + auto-schedule for household-scoped RPs. Head-only write access enforced. Uses relative imports (../db, ../api-zod).
+
+4. routes/index.ts — 2-line addition:
+
+import householdRecurringPaymentsRouter from "./household-recurring-payments";
+router.use(householdRecurringPaymentsRouter);
+5. routes/households.ts — ~115 lines of new logic:
+
+Compute householdRPBudget + householdRPSpent from head's scope='household' RPs
+Subtract from head's totalBudget / monthlySpent in the members list response
+Push virtual member: userId: -1, role: "household-spendings", amber #f59e0b, always dashboardBlocked: false
+New GET /households/members/household-spendings/spending endpoint (declared before /:userId/spending)
+Head's personal /:userId/spending excludes household-scoped RP transactions
+6. routes/recurring-payments.ts — 4 targeted changes:
+
+GET / — add .where(... eq(scope, "personal")) filter
+POST / — set scope: "personal" explicitly on insert
+PATCH /:id — accept and validate scope in update body
+Import paths stay relative
+Frontend changes needed in export/frontend/src/
+
+7. pages/Dashboard.tsx — several additions:
+
+Fetch household-recurring-payments (head-only, enabled when isHead && householdId)
+Build householdRpIds set
+Filter donut spendingForChart to strip rows where recurringPaymentId ∈ householdRpIds
+totalBudgetForChart = totalBudget − sum(householdRPs) so the chart doesn't phantom-budget the household portion
+totalSpending uses spendingRaw (unfiltered) not filtered spending
+Add "For Own" / "For Household" stat tiles (head-only, row 2): personalSpending = totalSpending − paidHouseholdRpSum
+Move the "Transactions" tile to row 3
+Wire spending={spendingForChart} and totalBudget={totalBudgetForChart} into the donut
+8. pages/HomeSpending.tsx — several additions:
+
+Fetch household-recurring-payments (head-only, current month only)
+Merge into allManualRPs = [...personal, ...household] with scope tag
+applyRP routes to /api/household-recurring-payments/:id/apply when scope === "household", else personal endpoint
+Replace color-dot icons with <RefreshCw> for personal RPs and <Home> for household RPs — in both the recurring payment list and in transaction list rows
+Replace allManualRPs for the manual RP panel (count, map, empty state)
+DB migration note for production
+
+The scope migration (ADD COLUMN IF NOT EXISTS) is safe and non-breaking — all existing rows get scope = 'personal' automatically. The backend's startup migrate() call will apply it on first deploy. No manual DB action needed.
+
+Order of execution
+
+Apply DB schema + migration files to export/backend/
+Create household-recurring-payments.ts in export/backend/src/routes/ with correct relative imports
+Patch routes/index.ts (2 lines)
+Patch routes/households.ts (virtual member block + new endpoint)
+Patch routes/recurring-payments.ts (scope filter/assign/update)
+Patch export/frontend/src/pages/Dashboard.tsx
+Patch export/frontend/src/pages/HomeSpending.tsx
+Single commit covering all 4 feature areas, push to origin/main

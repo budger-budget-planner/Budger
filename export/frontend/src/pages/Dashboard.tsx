@@ -9,8 +9,10 @@ import {
   useListCategories,
   useUpdateMe,
   getGetMeQueryKey,
+  useGetMe,
+  useListHouseholdMembers,
 } from "@/lib/api-client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
   PieChart, Pie, Cell,
@@ -60,17 +62,39 @@ export default function DashboardPage() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
 
+  const { data: me }              = useGetMe();
+  const { data: householdMembers } = useListHouseholdMembers({ query: { enabled: !!(me as any)?.householdId } as any });
+  const myRole = (householdMembers ?? []).find((m: any) => m.userId === (me as any)?.id)?.role ?? "";
+  const isHead = myRole === "head" || myRole === "owner";
+
+  const { data: householdRPs } = useQuery<any[]>({
+    queryKey: ["household-recurring-payments"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/household-recurring-payments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isHead && !!(me as any)?.householdId,
+  });
+
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
   const { data: categories } = useListCategories();
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
-  // Merge ONLY un-applied recurring payments into spending as virtual budget segments.
+  // IDs of household RPs — used to exclude them from the donut chart entirely.
+  const householdRpIds = new Set<number>((householdRPs ?? []).map((rp: any) => rp.id));
+
+  // Merge ONLY un-applied PERSONAL recurring payments into spending as virtual budget segments.
   // Applied ones already exist as real transactions in the spending summary — adding them
   // again would double-count both the total and the donut segment.
+  // Household RP transactions are stripped out so they never appear in the donut.
   const spending = (() => {
-    const base = spendingRaw ?? [];
-    // For applied RP transactions the summary returns them with recurringPaymentId set
+    const base = (spendingRaw ?? []).filter(item =>
+      // Remove spending rows that came from an applied household RP transaction
+      !(item.recurringPaymentId && householdRpIds.has(item.recurringPaymentId))
+    );
+    // For applied personal RP transactions the summary returns them with recurringPaymentId set
     // — give them a stable _catKey so the donut chart groups them separately from
     // the "uncategorized" bucket.
     const enrichedBase = base.map(item =>
@@ -83,6 +107,7 @@ export default function DashboardPage() {
           }
         : item
     );
+    // recurringPayments is already scope='personal' only (the endpoint filters by scope)
     const unapplied = (recurringPayments ?? []).filter(rp => !rp.appliedThisMonth);
     if (!unapplied.length) return enrichedBase.length ? enrichedBase : undefined;
     const rpItems = unapplied.map(rp => ({
@@ -103,9 +128,22 @@ export default function DashboardPage() {
   const { data: monthly }    = useGetMonthlySummary({ currency: prefs.currency } as any);
   const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
 
-  const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
+  // Use raw (unfiltered) data for the stat tiles so household RP amounts aren't double-counted.
+  const totalSpending = (spendingRaw ?? []).reduce((s, c) => s + c.total, 0);
   const totalBudget   = prefs.totalBudget ?? 0;
-  const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
+  const txCount       = (spendingRaw ?? []).reduce((s, c) => s + c.count, 0);
+
+  // Household split — only relevant for head users
+  const paidHouseholdRpSum = (householdRPs ?? [])
+    .filter((rp: any) => rp.appliedThisMonth)
+    .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
+  const personalSpending = Math.max(0, totalSpending - paidHouseholdRpSum);
+
+  // Total budget passed to the donut: subtract household RP amounts so the chart
+  // doesn't compute a phantom "uncategorized" slice for the household portion.
+  const householdRpTotalAmount = (householdRPs ?? [])
+    .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
+  const totalBudgetForChart = Math.max(0, totalBudget - householdRpTotalAmount);
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
@@ -227,12 +265,22 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
-          <p className="text-2xl font-bold">{txCount}</p>
-          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
-        </div>
+        {/* Row 2 (middle) — head-of-household only */}
+        {isHead && (
+          <>
+            <div className="bg-card border border-border rounded-2xl px-4 py-3">
+              <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_own")}</p>
+              <p className="text-2xl font-bold"><AmtHero amount={personalSpending} currency={prefs.currency} /></p>
+            </div>
 
+            <div className="bg-card border border-border rounded-2xl px-4 py-3">
+              <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_household")}</p>
+              <p className="text-2xl font-bold"><AmtHero amount={paidHouseholdRpSum} currency={prefs.currency} /></p>
+            </div>
+          </>
+        )}
+
+        {/* Row 3 (was row 2) — Goals then Transactions */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_goals")}</p>
           <p className="text-2xl font-bold"><AmtHero amount={totalGoalContributions} currency={prefs.currency} /></p>
@@ -243,6 +291,11 @@ export default function DashboardPage() {
                 : `${activeGoalsWithContribs.length} ${activeGoalsWithContribs.length !== 1 ? "goals" : "goal"} active`
               : t("dashboard.no_contributions")}
           </p>
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl px-4 py-3">
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
+          <p className="text-2xl font-bold">{txCount}</p>
         </div>
       </div>
 
@@ -255,10 +308,10 @@ export default function DashboardPage() {
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
-          ) : spending && spending.length > 0 && totalBudget > 0 ? (
+          ) : spending && spending.length > 0 && totalBudgetForChart > 0 ? (
             <DonutBudgetChart
               spending={spending as any}
-              totalBudget={totalBudget}
+              totalBudget={totalBudgetForChart}
               currency={prefs.currency}
               hasData={
                 spending.some(s => s.count > 0) ||
