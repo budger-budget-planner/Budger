@@ -288,13 +288,14 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
           },
           required: ["transactions"],
         },
-        // 65 k = Gemini 2.5 Flash hard maximum. Thinking disabled (budget 0)
-        // so zero tokens are spent on reasoning — every token goes to JSON
-        // output. Supports up to ~100 transactions in a single extraction.
-        // temperature: 0 makes extraction deterministic — same file always
-        // produces the same result regardless of how many times it is run.
+        // 65 k = Gemini 2.5 Flash hard maximum.
+        // NOTE: thinkingBudget:0 (thinking disabled) is incompatible with
+        // responseMimeType:"application/json" + responseSchema — the API
+        // rejects the combination. Use a small budget so the model can
+        // reliably produce valid structured JSON without burning many tokens.
+        // temperature: 0 makes extraction deterministic.
         maxOutputTokens: 65536,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: 1024 },
         temperature: 0,
       },
     });
@@ -341,7 +342,7 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
       res.status(429).json({ error: "AI quota exceeded. Please try again tomorrow." });
       return;
     }
-    logger.error({ err, userId }, "Screenshot extraction: Gemini call failed");
+    logger.error({ err, userId, errMsg: err?.message, errStatus: err?.status, errCode: err?.code }, "Screenshot extraction: Gemini call failed");
     res.status(502).json({ error: "Failed to analyze the file. Please try again." });
   }
 });
