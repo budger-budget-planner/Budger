@@ -9,8 +9,10 @@ import {
   useListCategories,
   useUpdateMe,
   getGetMeQueryKey,
+  useGetMe,
+  useListHouseholdMembers,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
   PieChart, Pie, Cell,
@@ -60,6 +62,21 @@ export default function DashboardPage() {
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
 
+  const { data: me }              = useGetMe();
+  const { data: householdMembers } = useListHouseholdMembers({ query: { enabled: !!(me as any)?.householdId } as any });
+  const myRole = (householdMembers ?? []).find((m: any) => m.userId === (me as any)?.id)?.role ?? "";
+  const isHead = myRole === "head" || myRole === "owner";
+
+  const { data: householdRPs } = useQuery<any[]>({
+    queryKey: ["household-recurring-payments"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/household-recurring-payments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isHead && !!(me as any)?.householdId,
+  });
+
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
   const { data: categories } = useListCategories();
@@ -106,6 +123,12 @@ export default function DashboardPage() {
   const totalSpending = spending?.reduce((s, c) => s + c.total, 0) ?? 0;
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = spending?.reduce((s, c) => s + c.count, 0) ?? 0;
+
+  // Household split — only relevant for head users
+  const paidHouseholdRpSum = (householdRPs ?? [])
+    .filter((rp: any) => rp.appliedThisMonth)
+    .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
+  const personalSpending = Math.max(0, totalSpending - paidHouseholdRpSum);
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
@@ -183,6 +206,8 @@ export default function DashboardPage() {
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 gap-2 mb-5">
+
+        {/* Row 1 — always visible */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.total_spent")}</p>
           <p className="text-2xl font-bold" data-testid="text-total-spent"><AmtHero amount={totalSpending} currency={prefs.currency} /></p>
@@ -227,12 +252,24 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-2xl px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
-          <p className="text-2xl font-bold">{txCount}</p>
-          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
-        </div>
+        {/* Row 2 (middle) — head-of-household only */}
+        {isHead && (
+          <>
+            <div className="bg-card border border-border rounded-2xl px-4 py-3">
+              <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_own")}</p>
+              <p className="text-2xl font-bold"><AmtHero amount={personalSpending} currency={prefs.currency} /></p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
+            </div>
 
+            <div className="bg-card border border-border rounded-2xl px-4 py-3">
+              <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_household")}</p>
+              <p className="text-2xl font-bold"><AmtHero amount={paidHouseholdRpSum} currency={prefs.currency} /></p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
+            </div>
+          </>
+        )}
+
+        {/* Row 3 (was row 2) — Goals then Transactions */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.for_goals")}</p>
           <p className="text-2xl font-bold"><AmtHero amount={totalGoalContributions} currency={prefs.currency} /></p>
@@ -244,6 +281,13 @@ export default function DashboardPage() {
               : t("dashboard.no_contributions")}
           </p>
         </div>
+
+        <div className="bg-card border border-border rounded-2xl px-4 py-3">
+          <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
+          <p className="text-2xl font-bold">{txCount}</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
+        </div>
+
       </div>
 
       {/* Charts */}

@@ -77,6 +77,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "dashboard.budget":         { en: "Budget",              pl: "Budżet"                       },
   "dashboard.transactions":   { en: "Transactions",        pl: "Transakcje"                   },
   "dashboard.for_goals":      { en: "For goals",           pl: "Na cele"                      },
+  "dashboard.for_own":        { en: "For own spendings",   pl: "Na własne wydatki"            },
+  "dashboard.for_household":  { en: "For household",       pl: "Na wydatki domowe"            },
   "dashboard.no_budgets":     { en: "no budgets set",      pl: "brak budżetów"                },
   "dashboard.no_contributions":{ en: "no contributions",   pl: "brak wpłat"                   },
   "dashboard.goals_active":   { en: "{n} goal{s} active",  pl: "{n} cel{s} aktywny{pl}"      },
