@@ -1,0 +1,17 @@
+Buckle up because a massive overhaul is coming. I would like to change the members section in household tab for a household donut chart. Now, in a way it will be an expanded iteration of what a donut chart in a dashboard tab is (I will refer to this donut chart as DD later in this prompt). Let’s dig into it. 
+
+Visually we can clone the rules from DD, do a donut chart with a list on its right. When double tapped in the middle list is gone and donut grows. You can also copy the pulse animation for the center with all its rules. 
+
+The full circle represents entire household budget. It is devived percantage wise by members total budgets, just like the DD is devided by categories total budgets. Then these parts that represent members are devided - one part is colorful and represents how much they spent so far. The other part is dimmed and represents how much left of their total budget there is - this is also really similar to how categories are presented in DD. 
+
+Now what is different is that if you invoke a part of a donut so a member or household spendings, and then double tap on it, the donut chart changes. The animation happens that fades all other members and leaves only the invoked part for a moment. Then animation happens when this part snaps into pieces, which  then expand to create a very new donut chart. This newly created donut chart is a replacement of a personal dashboard and essentially clones that user’s DD. Its full circle is a representation of that user total monthly budget, then separate parts are representations of categories with the same rules (colored part - how much spent; dimmed part - how much left). If user has uncategorized spendings they also show just like on the DD. This personalized dashboard really is a clone of their DD. The only difference is that double tapping wherever in this personalized Donut would trigger an animation where categories are collapsing back to represent the shape of the part-of-household-donut-chart for this user. So by double tapping on the invoked part user can expand it and by double tapping wherever on expanded personal Donut collapses it and exits from it. 
+
+Important - setting private dashboard still works the same. If a member sets their dashboard to private it is only visible to the head of the household. If head of the household sets theirs to private no member can access it but themselves. Let’s add an animation of a lock that appears and pulses twice and fades, along with proper notification that this is a private dashboard. 
+
+Also, the household spendings personal Donut. It is always available for any member. It appears with fixed parts being the household reoccurring payments set by the head. If such payment is paid it is colored. If it has not been paid yet it stays dimmed. Paid ones have a tick next to them on the list. 
+
+On the household donut, when head sets the household budget that is higher than the sum of total monthly budgets of members there should be additional part of the donut described as additional funds. That part should represent the difference between set budget and sum of members budgets. 
+
+Now similarity to categories on DD, when a user overflows their budget their part of the Household Donut should glow red. Let’s leave it like this for now. 
+
+I think I described everything. Now obviously this change will be developed in finance tracker, so do not push it to GitHub until I say so. For now develop a plan of implementation devided by phases. 
