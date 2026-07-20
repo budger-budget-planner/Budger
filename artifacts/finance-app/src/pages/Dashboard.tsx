@@ -141,6 +141,12 @@ export default function DashboardPage() {
     .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
   const personalSpending = Math.max(0, totalSpending - paidHouseholdRpSum);
 
+  // Total budget passed to the donut: subtract household RP amounts so the chart
+  // doesn't compute a phantom "uncategorized" slice for the household portion.
+  const householdRpTotalAmount = (householdRPs ?? [])
+    .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
+  const totalBudgetForChart = Math.max(0, totalBudget - householdRpTotalAmount);
+
   // Donut chart data: strip zero-total uncategorized rows (no category, no RP, nothing spent)
   const spendingForChart = spending?.filter(item =>
     !(item.categoryId == null && !(item as any).recurringPaymentId && item.total === 0 && item.count === 0)
@@ -310,10 +316,10 @@ export default function DashboardPage() {
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
-          ) : spendingForChart && spendingForChart.length > 0 && totalBudget > 0 ? (
+          ) : spendingForChart && spendingForChart.length > 0 && totalBudgetForChart > 0 ? (
             <DonutBudgetChart
               spending={spendingForChart as any}
-              totalBudget={totalBudget}
+              totalBudget={totalBudgetForChart}
               currency={prefs.currency}
               hasData={
                 spendingForChart.some(s => s.count > 0) ||
