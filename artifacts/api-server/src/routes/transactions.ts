@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "../db";
 import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
@@ -17,7 +17,7 @@ import {
   GetTransactionParams,
   ListTransactionsQueryParams,
   ExtractScreenshotTransactionsBody,
-} from "@workspace/api-zod";
+} from "../api-zod";
 const router: IRouter = Router();
 
 function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
@@ -194,40 +194,60 @@ router.post("/transactions/extract-screenshot", async (req, res): Promise<void> 
 
   const todayIso = new Date().toISOString().split("T")[0];
   const promptText = [
-    "This is either a screenshot of a banking or mobile wallet app's transaction list, or a bank statement PDF.",
+    "This is either a screenshot of a banking/wallet app's transaction list, or a bank statement PDF.",
     "Extract ONLY genuine expense transactions — rows where money LEFT the account to pay for something",
     "(purchases, bills, fees, subscriptions, insurance premiums, fines, parking fees).",
     "",
-    "STEP 1 — AMOUNT SIGN CHECK (PDF statements only):",
-    "In PDF bank statements amounts with a leading minus sign (with or without space: '- 59,99 PLN' or '-59.99') are outgoing.",
-    "Amounts WITHOUT a leading minus sign are incoming credits — skip them immediately.",
-    "The minus sign is a NECESSARY condition for a PDF row to be an expense, but not sufficient on its own — also apply Step 2.",
+    "════ SCREENSHOTS (images of mobile banking or wallet apps) ════",
+    "Banking app screenshots (e.g. Bank Pekao, mBank, PKO BP, ING, Apple Wallet, Google Pay) show",
+    "outgoing/expense transactions as POSITIVE amounts — there is NO minus sign on expenses.",
+    "Every visible transaction row in a 'Latest Transactions' or 'Historia' list is an outgoing payment",
+    "UNLESS it is clearly labelled as incoming (e.g. 'Wpływ', 'Przelew przychodzący', 'Cashback', salary credit).",
+    "Payment method labels ('Apple Pay', 'Google Pay', 'BLIK', 'Karta') are metadata — the merchant name",
+    "is the primary label on the row (usually the first/largest text). Use it as the merchant field.",
+    "Do NOT use 'Apple Pay' or 'Google Pay' as the merchant name.",
     "",
-    "STEP 2 — TRANSFER / PERSON CHECK (applies to all inputs including screenshots):",
-    "Even if a row has a minus sign, SKIP it when ANY of these conditions are true:",
-    "  A) The operation type is a bank transfer to a person (first name + last name counterparty, not a business).",
+    "════ PDF BANK STATEMENTS (PDF files) ════",
+    "In PDF statements, a LEADING minus sign indicates money leaving the account (expense).",
+    "Rows WITHOUT a leading minus sign are incoming credits — skip them.",
+    "The minus sign is required for a PDF row to be an expense (but also apply the transfer check below).",
+    "",
+    "════ SKIP these rows in ALL inputs ════",
+    "Skip the row when ANY of these are true:",
+    "  A) Transfer to a named person (first name + last name), not a business.",
     "     Polish indicators: 'PRZELEW MOBILE', 'PRZELEW KRAJOWY', 'PRZELEW BLIK WYCHODZĄCY', 'REALIZACJA PŁATNOŚCI PEOPAY'",
-    "     when the counterparty field shows a person's name (e.g. 'NATALIA SNOPEK', 'MAGDALENA ZABOROWSKA').",
-    "     These are family/friend money transfers, not purchases — skip regardless of the memo/purpose text.",
-    "  B) The counterparty is the account owner's own name (sending money to oneself, own account).",
-    "  C) The operation is a loan/mortgage repayment: 'SPŁATA KREDYTU', 'RATA KREDYTU', 'SPŁATA POŻYCZKI'.",
-    "  D) General transfer labels with no merchant: 'Przelew własny', 'Przelew między rachunkami', 'Doładowanie',",
+    "     when counterparty is a person's name (e.g. 'NATALIA SNOPEK'). Family/friend transfers — skip.",
+    "  B) Transfer to own account / own name.",
+    "  C) Loan or mortgage repayment: 'SPŁATA KREDYTU', 'RATA KREDYTU', 'SPŁATA POŻYCZKI'.",
+    "  D) Generic transfer with no merchant: 'Przelew własny', 'Przelew między rachunkami', 'Doładowanie',",
     "     'Transfer to savings', 'Add money', 'Top-up', round-up/auto-save sweeps.",
-    "  E) The row is income: salary ('WYNAGRODZENIE'), social benefits ('ZUS', 'Świadczenie'), refunds, cashback.",
+    "  E) Clearly incoming: salary ('WYNAGRODZENIE'), social benefits ('ZUS', 'Świadczenie'), refunds, cashback.",
     "",
-    "STEP 3 — WHAT TO INCLUDE:",
-    "Include rows where the counterparty is a recognisable merchant, business, shop, service provider, or utility",
-    "(e.g. 'BIEDRONKA', 'ALLEGRO', 'NETFLIX', 'T-MOBILE', 'BP', 'PZU NA ŻYCIE', 'AUTOPAY S.A.', 'TEMU.COM').",
-    "'TRANSAKCJA KARTĄ PŁATNICZĄ' rows are always card purchases — include them if the merchant name is shown.",
-    "'PŁATNOŚĆ BLIK' to a business/service (e.g. 'AUTOPAY S.A.') is a purchase — include it.",
-    "'PŁATNOŚĆ BLIK' or 'PRZELEW BLIK' to a person's name — skip (personal transfer).",
+    "════ INCLUDE these rows ════",
+    "Include rows where the payee is a recognisable merchant, shop, service, or utility",
+    "(e.g. 'BIEDRONKA', 'Żabka', 'ALLEGRO', 'NETFLIX', 'T-MOBILE', 'BP', 'Netto', 'Trattoria Rucola').",
+    "'TRANSAKCJA KARTĄ PŁATNICZĄ' rows are card purchases — include if merchant name is shown.",
+    "'PŁATNOŚĆ BLIK' to a business is a purchase — include it.",
+    "'PŁATNOŚĆ BLIK' or 'PRZELEW BLIK' to a person's name — skip.",
     "",
-    "For each qualifying transaction return: merchant (the payee/business name, not the payment method),",
-    "amount (the ABSOLUTE value — always positive, no currency symbol, strip any leading minus sign),",
-    "currency (3-letter ISO code inferred from symbols/labels: PLN/zł, USD/$, EUR/€, GBP/£; null if unknown),",
-    `date (best-effort ISO YYYY-MM-DD; resolve relative labels against today ${todayIso}; null if not inferable),`,
-    "type: 'expense' for purchases/bills, 'income' for money received, 'transfer' for person-to-person or own-account moves.",
-    "Return an empty transactions array if this doesn't look like a transaction list.",
+    "════ NUMBER FORMAT ════",
+    "Amounts may use European decimal notation where a COMMA is the decimal separator",
+    "and a period/space is the thousands separator (e.g. '74,00' = 74.00, '1.234,56' = 1234.56,",
+    "'1 234,56' = 1234.56). Always output the amount as a decimal JSON number (e.g. 74.00, not 7400).",
+    "",
+    "════ DATE FORMAT ════",
+    "Explicit dates in Polish/European banking apps use DD/MM/YYYY (e.g. '10/07/2026' = 2026-07-10).",
+    "Never interpret these as MM/DD/YYYY.",
+    "",
+    "For each qualifying transaction return:",
+    "  merchant — the payee/business name (not the payment method like 'Apple Pay'),",
+    "  amount   — ABSOLUTE value, always positive, no currency symbol, strip any minus sign,",
+    "             output as a proper decimal number (e.g. 74.00 not 7400),",
+    "  currency — 3-letter ISO code from symbols/labels (PLN/zł, USD/$, EUR/€, GBP/£); null if unknown,",
+    `  date     — best-effort ISO YYYY-MM-DD; resolve relative day names against today ${todayIso};`,
+    "             for explicit DD/MM/YYYY dates convert to YYYY-MM-DD; null if not inferable,",
+    "  type     — 'expense' for purchases/bills, 'income' for money received, 'transfer' for person/own-account moves.",
+    "Return an empty transactions array if the image does not contain a transaction list.",
   ].join("\n");
 
   try {
