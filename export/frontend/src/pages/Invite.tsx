@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetMe, getGetMeQueryKey } from "@/lib/api-client";
@@ -46,6 +46,12 @@ export default function InvitePage() {
   const [state, setState] = useState<PageState>("loading");
   const [invite, setInvite] = useState<InviteDetails | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  // One-shot guard: autoAccept must only fire once per page load.
+  // useGetMe() refetches in the background, which changes the `me` object
+  // reference and re-fires the routing effect. Without this guard the second
+  // call finds invite.status="accepted" (set by the first call) and returns
+  // 404 "Invite not found or expired", overwriting the success state.
+  const autoAcceptFiredRef = useRef(false);
 
   const action = new URLSearchParams(search).get("action") as "accept" | "decline" | null;
 
@@ -120,7 +126,12 @@ export default function InvitePage() {
     }
 
     if (action === "accept") {
-      autoAccept();
+      if (!autoAcceptFiredRef.current) {
+        autoAcceptFiredRef.current = true;
+        autoAccept();
+      }
+      // else: autoAccept already ran (React Query refetch caused a re-run);
+      // do nothing — let the user interact with the registered_view manually.
     } else if (action === "decline") {
       setState("confirming_decline");
     } else {
