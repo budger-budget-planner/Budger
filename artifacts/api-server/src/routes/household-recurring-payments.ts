@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, larderEntriesTable } from "@workspace/db";
+import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, larderEntriesTable, householdMembersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { syncTotalBudgetFloor } from "../lib/budget-sync";
 import { monthKey as currentMonthKey, getLastDayOfMonth, actualDayForMonth, formatRP } from "../lib/recurring-helpers";
@@ -7,9 +7,6 @@ import { monthKey as currentMonthKey, getLastDayOfMonth, actualDayForMonth, form
 const router: IRouter = Router();
 
 async function getAppliedMap(userId: number, monthKey: string): Promise<Map<number, number | null>> {
-  // INNER JOIN with transactions ensures orphaned logs (where the transaction was deleted
-  // without the log being cleaned up) never appear as "applied". This is a safety net
-  // on top of the delete-log-on-delete-tx handler.
   const logs = await db
     .select({
       recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
@@ -31,7 +28,7 @@ async function getAppliedMap(userId: number, monthKey: string): Promise<Map<numb
   return map;
 }
 
-async function autoApplyScheduled(userId: number, monthKey: string): Promise<void> {
+async function autoApplyScheduledHousehold(userId: number, monthKey: string): Promise<void> {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -41,25 +38,22 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
     .where(and(
       eq(recurringPaymentsTable.userId, userId),
       eq(recurringPaymentsTable.type, "scheduled"),
+      eq(recurringPaymentsTable.scope, "household"),
     ));
 
   for (const rp of scheduled) {
     if (!rp.dayOfMonth) continue;
-
     const actualDay = actualDayForMonth(rp.dayOfMonth, year, month);
-    if (today < actualDay) continue; // not due yet
+    if (today < actualDay) continue;
 
-    // Check if already applied this month
     const [existing] = await db.select().from(recurringPaymentLogsTable)
       .where(and(
         eq(recurringPaymentLogsTable.recurringPaymentId, rp.id),
         eq(recurringPaymentLogsTable.userId, userId),
         eq(recurringPaymentLogsTable.monthKey, monthKey),
       ));
+    if (existing) continue;
 
-    if (existing) continue; // already applied
-
-    // Create the transaction
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(actualDay).padStart(2, "0")}`;
     const [tx] = await db.insert(transactionsTable).values({
       userId,
@@ -68,13 +62,8 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
       date: dateStr,
       paymentMethod: "card",
       recurringPaymentId: rp.id,
-      // NOTE: isLarderFund is intentionally NOT set here. Recurring payments that
-      // contribute to Larder are real spending events and must not be excluded from
-      // spending totals. The Larder badge for these transactions is derived on the
-      // frontend by cross-referencing larder_entries (sourceType: "recurring_payment").
     }).returning();
 
-    // Log the application — onConflictDoNothing guards against concurrent duplicate inserts
     await db.insert(recurringPaymentLogsTable).values({
       recurringPaymentId: rp.id,
       userId,
@@ -82,7 +71,6 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
       transactionId: tx.id,
     }).onConflictDoNothing();
 
-    // If addToLarder is set, credit the user's personal Larder with the full payment amount
     if (rp.addToLarder) {
       const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
       await db.insert(larderEntriesTable).values({
@@ -97,39 +85,43 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
   }
 }
 
+async function requireHead(userId: number): Promise<boolean> {
+  const [membership] = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.userId, userId));
+  return membership?.role === "head" || membership?.role === "owner";
+}
 
-// GET /recurring-payments — list all for current user, auto-apply scheduled
-router.get("/recurring-payments", async (req, res, next): Promise<void> => {
+// GET /household-recurring-payments
+router.get("/household-recurring-payments", async (req, res, next): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
     const monthKey = currentMonthKey();
-
-    // Auto-apply any scheduled payments that are due. A failure here (e.g. a
-    // transient DB error) must not prevent the user from seeing their list —
-    // log and continue rather than surfacing a 500.
     try {
-      await autoApplyScheduled(userId, monthKey);
+      await autoApplyScheduledHousehold(userId, monthKey);
     } catch (autoErr) {
-      req.log?.warn({ err: autoErr }, "recurring-payments: auto-apply failed — continuing without it");
+      req.log?.warn({ err: autoErr }, "household-recurring-payments: auto-apply failed — continuing without it");
     }
 
     const rps = await db.select().from(recurringPaymentsTable)
-      .where(and(eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "personal")))
+      .where(and(eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "household")))
       .orderBy(recurringPaymentsTable.createdAt);
 
     const appliedMap = await getAppliedMap(userId, monthKey);
-
     res.json(rps.map(rp => formatRP(rp, appliedMap.has(rp.id), appliedMap.get(rp.id) ?? null)));
   } catch (err) { next(err); }
 });
 
-// POST /recurring-payments — create
-router.post("/recurring-payments", async (req, res, next): Promise<void> => {
+// POST /household-recurring-payments — head-only create
+router.post("/household-recurring-payments", async (req, res, next): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+    if (!await requireHead(userId)) {
+      res.status(403).json({ error: "Only the head of the household can create household recurring payments" }); return;
+    }
 
     const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
 
@@ -162,17 +154,16 @@ router.post("/recurring-payments", async (req, res, next): Promise<void> => {
       amount: String(amount),
       dayOfMonth: type === "scheduled" ? dayOfMonth : null,
       addToLarder: addToLarder === true,
-      scope: "personal",
+      scope: "household",
     }).returning();
 
     await syncTotalBudgetFloor(userId);
-
     res.status(201).json(formatRP(rp, false, null));
   } catch (err) { next(err); }
 });
 
-// PATCH /recurring-payments/:id — update
-router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> => {
+// PATCH /household-recurring-payments/:id
+router.patch("/household-recurring-payments/:id", async (req, res, next): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -181,7 +172,7 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     const [existing] = await db.select().from(recurringPaymentsTable)
-      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "household")));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
     const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
@@ -206,17 +197,13 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
       }
       updates.dayOfMonth = dayOfMonth;
     }
-    if (addToLarder !== undefined) {
-      updates.addToLarder = addToLarder === true;
-    }
+    if (addToLarder !== undefined) updates.addToLarder = addToLarder === true;
 
-    // Validate resulting state: scheduled always needs a valid dayOfMonth
     const resultType = updates.type ?? existing.type;
     const resultDay = "dayOfMonth" in updates ? updates.dayOfMonth : existing.dayOfMonth;
     if (resultType === "scheduled" && (resultDay == null || resultDay < 1 || resultDay > 31)) {
       res.status(400).json({ error: "Scheduled payments require dayOfMonth 1-31" }); return;
     }
-    // Clear dayOfMonth when switching to manual
     if (resultType === "manual") updates.dayOfMonth = null;
 
     const [rp] = await db.update(recurringPaymentsTable)
@@ -224,9 +211,7 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
       .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)))
       .returning();
 
-    if (updates.amount !== undefined) {
-      await syncTotalBudgetFloor(userId);
-    }
+    if (updates.amount !== undefined) await syncTotalBudgetFloor(userId);
 
     const monthKey = currentMonthKey();
     const appliedMap = await getAppliedMap(userId, monthKey);
@@ -234,8 +219,8 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
   } catch (err) { next(err); }
 });
 
-// DELETE /recurring-payments/:id — delete
-router.delete("/recurring-payments/:id", async (req, res, next): Promise<void> => {
+// DELETE /household-recurring-payments/:id
+router.delete("/household-recurring-payments/:id", async (req, res, next): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -244,13 +229,10 @@ router.delete("/recurring-payments/:id", async (req, res, next): Promise<void> =
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     const [existing] = await db.select().from(recurringPaymentsTable)
-      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "household")));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-    // Delete logs for this payment
-    await db.delete(recurringPaymentLogsTable)
-      .where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
-
+    await db.delete(recurringPaymentLogsTable).where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
     await db.delete(recurringPaymentsTable)
       .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
 
@@ -258,8 +240,8 @@ router.delete("/recurring-payments/:id", async (req, res, next): Promise<void> =
   } catch (err) { next(err); }
 });
 
-// POST /recurring-payments/:id/apply — apply a manual recurring payment (creates transaction + log)
-router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<void> => { try {
+// POST /household-recurring-payments/:id/apply
+router.post("/household-recurring-payments/:id/apply", async (req, res, next): Promise<void> => { try {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
@@ -267,7 +249,7 @@ router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<voi
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [rp] = await db.select().from(recurringPaymentsTable)
-    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+    .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "household")));
   if (!rp) { res.status(404).json({ error: "Not found" }); return; }
 
   if (rp.type !== "manual") {
@@ -275,27 +257,19 @@ router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<voi
   }
 
   const monthKey = currentMonthKey();
-
-  // Check if already applied this month
   const [existing] = await db.select().from(recurringPaymentLogsTable)
     .where(and(
       eq(recurringPaymentLogsTable.recurringPaymentId, id),
       eq(recurringPaymentLogsTable.userId, userId),
       eq(recurringPaymentLogsTable.monthKey, monthKey),
     ));
+  if (existing) { res.status(409).json({ error: "Already applied this month" }); return; }
 
-  if (existing) {
-    res.status(409).json({ error: "Already applied this month" }); return;
-  }
-
-  // Use the client-supplied date when available (avoids UTC vs local-timezone mismatch).
-  // Validate it is a real calendar date before trusting it; fall back to server UTC date.
   let dateStr: string;
   const clientDate = req.body?.date;
   if (typeof clientDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)) {
     const parsed = new Date(clientDate + "T00:00:00Z");
-    const isRealDate = !isNaN(parsed.getTime()) &&
-      parsed.toISOString().startsWith(clientDate);
+    const isRealDate = !isNaN(parsed.getTime()) && parsed.toISOString().startsWith(clientDate);
     dateStr = isRealDate ? clientDate : (() => {
       const now = new Date();
       return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
@@ -312,11 +286,8 @@ router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<voi
     date: dateStr,
     paymentMethod: "card",
     recurringPaymentId: rp.id,
-    // NOTE: isLarderFund is intentionally NOT set here — same reason as auto-apply.
-    // The Larder badge is derived from larder_entries on the frontend.
   }).returning();
 
-  // onConflictDoNothing guards against race-condition duplicate inserts
   await db.insert(recurringPaymentLogsTable).values({
     recurringPaymentId: id,
     userId,
@@ -324,7 +295,6 @@ router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<voi
     transactionId: tx.id,
   }).onConflictDoNothing();
 
-  // If addToLarder is set, credit the user's personal Larder with the full payment amount
   if (rp.addToLarder) {
     const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
     await db.insert(larderEntriesTable).values({

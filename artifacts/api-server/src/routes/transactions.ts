@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "../db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
 import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
@@ -17,7 +17,7 @@ import {
   GetTransactionParams,
   ListTransactionsQueryParams,
   ExtractScreenshotTransactionsBody,
-} from "../api-zod";
+} from "@workspace/api-zod";
 const router: IRouter = Router();
 
 function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
@@ -49,6 +49,7 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     recurringPaymentId: tx.recurringPaymentId ?? null,
     recurringPaymentName: rp?.name ?? null,
     recurringPaymentColor: rp?.color ?? null,
+    recurringPaymentScope: rp?.scope ?? null,
     isLarderFund: tx.isLarderFund ?? false,
   };
 }

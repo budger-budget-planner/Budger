@@ -38,7 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1688,7 +1688,9 @@ export default function HomeSpending() {
                   <div key={prp.id} className="flex items-start gap-3 px-4 py-3.5 opacity-40">
                     <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                       style={{ backgroundColor: prp.color + "33" }}>
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: prp.color }} />
+                      {(prp as any).scope === "household"
+                        ? <Home className="w-4 h-4" style={{ color: prp.color }} />
+                        : <RefreshCw className="w-4 h-4" style={{ color: prp.color }} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground leading-snug truncate">
@@ -1778,7 +1780,11 @@ export default function HomeSpending() {
                         {/* Category icon */}
                         <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                           style={{ backgroundColor: dotColor + "33" }}>
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                          {isRP
+                            ? ((tx as any).recurringPaymentScope === "household"
+                              ? <Home className="w-4 h-4" style={{ color: dotColor }} />
+                              : <RefreshCw className="w-4 h-4" style={{ color: dotColor }} />)
+                            : <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />}
                         </div>
 
                         {/* Center content */}
@@ -2076,7 +2082,9 @@ export default function HomeSpending() {
                         >
                           <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
                             style={{ backgroundColor: rp.color + "33" }}>
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: rp.color }} />
+                            {(rp as any).scope === "household"
+                              ? <Home className="w-4 h-4" style={{ color: rp.color }} />
+                              : <RefreshCw className="w-4 h-4" style={{ color: rp.color }} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{rp.name}</p>

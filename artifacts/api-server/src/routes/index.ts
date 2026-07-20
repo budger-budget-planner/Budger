@@ -16,6 +16,7 @@ import merchantCategoriesRouter from "./merchant-categories";
 import splitsRouter from "./splits";
 import liveActivityRouter from "./live-activity";
 import recurringPaymentsRouter from "./recurring-payments";
+import householdRecurringPaymentsRouter from "./household-recurring-payments";
 import larderRouter from "./larder";
 import greatLarderRouter from "./great-larder";
 
@@ -38,6 +39,7 @@ router.use(goalsRouter);
 router.use(currenciesRouter);
 router.use(liveActivityRouter);
 router.use(recurringPaymentsRouter);
+router.use(householdRecurringPaymentsRouter);
 router.use(larderRouter);
 router.use(greatLarderRouter);
 

@@ -20,7 +20,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
-import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -464,15 +464,24 @@ function EditDialog({ category, open, onClose, totalBudget, otherCategoriesTotal
 
 // ─── Recurring Payment Card ────────────────────────────────────────────────────
 
-function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () => void; currency: string }) {
+function RecurringPaymentCard({ rp, onEdit, currency, scope }: { rp: any; onEdit: () => void; currency: string; scope?: "personal" | "household" }) {
+  const rpScope = scope ?? (rp as any).scope ?? "personal";
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const remove = useMutationWithQueue({
-    endpoint: (vars: { id: number }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
+    endpoint: (vars: { id: number }) => rpScope === "household"
+      ? `${import.meta.env.BASE_URL}api/household-recurring-payments/${vars.id}`
+      : `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
     method: "DELETE",
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() }),
+    onSuccess: () => {
+      if (rpScope === "household") {
+        queryClient.invalidateQueries({ queryKey: ["household-recurring-payments"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      }
+    },
   });
 
   const typeLabel = rp.type === "scheduled"
@@ -486,7 +495,7 @@ function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () =>
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
             style={{ backgroundColor: rp.color + "33" }}>
-            <RefreshCw className="w-4 h-4" style={{ color: rp.color }} />
+            {rpScope === "household" ? <Home className="w-4 h-4" style={{ color: rp.color }} /> : <RefreshCw className="w-4 h-4" style={{ color: rp.color }} />}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">{rp.name}</p>
@@ -537,9 +546,10 @@ function RecurringPaymentCard({ rp, onEdit, currency }: { rp: any; onEdit: () =>
 
 // ─── Edit Recurring Payment Dialog ────────────────────────────────────────────
 
-function EditRPDialog({ rp, open, onClose, sym }: {
-  rp: any; open: boolean; onClose: () => void; sym: string;
+function EditRPDialog({ rp, open, onClose, sym, scope }: {
+  rp: any; open: boolean; onClose: () => void; sym: string; scope?: "personal" | "household";
 }) {
+  const rpScope = scope ?? (rp as any).scope ?? "personal";
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
   const [name, setName] = useState(rp.name);
@@ -550,11 +560,17 @@ function EditRPDialog({ rp, open, onClose, sym }: {
   const [addToLarder, setAddToLarder] = useState<boolean>(rp.addToLarder ?? false);
 
   const update = useMutationWithQueue({
-    endpoint: (vars: { id: number; data: any }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
+    endpoint: (vars: { id: number; data: any }) => rpScope === "household"
+      ? `${import.meta.env.BASE_URL}api/household-recurring-payments/${vars.id}`
+      : `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}`,
     method: "PATCH",
     getPayload: (vars: { id: number; data: any }) => vars.data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      if (rpScope === "household") {
+        queryClient.invalidateQueries({ queryKey: ["household-recurring-payments"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      }
       onClose();
     },
   });
@@ -591,7 +607,7 @@ function EditRPDialog({ rp, open, onClose, sym }: {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
               style={{ backgroundColor: color }}>
-              <RefreshCw className="w-5 h-5 text-white" />
+              {rpScope === "household" ? <Home className="w-5 h-5 text-white" /> : <RefreshCw className="w-5 h-5 text-white" />}
             </div>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("rp.new")} autoFocus />
           </div>
@@ -801,16 +817,19 @@ export default function CategoriesPage() {
 
   // ── Recurring payment state ──
   const [editRP,        setEditRP]        = useState<any | null>(null);
+  const [editRPScope,   setEditRPScope]   = useState<"personal" | "household">("personal");
   const [rpName,        setRpName]        = useState("");
   const [rpColor,       setRpColor]       = useState("#818cf8");
   const [rpAmount,      setRpAmount]      = useState("");
   const [rpSchedType,   setRpSchedType]   = useState<"manual" | "scheduled">("manual");
   const [rpDayOfMonth,  setRpDayOfMonth]  = useState("");
   const [rpAddToLarder, setRpAddToLarder] = useState(false);
+  const [rpScope,       setRpScope]       = useState<"personal" | "household">("personal");
 
   const { data: me } = useGetMe();
   const { data: members } = useListHouseholdMembers();
   const myRole = (members ?? []).find((m: any) => m.userId === me?.id)?.role ?? "child";
+  const isHead = myRole === "head" || myRole === "owner";
   const canShare = canProposeShare(myRole) && !!me?.householdId && (members?.length ?? 0) > 1;
 
   const { data: categories, isLoading } = useListCategories();
@@ -846,6 +865,26 @@ export default function CategoriesPage() {
     },
   });
 
+  const { data: householdRPs, isLoading: householdRpLoading } = useQuery({
+    queryKey: ["household-recurring-payments"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/household-recurring-payments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isHead && !!me?.householdId,
+  });
+
+  const createHouseholdRP = useMutationWithQueue({
+    endpoint: `${import.meta.env.BASE_URL}api/household-recurring-payments`,
+    method: "POST",
+    getPayload: (vars: { data: any }) => vars.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["household-recurring-payments"] });
+      resetAndClose();
+    },
+  });
+
   const [adjustBudgetOpen, setAdjustBudgetOpen] = useState(false);
 
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
@@ -874,7 +913,7 @@ export default function CategoriesPage() {
     setAddOpen(false);
     setDialogType("category");
     setNewName(""); setNewColor("#818cf8"); setNewBudget(""); setNewBudgetMode("amount");
-    setRpName(""); setRpColor("#818cf8"); setRpAmount(""); setRpSchedType("manual"); setRpDayOfMonth(""); setRpAddToLarder(false);
+    setRpName(""); setRpColor("#818cf8"); setRpAmount(""); setRpSchedType("manual"); setRpDayOfMonth(""); setRpAddToLarder(false); setRpScope("personal");
   }
 
   function handleCreateCategory(e: React.FormEvent) {
@@ -889,16 +928,19 @@ export default function CategoriesPage() {
     const amt = parseFloat(rpAmount);
     if (!rpName.trim() || isNaN(amt) || amt <= 0 || rpDayError) return;
     if (rpSchedType === "scheduled" && rpDayOfMonth === "") return;
-    createRP.mutate({
-      data: {
-        name: rpName.trim(),
-        color: rpColor,
-        type: rpSchedType,
-        amount: amt,
-        dayOfMonth: rpSchedType === "scheduled" ? rpDayNum : null,
-        addToLarder: rpAddToLarder,
-      },
-    });
+    const data = {
+      name: rpName.trim(),
+      color: rpColor,
+      type: rpSchedType,
+      amount: amt,
+      dayOfMonth: rpSchedType === "scheduled" ? rpDayNum : null,
+      addToLarder: rpAddToLarder,
+    };
+    if (rpScope === "household") {
+      createHouseholdRP.mutate({ data });
+    } else {
+      createRP.mutate({ data });
+    }
   }
 
   const rpCanSave = rpName.trim() !== "" && parseFloat(rpAmount) > 0 && !rpDayError &&
@@ -1011,12 +1053,10 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      {/* ── Recurring Payments section ── */}
-      <div className="mt-6 mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 text-muted-foreground" />
-          <p className="text-sm font-semibold">{t("rp.section_title")}</p>
-        </div>
+      {/* ── Personal Recurring Payments section ── */}
+      <div className="mt-6 mb-2 flex items-center gap-2">
+        <RefreshCw className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-semibold">{t("rp.section_title")}</p>
       </div>
 
       {rpLoading ? (
@@ -1026,18 +1066,49 @@ export default function CategoriesPage() {
       ) : recurringPayments && recurringPayments.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {recurringPayments.map(rp => (
-            <RecurringPaymentCard key={rp.id} rp={rp} onEdit={() => setEditRP(rp)} currency={prefs.currency} />
+            <RecurringPaymentCard key={rp.id} rp={rp} onEdit={() => { setEditRP(rp); setEditRPScope("personal"); }} currency={prefs.currency} scope="personal" />
           ))}
         </div>
       ) : (
         <div className="text-center py-8 flex flex-col items-center gap-2">
           <p className="text-muted-foreground text-sm">{t("rp.no_items_yet")}</p>
-          <button onClick={() => { if (!isOnline) return; setDialogType("recurring"); setAddOpen(true); }}
+          <button onClick={() => { if (!isOnline) return; setDialogType("recurring"); setRpScope("personal"); setAddOpen(true); }}
             disabled={!isOnline}
             className="text-xs text-primary underline-offset-2 hover:underline disabled:opacity-40">
             {t("rp.create_first")}
           </button>
         </div>
+      )}
+
+      {/* ── Household Recurring Payments section (head only) ── */}
+      {isHead && !!me?.householdId && (
+        <>
+          <div className="mt-6 mb-2 flex items-center gap-2">
+            <Home className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">{t("rp.household_section_title")}</p>
+          </div>
+
+          {householdRpLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : ((householdRPs as any[]) ?? []).length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(householdRPs as any[]).map(rp => (
+                <RecurringPaymentCard key={rp.id} rp={rp} onEdit={() => { setEditRP(rp); setEditRPScope("household"); }} currency={prefs.currency} scope="household" />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 flex flex-col items-center gap-2">
+              <p className="text-muted-foreground text-sm">{t("rp.no_items_yet")}</p>
+              <button onClick={() => { if (!isOnline) return; setDialogType("recurring"); setRpScope("household"); setAddOpen(true); }}
+                disabled={!isOnline}
+                className="text-xs text-primary underline-offset-2 hover:underline disabled:opacity-40">
+                {t("rp.create_first")}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Budget adjustment dialog ── */}
@@ -1094,8 +1165,9 @@ export default function CategoriesPage() {
         <EditRPDialog
           rp={editRP}
           open={!!editRP}
-          onClose={() => setEditRP(null)}
+          onClose={() => { setEditRP(null); setEditRPScope("personal"); }}
           sym={sym}
+          scope={editRPScope}
         />
       )}
 
@@ -1174,10 +1246,28 @@ export default function CategoriesPage() {
           {/* ── Recurring Payment form ── */}
           {dialogType === "recurring" && (
             <form onSubmit={handleCreateRP} className="space-y-4">
+              {/* Scope toggle — head of household only */}
+              {isHead && !!me?.householdId && (
+                <div className="flex rounded-lg overflow-hidden border border-border w-full">
+                  {(["personal", "household"] as const).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRpScope(s)}
+                      className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                        rpScope === s ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {s === "household" ? <Home className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                      {s === "personal" ? "Personal" : "Household"}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: rpColor }}>
-                  <RefreshCw className="w-5 h-5 text-white" />
+                  {rpScope === "household" ? <Home className="w-5 h-5 text-white" /> : <RefreshCw className="w-5 h-5 text-white" />}
                 </div>
                 <Input
                   placeholder={t("rp.new")}

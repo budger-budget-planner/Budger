@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "../db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "@workspace/db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
@@ -7,7 +7,7 @@ import {
   UpdateHouseholdBody,
   RemoveHouseholdMemberParams,
   GetMemberSpendingParams,
-} from "../api-zod";
+} from "@workspace/api-zod";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
 

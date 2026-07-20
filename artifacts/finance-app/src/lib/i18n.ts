@@ -188,7 +188,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "cat.exceeds":       { en: "Exceeds total monthly budget", pl: "Przekracza łączny budżet miesięczny"},
 
   // ── Recurring Payments ──
-  "rp.section_title":      { en: "Recurring Payments",                      pl: "Płatności cykliczne"                      },
+  "rp.section_title":            { en: "Personal Recurring Payments",               pl: "Płatności cykliczne (osobiste)"           },
+  "rp.household_section_title":  { en: "Household Recurring Payments",              pl: "Płatności cykliczne (gospodarstwo)"       },
   "rp.new":                { en: "New Recurring Payment",                   pl: "Nowa płatność cykliczna"                  },
   "rp.edit":               { en: "Edit Recurring Payment",                  pl: "Edytuj płatność cykliczną"                },
   "rp.type_category":      { en: "Category",                                pl: "Kategoria"                                },

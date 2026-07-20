@@ -504,6 +504,64 @@ export async function sendDeletionAckEmail({ to, firstName, language }: Deletion
   }
 }
 
+export async function sendHouseholdInviteEmail({
+  to, inviterName, householdName, acceptUrl, declineUrl, expiresAt, language,
+}: {
+  to: string; inviterName: string; householdName: string;
+  acceptUrl: string; declineUrl: string; expiresAt: Date; language?: string;
+}): Promise<boolean> {
+  if (!resend) {
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — household invite email NOT delivered");
+    return false;
+  }
+  const isPl = language === "pl";
+  const subject = isPl
+    ? `${inviterName} zaprasza Cię do gospodarstwa na Budger`
+    : `${inviterName} invited you to a household on Budger`;
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS, to, subject,
+      html: `<p>${inviterName} invited you to join <b>${householdName}</b>.</p>
+             <p><a href="${acceptUrl}">Accept</a> &nbsp; <a href="${declineUrl}">Decline</a></p>`,
+    });
+    if (error) { logger.warn({ to, error }, "email-sender: household invite failed"); return false; }
+    logger.info({ to: maskEmail(to) }, "email-sender: household invite sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: exception sending household invite");
+    return false;
+  }
+}
+
+export async function sendHouseholdInviteNewUserEmail({
+  to, inviterName, householdName, signupUrl, expiresAt, language,
+}: {
+  to: string; inviterName: string; householdName: string;
+  signupUrl: string; expiresAt: Date; language?: string;
+}): Promise<boolean> {
+  if (!resend) {
+    logger.warn({ to }, "email-sender: RESEND_API_KEY not set — household new-user invite NOT delivered");
+    return false;
+  }
+  const isPl = language === "pl";
+  const subject = isPl
+    ? `${inviterName} zaprasza Cię do Budger`
+    : `${inviterName} invited you to Budger`;
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS, to, subject,
+      html: `<p>${inviterName} invited you to join <b>${householdName}</b> on Budger.</p>
+             <p><a href="${signupUrl}">Create account &amp; join</a></p>`,
+    });
+    if (error) { logger.warn({ to, error }, "email-sender: new-user invite failed"); return false; }
+    logger.info({ to: maskEmail(to) }, "email-sender: new-user household invite sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to }, "email-sender: exception sending new-user invite");
+    return false;
+  }
+}
+
 export async function sendVerificationEmail({ to, firstName, verifyUrl, language = "en" }: VerificationEmailInput): Promise<boolean> {
   if (!resend) {
     logger.warn({ to }, "email-sender: RESEND_API_KEY not set — verification email NOT delivered");

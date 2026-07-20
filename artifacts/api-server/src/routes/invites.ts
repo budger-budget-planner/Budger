@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, invitesTable, householdsTable, usersTable, householdMembersTable, notificationItemsTable } from "../db";
+import { db, invitesTable, householdsTable, usersTable, householdMembersTable, notificationItemsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcryptjs from "bcryptjs";
@@ -9,7 +9,7 @@ import {
   AcceptInviteParams,
   GetInviteParams,
   CancelInviteParams,
-} from "../api-zod";
+} from "@workspace/api-zod";
 import { sendHouseholdInviteEmail, sendHouseholdInviteNewUserEmail } from "../lib/email-sender";
 import { getFrontendOrigin } from "../lib/frontend-origin";
 import { logger } from "../lib/logger";

@@ -13,6 +13,8 @@ export const recurringPaymentsTable = pgTable("recurring_payments", {
   dayOfMonth: integer("day_of_month"), // null for manual, 1-31 for scheduled
   /** When true, each time this recurring payment fires the full amount is also added to the user's Larder */
   addToLarder: boolean("add_to_larder").notNull().default(false),
+  /** 'personal' (default) or 'household' — determines which route owns this record */
+  scope: text("scope").notNull().default("personal"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, table => [
