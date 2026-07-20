@@ -329,6 +329,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.invite_btn":      { en: "Invite",                     pl: "Zaproś"                         },
   "hh.create_title":    { en: "Create Household",           pl: "Utwórz Gospodarstwo"            },
   "hh.send_invite":     { en: "Send Invite",                pl: "Wyślij zaproszenie"             },
+  "hh.invite_error":    { en: "Could not send invitation",  pl: "Nie udało się wysłać zaproszenia" },
   "hh.sending":         { en: "Sending…",                   pl: "Wysyłanie…"                     },
   "hh.delete_title":    { en: "Delete Household",           pl: "Usuń Gospodarstwo"              },
   "hh.delete_warning":  { en: "This action cannot be undone.", pl: "Tej operacji nie można cofnąć."},

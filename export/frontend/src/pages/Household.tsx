@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
@@ -789,6 +790,7 @@ export default function HouseholdPage() {
     } finally { setHeadActionLoading(null); }
   }
 
+  const { toast } = useToast();
   const [createOpen, setCreateOpen]           = useState(false);
   const [budgetWarnDismissed, setBudgetWarnDismissed] = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
@@ -913,6 +915,11 @@ export default function HouseholdPage() {
       const code = err?.data?.error;
       if (code === "USER_IN_HOUSEHOLD") {
         setInviteResult("in_household");
+      } else {
+        // Surface the actual server message (or a generic fallback) so the
+        // user knows something went wrong instead of seeing a silent no-op.
+        const serverMsg = typeof err?.data?.error === "string" ? err.data.error : null;
+        toast({ title: t("hh.invite_error"), description: serverMsg ?? undefined });
       }
     }
   }
