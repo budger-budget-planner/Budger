@@ -61,6 +61,7 @@ router.post("/invites", async (req, res): Promise<void> => {
   const parsed = CreateInviteBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  try {
   const [inviterUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!inviterUser?.householdId) { res.status(400).json({ error: "You must be in a household to invite" }); return; }
 
@@ -169,6 +170,10 @@ router.post("/invites", async (req, res): Promise<void> => {
   }
 
   res.status(201).json(enrichInvite(invite, household));
+  } catch (err) {
+    logger.error({ err }, "invites: POST /invites failed");
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // GET /invites — list pending invites for the caller's household (head view)
@@ -214,6 +219,7 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
   const params = GetInviteParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
+  try {
   const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
   if (!invite) { res.status(404).json({ error: "Invite not found" }); return; }
   if (invite.status === "cancelled") { res.status(410).json({ error: "REVOKED" }); return; }
@@ -249,6 +255,10 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));
   res.json(enrichInvite(invite, household, isRegistered));
+  } catch (err) {
+    logger.error({ err }, "invites: GET /:token failed");
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // POST /invites/:token/accept — accept an invite (registered users)
@@ -259,6 +269,7 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
   const params = AcceptInviteParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
+  try {
   const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.data.token));
   if (!invite || invite.status !== "pending" || invite.expiresAt < new Date()) {
     // Notify inviter of expiry if relevant
@@ -315,6 +326,10 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
   }
 
   res.json({ ...household, createdAt: household.createdAt.toISOString() });
+  } catch (err) {
+    logger.error({ err }, "invites: POST /:token/accept failed");
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // POST /invites/:token/decline — decline an invite (registered users)

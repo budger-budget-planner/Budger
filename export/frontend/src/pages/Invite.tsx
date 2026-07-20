@@ -11,6 +11,7 @@ import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 
 type PageState =
   | "loading"
+  | "server_error"          // transient server error — user can reload/retry
   | "revoked"
   | "expired"
   | "not_found"
@@ -63,6 +64,7 @@ export default function InvitePage() {
           return;
         }
         if (r.status === 404) { setState("not_found"); return; }
+        if (r.status >= 500) { setState("server_error"); return; }
         if (!r.ok) { setState("not_found"); return; }
         const data: InviteDetails = await r.json();
         setInvite(data);
@@ -87,8 +89,10 @@ export default function InvitePage() {
       setState("accepted");
     } else {
       const body = await r.json().catch(() => ({}));
-      setErrorMsg(body.error ?? t("common.error"));
-      setState("not_found");
+      // Fall back to registered_view so the user can read the error and retry
+      // the Accept button manually — avoids the misleading "not found" screen.
+      setErrorMsg(body.error ?? t("invite.accept_failed"));
+      setState("registered_view");
     }
   }, [token, base, queryClient]);
 
@@ -286,6 +290,23 @@ export default function InvitePage() {
         </div>
         <Button className="w-full" onClick={() => setLocation(me ? "/" : "/login")}>
           {me ? t("invite.go_to_app") : t("invite.go_to_login")}
+        </Button>
+      </Card>
+    );
+  }
+
+  if (state === "server_error") {
+    return (
+      <Card>
+        <div className="w-14 h-14 rounded-full bg-yellow-500/20 flex items-center justify-center">
+          <AlertCircle className="w-7 h-7 text-yellow-400" />
+        </div>
+        <div>
+          <p className="font-semibold text-white">{t("invite.server_error_title")}</p>
+          <p className="text-sm text-white/50 mt-1">{t("invite.server_error_msg")}</p>
+        </div>
+        <Button className="w-full" onClick={() => window.location.reload()}>
+          {t("invite.retry")}
         </Button>
       </Card>
     );
