@@ -34,7 +34,7 @@ import {
   useDeleteLarderEntry,
   useGetGoalsSummary,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -1120,6 +1120,8 @@ export default function HomeSpending() {
 
   const isInHousehold = !!(me as any)?.householdId;
   const { data: householdMembers } = useListHouseholdMembers({ query: { enabled: isInHousehold } as any });
+  const myRole = (householdMembers ?? []).find((m: any) => m.userId === myUserId)?.role ?? "";
+  const isHead = myRole === "head" || myRole === "owner";
 
   const monthStart     = startOfMonth(viewDate);
   const monthEnd       = endOfMonth(viewDate);
@@ -1140,13 +1142,30 @@ export default function HomeSpending() {
   const { data: recurringPayments } = useListRecurringPayments({
     query: { enabled: isCurrentMonth } as any,
   });
+  const { data: householdRPs } = useQuery<any[]>({
+    queryKey: ["household-recurring-payments"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/household-recurring-payments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isCurrentMonth && isHead && isInHousehold,
+  });
   const applyRP = useMutationWithQueue({
-    endpoint: (vars: { id: number; data: any }) => `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}/apply`,
+    endpoint: (vars: { id: number; data: any; scope?: string }) =>
+      vars.scope === "household"
+        ? `${import.meta.env.BASE_URL}api/household-recurring-payments/${vars.id}/apply`
+        : `${import.meta.env.BASE_URL}api/recurring-payments/${vars.id}/apply`,
     method: "POST",
-    getPayload: (vars: { id: number; data: any }) => vars.data,
+    getPayload: (vars: { id: number; data: any; scope?: string }) => vars.data,
     onSuccess: () => { invalidateAll(queryClient); setRpExpanded(null); setRpSheetOpen(false); },
   });
   const manualRPs = (recurringPayments ?? []).filter(rp => rp.type === "manual");
+  const householdManualRPs = (householdRPs ?? []).filter((rp: any) => rp.type === "manual");
+  const allManualRPs: any[] = [
+    ...manualRPs.map(rp => ({ ...rp, scope: (rp as any).scope ?? "personal" })),
+    ...householdManualRPs.map((rp: any) => ({ ...rp, scope: "household" })),
+  ];
 
   // Map transactionId → contribution (for display + edit pre-fill)
   const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null; accountAmount: number | null; accountCurrency: string | null }>();
@@ -1433,7 +1452,7 @@ export default function HomeSpending() {
   type PendingRpEntry = { id: string; name: string; amount: number; color: string };
   const pendingRpEntries: PendingRpEntry[] = [];
   for (const rpId of pendingRpIds) {
-    const rp = manualRPs.find(r => r.id === rpId);
+    const rp = allManualRPs.find(r => r.id === rpId);
     if (rp) pendingRpEntries.push({ id: `pending-rp-${rp.id}`, name: rp.name, amount: Number(rp.amount), color: rp.color });
   }
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -2056,11 +2075,11 @@ export default function HomeSpending() {
               </button>
             </div>
             <div className="overflow-y-auto flex-1 px-5 py-4">
-              {manualRPs.length === 0 ? (
+              {allManualRPs.length === 0 ? (
                 <div className="text-center py-8 text-white/40 text-sm">{t("rp.no_manual")}</div>
               ) : (
                 <div className="space-y-3">
-                  {manualRPs.map(rp => {
+                  {allManualRPs.map(rp => {
                     const isApplied  = rp.appliedThisMonth;
                     const isPending  = pendingRpIds.has(rp.id);
                     const isExpanded = rpExpanded === rp.id;
@@ -2110,7 +2129,7 @@ export default function HomeSpending() {
                                 No
                               </button>
                               <button
-                                onClick={() => applyRP.mutate({ id: rp.id, data: { date: new Date().toLocaleDateString("sv") } })}
+                                onClick={() => applyRP.mutate({ id: rp.id, data: { date: new Date().toLocaleDateString("sv") }, scope: rp.scope })}
                                 disabled={applyRP.isPending}
                                 className="flex-1 py-2 rounded-xl text-xs font-semibold transition active:opacity-70 disabled:opacity-40"
                                 style={{ backgroundColor: rp.color, color: "white" }}

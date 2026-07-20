@@ -43,6 +43,13 @@
       "when": 1784850000000,
       "tag": "0005_invite_enhancements",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784554128460,
+      "tag": "0006_recurring_scope",
+      "breakpoints": true
     }
   ]
 }

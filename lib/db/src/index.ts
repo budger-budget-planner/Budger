@@ -21,8 +21,6 @@ export const pool = new Pool({
   max: 20,                          // Neon supports up to 10 000 logical connections; 20 gives
                                     // comfortable headroom under rapid-tap bursts without
                                     // exhausting the serverless branch limit
-  acquireTimeoutMillis: 8_000,      // surface a clear timeout error instead of hanging forever
-                                    // when all 20 connections are busy
   connectionTimeoutMillis: 5_000,  // fail fast (5 s) on initial TCP/TLS handshake
   idleTimeoutMillis: 30_000,       // recycle idle connections after 30 s
 });
