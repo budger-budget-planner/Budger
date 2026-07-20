@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
@@ -12,8 +13,6 @@ import {
   useUpdateHousehold,
   useCreateInvite,
   useCancelInvite,
-  useAcceptInvite,
-  useDeclineInvite,
   useRemoveHouseholdMember,
   useLeaveHousehold,
   useGetMe,
@@ -30,9 +29,10 @@ import {
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
 } from "@/lib/api-client";
+import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Users, Plus, Mail, X, LogOut, Copy, Check,
+  Users, Plus, Mail, X, LogOut,
   Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
   Scissors, GitFork, GitMerge, ChevronDown, ChevronRight,
   Warehouse, PiggyBank, ArrowRightCircle, TrendingUp,
@@ -790,11 +790,12 @@ export default function HouseholdPage() {
     } finally { setHeadActionLoading(null); }
   }
 
+  const { toast } = useToast();
   const [createOpen, setCreateOpen]           = useState(false);
   const [budgetWarnDismissed, setBudgetWarnDismissed] = useState(false);
   const [editBudgetOpen, setEditBudgetOpen] = useState(false);
   const [inviteOpen, setInviteOpen]         = useState(false);
-  const [inviteResult, setInviteResult] = useState<"sent" | "no_user" | "in_household" | null>(null);
+  const [inviteResult, setInviteResult] = useState<"sent" | "in_household" | null>(null);
   const [deleteHouseholdOpen, setDeleteHouseholdOpen] = useState(false);
   const [deletingHousehold, setDeletingHousehold]     = useState(false);
   const [householdName, setHouseholdName]   = useState("");
@@ -806,7 +807,7 @@ export default function HouseholdPage() {
   const [headRequestSent, setHeadRequestSent] = useState(false);
   const [headRequestLoading, setHeadRequestLoading] = useState(false);
   const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
-  const [copied, setCopied]           = useState<string | null>(null);
+  const [inviteActionLoading, setInviteActionLoading] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
@@ -857,19 +858,6 @@ export default function HouseholdPage() {
   const cancelInvite = useCancelInvite({
     mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() }) },
   });
-  const acceptIncoming = useAcceptInvite({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
-        invalidateHousehold(queryClient);
-      },
-    },
-  });
-  const declineIncoming = useDeclineInvite({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() }),
-    },
-  });
   const removeMember = useRemoveHouseholdMember({
     mutation: { onSuccess: () => invalidateHousehold(queryClient) },
   });
@@ -883,6 +871,39 @@ export default function HouseholdPage() {
     mutation: { onSuccess: () => invalidateHousehold(queryClient) },
   });
 
+  async function handleAcceptIncomingInvite(token: string) {
+    setInviteActionLoading(token);
+    try {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/invites/${token}/accept`, {
+        method: "POST",
+      });
+      if (r.ok) {
+        await queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getGetHouseholdQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getListHouseholdMembersQueryKey() });
+      }
+    } catch {
+      // silently ignore — user sees no change, can retry
+    } finally {
+      setInviteActionLoading(null);
+    }
+  }
+
+  async function handleDeclineIncomingInvite(token: string) {
+    setInviteActionLoading(token);
+    try {
+      await apiFetch(`${import.meta.env.BASE_URL}api/invites/${token}/decline`, {
+        method: "POST",
+      });
+      await queryClient.invalidateQueries({ queryKey: getListIncomingInvitesQueryKey() });
+    } catch {
+      // silently ignore
+    } finally {
+      setInviteActionLoading(null);
+    }
+  }
+
   async function handleInviteSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
@@ -892,19 +913,15 @@ export default function HouseholdPage() {
       setInviteResult("sent");
     } catch (err: any) {
       const code = err?.data?.error;
-      if (code === "USER_NOT_FOUND") {
-        setInviteResult("no_user");
-      } else if (code === "USER_IN_HOUSEHOLD") {
+      if (code === "USER_IN_HOUSEHOLD") {
         setInviteResult("in_household");
+      } else {
+        // Surface the actual server message (or a generic fallback) so the
+        // user knows something went wrong instead of seeing a silent no-op.
+        const serverMsg = typeof err?.data?.error === "string" ? err.data.error : null;
+        toast({ title: t("hh.invite_error"), description: serverMsg ?? undefined });
       }
     }
-  }
-
-  function copyInviteLink(token: string) {
-    const base = window.location.origin + import.meta.env.BASE_URL;
-    navigator.clipboard.writeText(`${base}invite/${token}`);
-    setCopied(token);
-    setTimeout(() => setCopied(null), 2000);
   }
 
   async function handleDeleteHousehold() {
@@ -1022,55 +1039,6 @@ export default function HouseholdPage() {
         </div>
       )}
 
-      {/* ── Incoming invitations ── */}
-      {incomingInvites && incomingInvites.length > 0 && (
-        <div className="px-4 mt-3">
-          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-pink-500/20">
-              <Mail className="w-4 h-4 text-pink-400" />
-              <p className="text-sm font-semibold text-pink-300">
-                {t("hh.incoming_invites")} <span className="text-pink-400/70 font-normal">({incomingInvites.length})</span>
-              </p>
-            </div>
-            <div className="divide-y divide-pink-500/10">
-              {incomingInvites.map(inv => (
-                <div key={inv.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <Users className="w-4 h-4 text-pink-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white">{inv.householdName}</p>
-                      <RoleBadge role={(inv as any).role ?? "child"} />
-                    </div>
-                    <p className="text-xs text-white/40">{t("hh.invite_from")}</p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <Button
-                      size="sm"
-                      className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
-                      disabled={acceptIncoming.isPending || declineIncoming.isPending}
-                      onClick={() => acceptIncoming.mutate({ token: inv.token })}
-                    >
-                      {t("hh.accept")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-3 text-xs text-white/50 hover:text-white hover:bg-white/10"
-                      disabled={acceptIncoming.isPending || declineIncoming.isPending}
-                      onClick={() => declineIncoming.mutate({ token: inv.token })}
-                    >
-                      {t("hh.decline")}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Pending split requests (recipient view) ── */}
       {incomingSplits && incomingSplits.length > 0 && (
         <div className="px-4 mt-3">
@@ -1113,6 +1081,59 @@ export default function HouseholdPage() {
                       disabled={splitActionLoading === split.id}
                       onClick={() => declineSplit(split.id)}>
                       {t("split.decline")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Incoming household invitations ── */}
+      {incomingInvites && incomingInvites.length > 0 && (
+        <div className="px-4 mt-3">
+          <div className="rounded-2xl border border-pink-500/40 bg-pink-500/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-pink-500/20">
+              <Mail className="w-4 h-4 text-pink-400" />
+              <p className="text-sm font-semibold text-pink-300">
+                {t("hh.incoming_invites")} <span className="text-pink-400/70 font-normal">({incomingInvites.length})</span>
+              </p>
+            </div>
+            <div className="divide-y divide-pink-500/10">
+              {incomingInvites.map((inv: any) => (
+                <div key={inv.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Users className="w-4 h-4 text-pink-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{inv.householdName ?? "—"}</p>
+                    {inv.inviterName && (
+                      <p className="text-xs text-pink-300/80 mt-0.5">
+                        {t("invite.invited_by", { name: inv.inviterName })}
+                      </p>
+                    )}
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {t("invite.expires", { date: new Date(inv.expiresAt).toLocaleDateString() })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs bg-pink-500 hover:bg-pink-400 text-white border-0"
+                      disabled={inviteActionLoading === inv.token}
+                      onClick={() => handleAcceptIncomingInvite(inv.token)}
+                    >
+                      {t("hh.accept")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-3 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                      disabled={inviteActionLoading === inv.token}
+                      onClick={() => handleDeclineIncomingInvite(inv.token)}
+                    >
+                      {t("hh.decline")}
                     </Button>
                   </div>
                 </div>
@@ -1576,14 +1597,6 @@ export default function HouseholdPage() {
                       <p className="text-xs text-white/30">{t("hh.expires")} {new Date(inv.expiresAt).toLocaleDateString()}</p>
                     </div>
                     <button
-                      className="p-1.5 text-white/40 hover:text-white"
-                      onClick={() => copyInviteLink(inv.token)}
-                      data-testid={`button-copy-invite-${inv.id}`}
-                      title="Copy invite link"
-                    >
-                      {copied === inv.token ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <button
                       className="p-1.5 text-white/30 hover:text-red-400 active:text-red-400"
                       onClick={() => cancelInvite.mutate({ token: inv.token })}
                       data-testid={`button-cancel-invite-${inv.id}`}
@@ -1935,22 +1948,6 @@ export default function HouseholdPage() {
               <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); setInviteRole("parent"); }}>
                 {t("common.done")}
               </Button>
-            </div>
-          ) : inviteResult === "no_user" ? (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center">
-                <XCircle className="w-7 h-7 text-red-400" />
-              </div>
-              <div className="text-center">
-                <p className="font-semibold text-red-400">{t("hh.not_found")}</p>
-                <p className="text-sm text-white/50 mt-1">{t("hh.no_user_found")}</p>
-              </div>
-              <div className="flex gap-2 w-full">
-                <Button variant="outline" className="flex-1" onClick={() => { setInviteOpen(false); setInviteEmail(""); setInviteResult(null); }}>
-                  {t("common.cancel")}
-                </Button>
-                <Button className="flex-1" onClick={() => setInviteResult(null)}>{t("hh.try_again")}</Button>
-              </div>
             </div>
           ) : inviteResult === "in_household" ? (
             <div className="flex flex-col items-center gap-4 py-4">
