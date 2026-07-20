@@ -42,3 +42,9 @@ id = "piYAcZEJ97zpVcK_XvtCj"
 uri = "file://export/budger-fullstack.zip"
 type = "unspecified"
 title = "Budger — standalone frontend + backend (Vercel-ready)"
+
+[[outputs]]
+id = "ykohekabM3TOT4ntuKvwz"
+uri = "file://output/Household_Donut_Chart_Plan.pdf"
+type = "pdf"
+title = "Household Donut Chart — Implementation Plan"

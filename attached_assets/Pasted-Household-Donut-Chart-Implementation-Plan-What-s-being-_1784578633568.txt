@@ -1,0 +1,148 @@
+Household Donut Chart — Implementation Plan
+
+What's being replaced
+
+The current Members card (flat list with a per-member progress bar) plus the MemberSheet portal (spending breakdown, role editor) are being replaced by a two-level animated donut that lives directly in the Household tab. A new HouseholdDonutChart.tsx component is the main deliverable. Household.tsx is the only other file that changes structurally.
+
+Phase 1 — Static Household Donut
+
+New file: artifacts/finance-app/src/components/HouseholdDonutChart.tsx
+Modified: artifacts/finance-app/src/pages/Household.tsx
+
+Chart-building logic (buildHouseholdChart)
+
+The SVG coordinate system is cloned verbatim from DonutBudgetChart (CX=160, CY=160, RI=75, RO=128, EXPAND=14, CAT_GAP=2.5). Instead of categories, the input is the members array plus the household budget.
+
+Each member becomes a group:
+
+Spent arc — memberColor, fraction = spentInViewerCurrency / effectiveBudget
+Remaining arc — memberColor darkened 52% (same hexDarken helper), fraction = remainingBudget / effectiveBudget
+Over-budget — single arc at memberColor with red glow filter (same isOverBudget path as DD)
+effectiveBudget is householdBudget when set, otherwise sum(memberBudgets) (proportional fallback). If householdBudget > sum(memberBudgets), an Additional Funds group is appended as a neutral gray arc sized to the difference. Members whose totalBudget is null contribute only a spent arc (no remain), treated as budget-0 for group sizing.
+
+All member amounts are converted to the viewer's currency using the rates prop already available in Household.tsx.
+
+Interactions (Phase 1 only — no drill-down yet)
+
+Single tap on a segment → invoke that member: segment expands outward by EXPAND units, member name + spent + % shown in SVG center text (same mechanism as DD's selectedCat). Tap again → deselect.
+Double-tap center → compact ↔ expanded mode toggle, same as DD (legend slides in/out via max-width / margin-left CSS transition).
+Legend on the right: member avatar initial (or 🏠 for virtual), name, spent amount. Dimming of non-selected items when one is invoked.
+Animations inherited from DonutBudgetChart
+
+Pulse hint (3 firings: 3 s, 8 s, 13 s) — same donutBlink037/045/053/061 keyframes, already injected globally. Fires in compact mode only.
+Wiggle hint (4 s after mount) — two-beat "detach" on groups 1 and 4, same Web Animations API pattern. Guarded by disableAnimations pref and checkDonutWiggleDue().
+Red glow filter (feGaussianBlur + feColorMatrix) — injected per-instance, applied when spent > budget && budget > 0.
+Household.tsx wiring
+
+The {/* ── Members ── */} card (currently lines 1437-1511) is replaced by <HouseholdDonutChart members={members} householdBudget={budgetInViewerCurrency} currency={prefs.currency} rates={splitRates} onMemberInvoked={setInvokedMember} />.
+
+The member count badge, invite button, and the head-admin functions currently inside the flat list are moved to a small "Members" header row immediately above the donut (count + invite button for head), keeping visual parity.
+
+Phase 2 — Personal Donut Drill-Down & Lock Animation
+
+Modified: HouseholdDonutChart.tsx, Household.tsx
+
+State machine inside HouseholdDonutChart
+
+drillPhase: "idle" | "fade-others" | "expand-arc" | "personal" | "collapse-arc" | "restore-others"
+drilledMemberId: number | null
+personalData: SpendingItem[] | null
+isPrivate: boolean
+Trigger
+
+Double-tapping the already-invoked member's segment (i.e., selectedMemberId !== null && doubletap on that segment OR the SVG center while a member is selected) triggers drill-down. The lastSegTapRef per-member pattern (same 350 ms window as DD's lastCenterTapRef) tracks this.
+
+Animation sequence — Household → Personal (≈1.1 s total)
+
+Step	Duration	What happens
+A — fade-others	350 ms	All groups except the invoked member animate opacity → 0 via CSS transition
+B — expand-arc	500 ms	The invoked arc's angular span interpolates from its current [startDeg, endDeg] toward [0°, 360°] using requestAnimationFrame. The center text fades out simultaneously.
+C — cross-dissolve	300 ms	The household <svg> fades to opacity 0; the <DonutBudgetChart> wrapper fades from 0 to 1 overlaid in the same container. drillPhase = "personal".
+Implementation note: Step B is achieved by keeping arcProgress: 0→1 in a ref updated by rAF. On each frame, the arc path is recomputed as lerp(originalStart, 0, t) and lerp(originalEnd, 360, t). No external animation library needed.
+
+Personal view
+
+Once drillPhase === "personal":
+
+Render a standard <DonutBudgetChart spending={personalData} totalBudget={member.totalBudget} currency={viewerCurrency} hasData={true} /> in place of the household SVG.
+A back-hint appears in the expanded center text: "double tap to exit" (reuses existing t("donut.xx_to_exit") key).
+Double-tap the personal donut's center → reverse sequence: dissolve back, contract arc, restore others. drillPhase returns to "idle", selectedMemberId stays set so the member remains visually invoked.
+Data fetching
+
+useGetMemberSpending(drilledMemberId) is enabled only when drillPhase !== "idle". The data arrives during the animation's Steps A+B (350+500 ms = 850 ms window), which is plenty of time for the API call. A spinner appears in the dissolving household SVG center if data hasn't arrived by Step C.
+
+Private dashboard — lock animation
+
+If the fetch returns a 403 / error, isPrivate = true. Instead of showing a personal donut:
+
+Step C resolves but the <DonutBudgetChart> is replaced by a plain SVG circle (same RI/RO dimensions, all segments gray).
+In the SVG center, a <g> renders a padlock icon path (inline SVG, no external font). It plays a CSS keyframe:
+0 ms: scale(0), opacity 0
+150 ms: scale(1.25), opacity 1
+250 ms: scale(1), opacity 1 — hold
+800 ms & 1200 ms: two donutBlink045 / donutBlink053 circle pulses (amber/orange tint, not gray) fire around the padlock using the existing hint circle mechanism
+2000 ms: padlock opacity → 0 (fade out 400 ms)
+After 2500 ms: static text renders in the center: member name + t("hh.private_lock_msg") ("Private dashboard")
+Double-tap anywhere in the gray donut → collapse back to household view (same reverse sequence).
+Head exception: head users never get a 403, so the lock animation never fires for them.
+Phase 3 — Household Spendings Virtual Member
+
+Modified: HouseholdDonutChart.tsx
+
+Drill-down for userId === −1
+
+The virtual "Household Spendings" member (amber, 🏠 icon) triggers the same animation sequence as Phase 2. No lock — always accessible.
+
+Data source
+
+GET /households/members/household-spendings/spending (already built). Each item has isRecurringPayment: true, total (0 if unpaid, amount if paid), budget (the RP amount), categoryColor (RP color).
+
+SpendingItem mapping
+
+applied RP  → { total: rp.amount, budget: rp.amount, isRecurringApplied: true,  isLarderDesignated: false }
+pending RP  → { total: 0,         budget: rp.amount, isRecurringApplied: false, isLarderDesignated: false }
+These map cleanly into DonutBudgetChart's existing logic — applied ones render a full colored arc, pending ones render only the dimmed remain arc. The existing ✓ badge in the legend (isRecurringApplied && <span>✓</span>) already handles the tick display.
+
+totalBudget passed to DonutBudgetChart = sum of all household RP amounts.
+
+Phase 4 — Admin Preservation, Cleanup, Edge Cases
+
+Modified: Household.tsx, HouseholdDonutChart.tsx
+
+Head admin functions
+
+MemberSheet currently handles role editing and member removal. These are preserved via a "Manage Members" collapsible section placed below the donut, visible only to heads. It renders the same flat list (smaller, denser) with a ✏️ tap per member that opens the existing MemberSheet — but with its spending-breakdown section hidden (replaced by the donut drill-down). The MemberSheet receives a new hideSpending: boolean prop to suppress that section.
+
+Alternatively (simpler): a ··· icon overlaid on the member's legend row in expanded mode, head-only, opens MemberSheet with hideSpending. This avoids any extra card.
+
+i18n keys to add
+
+Key	English
+hh.additional_funds	Additional Funds
+hh.household_donut_label	Household Spending
+hh.private_lock_msg	Private dashboard
+hh.drill_back_hint	double-tap to return
+Edge cases
+
+Scenario	Handling
+Member has totalBudget = null	Spent arc only; excluded from "additional funds" calculation; budget = 0 in legend
+All members have 0 budget AND householdBudget not set	Show equal-sized segments per member (effectiveBudget = totalSpent ∨ 1)
+householdBudget = null, sum of member budgets = 0	Empty state: no donut, "No budgets set" message
+Member has spent = 0, budget = null	Render as a 1/N minimum-width placeholder segment so they appear in the chart
+disableAnimations = true	All requestAnimationFrame loops, hint timers, wiggle timers skip; mode transitions are instant
+Personal data loads after animation completes	Spinner stays until data arrives, then DonutBudgetChart replaces it
+Rates not yet loaded	Convert 1:1 (same as current MemberSheet behaviour), re-render once rates arrive
+Cleanup
+
+Remove old member list card from Household.tsx (lines 1437–1511)
+Remove memberAnchorY state, setMemberAnchorY, and the MemberSheet invocation at line 1868 if the management-only version is wired through the new manage-members collapsible instead
+HouseholdDonutChart owns its own data-fetching for drill-down (via enabled queries), so no new props are needed for spending data in Household.tsx
+File change summary
+
+File	Change
+src/components/HouseholdDonutChart.tsx	New — all four phases built here
+src/pages/Household.tsx	Remove member list card, add <HouseholdDonutChart>, preserve admin
+src/pages/Dashboard.tsx	No change
+src/components/DonutBudgetChart.tsx	No change (used as-is for personal drill-down)
+i18n JSON files	Add 4 new keys
+Ready to build whenever you say go.
