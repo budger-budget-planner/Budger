@@ -546,8 +546,9 @@ function RecurringPaymentCard({ rp, onEdit, currency, scope }: { rp: any; onEdit
 
 // ─── Edit Recurring Payment Dialog ────────────────────────────────────────────
 
-function EditRPDialog({ rp, open, onClose, sym, scope }: {
-  rp: any; open: boolean; onClose: () => void; sym: string; scope?: "personal" | "household";
+function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
+  rp: any; open: boolean; onClose: () => void; sym: string;
+  scope?: "personal" | "household"; isHead?: boolean;
 }) {
   const rpScope = scope ?? (rp as any).scope ?? "personal";
   const queryClient = useQueryClient();
@@ -558,6 +559,7 @@ function EditRPDialog({ rp, open, onClose, sym, scope }: {
   const [schedType, setSchedType] = useState<"manual" | "scheduled">(rp.type);
   const [dayOfMonth, setDayOfMonth] = useState(rp.dayOfMonth != null ? String(rp.dayOfMonth) : "");
   const [addToLarder, setAddToLarder] = useState<boolean>(rp.addToLarder ?? false);
+  const [newScope, setNewScope] = useState<"personal" | "household">(rpScope);
 
   const update = useMutationWithQueue({
     endpoint: (vars: { id: number; data: any }) => rpScope === "household"
@@ -566,11 +568,9 @@ function EditRPDialog({ rp, open, onClose, sym, scope }: {
     method: "PATCH",
     getPayload: (vars: { id: number; data: any }) => vars.data,
     onSuccess: () => {
-      if (rpScope === "household") {
-        queryClient.invalidateQueries({ queryKey: ["household-recurring-payments"] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
-      }
+      // Invalidate both lists — the RP may have moved between sections
+      queryClient.invalidateQueries({ queryKey: getListRecurringPaymentsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["household-recurring-payments"] });
       onClose();
     },
   });
@@ -592,6 +592,7 @@ function EditRPDialog({ rp, open, onClose, sym, scope }: {
         amount: amt,
         dayOfMonth: schedType === "scheduled" && dayOfMonth !== "" ? dayNum : null,
         addToLarder,
+        scope: newScope,
       },
     });
   }
@@ -604,10 +605,29 @@ function EditRPDialog({ rp, open, onClose, sym, scope }: {
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>{t("rp.edit")}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          {/* Scope toggle — head of household only */}
+          {isHead && (
+            <div className="flex rounded-lg overflow-hidden border border-border w-full">
+              {(["personal", "household"] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setNewScope(s)}
+                  className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    newScope === s ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s === "household" ? <Home className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                  {s === "personal" ? "Personal" : "Household"}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
               style={{ backgroundColor: color }}>
-              {rpScope === "household" ? <Home className="w-5 h-5 text-white" /> : <RefreshCw className="w-5 h-5 text-white" />}
+              {newScope === "household" ? <Home className="w-5 h-5 text-white" /> : <RefreshCw className="w-5 h-5 text-white" />}
             </div>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("rp.new")} autoFocus />
           </div>
@@ -1168,6 +1188,7 @@ export default function CategoriesPage() {
           onClose={() => { setEditRP(null); setEditRPScope("personal"); }}
           sym={sym}
           scope={editRPScope}
+          isHead={isHead}
         />
       )}
 
