@@ -190,8 +190,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "cat.exceeds":       { en: "Exceeds total monthly budget", pl: "Przekracza łączny budżet miesięczny"},
 
   // ── Recurring Payments ──
-  "rp.scope_personal":           { en: "Personal",                                  pl: "Osobiste"                                 },
-  "rp.scope_household":          { en: "Household",                                 pl: "Domowe"                                   },
+  "rp.scope_personal":           { en: "Personal",                                  pl: "Osobista"                                 },
+  "rp.scope_household":          { en: "Household",                                 pl: "Domowa"                                   },
   "rp.section_title":            { en: "Personal Recurring Payments",               pl: "Płatności cykliczne (osobiste)"           },
   "rp.household_section_title":  { en: "Household Recurring Payments",              pl: "Płatności cykliczne (gospodarstwo)"       },
   "rp.new":                { en: "New Recurring Payment",                   pl: "Nowa płatność cykliczna"                  },
