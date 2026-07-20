@@ -1,12 +1,15 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable } from "@workspace/db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "../db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 import {
   CreateHouseholdBody,
   UpdateHouseholdBody,
   RemoveHouseholdMemberParams,
   GetMemberSpendingParams,
-} from "@workspace/api-zod";
+} from "../api-zod";
+import { sendPushToUser } from "../lib/push-sender";
+import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
 
@@ -208,38 +211,49 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const targetUserId = params.data.userId;
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
-  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+  // ── CRITICAL: coerce both sides to Number before comparing.
+  // currentUserId is stored as a number in the session; targetUserId comes from
+  // a URL param and may arrive as a string depending on how the Zod schema
+  // parses it. A strict !== across different types is always true, which caused
+  // the self-check to silently fail — the caller's own private dashboard was
+  // evaluated against the role-fallback path and could be blocked for themselves.
+  const isSelf = Number(targetUserId) === Number(currentUserId);
 
-  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, targetUserId));
+  // Fetch both users in parallel — they are independent queries.
+  const [[currentUser], [targetUser]] = await Promise.all([
+    db.select().from(usersTable).where(eq(usersTable.id, Number(currentUserId))),
+    db.select().from(usersTable).where(eq(usersTable.id, Number(targetUserId))),
+  ]);
+
+  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
   if (!targetUser || targetUser.householdId !== currentUser.householdId) {
     res.status(404).json({ error: "Member not found" }); return;
   }
 
-  // Viewing own data is always allowed
-  if (targetUserId !== currentUserId) {
-    // Resolve viewer's role — cast to number to guarantee integer comparison
-    const [viewerMembership] = await db.select().from(householdMembersTable)
-      .where(and(
-        eq(householdMembersTable.userId, Number(currentUserId)),
-        eq(householdMembersTable.householdId, Number(currentUser.householdId)),
-      ));
+  // Viewing own data is always allowed — skip the privacy block entirely.
+  if (!isSelf) {
+    // Fetch both memberships in parallel — independent queries.
+    // Look up by userId alone (not householdId) — see earlier comment about
+    // drift between users.household_id and household_members rows.
+    const [[viewerMembership], [targetMembership]] = await Promise.all([
+      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(currentUserId))),
+      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(targetUserId))),
+    ]);
     const viewerRole = viewerMembership?.role ?? "child";
+    const targetRole = targetMembership?.role ?? "child";
 
-    // HEAD ALWAYS SEES EVERYONE — check this first, skip all privacy logic
-    if (!isHead(viewerRole) && targetUser.dashboardBlocked) {
-      // Resolve target's role for parent-level checks
-      const [targetMembership] = await db.select().from(householdMembersTable)
-        .where(and(
-          eq(householdMembersTable.userId, Number(targetUserId)),
-          eq(householdMembersTable.householdId, Number(currentUser.householdId)),
-        ));
-      const targetRole = targetMembership?.role ?? "child";
-
-      if (isParent(viewerRole) && !isHead(targetRole)) {
-        // Parent can see non-head blocked dashboards
+    if (targetUser.dashboardBlocked) {
+      // Head sees everyone
+      if (isHead(viewerRole)) {
+        // allowed
+      } else if (isParent(viewerRole)) {
+        // Parent cannot see head's private dashboard
+        if (isHead(targetRole)) {
+          res.status(403).json({ error: "blocked" }); return;
+        }
+        // Parent can see other parents' and children's dashboards even if blocked
       } else {
-        // Child sees nothing private; parent cannot see head's private dashboard
+        // Child cannot see any private dashboard
         res.status(403).json({ error: "blocked" }); return;
       }
     }
@@ -248,61 +262,57 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const txs = await db.select().from(transactionsTable)
-    .where(eq(transactionsTable.userId, targetUserId));
-  const categories = await db.select().from(categoriesTable);
+  // Fire all four data queries in parallel. Filtering is done in SQL so we
+  // only transfer this month's rows rather than the member's full history.
+  const [txs, categories, memberRPs, validRpLogs] = await Promise.all([
+    db.select().from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.userId, Number(targetUserId)),
+        sql`${transactionsTable.date} like ${monthPrefix + "%"}`,
+        eq(transactionsTable.currencyLocked, false),
+        eq(transactionsTable.foundedWithRealizedGoal, false),
+        eq(transactionsTable.isLarderFund, false),
+      )),
+    db.select().from(categoriesTable),
+    db.select().from(recurringPaymentsTable)
+      .where(eq(recurringPaymentsTable.userId, Number(targetUserId))),
+    db.select({
+        recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
+        transactionId: recurringPaymentLogsTable.transactionId,
+      })
+      .from(recurringPaymentLogsTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, recurringPaymentLogsTable.transactionId))
+      .where(and(
+        eq(recurringPaymentLogsTable.userId, Number(targetUserId)),
+        eq(recurringPaymentLogsTable.monthKey, monthPrefix),
+      )),
+  ]);
+
   const catMap = new Map(categories.map(c => [c.id, c]));
+  // txs already pre-filtered by SQL — no JS re-filter needed.
+  const filtered = txs;
 
-  const filtered = txs.filter(t => t.date.startsWith(monthPrefix) && !t.currencyLocked && !t.foundedWithRealizedGoal && !t.isLarderFund);
-
-  const grouped = new Map<string, { total: number; count: number; category: any }>();
-  for (const tx of filtered) {
-    const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
-    const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
-    if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
-    const entry = grouped.get(key)!;
-    entry.total += parseFloat(tx.amount);
-    entry.count += 1;
-  }
-
-  const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
-
-  // Fetch recurring payments for this member and merge them in.
-  // INNER JOIN with transactions: only consider logs whose transaction still exists,
-  // so a deleted transaction doesn't permanently mark the RP as "applied".
-  const memberRPs = await db.select().from(recurringPaymentsTable)
-    .where(eq(recurringPaymentsTable.userId, targetUserId));
-  const validRpLogs = await db
-    .select({
-      recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
-      transactionId: recurringPaymentLogsTable.transactionId,
-    })
-    .from(recurringPaymentLogsTable)
-    .innerJoin(
-      transactionsTable,
-      eq(transactionsTable.id, recurringPaymentLogsTable.transactionId),
-    )
-    .where(and(
-      eq(recurringPaymentLogsTable.userId, targetUserId),
-      eq(recurringPaymentLogsTable.monthKey, monthPrefix),
-    ));
-  const appliedRPIds  = new Set(validRpLogs.map(l => l.recurringPaymentId));
+  const appliedRPIds = new Set(validRpLogs.map(l => l.recurringPaymentId));
   // Exclude RP-linked transactions from the regular category grouping so they are
   // only accounted for via the RP rows (prevents double-counting).
   const rpTxIds = new Set(validRpLogs.map(l => l.transactionId).filter(Boolean) as number[]);
 
-  const rpItems = memberRPs.map(rp => ({
-    categoryId: null as null,
-    categoryName: rp.name,
-    categoryColor: rp.color,
-    categoryIcon: "repeat",
-    budget: parseFloat(rp.amount),
-    total: appliedRPIds.has(rp.id) ? parseFloat(rp.amount) : 0,
-    count: appliedRPIds.has(rp.id) ? 1 : 0,
-    percentage: 0,
-    isRecurringPayment: true,
-    recurringPaymentId: rp.id,
-  }));
+  // Only show recurring payments that were actually recorded this month —
+  // an unapplied template is not an expense yet and shouldn't appear on the dashboard.
+  const rpItems = memberRPs
+    .filter(rp => appliedRPIds.has(rp.id))
+    .map(rp => ({
+      categoryId: null as null,
+      categoryName: rp.name,
+      categoryColor: rp.color,
+      categoryIcon: "repeat",
+      budget: parseFloat(rp.amount),
+      total: parseFloat(rp.amount),
+      count: 1,
+      percentage: 0,
+      isRecurringPayment: true,
+      recurringPaymentId: rp.id,
+    }));
 
   // Re-group excluding RP transactions (they are represented by rpItems)
   const groupedFiltered = new Map<string, { total: number; count: number; category: any }>();
@@ -331,12 +341,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     recurringPaymentId: null as null,
   })).sort((a, b) => b.total - a.total);
 
-  // Only surface rpItems that were actually applied this month — unapplied
-  // recurring templates (total = 0) are not expenses yet and should not appear
-  // on the personal dashboard.
-  const appliedRpItems = rpItems.filter(rp => appliedRPIds.has(rp.recurringPaymentId!));
-
-  res.json([...result, ...appliedRpItems]);
+  res.json([...result, ...rpItems]);
 });
 
 // Update a member's role — head only
@@ -396,7 +401,10 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
   }
 
   // Fetch household name to store in alert for the removed user
-  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId));
+  const [[household], [removedUser]] = await Promise.all([
+    db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId)),
+    db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, params.data.userId)),
+  ]);
 
   await db.delete(householdMembersTable).where(
     and(
@@ -414,6 +422,18 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
     .set({ householdId: null })
     .where(and(eq(categoriesTable.userId, params.data.userId), eq(categoriesTable.householdId, currentUser.householdId)));
 
+  // Cancel all invite records (any status) for the removed user's email in this
+  // household so stale email links lead to the "revoked" screen rather than
+  // ALREADY_DECIDED when they get re-invited later.
+  if (removedUser?.email) {
+    await db.update(invitesTable)
+      .set({ status: "cancelled" })
+      .where(and(
+        eq(invitesTable.email, removedUser.email),
+        eq(invitesTable.householdId, currentUser.householdId),
+      ));
+  }
+
   res.sendStatus(204);
 });
 
@@ -424,15 +444,58 @@ router.post("/households/leave", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
+  const leavingHouseholdId = user.householdId;
+
+  // Gather head + household name before removing the member so we can notify.
+  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
+  const allMembers = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, leavingHouseholdId));
+  const headMember = allMembers.find(m => isHead(m.role) && m.userId !== userId);
+
   await db.delete(householdMembersTable).where(
-    and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId))
+    and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, leavingHouseholdId))
   );
   await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, userId));
   // Un-share this user's own categories from the household they just left, so
   // they don't keep leaking to the remaining members.
   await db.update(categoriesTable)
     .set({ householdId: null })
-    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, user.householdId)));
+    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, leavingHouseholdId)));
+
+  // Cancel all invite records for this user's email in the household they left
+  // so that stale email links don't cause a confusing ALREADY_DECIDED dead-end
+  // if they get re-invited later.
+  await db.update(invitesTable)
+    .set({ status: "cancelled" })
+    .where(and(
+      eq(invitesTable.email, user.email),
+      eq(invitesTable.householdId, leavingHouseholdId),
+    ));
+
+  // Notify the household head via NC + push (fire-and-forget; never fails the leave).
+  if (headMember) {
+    const leaverName = user.name ?? "A member";
+    const hhName = household?.name ?? "your household";
+    try {
+      await db.insert(notificationItemsTable).values({
+        userId: headMember.userId,
+        type: "member_left",
+        titleEn: `${leaverName} left ${hhName}`,
+        titlePl: `${leaverName} opuścił(-a) ${hhName}`,
+        bodyEn: `${leaverName} has left your household.`,
+        bodyPl: `${leaverName} opuścił(-a) Twoje gospodarstwo.`,
+      });
+    } catch (err) {
+      logger.warn({ err }, "households: failed to create leave NC notification for head");
+    }
+    const badge = await getUnreadNotificationCount(headMember.userId).catch(() => 0);
+    sendPushToUser(headMember.userId, {
+      title: `${leaverName} left ${hhName}`,
+      body: "A member has left your household.",
+      url: "/?sheet=household",
+      tag: `member-left-${userId}`,
+      badgeCount: badge,
+    }).catch(() => {});
+  }
 
   res.json({ success: true });
 });
@@ -498,6 +561,18 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
     bodyEn: headRequestBody,
     bodyPl: headRequestBody,
   });
+
+  // Deliver as a real system push too, like every other NC item — the raw
+  // JSON body above is for in-app parsing only, so the push gets its own
+  // human-readable copy instead.
+  const headRequestBadge = await getUnreadNotificationCount(headMember.userId);
+  sendPushToUser(headMember.userId, {
+    title: `${requesterName} wants to become Head`,
+    body: "Tap to review the request.",
+    url: "/?sheet=household",
+    tag: `head-request-${userId}`,
+    badgeCount: headRequestBadge,
+  }).catch(() => {});
 
   res.json({ success: true });
 });
@@ -591,6 +666,15 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     bodyEn: "Your request to become Head was approved.",
     bodyPl: "Twoja prośba o zostanie Głową Rodziny została zaakceptowana.",
   });
+
+  const promotedBadge = await getUnreadNotificationCount(requesterId);
+  sendPushToUser(requesterId, {
+    title: "You are now Head of Household",
+    body: "Your request to become Head was approved.",
+    url: "/?sheet=household",
+    tag: `head-promoted-${requesterId}`,
+    badgeCount: promotedBadge,
+  }).catch(() => {});
 
   res.json({ success: true });
 });

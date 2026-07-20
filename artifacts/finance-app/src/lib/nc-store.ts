@@ -2,7 +2,7 @@
 // read/dismissed state survives reloads, new devices, and project remixes.
 // Holds types 1-8 (push), 15-16 (goal completed), share/edit approvals, etc.
 
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch } from "@/lib/api-client";
 
 export type NCNotifType =
   | "daily_reminder"
@@ -15,7 +15,8 @@ export type NCNotifType =
   | "goal_created" | "goal_changed"
   | "goal_realized"
   | "head_request"
-  | "split_accepted" | "split_declined";
+  | "split_accepted" | "split_declined"
+  | "member_left";
 
 export type NCNotification = {
   id: string;

@@ -862,7 +862,14 @@ export default function HouseholdPage() {
     mutation: { onSuccess: () => invalidateHousehold(queryClient) },
   });
   const leaveHousehold = useLeaveHousehold({
-    mutation: { onSuccess: () => invalidateHousehold(queryClient) },
+    mutation: {
+      onSuccess: () => {
+        // Immediately wipe the cached household so the empty state renders
+        // without waiting for the async refetch round-trip.
+        queryClient.setQueryData(getGetHouseholdQueryKey(), null);
+        invalidateHousehold(queryClient);
+      },
+    },
   });
   const updateMe = useUpdateMe({
     mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
@@ -932,6 +939,8 @@ export default function HouseholdPage() {
       });
       if (r.ok) {
         setDeleteHouseholdOpen(false);
+        // Wipe cache immediately so empty state shows without waiting for refetch.
+        queryClient.setQueryData(getGetHouseholdQueryKey(), null);
         invalidateHousehold(queryClient);
       }
     } finally {

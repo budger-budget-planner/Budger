@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
-  Smartphone, ExternalLink, Circle, Sparkles, Crown,
-  FileText, ShieldCheck, Clock, WifiOff, Tag,
+  Smartphone, ExternalLink, Circle, Sparkles, Crown, UserMinus,
+  FileText, ShieldCheck, Clock, WifiOff, Tag, LayoutGrid,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   getGetNotificationSettingsQueryKey,
   useGetMe,
 } from "@/lib/api-client";
+import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +31,7 @@ import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifi
 import { setAppBadgeCount } from "@/lib/app-badge";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { discardOp, opLabel } from "@/lib/mutation-queue";
-import { loadPrefs, savePrefs, checkNcSwipeHintDue } from "@/lib/prefs";
+import { loadPrefs, savePrefs, checkNcSwipeHintDue, getIconPrefFromCookie, saveIconPrefToCookie, applyIconPrefToDocument } from "@/lib/prefs";
 import { LEGAL } from "@/lib/legal";
 import { showNotification } from "@/lib/show-notification";
 
@@ -80,6 +81,7 @@ function ncIcon(type: NCNotifType) {
     case "head_request":      return <Crown className="w-4 h-4" />;
     case "split_accepted":    return <CheckCircle className="w-4 h-4" />;
     case "split_declined":    return <AlertTriangle className="w-4 h-4" />;
+    case "member_left":       return <UserMinus className="w-4 h-4" />;
     default: return <Bell className="w-4 h-4" />;
   }
 }
@@ -99,6 +101,7 @@ function ncIconBg(type: NCNotifType) {
     case "split_accepted":   return "bg-emerald-500/15 text-emerald-400";
     case "split_declined":   return "bg-destructive/15 text-destructive";
     case "head_request":     return "bg-amber-500/15 text-amber-400";
+    case "member_left":      return "bg-orange-500/15 text-orange-400";
     default:                 return "bg-muted text-muted-foreground";
   }
 }
@@ -460,6 +463,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
   const { data: user } = useGetMe();
   const [animDisabled, setAnimDisabled] = useState(() => loadPrefs().disableAnimations ?? false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [pendingIcon, setPendingIcon] = useState<"b" | "badger">(() => getIconPrefFromCookie());
   const [forceOffline, setForceOffline] = useState<boolean>(() => {
     try { return localStorage.getItem("budger_force_offline") === "1"; } catch { return false; }
   });
@@ -583,10 +588,12 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     setDeleteStep("pending");
     setDeleteError("");
     try {
+      let csrfToken = "";
+      try { csrfToken = await getCsrfToken(); } catch { /* server will reject and we'll show error */ }
       const r = await fetch(`${import.meta.env.BASE_URL}api/auth/request-deletion`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
         body: JSON.stringify({ language: lang }),
       });
       if (!r.ok) throw new Error("failed");
@@ -826,6 +833,24 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
               }}
             />
           </div>
+
+          {/* Change App Icon */}
+          <button
+            onClick={() => {
+              setPendingIcon(getIconPrefFromCookie());
+              setShowIconPicker(true);
+            }}
+            className="mt-2 flex items-center justify-between gap-3 w-full py-4 px-4 bg-card border border-border rounded-2xl text-left transition active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-muted-foreground"><LayoutGrid className="w-4 h-4" /></div>
+              <div>
+                <p className="text-sm font-medium">{t("prefs.change_icon")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("prefs.change_icon_desc")}</p>
+              </div>
+            </div>
+            <ChevronLeft className="w-4 h-4 text-muted-foreground rotate-180 shrink-0" />
+          </button>
         </section>
 
         {/* 3. Sound & Haptics / Preview */}
@@ -1273,6 +1298,83 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
+        </div>,
+        document.body
+      )}
+
+      {/* Icon Picker modal */}
+      {showIconPicker && createPortal(
+        <div className="fixed inset-0 z-[70] flex flex-col justify-end">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowIconPicker(false)}
+          />
+          <div className="relative bg-card rounded-t-3xl border-t border-border overflow-hidden">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+            {/* Title */}
+            <div className="flex items-center justify-between px-5 pt-2 pb-3">
+              <h3 className="text-base font-semibold text-foreground">{t("prefs.icon_picker_title")}</h3>
+              <button
+                onClick={() => setShowIconPicker(false)}
+                className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground transition active:opacity-70"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* How-to instruction */}
+            <p className="px-5 pb-4 text-xs text-muted-foreground leading-relaxed">
+              {t("prefs.icon_how_to")}
+            </p>
+            {/* Icon options */}
+            <div className="flex gap-4 px-5 pb-5">
+              {(["b", "badger"] as const).map(icon => {
+                const isSelected = pendingIcon === icon;
+                return (
+                  <button
+                    key={icon}
+                    onClick={() => setPendingIcon(icon)}
+                    className={`flex-1 flex flex-col items-center gap-3 py-4 px-3 rounded-2xl border-2 transition active:scale-95 ${
+                      isSelected ? "border-foreground bg-muted/60" : "border-border bg-card"
+                    }`}
+                  >
+                    <div className="relative">
+                      <img
+                        src={icon === "b" ? "/icon-b.png" : "/icon-badger.png"}
+                        alt={icon === "b" ? t("prefs.icon_b_label") : t("prefs.icon_badger_label")}
+                        className="w-20 h-20 rounded-[18px] shadow-lg object-cover"
+                      />
+                      {isSelected && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-foreground flex items-center justify-center shadow">
+                          <CheckCircle className="w-4 h-4 text-background" />
+                        </div>
+                      )}
+                    </div>
+                    <span className={`text-sm font-semibold ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                      {icon === "b" ? t("prefs.icon_b_label") : t("prefs.icon_badger_label")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Apply button */}
+            <div className="px-5 pb-8 pt-1">
+              <button
+                onClick={() => {
+                  savePrefs({ ...loadPrefs(), appIcon: pendingIcon });
+                  saveIconPrefToCookie(pendingIcon);
+                  applyIconPrefToDocument();
+                  setShowIconPicker(false);
+                  toast({ title: t("prefs.icon_applied") });
+                }}
+                className="w-full py-4 rounded-2xl bg-foreground text-background text-sm font-bold transition active:opacity-80"
+              >
+                {t("prefs.icon_apply")}
+              </button>
+            </div>
+          </div>
         </div>,
         document.body
       )}

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
-  Smartphone, ExternalLink, Circle, Sparkles, Crown,
+  Smartphone, ExternalLink, Circle, Sparkles, Crown, UserMinus,
   FileText, ShieldCheck, Clock, WifiOff, Tag, LayoutGrid,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -81,6 +81,7 @@ function ncIcon(type: NCNotifType) {
     case "head_request":      return <Crown className="w-4 h-4" />;
     case "split_accepted":    return <CheckCircle className="w-4 h-4" />;
     case "split_declined":    return <AlertTriangle className="w-4 h-4" />;
+    case "member_left":       return <UserMinus className="w-4 h-4" />;
     default: return <Bell className="w-4 h-4" />;
   }
 }
@@ -100,6 +101,7 @@ function ncIconBg(type: NCNotifType) {
     case "split_accepted":   return "bg-emerald-500/15 text-emerald-400";
     case "split_declined":   return "bg-destructive/15 text-destructive";
     case "head_request":     return "bg-amber-500/15 text-amber-400";
+    case "member_left":      return "bg-orange-500/15 text-orange-400";
     default:                 return "bg-muted text-muted-foreground";
   }
 }

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "../db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 import {
   CreateHouseholdBody,
   UpdateHouseholdBody,
@@ -445,6 +446,11 @@ router.post("/households/leave", async (req, res): Promise<void> => {
 
   const leavingHouseholdId = user.householdId;
 
+  // Gather head + household name before removing the member so we can notify.
+  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
+  const allMembers = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, leavingHouseholdId));
+  const headMember = allMembers.find(m => isHead(m.role) && m.userId !== userId);
+
   await db.delete(householdMembersTable).where(
     and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, leavingHouseholdId))
   );
@@ -464,6 +470,32 @@ router.post("/households/leave", async (req, res): Promise<void> => {
       eq(invitesTable.email, user.email),
       eq(invitesTable.householdId, leavingHouseholdId),
     ));
+
+  // Notify the household head via NC + push (fire-and-forget; never fails the leave).
+  if (headMember) {
+    const leaverName = user.name ?? "A member";
+    const hhName = household?.name ?? "your household";
+    try {
+      await db.insert(notificationItemsTable).values({
+        userId: headMember.userId,
+        type: "member_left",
+        titleEn: `${leaverName} left ${hhName}`,
+        titlePl: `${leaverName} opuścił(-a) ${hhName}`,
+        bodyEn: `${leaverName} has left your household.`,
+        bodyPl: `${leaverName} opuścił(-a) Twoje gospodarstwo.`,
+      });
+    } catch (err) {
+      logger.warn({ err }, "households: failed to create leave NC notification for head");
+    }
+    const badge = await getUnreadNotificationCount(headMember.userId).catch(() => 0);
+    sendPushToUser(headMember.userId, {
+      title: `${leaverName} left ${hhName}`,
+      body: "A member has left your household.",
+      url: "/?sheet=household",
+      tag: `member-left-${userId}`,
+      badgeCount: badge,
+    }).catch(() => {});
+  }
 
   res.json({ success: true });
 });
