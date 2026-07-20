@@ -175,7 +175,7 @@ router.patch("/household-recurring-payments/:id", async (req, res, next): Promis
       .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId), eq(recurringPaymentsTable.scope, "household")));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-    const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
+    const { name, color, type, amount, dayOfMonth, addToLarder, scope } = req.body;
     const updates: Record<string, any> = {};
 
     if (name !== undefined) {
@@ -198,6 +198,10 @@ router.patch("/household-recurring-payments/:id", async (req, res, next): Promis
       updates.dayOfMonth = dayOfMonth;
     }
     if (addToLarder !== undefined) updates.addToLarder = addToLarder === true;
+    if (scope !== undefined) {
+      if (!["personal", "household"].includes(scope)) { res.status(400).json({ error: "Invalid scope" }); return; }
+      updates.scope = scope;
+    }
 
     const resultType = updates.type ?? existing.type;
     const resultDay = "dayOfMonth" in updates ? updates.dayOfMonth : existing.dayOfMonth;

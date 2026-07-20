@@ -184,7 +184,7 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
       .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-    const { name, color, type, amount, dayOfMonth, addToLarder } = req.body;
+    const { name, color, type, amount, dayOfMonth, addToLarder, scope } = req.body;
     const updates: Record<string, any> = {};
 
     if (name !== undefined) {
@@ -208,6 +208,10 @@ router.patch("/recurring-payments/:id", async (req, res, next): Promise<void> =>
     }
     if (addToLarder !== undefined) {
       updates.addToLarder = addToLarder === true;
+    }
+    if (scope !== undefined) {
+      if (!["personal", "household"].includes(scope)) { res.status(400).json({ error: "Invalid scope" }); return; }
+      updates.scope = scope;
     }
 
     // Validate resulting state: scheduled always needs a valid dayOfMonth
