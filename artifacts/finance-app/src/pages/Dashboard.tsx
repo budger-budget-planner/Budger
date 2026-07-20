@@ -82,12 +82,19 @@ export default function DashboardPage() {
   const { data: categories } = useListCategories();
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
-  // Merge ONLY un-applied recurring payments into spending as virtual budget segments.
+  // IDs of household RPs — used to exclude them from the donut chart entirely.
+  const householdRpIds = new Set<number>((householdRPs ?? []).map((rp: any) => rp.id));
+
+  // Merge ONLY un-applied PERSONAL recurring payments into spending as virtual budget segments.
   // Applied ones already exist as real transactions in the spending summary — adding them
   // again would double-count both the total and the donut segment.
+  // Household RP transactions are stripped out so they never appear in the donut.
   const spending = (() => {
-    const base = spendingRaw ?? [];
-    // For applied RP transactions the summary returns them with recurringPaymentId set
+    const base = (spendingRaw ?? []).filter(item =>
+      // Remove spending rows that came from an applied household RP transaction
+      !(item.recurringPaymentId && householdRpIds.has(item.recurringPaymentId))
+    );
+    // For applied personal RP transactions the summary returns them with recurringPaymentId set
     // — give them a stable _catKey so the donut chart groups them separately from
     // the "uncategorized" bucket.
     const enrichedBase = base.map(item =>
@@ -100,6 +107,7 @@ export default function DashboardPage() {
           }
         : item
     );
+    // recurringPayments is already scope='personal' only (the endpoint filters by scope)
     const unapplied = (recurringPayments ?? []).filter(rp => !rp.appliedThisMonth);
     if (!unapplied.length) return enrichedBase.length ? enrichedBase : undefined;
     const rpItems = unapplied.map(rp => ({
