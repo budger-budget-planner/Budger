@@ -129,6 +129,8 @@ export default function DashboardPage() {
   const { data: goalsSummary } = useGetGoalsSummary({ month: viewMonth });
 
   // Use raw (unfiltered) data for the stat tiles so household RP amounts aren't double-counted.
+  // `spending` is the donut-only view (household RPs stripped); using it for totals would
+  // already exclude household RPs, then personalSpending would subtract them again.
   const totalSpending = (spendingRaw ?? []).reduce((s, c) => s + c.total, 0);
   const totalBudget   = prefs.totalBudget ?? 0;
   const txCount       = (spendingRaw ?? []).reduce((s, c) => s + c.count, 0);
@@ -144,6 +146,11 @@ export default function DashboardPage() {
   const householdRpTotalAmount = (householdRPs ?? [])
     .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
   const totalBudgetForChart = Math.max(0, totalBudget - householdRpTotalAmount);
+
+  // Donut chart data: strip zero-total uncategorized rows (no category, no RP, nothing spent)
+  const spendingForChart = spending?.filter(item =>
+    !(item.categoryId == null && !(item as any).recurringPaymentId && item.total === 0 && item.count === 0)
+  );
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
@@ -221,13 +228,13 @@ export default function DashboardPage() {
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 gap-2 mb-5">
+
+        {/* Row 1 — always visible */}
         <div className="bg-card border border-border rounded-2xl px-4 py-3">
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.total_spent")}</p>
           <p className="text-2xl font-bold" data-testid="text-total-spent"><AmtHero amount={totalSpending} currency={prefs.currency} /></p>
-          {realizedExcluded > 0 ? (
+          {realizedExcluded > 0 && (
             <p className="text-xs text-teal-400">+{fmtAmt(realizedExcluded, prefs.currency)} {t("home.realized_goal_excluded")}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">{t("dashboard.this_month")}</p>
           )}
         </div>
 
@@ -297,6 +304,7 @@ export default function DashboardPage() {
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.transactions")}</p>
           <p className="text-2xl font-bold">{txCount}</p>
         </div>
+
       </div>
 
       {/* Charts */}
@@ -308,26 +316,26 @@ export default function DashboardPage() {
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
-          ) : spending && spending.length > 0 && totalBudgetForChart > 0 ? (
+          ) : spendingForChart && spendingForChart.length > 0 && totalBudgetForChart > 0 ? (
             <DonutBudgetChart
-              spending={spending as any}
+              spending={spendingForChart as any}
               totalBudget={totalBudgetForChart}
               currency={prefs.currency}
               hasData={
-                spending.some(s => s.count > 0) ||
+                spendingForChart.some(s => s.count > 0) ||
                 (recurringPayments?.length ?? 0) > 0
               }
             />
-          ) : spending && spending.length > 0 ? (
+          ) : spendingForChart && spendingForChart.length > 0 ? (
             /* Fallback: no total budget set — show spending-proportional donut */
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
                 <ResponsiveContainer width={140} height={140}>
                   <PieChart style={{ outline: "none" }}>
-                    <Pie data={spending} dataKey="total" cx="50%" cy="50%"
+                    <Pie data={spendingForChart} dataKey="total" cx="50%" cy="50%"
                       innerRadius={38} outerRadius={64} paddingAngle={2}
                       style={{ outline: "none" }}>
-                      {spending.map((entry, i) => (
+                      {spendingForChart.map((entry, i) => (
                         <Cell key={(entry as any)._catKey ?? entry.categoryId ?? `unc-${i}`}
                           fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
@@ -336,7 +344,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 space-y-2 min-w-0">
-                {spending.slice(0, 6).map((item, i) => (
+                {spendingForChart.slice(0, 6).map((item, i) => (
                   <div key={(item as any)._catKey ?? item.categoryId ?? `unc-${i}`} className="space-y-0.5">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">

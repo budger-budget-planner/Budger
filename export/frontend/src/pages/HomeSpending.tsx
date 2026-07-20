@@ -38,7 +38,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { receiptSrc, compressImage } from "@/lib/imageUtils";
+import { receiptSrc, compressImage, requestCameraPermission } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
@@ -334,6 +334,7 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
 function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onClose: () => void; sym: string }) {
   const queryClient  = useQueryClient();
   const libraryRef   = useRef<HTMLInputElement>(null);
+  const cameraRef    = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
   // Holds the receipt image immediately after a successful upload/delete so
   // the preview updates at once without waiting for the query refetch.
@@ -392,6 +393,16 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     }
   }
 
+  async function handleCameraClick() {
+    if (uploadReceipt.isPending) return;
+    // Proactively request camera permission so iOS shows the system prompt
+    // before we open the capture input. Falls through on unavailability so
+    // the capture input still works on devices without getUserMedia support.
+    const result = await requestCameraPermission();
+    if (result === "denied") { alert(t("camera.denied")); return; }
+    cameraRef.current?.click();
+  }
+
   return (
     <>
       <Dialog open={open && !lightbox} onOpenChange={onClose}>
@@ -433,11 +444,18 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
                 </Button>
               </div>
             )}
-            <Button variant="outline" className="w-full gap-2"
-              onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
-              <Plus className="w-4 h-4" />
-              {uploadReceipt.isPending ? t("home.uploading") : effectiveReceiptImage ? t("home.replace_photo") : t("home.add_photo")}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="gap-2"
+                onClick={handleCameraClick} disabled={uploadReceipt.isPending}>
+                <Camera className="w-4 h-4" />
+                {t("receipt.camera")}
+              </Button>
+              <Button variant="outline" className="gap-2"
+                onClick={() => libraryRef.current?.click()} disabled={uploadReceipt.isPending}>
+                <Image className="w-4 h-4" />
+                {t("receipt.library")}
+              </Button>
+            </div>
             <Button variant="ghost" className="w-full" onClick={onClose}>{t("common.done")}</Button>
           </div>
         </DialogContent>
@@ -457,6 +475,8 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
       )}
 
       <input ref={libraryRef} type="file" accept="image/*"
+        className="hidden" onChange={handleFileChange} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment"
         className="hidden" onChange={handleFileChange} />
     </>
   );
@@ -1432,7 +1452,7 @@ export default function HomeSpending() {
   type PendingRpEntry = { id: string; name: string; amount: number; color: string };
   const pendingRpEntries: PendingRpEntry[] = [];
   for (const rpId of pendingRpIds) {
-    const rp = manualRPs.find(r => r.id === rpId);
+    const rp = allManualRPs.find(r => r.id === rpId);
     if (rp) pendingRpEntries.push({ id: `pending-rp-${rp.id}`, name: rp.name, amount: Number(rp.amount), color: rp.color });
   }
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -1687,7 +1707,9 @@ export default function HomeSpending() {
                   <div key={prp.id} className="flex items-start gap-3 px-4 py-3.5 opacity-40">
                     <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                       style={{ backgroundColor: prp.color + "33" }}>
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: prp.color }} />
+                      {(prp as any).scope === "household"
+                        ? <Home className="w-4 h-4" style={{ color: prp.color }} />
+                        : <RefreshCw className="w-4 h-4" style={{ color: prp.color }} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground leading-snug truncate">
@@ -1713,9 +1735,7 @@ export default function HomeSpending() {
                       {/* Category icon */}
                       <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
                         style={{ backgroundColor: dotColor + "33" }}>
-                        {(prp as any).scope === "household"
-                          ? <Home className="w-4 h-4" style={{ color: prp.color }} />
-                          : <RefreshCw className="w-4 h-4" style={{ color: prp.color }} />}
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dotColor }} />
                       </div>
                       {/* Name + category */}
                       <div className="flex-1 min-w-0">
