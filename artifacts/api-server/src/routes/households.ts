@@ -199,7 +199,121 @@ router.get("/households/members", async (req, res): Promise<void> => {
     };
   });
 
+  // ── Household Spendings virtual member ──────────────────────────────────
+  // The head's household recurring payments are surfaced as a separate synthetic
+  // member (userId: -1) so other members can see the household RP budget/spending
+  // as a distinct entity. The head's own numbers are adjusted to exclude those amounts.
+  const headEntry = enriched.find(m => isHead(m.role));
+  if (headEntry) {
+    const hhRPs = await db.select().from(recurringPaymentsTable).where(and(
+      eq(recurringPaymentsTable.userId, headEntry.userId),
+      eq(recurringPaymentsTable.scope, "household"),
+    ));
+
+    const householdRPBudget = hhRPs.reduce((s, rp) => s + parseFloat(rp.amount), 0);
+
+    let householdRPSpent = 0;
+    if (hhRPs.length > 0) {
+      const hhRPIds = hhRPs.map(r => r.id);
+      const hhAppliedLogs = await db
+        .select({ transactionId: recurringPaymentLogsTable.transactionId })
+        .from(recurringPaymentLogsTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, recurringPaymentLogsTable.transactionId))
+        .where(and(
+          inArray(recurringPaymentLogsTable.recurringPaymentId, hhRPIds),
+          eq(recurringPaymentLogsTable.userId, headEntry.userId),
+          eq(recurringPaymentLogsTable.monthKey, monthPrefix),
+        ));
+      const appliedTxIds = hhAppliedLogs.map(l => l.transactionId).filter(Boolean) as number[];
+      if (appliedTxIds.length > 0) {
+        const [sumRow] = await db
+          .select({ total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)` })
+          .from(transactionsTable)
+          .where(inArray(transactionsTable.id, appliedTxIds));
+        householdRPSpent = parseFloat(sumRow?.total ?? "0");
+      }
+    }
+
+    // Subtract household RP amounts from the head's personal numbers
+    if (headEntry.totalBudget != null) {
+      headEntry.totalBudget = Math.max(0, headEntry.totalBudget - householdRPBudget);
+    }
+    headEntry.monthlySpent = Math.max(0, headEntry.monthlySpent - householdRPSpent);
+
+    // Push virtual member — always visible, always public
+    enriched.push({
+      userId: -1,
+      householdId: headEntry.householdId,
+      role: "household-spendings",
+      memberColor: "#f59e0b",
+      name: "Household Spendings",
+      email: "",
+      dashboardBlocked: false,
+      monthlySpent: Math.round(householdRPSpent * 100) / 100,
+      totalBudget: Math.round(householdRPBudget * 100) / 100,
+      currency: headEntry.currency,
+      joinedAt: new Date().toISOString(),
+    });
+  }
+
   res.json(enriched);
+});
+
+// GET /households/members/household-spendings/spending
+// Returns applied household RP spending for the current month as a breakdown.
+// Always accessible to all household members (never privacy-blocked).
+// MUST be declared before the parameterized /:userId/spending route.
+router.get("/households/members/household-spendings/spending", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+
+  const memberships = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.householdId, user.householdId));
+  const headMembership = memberships.find(m => isHead(m.role));
+  if (!headMembership) { res.json([]); return; }
+
+  const now = new Date();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const hhRPs = await db.select().from(recurringPaymentsTable).where(and(
+    eq(recurringPaymentsTable.userId, headMembership.userId),
+    eq(recurringPaymentsTable.scope, "household"),
+  ));
+  if (!hhRPs.length) { res.json([]); return; }
+
+  const hhRPIds = hhRPs.map(r => r.id);
+  const appliedLogs = await db.select({
+    recurringPaymentId: recurringPaymentLogsTable.recurringPaymentId,
+    transactionId: recurringPaymentLogsTable.transactionId,
+  })
+  .from(recurringPaymentLogsTable)
+  .where(and(
+    inArray(recurringPaymentLogsTable.recurringPaymentId, hhRPIds),
+    eq(recurringPaymentLogsTable.userId, headMembership.userId),
+    eq(recurringPaymentLogsTable.monthKey, monthPrefix),
+  ));
+
+  const appliedRPIds = new Set(appliedLogs.map(l => l.recurringPaymentId));
+
+  const result = hhRPs
+    .filter(rp => appliedRPIds.has(rp.id))
+    .map(rp => ({
+      categoryId: null as null,
+      categoryName: rp.name,
+      categoryColor: rp.color,
+      categoryIcon: "repeat",
+      budget: parseFloat(rp.amount),
+      total: parseFloat(rp.amount),
+      count: 1,
+      percentage: 0,
+      isRecurringPayment: true,
+      recurringPaymentId: rp.id,
+    }));
+
+  res.json(result);
 });
 
 router.get("/households/members/:userId/spending", async (req, res): Promise<void> => {
@@ -262,9 +376,11 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // Fire all four data queries in parallel. Filtering is done in SQL so we
+  // Fire all data queries in parallel. Filtering is done in SQL so we
   // only transfer this month's rows rather than the member's full history.
-  const [txs, categories, memberRPs, validRpLogs] = await Promise.all([
+  // The 5th query fetches the target's household role to determine whether
+  // household-scoped RPs should be excluded from their personal view.
+  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember]] = await Promise.all([
     db.select().from(transactionsTable)
       .where(and(
         eq(transactionsTable.userId, Number(targetUserId)),
@@ -286,7 +402,17 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
         eq(recurringPaymentLogsTable.userId, Number(targetUserId)),
         eq(recurringPaymentLogsTable.monthKey, monthPrefix),
       )),
+    db.select({ role: householdMembersTable.role })
+      .from(householdMembersTable)
+      .where(eq(householdMembersTable.userId, Number(targetUserId))),
   ]);
+
+  // If the target is the head, their household RPs are shown under the virtual
+  // "Household Spendings" member — exclude them from the personal spending view.
+  const isTargetHead = isHead(targetHouseholdMember?.role ?? "child");
+  const householdRpExcludeIds = isTargetHead
+    ? new Set(memberRPs.filter(rp => (rp as any).scope === "household").map(rp => rp.id))
+    : new Set<number>();
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   // txs already pre-filtered by SQL — no JS re-filter needed.
@@ -299,8 +425,10 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   // Only show recurring payments that were actually recorded this month —
   // an unapplied template is not an expense yet and shouldn't appear on the dashboard.
+  // For the head user, household-scoped RPs are excluded — they appear under the
+  // virtual "Household Spendings" member instead.
   const rpItems = memberRPs
-    .filter(rp => appliedRPIds.has(rp.id))
+    .filter(rp => appliedRPIds.has(rp.id) && !householdRpExcludeIds.has(rp.id))
     .map(rp => ({
       categoryId: null as null,
       categoryName: rp.name,

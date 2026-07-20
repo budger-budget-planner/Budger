@@ -35,7 +35,7 @@ import {
   Users, Plus, Mail, X, LogOut,
   Eye, EyeOff, Pencil, Target, Trash2, CheckCircle, XCircle, AlertCircle, Crown, ShieldCheck, Baby,
   Scissors, GitFork, GitMerge, ChevronDown, ChevronRight,
-  Warehouse, PiggyBank, ArrowRightCircle, TrendingUp,
+  Warehouse, PiggyBank, ArrowRightCircle, TrendingUp, Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -310,7 +310,26 @@ function MemberSheet({
   rates: Record<string, number> | null;
   anchorY: number;
 }) {
-  const { data, isLoading, isError } = useGetMemberSpending(member.userId);
+  const isVirtual = member.userId === -1;
+
+  // Real members use the generated hook; the virtual "Household Spendings"
+  // member uses a separate endpoint that returns applied household RP items.
+  const { data: realData, isLoading: realLoading, isError: realError } = useGetMemberSpending(
+    member.userId,
+    { query: { enabled: !isVirtual } },
+  );
+  const { data: virtualData, isLoading: virtualLoading } = useQuery<any[]>({
+    queryKey: ["household-spendings-spending"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/households/members/household-spendings/spending`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isVirtual,
+  });
+  const data = isVirtual ? virtualData : realData;
+  const isLoading = isVirtual ? virtualLoading : realLoading;
+  const isError = isVirtual ? false : realError;
   const [savingRole, setSavingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>(member.role);
 
@@ -330,6 +349,7 @@ function MemberSheet({
       if (!r.ok) return [];
       return r.json();
     },
+    enabled: !isVirtual,
     staleTime: 30_000,
   });
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -341,8 +361,8 @@ function MemberSheet({
   }, [member.userId]);
 
   const isViewerHead = isHeadRole(viewerRole);
-  const canEditRole = isViewerHead && !isMe;
-  const canRemove = isViewerHead && !isMe && !isHeadRole(member.role);
+  const canEditRole = isViewerHead && !isMe && !isVirtual;
+  const canRemove = isViewerHead && !isMe && !isHeadRole(member.role) && !isVirtual;
 
   // ── Fixed top positioning ────────────────────────────────────────────────
   // Always open from just below the top chrome (status bar / app header).
@@ -381,14 +401,21 @@ function MemberSheet({
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
             style={{ backgroundColor: member.memberColor }}
           >
-            {member.name.charAt(0).toUpperCase()}
+            {isVirtual
+              ? <Home className="w-4 h-4 text-black" />
+              : member.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <p className="font-semibold">{member.name} {isMe && <span className="text-xs text-white/50">{t("hh.you_label")}</span>}</p>
-              <RoleBadge role={member.role} />
+              <p className="font-semibold">
+                {isVirtual ? t("hh.virtual_member_name") : member.name}
+                {isMe && !isVirtual && <span className="text-xs text-white/50 ml-1">{t("hh.you_label")}</span>}
+              </p>
+              {!isVirtual && <RoleBadge role={member.role} />}
             </div>
-            <p className="text-xs text-white/50">{t("hh.this_month_breakdown")}</p>
+            <p className="text-xs text-white/50">
+              {isVirtual ? t("hh.virtual_member_subtitle") : t("hh.this_month_breakdown")}
+            </p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1">
             <X className="w-5 h-5" />
