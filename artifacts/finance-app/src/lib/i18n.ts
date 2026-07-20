@@ -723,6 +723,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.deleting_tx":         { en: "Deleting",                  pl: "Usuwanie"                    },
 
   // ── Household roles ──
+  "hh.virtual_member_name":     { en: "Household Spendings",       pl: "Wydatki domowe"                         },
+  "hh.virtual_member_subtitle": { en: "Shared household recurring payments", pl: "Wspólne płatności cykliczne" },
   "hh.role_head":               { en: "Head",                     pl: "Głowa rodziny"                          },
   "hh.role_parent":             { en: "Member",                   pl: "Członek"                                },
   "hh.role_child":              { en: "Ward",                     pl: "Podopieczny"                            },

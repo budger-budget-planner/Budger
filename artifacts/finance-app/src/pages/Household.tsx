@@ -179,6 +179,7 @@ function roleLabelShort(role: string): string {
 }
 
 function RoleBadge({ role }: { role: string }) {
+  if (role === "household-spendings") return null;
   if (isHeadRole(role)) {
     return (
       <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-300 bg-amber-300/10 rounded px-1.5 py-0.5">
@@ -1335,10 +1336,13 @@ export default function HouseholdPage() {
                             className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-black"
                             style={{ backgroundColor: m.memberColor }}
                           >
-                            {m.name.charAt(0).toUpperCase()}
+                            {m.userId === -1
+                              ? <Home className="w-3 h-3 text-black" />
+                              : m.name.charAt(0).toUpperCase()}
                           </div>
                           <span className="text-xs text-white/60 flex-1 truncate">
-                            {m.name} {m.userId === me?.id && <span className="text-white/30">{t("hh.you_label")}</span>}
+                            {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
+                            {m.userId === me?.id && <span className="text-white/30 ml-1">{t("hh.you_label")}</span>}
                           </span>
                           <span className="text-xs font-medium tabular-nums">
                             {inViewerCurrency != null ? fmt(inViewerCurrency) : t("hh.no_budget_set")}
@@ -1432,7 +1436,7 @@ export default function HouseholdPage() {
           {/* ── Members ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.length ?? 0})</span></p>
+              <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.filter(m => m.userId !== -1).length ?? 0})</span></p>
               {iAmHead && (
                 <Button
                   size="sm"
@@ -1467,14 +1471,17 @@ export default function HouseholdPage() {
                         className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
                         style={{ backgroundColor: m.memberColor }}
                       >
-                        {m.name.charAt(0).toUpperCase()}
+                        {m.userId === -1
+                          ? <Home className="w-4 h-4 text-black" />
+                          : m.name.charAt(0).toUpperCase()}
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <p className="text-sm font-medium truncate">
-                              {m.name} {isMe && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
+                              {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
+                              {isMe && m.userId !== -1 && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
                             </p>
                             {m.dashboardBlocked && !isMe && (
                               <span className="text-white/30 flex-shrink-0" title="Dashboard private">

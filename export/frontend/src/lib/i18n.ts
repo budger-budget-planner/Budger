@@ -77,6 +77,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "dashboard.budget":         { en: "Budget",              pl: "Budżet"                       },
   "dashboard.transactions":   { en: "Transactions",        pl: "Transakcje"                   },
   "dashboard.for_goals":      { en: "For goals",           pl: "Na cele"                      },
+  "dashboard.for_own":        { en: "For own spendings",   pl: "Na własne wydatki"            },
+  "dashboard.for_household":  { en: "For household",       pl: "Na wydatki domowe"            },
   "dashboard.no_budgets":     { en: "no budgets set",      pl: "brak budżetów"                },
   "dashboard.no_contributions":{ en: "no contributions",   pl: "brak wpłat"                   },
   "dashboard.goals_active":   { en: "{n} goal{s} active",  pl: "{n} cel{s} aktywny{pl}"      },
@@ -188,7 +190,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "cat.exceeds":       { en: "Exceeds total monthly budget", pl: "Przekracza łączny budżet miesięczny"},
 
   // ── Recurring Payments ──
-  "rp.section_title":      { en: "Recurring Payments",                      pl: "Płatności cykliczne"                      },
+  "rp.scope_personal":           { en: "Personal",                                  pl: "Osobista"                                 },
+  "rp.scope_household":          { en: "Household",                                 pl: "Domowa"                                   },
+  "rp.section_title":            { en: "Personal Recurring Payments",               pl: "Płatności cykliczne (osobiste)"           },
+  "rp.household_section_title":  { en: "Household Recurring Payments",              pl: "Płatności cykliczne (gospodarstwo)"       },
   "rp.new":                { en: "New Recurring Payment",                   pl: "Nowa płatność cykliczna"                  },
   "rp.edit":               { en: "Edit Recurring Payment",                  pl: "Edytuj płatność cykliczną"                },
   "rp.type_category":      { en: "Category",                                pl: "Kategoria"                                },
@@ -718,6 +723,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.deleting_tx":         { en: "Deleting",                  pl: "Usuwanie"                    },
 
   // ── Household roles ──
+  "hh.virtual_member_name":     { en: "Household Spendings",       pl: "Wydatki domowe"                         },
+  "hh.virtual_member_subtitle": { en: "Shared household recurring payments", pl: "Wspólne płatności cykliczne" },
   "hh.role_head":               { en: "Head",                     pl: "Głowa rodziny"                          },
   "hh.role_parent":             { en: "Member",                   pl: "Członek"                                },
   "hh.role_child":              { en: "Ward",                     pl: "Podopieczny"                            },
