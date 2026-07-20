@@ -49,6 +49,7 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     recurringPaymentId: tx.recurringPaymentId ?? null,
     recurringPaymentName: rp?.name ?? null,
     recurringPaymentColor: rp?.color ?? null,
+    recurringPaymentScope: rp?.scope ?? null,
     isLarderFund: tx.isLarderFund ?? false,
   };
 }
