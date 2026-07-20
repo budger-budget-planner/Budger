@@ -618,7 +618,7 @@ function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
                   }`}
                 >
                   {s === "household" ? <Home className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
-                  {s === "personal" ? "Personal" : "Household"}
+                  {s === "personal" ? t("rp.scope_personal") : t("rp.scope_household")}
                 </button>
               ))}
             </div>
@@ -1280,7 +1280,7 @@ export default function CategoriesPage() {
                       }`}
                     >
                       {s === "household" ? <Home className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
-                      {s === "personal" ? "Personal" : "Household"}
+                      {s === "personal" ? t("rp.scope_personal") : t("rp.scope_household")}
                     </button>
                   ))}
                 </div>
