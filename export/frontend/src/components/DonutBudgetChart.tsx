@@ -300,9 +300,14 @@ type Props = {
    *  state is seeded with this value so there is no initial growing animation
    *  when the chart mounts directly in expanded mode (e.g. drill-down). */
   initialContainerWidth?: number;
+  /** When set, the SVG wrapper is given this fixed height in compact mode and
+   *  the SVG is flex-centred within it. This pins the donut's vertical position
+   *  independently of the legend list length — the legend can grow below without
+   *  moving the donut. Pass (containerWidth − HEADER_H) from HouseholdDonutChart. */
+  fixedSvgWrapperHeight?: number;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -478,6 +483,15 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       <div
         style={{
           width:      expanded ? containerWidth : 180,
+          // In compact mode, if a fixed wrapper height is supplied by the parent,
+          // use it and flex-centre the SVG within it. This pins the donut's Y
+          // position to the centre of the default field height regardless of how
+          // many legend items exist below.
+          ...((!expanded && fixedSvgWrapperHeight) ? {
+            height:     fixedSvgWrapperHeight,
+            display:    "flex",
+            alignItems: "center",
+          } : {}),
           flexShrink: 0,
           transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
         }}
