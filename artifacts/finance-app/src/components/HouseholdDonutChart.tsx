@@ -857,7 +857,7 @@ export default function HouseholdDonutChart({
         }}>
           <div style={{ width: 160 }} className="space-y-2.5">
             {legend.map(item => {
-              const pct    = item.budgetInViewer != null && item.budgetInViewer > 0
+              const pct    = !item.isVirtual && item.budgetInViewer != null && item.budgetInViewer > 0
                 ? Math.round((item.spentInViewer / item.budgetInViewer) * 100) : null;
               const isSel  = selectedId === item.groupId;
               const dimmed = selectedId !== null && !isSel;
