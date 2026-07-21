@@ -540,6 +540,9 @@ export default function HouseholdDonutChart({
     if (drillPhase !== "personal") return;
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
 
+    // Always clear the selected segment so the donut returns fully intact
+    setSelectedId(null);
+
     if (loadPrefs().disableAnimations) {
       setDrillPhase("idle");
       setDrilledMemberId(null);
