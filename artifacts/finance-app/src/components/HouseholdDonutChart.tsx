@@ -158,11 +158,30 @@ function buildHouseholdChart(
 
   const memberData = members.map(m => ({
     ...m,
+    memberColor: m.memberColor, // mutable copy — may be reassigned below
     spentV:  toViewer(m.monthlySpent, m.currency),
     budgetV: m.totalBudget != null ? toViewer(m.totalBudget, m.currency) : null,
     isVirtual: m.userId === -1,
     groupId: `member-${m.userId}`,
   }));
+
+  // Safety net: ensure every member has a visually distinct color.
+  // The backend already handles this, but old/cached data may still clash.
+  const COLOR_POOL = [
+    "#818cf8","#34d399","#fb923c","#f472b6","#38bdf8","#a78bfa",
+    "#f59e0b","#f87171","#4ade80","#60a5fa","#e879f9","#2dd4bf",
+    "#fbbf24","#94a3b8","#c084fc","#22d3ee",
+  ];
+  const seen = new Set<string>();
+  for (const m of memberData) {
+    if (!seen.has(m.memberColor)) {
+      seen.add(m.memberColor);
+    } else {
+      const fresh = COLOR_POOL.find(c => !seen.has(c)) ?? m.memberColor;
+      m.memberColor = fresh;
+      seen.add(fresh);
+    }
+  }
 
   const sumMemberBudgets = memberData.reduce((s, m) => s + (m.budgetV ?? 0), 0);
   const totalSpentV      = memberData.reduce((s, m) => s + m.spentV, 0);

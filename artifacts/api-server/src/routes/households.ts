@@ -240,12 +240,20 @@ router.get("/households/members", async (req, res): Promise<void> => {
     }
     headEntry.monthlySpent = Math.max(0, headEntry.monthlySpent - householdRPSpent);
 
+    // Pick a color for the virtual member that no real member is already using.
+    // Prefer warm amber/gold tones to keep the household-spendings feel distinct.
+    const usedColors = new Set(enriched.map(m => m.memberColor));
+    const virtualColorPrefs = ["#f59e0b", "#fbbf24", "#fb923c", "#f472b6", "#e879f9", "#38bdf8", "#a78bfa"];
+    const virtualColor = virtualColorPrefs.find(c => !usedColors.has(c))
+      ?? MEMBER_COLORS.find(c => !usedColors.has(c))
+      ?? "#f59e0b";
+
     // Push virtual member — always visible, always public
     enriched.push({
       userId: -1,
       householdId: headEntry.householdId,
       role: "household-spendings",
-      memberColor: "#f59e0b",
+      memberColor: virtualColor,
       name: "Household Spendings",
       email: "",
       dashboardBlocked: false,
