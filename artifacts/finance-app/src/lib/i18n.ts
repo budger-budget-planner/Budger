@@ -775,7 +775,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.additional_funds":        { en: "Additional Funds",          pl: "Dodatkowe środki"                        },
   "hh.household_donut_label":   { en: "Household Spending",        pl: "Wydatki gospodarstwa"                    },
   "hh.private_lock_msg":        { en: "Private dashboard",         pl: "Prywatny pulpit"                         },
-  "hh.drill_back_hint":         { en: "double-tap to return",      pl: "podwójne dotknięcie, aby wrócić"         },
+  "hh.drill_back_hint":         { en: "tap to return",             pl: "dotknij, aby wrócić"                     },
+  "hh.manage":                  { en: "Manage",                    pl: "Zarządzaj"                               },
 
   // ── Shared slide-viewer chrome (used by both the screenshot-import manual
   //    and the Share Sheet tutorial) — kept under "ap.*" since it's generic,

@@ -651,7 +651,7 @@ export default function HouseholdDonutChart({
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
       <div style={{ display: "flex", alignItems: "center", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
@@ -849,24 +849,6 @@ export default function HouseholdDonutChart({
               );
             })}
 
-            {/* Head manage rows */}
-            {iAmHead && onMemberTap && (
-              <div className="pt-1 border-t border-white/10">
-                {legend.filter(l => l.userId > 0).map(item => {
-                  const member = members.find(m => m.userId === item.userId);
-                  if (!member) return null;
-                  return (
-                    <button key={`mgmt-${item.groupId}`} className="w-full text-left py-1 flex items-center gap-1.5"
-                      onClick={e => { e.stopPropagation(); onMemberTap(member); }}>
-                      <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-black"
-                        style={{ backgroundColor: item.color }}>{item.name.charAt(0).toUpperCase()}</span>
-                      <span className="text-[10px] text-white/40 truncate leading-tight flex-1">{item.name}</span>
-                      <span className="text-[10px] text-white/30">›</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -880,14 +862,24 @@ export default function HouseholdDonutChart({
           pointerEvents: persOpacity < 0.1 ? "none" : "auto",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Back button */}
-          <button
-            className="self-start mb-1 flex items-center gap-1 text-[11px] text-white/50 hover:text-white/80 transition-colors"
-            onClick={startDrillBack}
-          >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
-            <span>{t("hh.drill_back_hint")}</span>
-          </button>
+          {/* Header row: back + optional manage */}
+          <div className="flex items-center justify-between mb-1">
+            <button
+              className="flex items-center gap-1 text-[11px] text-white/50 hover:text-white/80 transition-colors"
+              onClick={startDrillBack}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
+              <span>{t("hh.drill_back_hint")}</span>
+            </button>
+            {iAmHead && onMemberTap && drilledMember && !isVirtualDrill && (
+              <button
+                className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/15 transition-colors"
+                onClick={() => onMemberTap(drilledMember)}
+              >
+                {t("hh.manage")}
+              </button>
+            )}
+          </div>
 
           {/* Personal donut or lock or spinner */}
           <div className="flex-1 flex items-center">
