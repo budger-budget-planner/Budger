@@ -880,7 +880,7 @@ export default function HouseholdDonutChart({
       <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.9s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: drillPhase === "personal" ? 0 : hhOpacity, transition: drillPhase === "personal" ? "none" : "opacity 0.9s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
         {/* Invisible spacer — reserves same height as the personal overlay's header
             row so the donut appears at the exact same Y in both views. */}
         <div style={{ height: HEADER_H, flexShrink: 0 }} />
