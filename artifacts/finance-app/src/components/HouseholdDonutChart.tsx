@@ -667,13 +667,10 @@ export default function HouseholdDonutChart({
     setPersOpacity(0);
 
     push(setTimeout(() => {
-      // B: arc appears in member's color, then CSS-transitions to dark grey (200ms hold)
-      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: gb.groupColor });
+      // B: arc appears directly as dark grey at member's segment position (200ms hold)
+      // (no bright-color intermediate — matches the reverse of the drill-back snap-member step)
+      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: "#2d3748" });
       setDrillPhase("to-arc"); // segment fades via groupOpacity
-      // One frame later: trigger CSS fill-transition to dark grey
-      push(setTimeout(() => {
-        setArcAnim(prev => prev ? { ...prev, color: "#2d3748" } : prev);
-      }, 16));
 
       push(setTimeout(() => {
         // C: expand the dark-grey arc to full circle (650ms)
