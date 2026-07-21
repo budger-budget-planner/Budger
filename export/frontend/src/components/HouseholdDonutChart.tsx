@@ -440,8 +440,10 @@ export default function HouseholdDonutChart({
   const containerRef          = useRef<HTMLDivElement>(null);
   const wiggleGroupRef        = useRef<SVGGElement>(null);
   const wiggleGroup2Ref       = useRef<SVGGElement>(null);
+  const wiggleGroup3Ref       = useRef<SVGGElement>(null);
   const firstSegMidDegRef     = useRef<number>(0);
   const secondSegMidDegRef    = useRef<number>(0);
+  const thirdSegMidDegRef     = useRef<number>(0);
   const hasDataRef            = useRef<boolean>(false);
   const rafRef                = useRef<number | null>(null);
   const drilledGroupRef       = useRef<GroupBorder | null>(null);
@@ -461,10 +463,12 @@ export default function HouseholdDonutChart({
 
   const wiggleId1 = segs[0]?.groupId ?? null;
   const _wb2      = groupBorders.length >= 2
-    ? (groupBorders[3] ?? groupBorders[2] ?? groupBorders[1]) : undefined;
+    ? (groupBorders[2] ?? groupBorders[1]) : undefined;
   firstSegMidDegRef.current  = groupBorders[0]?.midDeg ?? 0;
   secondSegMidDegRef.current = _wb2?.midDeg ?? 0;
+  thirdSegMidDegRef.current  = groupBorders[1]?.midDeg ?? 0;
   const wiggleId2 = _wb2?.groupId ?? null;
+  const wiggleId3 = groupBorders[1]?.groupId ?? null;
 
   const expanded    = mode === "expanded";
   const selectedItem = legend.find(l => l.groupId === selectedId) ?? null;
@@ -591,13 +595,36 @@ export default function HouseholdDonutChart({
         { transform: "translate(0px,0px)" },
       ], { duration: 700, fill: "none" });
     }
+    // Squeeze hint: presses the segment inward (toward centre) and holds briefly,
+    // mimicking a tap-and-hold to show the drill-down interaction is available.
+    function squeezeEl(el: SVGGElement, midDeg: number) {
+      const midRad = ((midDeg - 90) * Math.PI) / 180;
+      const inX = -EXPAND * 0.30 * Math.cos(midRad);
+      const inY = -EXPAND * 0.30 * Math.sin(midRad);
+      el.animate([
+        { transform: "translate(0px,0px)",                      opacity: "1",    easing: "cubic-bezier(0.4,0,0.6,1)" },
+        { transform: `translate(${inX}px,${inY}px)`, offset: 0.24, opacity: "0.68", easing: "linear" },
+        { transform: `translate(${inX}px,${inY}px)`, offset: 0.66, opacity: "0.68", easing: "cubic-bezier(0.34,1.56,0.64,1)" },
+        { transform: "translate(0px,0px)",                      opacity: "1" },
+      ], { duration: 1000, fill: "none" });
+    }
     let t2: ReturnType<typeof setTimeout> | null = null;
+    let t3: ReturnType<typeof setTimeout> | null = null;
     const t1 = setTimeout(() => {
       if (!hasDataRef.current || !wiggleGroup2Ref.current || !checkDonutWiggleDue()) return;
       if (wiggleGroupRef.current)  wiggleEl(wiggleGroupRef.current,  firstSegMidDegRef.current);
-      t2 = setTimeout(() => { if (wiggleGroup2Ref.current) wiggleEl(wiggleGroup2Ref.current, secondSegMidDegRef.current); }, 900);
+      t2 = setTimeout(() => {
+        if (wiggleGroup2Ref.current) squeezeEl(wiggleGroup2Ref.current, secondSegMidDegRef.current);
+        t3 = setTimeout(() => {
+          if (wiggleGroup3Ref.current) squeezeEl(wiggleGroup3Ref.current, thirdSegMidDegRef.current);
+        }, 5_000);
+      }, 900);
     }, 4_000);
-    return () => { clearTimeout(t1); if (t2 !== null) clearTimeout(t2); };
+    return () => {
+      clearTimeout(t1);
+      if (t2 !== null) clearTimeout(t2);
+      if (t3 !== null) clearTimeout(t3);
+    };
   }, []);
 
   // ── rAF arc expansion ───────────────────────────────────────────────────────
@@ -921,12 +948,13 @@ export default function HouseholdDonutChart({
               const groupSegs = segs.filter(s => s.groupId === gb.groupId);
               const isW1 = gb.groupId === wiggleId1;
               const isW2 = gb.groupId === wiggleId2;
+              const isW3 = gb.groupId === wiggleId3;
               const isSelected = selectedId === gb.groupId;
 
               return (
                 <g
                   key={gb.groupId}
-                  ref={isW1 ? wiggleGroupRef : isW2 ? wiggleGroup2Ref : undefined}
+                  ref={isW1 ? wiggleGroupRef : isW2 ? wiggleGroup2Ref : isW3 ? wiggleGroup3Ref : undefined}
                   style={{ opacity: groupOpacity(gb.groupId), transition: groupTransition(gb.groupId) }}
                 >
                   {groupSegs.map(seg => {
