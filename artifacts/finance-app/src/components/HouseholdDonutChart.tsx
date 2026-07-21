@@ -175,10 +175,17 @@ function buildHouseholdChart(
         const spentFrac  = spent / effectiveBudget;
         const remainFrac = (budget - spent) / effectiveBudget;
         const parts: GroupDef["parts"] = [];
-        if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  fill: m.memberColor,                 isOverBudget: false });
-        if (remainFrac > 0.001) parts.push({ fraction: remainFrac, fill: hexDarken(m.memberColor, 0.52), isOverBudget: false });
-        if (parts.length === 0) {
-          parts.push({ fraction: 1 / Math.max(members.length, 1) * 0.3, fill: hexDarken(m.memberColor, 0.52), isOverBudget: false });
+        // Virtual member (household spendings) always renders as a single solid
+        // segment — no spent/remaining split — so it appears as one unified arc.
+        if (m.isVirtual) {
+          const frac = spentFrac > 0.001 ? spentFrac : 1 / Math.max(members.length, 1) * 0.5;
+          parts.push({ fraction: frac, fill: m.memberColor, isOverBudget: false });
+        } else {
+          if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  fill: m.memberColor,                 isOverBudget: false });
+          if (remainFrac > 0.001) parts.push({ fraction: remainFrac, fill: hexDarken(m.memberColor, 0.52), isOverBudget: false });
+          if (parts.length === 0) {
+            parts.push({ fraction: 1 / Math.max(members.length, 1) * 0.3, fill: hexDarken(m.memberColor, 0.52), isOverBudget: false });
+          }
         }
         groups.push({
           groupId: m.groupId, color: m.memberColor, name: displayName,
