@@ -674,15 +674,17 @@ export default function HouseholdDonutChart({
           height = max(household height, personal height) with no clipping.
           Absolute-overlay approach clipped the personal legend when it was
           taller than the household donut. ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", minHeight: containerWidth }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
       <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
         {/* Invisible spacer — reserves same height as the personal overlay's header
             row so the donut appears at the exact same Y in both views. */}
         <div style={{ height: HEADER_H, flexShrink: 0 }} />
-        {/* SVG + legend row */}
-        <div style={{ display: "flex", alignItems: "center" }}>
+        {/* SVG + legend row — flex-start so the donut is always top-anchored,
+            independent of legend height. This keeps the donut at the same Y
+            position in both household and personal views for correct arc alignment. */}
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
         {/* SVG wrapper — compact: 180px, expanded: full width.
             Same timing as DonutBudgetChart: expand delayed 0.3 s (legend exits first),
             collapse immediate (mirror of expand). */}
@@ -913,8 +915,9 @@ export default function HouseholdDonutChart({
             )}
           </div>
 
-          {/* Personal donut or lock or spinner — same row layout as household */}
-          <div style={{ display: "flex", alignItems: "center" }}>
+          {/* Personal donut or lock or spinner — flex-start matches household so
+              the donut Y position is identical in both layers. */}
+          <div style={{ display: "flex", alignItems: "flex-start" }}>
             {isPrivate ? (
               /* ─── Private dashboard lock ─── */
               <div style={{ width: expanded ? containerWidth : 180, flexShrink: 0 }}>

@@ -465,7 +465,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       ref={containerRef}
       style={{
         display:    "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         width:      "100%",
       }}
     >
