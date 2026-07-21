@@ -293,9 +293,12 @@ type Props = {
   /** Start the chart in this mode; defaults to "compact". Used by drill-downs
    *  that want to preserve the household donut's current view mode. */
   initialMode?: "compact" | "expanded";
+  /** Called when the user double-taps center to toggle mode. Lets the parent
+   *  (e.g. HouseholdDonutChart) stay in sync and persist the choice. */
+  onModeChange?: (mode: "compact" | "expanded") => void;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact" }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -435,7 +438,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
       // Double-tap: toggle mode AND cancel any pending/active hint pulses
-      setMode(m => (m === "compact" ? "expanded" : "compact"));
+      const nextMode = mode === "compact" ? "expanded" : "compact";
+      setMode(nextMode);
+      onModeChange?.(nextMode);
       setSelectedCat(null);
       lastCenterTapRef.current = 0;
       // Clear scheduled hint timers so pulses 2 and 3 never fire

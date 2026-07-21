@@ -279,8 +279,19 @@ export default function HouseholdDonutChart({
 
   // ── Phase 1 state ───────────────────────────────────────────────────────────
   const [selectedId,     setSelectedId]     = useState<string | null>(null);
-  const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
+  const [mode,           setMode]           = useState<"compact" | "expanded">(() => {
+    try { return (localStorage.getItem("hh-donut-mode") as "compact" | "expanded") ?? "compact"; }
+    catch { return "compact"; }
+  });
   const [containerWidth, setContainerWidth] = useState(320);
+
+  // Persist mode to localStorage and update state — used by both household
+  // centre-tap and personal DonutBudgetChart's onModeChange callback so any
+  // mode change from either view is remembered and applied to both.
+  function persistMode(next: "compact" | "expanded") {
+    setMode(next);
+    try { localStorage.setItem("hh-donut-mode", next); } catch { /* ignore */ }
+  }
   const [hintKey,        setHintKey]        = useState(0);
 
   // ── Phase 2 state ───────────────────────────────────────────────────────────
@@ -592,8 +603,8 @@ export default function HouseholdDonutChart({
 
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
-      // Double-tap center → toggle compact/expanded
-      setMode(m => m === "compact" ? "expanded" : "compact");
+      // Double-tap center → toggle compact/expanded and persist
+      persistMode(mode === "compact" ? "expanded" : "compact");
       hintTimersRef.current.forEach(clearTimeout);
       setHintKey(0);
       lastCenterTapRef.current = 0;
@@ -649,17 +660,26 @@ export default function HouseholdDonutChart({
   const inDrill = drillPhase !== "idle";
   const showPersonal = drillPhase === "personal" || drillPhase === "collapse-arc";
 
+  // Header row height — reserved in BOTH layers so the donut sits at the
+  // identical Y position whether the household or personal overlay is showing.
+  const HEADER_H = 24;
+
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", flexDirection: "column", width: "100%" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
-        {/* SVG wrapper — compact: 180px, expanded: full width */}
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+        {/* Invisible spacer — reserves same height as the personal overlay's header
+            row so the donut appears at the exact same Y in both views. */}
+        <div style={{ height: HEADER_H, flexShrink: 0 }} />
+        {/* SVG + legend row */}
+        <div style={{ display: "flex", alignItems: "center" }}>
+        {/* SVG wrapper — compact: 180px, expanded: full width; no CSS transition
+            so the width change is instant and never repositions during drills. */}
         <div style={{
           width:      expanded ? containerWidth : 180,
           flexShrink: 0,
-          transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
         }}>
           <svg width="100%" viewBox="0 0 320 320" style={{ overflow: "visible", display: "block" }}
             aria-label={t("hh.household_donut_label")}>
@@ -850,6 +870,7 @@ export default function HouseholdDonutChart({
             })}
           </div>
         </div>
+        </div>{/* ── close SVG+legend row ── */}
       </div>
 
       {/* ══ Personal overlay (drill-down) ═══════════════════════════════════ */}
@@ -861,8 +882,9 @@ export default function HouseholdDonutChart({
           pointerEvents: persOpacity < 0.1 ? "none" : "auto",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Header row: back + optional manage */}
-          <div className="flex items-center justify-between mb-1">
+          {/* Header row — fixed height matching the household spacer so the
+              donut sits at identical Y position in both views. */}
+          <div style={{ height: HEADER_H, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <button
               className="flex items-center gap-1 text-[11px] text-white/50 hover:text-white/80 transition-colors"
               onClick={startDrillBack}
@@ -880,8 +902,8 @@ export default function HouseholdDonutChart({
             )}
           </div>
 
-          {/* Personal donut or lock or spinner */}
-          <div className="flex-1 flex items-center">
+          {/* Personal donut or lock or spinner — same row layout as household */}
+          <div style={{ display: "flex", alignItems: "center" }}>
             {isPrivate ? (
               /* ─── Private dashboard lock ─── */
               <div style={{ width: expanded ? containerWidth : 180, flexShrink: 0 }}>
@@ -950,6 +972,7 @@ export default function HouseholdDonutChart({
                 currency={currency}
                 hasData={true}
                 initialMode={mode}
+                onModeChange={m => persistMode(m)}
               />
             )}
           </div>
