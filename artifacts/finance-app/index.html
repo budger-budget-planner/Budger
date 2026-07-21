@@ -19,15 +19,14 @@
     <meta name="apple-mobile-web-app-title" content="Budger" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0a0a0a" />
-    <!-- Content Security Policy: restricts script execution to same-origin files,
-         preventing stored XSS from injected inline scripts in user data. -->
+    <!-- Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self';
+      script-src 'self' 'unsafe-inline';
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: blob: https:;
-      connect-src 'self' https://api.frankfurter.app https://*.sentry.io https://*.ingest.sentry.io;
+      connect-src 'self' https://api.frankfurter.app https://open.er-api.com https://cdn.jsdelivr.net https://*.sentry.io https://*.ingest.sentry.io wss: ws:;
       worker-src 'self';
       manifest-src 'self';
     " />
