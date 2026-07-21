@@ -290,16 +290,19 @@ type Props = {
   /** Pass true once the user has ≥1 recorded category or recurring payment.
    *  The segment-wiggle hint won't fire until this is true. */
   hasData?: boolean;
+  /** Start the chart in this mode; defaults to "compact". Used by drill-downs
+   *  that want to preserve the household donut's current view mode. */
+  initialMode?: "compact" | "expanded";
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact" }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
   const idHintBlur = `hintBlur-${uid}`;
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
-  const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
+  const [mode,           setMode]           = useState<"compact" | "expanded">(initialMode);
   const [containerWidth, setContainerWidth] = useState(320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);

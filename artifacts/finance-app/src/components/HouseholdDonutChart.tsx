@@ -944,12 +944,13 @@ export default function HouseholdDonutChart({
                 <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               </div>
             ) : (
-              /* ─── Personal DonutBudgetChart ─── */
+              /* ─── Personal DonutBudgetChart — matches household mode ─── */
               <DonutBudgetChart
                 spending={personalSpending}
                 totalBudget={personalTotalBudget}
                 currency={currency}
                 hasData={true}
+                initialMode={mode}
               />
             )}
           </div>
