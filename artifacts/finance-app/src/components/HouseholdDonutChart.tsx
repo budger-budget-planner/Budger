@@ -763,7 +763,7 @@ export default function HouseholdDonutChart({
     const isDrilled = groupId === `member-${drilledMemberId}`;
     if (drillPhase === "fade-others")    return isDrilled ? "opacity 0.1s ease" : "opacity 0.28s ease";
     if (drillPhase === "to-arc")         return isDrilled ? "opacity 0.18s ease" : "opacity 0s";
-    if (drillPhase === "restore-others") return "opacity 1.14s ease";
+    if (drillPhase === "restore-others") return isDrilled ? "opacity 0s" : "opacity 1.14s ease";
     if (drillPhase === "color-restore")  return "opacity 0.1s ease";
     return "opacity 0.15s ease";
   }
