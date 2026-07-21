@@ -302,7 +302,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.leave_confirm":   { en: "Leave this household?",      pl: "Opuścić to gospodarstwo?"       },
   "hh.edit_budget":     { en: "Edit budget",                pl: "Edytuj budżet"                  },
   "hh.set_budget":      { en: "Set monthly budget",         pl: "Ustaw miesięczny budżet"        },
-  "hh.members":         { en: "Members",                    pl: "Członkowie"                     },
+  "hh.members":         { en: "Expenses",                   pl: "Wydatki"                        },
   "hh.member_budgets":  { en: "Member budgets",             pl: "Budżety członków"               },
   "hh.members_total":   { en: "Members total",              pl: "Suma członków"                  },
   "hh.no_budget_set":   { en: "No budget set",              pl: "Brak budżetu"                   },
