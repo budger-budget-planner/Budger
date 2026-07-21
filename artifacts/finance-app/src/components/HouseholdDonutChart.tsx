@@ -419,7 +419,7 @@ export default function HouseholdDonutChart({
   const [lockPhase,       setLockPhase]       = useState<"pop" | "fading" | "text" | null>(null);
   const [lockPulseKey,    setLockPulseKey]    = useState(0);
   // Expanding/contracting arc overlay — driven by rAF (always rendered as dark grey)
-  const [arcAnim, setArcAnim] = useState<{ d: string; color: string } | null>(null);
+  const [arcAnim, setArcAnim] = useState<{ d: string; color: string; fillTransition?: string } | null>(null);
   // Transition segments for snap-cats / color-in phases
   const [catTransSegs,    setCatTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
   const [catTransColored, setCatTransColored] = useState(false);
@@ -667,10 +667,14 @@ export default function HouseholdDonutChart({
     setPersOpacity(0);
 
     push(setTimeout(() => {
-      // B: arc appears directly as dark grey at member's segment position (200ms hold)
-      // (no bright-color intermediate — matches the reverse of the drill-back snap-member step)
-      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: "#2d3748" });
+      // B: arc snaps in at member's color, then crossfades to dark grey (0.18s — completes
+      //    within the 200ms hold so expansion always starts on a fully-dark arc)
+      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: gb.groupColor, fillTransition: "none" });
       setDrillPhase("to-arc"); // segment fades via groupOpacity
+      // One frame later: trigger fill crossfade to dark grey
+      push(setTimeout(() => {
+        setArcAnim(prev => prev ? { ...prev, color: "#2d3748", fillTransition: "fill 0.18s ease" } : prev);
+      }, 16));
 
       push(setTimeout(() => {
         // C: expand the dark-grey arc to full circle (650ms)
@@ -959,7 +963,7 @@ export default function HouseholdDonutChart({
             {/* ── Arc overlay — color transitions from member color → dark grey ─── */}
             {arcAnim && (
               <path d={arcAnim.d} fill={arcAnim.color} stroke="none"
-                style={{ pointerEvents: "none", transition: "fill 0.5s ease" }} />
+                style={{ pointerEvents: "none", transition: arcAnim.fillTransition ?? "none" }} />
             )}
 
             {/* ── Snap-cats transition segs (grey → real colors) ───────────────
