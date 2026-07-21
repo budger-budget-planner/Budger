@@ -311,6 +311,7 @@ router.get("/households/members/household-spendings/spending", async (req, res):
       percentage: 0,
       isRecurringPayment: true,
       recurringPaymentId: rp.id,
+      _catKey: `rp-${rp.id}`,
     }));
 
   res.json(result);
@@ -440,6 +441,7 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
       percentage: 0,
       isRecurringPayment: true,
       recurringPaymentId: rp.id,
+      _catKey: `rp-${rp.id}`,
     }));
 
   // Re-group excluding RP transactions (they are represented by rpItems)
