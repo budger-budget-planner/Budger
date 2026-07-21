@@ -1,0 +1,38 @@
+Push Plan — Household Donut Chart
+
+Files to touch: 4
+
+1. src/components/HouseholdDonutChart.tsx — NEW FILE Doesn't exist in export at all. Copy the entire file from artifacts/. No conflicts.
+
+2. src/components/DonutBudgetChart.tsx — MODIFY (targeted) Export has the old version without the parent-sync hooks the donut needs. Add:
+
+4 new optional props: initialMode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight
+Seed containerWidth state from initialContainerWidth ?? 320 instead of hardcoded 320
+setMode now calls onModeChange?.(nextMode) so the household donut stays in sync
+alignItems: "flex-start" on the SVG+legend flex row (was "center") — needed so the donut Y-position stays pinned when legend height differs between household and personal views
+Conditional fixedSvgWrapperHeight style block on the SVG wrapper div
+3. src/pages/Household.tsx — MODIFY (careful — export has extra code artifacts doesn't) Export has a GoalContribRow type + related goal contribution fetching logic that was added directly to production and never synced back to dev. That stays untouched. Changes to apply:
+
+Add import HouseholdDonutChart from "@/components/HouseholdDonutChart" at the top
+In MemberPanel component: add hideSpending = false prop + wrap the entire spending breakdown block in {!hideSpending && (...)} — this hides it when opened via donut drill-down (the donut already shows spending inline)
+Add memberSheetHideSpending state (useState(false))
+Replace the old member bar-list inside the "Members" card with the <HouseholdDonutChart> component (this is the main visual swap)
+onMemberTap from the donut: sets anchorY to Math.round(window.innerHeight * 0.55) and setMemberSheetHideSpending(true) — different from the old list tap which used rect.bottom
+Pass hideSpending={memberSheetHideSpending} to <MemberSheet> + reset it to false on close
+Remove the "Shared Goals" block (the progress-bar card) — keep the "Goal Contributions" / goals.member_contributions expandable panel below it
+4. src/lib/i18n.ts — MODIFY
+
+hh.members: "Members" → "Expenses" / "Członkowie" → "Wydatki"
+Add 5 keys missing from export that HouseholdDonutChart requires at runtime:
+hh.additional_funds — label for the unallocated budget arc segment
+hh.household_donut_label — accessibility + centre text label
+hh.private_lock_msg — text shown when a member's dashboard is private
+hh.drill_back_hint — the "tap to return" back-navigation label
+hh.manage — the "Manage" button shown in the drill-down header
+Order of operations when we push
+
+i18n first (no deps)
+DonutBudgetChart (no deps on HouseholdDonutChart)
+HouseholdDonutChart (depends on DonutBudgetChart being updated — uses initialMode, onModeChange, initialContainerWidth)
+Household.tsx last (imports HouseholdDonutChart)
+Ready to execute whenever you say go.
