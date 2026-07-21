@@ -296,9 +296,13 @@ type Props = {
   /** Called when the user double-taps center to toggle mode. Lets the parent
    *  (e.g. HouseholdDonutChart) stay in sync and persist the choice. */
   onModeChange?: (mode: "compact" | "expanded") => void;
+  /** Pre-measured container width from the parent. When provided the width
+   *  state is seeded with this value so there is no initial growing animation
+   *  when the chart mounts directly in expanded mode (e.g. drill-down). */
+  initialContainerWidth?: number;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -306,7 +310,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
   const [mode,           setMode]           = useState<"compact" | "expanded">(initialMode);
-  const [containerWidth, setContainerWidth] = useState(320);
+  // Seed with the parent's measured width when drilling in so there is no
+  // "grow from 320→actual" animation on the first render.
+  const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
+  // True once the ResizeObserver has fired (or if we were pre-seeded by the parent).
+  // Suppress the width transition until then so the first render has no animation.
+  const [hasMeasured, setHasMeasured] = useState(initialContainerWidth != null);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
   const lastCenterTapRef  = useRef<number>(0);
@@ -348,6 +357,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     if (!el) return;
     const ro = new ResizeObserver(entries => {
       setContainerWidth(Math.round(entries[0].contentRect.width));
+      setHasMeasured(true);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -475,7 +485,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
         style={{
           width:      expanded ? containerWidth : 180,
           flexShrink: 0,
-          transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
+          // Suppress the transition until we've measured the real container width.
+          // Without this, mounting in expanded mode animates from the seed value
+          // to the measured value, producing a visible "grow" on entry.
+          transition: hasMeasured
+            ? (expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`)
+            : "none",
         }}
       >
         <svg

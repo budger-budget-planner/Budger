@@ -485,7 +485,9 @@ export default function HouseholdDonutChart({
       const t = reverse ? 1 - easeInOut(rawT) : easeInOut(rawT);
       const curStart = startDeg * (1 - t);
       const curEnd   = endDeg + (360 - endDeg) * t;
-      setArcAnim({ d: arc(CX, CY, RI, RO + EXPAND, curStart, curEnd), color });
+      // Use RO (not RO + EXPAND) so the transition arc is 1:1 with both
+      // the household donut and the personal donut's regular ring size.
+      setArcAnim({ d: arc(CX, CY, RI, RO, curStart, curEnd), color });
       if (rawT < 1) rafRef.current = requestAnimationFrame(step);
       else onComplete();
     }
@@ -555,8 +557,9 @@ export default function HouseholdDonutChart({
     setDrillPhase("collapse-arc");
     setPersOpacity(0);
     setHhOpacity(1);
-    // Start with full ring at target position
-    setArcAnim({ d: arc(CX, CY, RI, RO + EXPAND, 0, 360), color: gb.groupColor });
+    // Start with full ring at target position — use RO (not RO + EXPAND) to
+    // match the actual donut ring size 1:1 in both directions.
+    setArcAnim({ d: arc(CX, CY, RI, RO, 0, 360), color: gb.groupColor });
 
     const t1 = setTimeout(() => {
       // Step E: contract-arc (500 ms)
@@ -973,6 +976,7 @@ export default function HouseholdDonutChart({
                 hasData={true}
                 initialMode={mode}
                 onModeChange={m => persistMode(m)}
+                initialContainerWidth={containerWidth}
               />
             )}
           </div>
