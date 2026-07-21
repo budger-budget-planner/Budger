@@ -126,20 +126,18 @@ type DrillPhase =
   | "idle"
   // ── Forward (drill-down) ──────────────────────────────
   | "fade-others"    // others fade, tapped segment stays
-  | "to-arc"         // arc overlay takes tapped segment's place (bright)
-  | "dim-arc"        // arc crossfades from bright → dim
-  | "expanding"      // dim arc expands to full circle
-  | "hold-circle"    // full dim circle pauses
-  | "snap-cats"      // grey category segs appear, arc disappears
-  | "color-in"       // category segs gain real colors
+  | "to-arc"         // dark-grey arc appears at segment position (200ms hold)
+  | "expanding"      // dark-grey arc expands to full circle (650ms)
+  | "hold-circle"    // full dark-grey circle pauses (400ms)
+  | "snap-cats"      // grey category segs appear, arc disappears (200ms hold)
+  | "color-in"       // category segs gain real colors (1650ms)
   | "personal"       // full personal view
   // ── Backward (drill-back) ─────────────────────────────
-  | "full-circle"    // personal fades, bright full circle on household SVG
-  | "dim-circle"     // full circle crossfades to dim
-  | "contracting"    // dim circle contracts to member arc
-  | "snap-member"    // grey member parts appear, arc disappears
-  | "color-restore"  // member parts get real color back
-  | "restore-others" // other household segments fade in
+  | "full-circle"    // personal fades, dark-grey full circle shown (300ms pause)
+  | "contracting"    // dark-grey circle contracts to member arc (650ms)
+  | "snap-member"    // grey member parts appear, arc disappears (200ms hold)
+  | "color-restore"  // member parts get real color back (1350ms)
+  | "restore-others" // other household segments fade in (1140ms)
   ;
 
 // ─── Chart builder ────────────────────────────────────────────────────────────
@@ -366,10 +364,8 @@ export default function HouseholdDonutChart({
   const [isPrivate,       setIsPrivate]       = useState(false);
   const [lockPhase,       setLockPhase]       = useState<"pop" | "fading" | "text" | null>(null);
   const [lockPulseKey,    setLockPulseKey]    = useState(0);
-  // Expanding/contracting arc overlay — driven by rAF
+  // Expanding/contracting arc overlay — driven by rAF (always rendered as dark grey)
   const [arcAnim, setArcAnim] = useState<{ d: string; color: string } | null>(null);
-  // Dual-layer brightness: "bright" = member color visible, "dim" = darkened color visible
-  const [arcBrightness, setArcBrightness] = useState<"bright" | "dim">("bright");
   // Transition segments for snap-cats / color-in phases
   const [catTransSegs,    setCatTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
   const [catTransColored, setCatTransColored] = useState(false);
@@ -578,8 +574,8 @@ export default function HouseholdDonutChart({
 
   // ── Drill-down (premium multi-stage) ────────────────────────────────────────
   //
-  //  fade-others (280ms) → to-arc (200ms) → dim-arc (400ms) → expanding (650ms)
-  //  → hold-circle (400ms) → snap-cats (200ms) → color-in (550ms) → personal
+  //  fade-others (280ms) → to-arc dark grey (200ms) → expanding (650ms)
+  //  → hold-circle (400ms) → snap-cats (200ms) → color-in (1650ms) → personal
   //
   function startDrillDown(groupId: string) {
     const gb = groupBorders.find(g => g.groupId === groupId);
@@ -614,56 +610,49 @@ export default function HouseholdDonutChart({
     setPersOpacity(0);
 
     push(setTimeout(() => {
-      // B: arc overlay takes the segment's place, bright color (200ms hold)
-      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: gb.groupColor });
-      setArcBrightness("bright");
+      // B: dark-grey arc takes the segment's place (200ms hold)
+      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: "#2d3748" });
       setDrillPhase("to-arc"); // segment fades via groupOpacity
 
       push(setTimeout(() => {
-        // C: crossfade arc from bright → dim (stays at same position, 400ms)
-        setArcBrightness("dim");
-        setDrillPhase("dim-arc");
+        // C: expand the dark-grey arc to full circle (650ms)
+        setDrillPhase("expanding");
+        animateArc(gb.startDeg, gb.endDeg, "#2d3748", false, 650, () => {
+          // D: full dark-grey circle — hold (400ms)
+          setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: "#2d3748" });
+          setDrillPhase("hold-circle");
 
-        push(setTimeout(() => {
-          // D: expand the dimmed arc to full circle (650ms)
-          setDrillPhase("expanding");
-          animateArc(gb.startDeg, gb.endDeg, gb.groupColor, false, 650, () => {
-            // E: full dim circle — hold (400ms)
-            setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: gb.groupColor });
-            setDrillPhase("hold-circle");
+          push(setTimeout(() => {
+            // E: snap — grey category segments appear, arc disappears (200ms hold)
+            const cSegs = buildTransitionCatSegs(personalSpendingRef.current);
+            setCatTransSegs(cSegs);
+            setCatTransColored(false);
+            setArcAnim(null);
+            setDrillPhase("snap-cats");
 
             push(setTimeout(() => {
-              // F: snap — grey category segments appear, arc disappears (200ms hold)
-              const cSegs = buildTransitionCatSegs(personalSpendingRef.current);
-              setCatTransSegs(cSegs);
-              setCatTransColored(false);
-              setArcAnim(null);
-              setDrillPhase("snap-cats");
+              // F: colors bloom onto the category segments (1650ms)
+              setCatTransColored(true);
+              setDrillPhase("color-in");
 
               push(setTimeout(() => {
-                // G: colors bloom onto the category segments (550ms)
-                setCatTransColored(true);
-                setDrillPhase("color-in");
-
-                push(setTimeout(() => {
-                  // H: personal view fades in, transition segs gone
-                  setCatTransSegs([]);
-                  setHhOpacity(0);
-                  setPersOpacity(1);
-                  setDrillPhase("personal");
-                }, 550));
-              }, 200));
-            }, 400));
-          });
-        }, 400)); // hold at dim before expanding
-      }, 200)); // hold at bright before dimming
+                // G: personal view fades in, transition segs gone
+                setCatTransSegs([]);
+                setHhOpacity(0);
+                setPersOpacity(1);
+                setDrillPhase("personal");
+              }, 1650));
+            }, 200));
+          }, 400));
+        });
+      }, 200)); // hold at dark grey before expanding
     }, 280));
   }
 
   // ── Drill-back (premium multi-stage) ────────────────────────────────────────
   //
-  //  full-circle (300ms) → dim-circle (400ms) → contracting (650ms)
-  //  → snap-member (200ms) → color-restore (450ms) → restore-others (380ms) → idle
+  //  full-circle dark grey (300ms) → contracting (650ms)
+  //  → snap-member (200ms) → color-restore (1350ms) → restore-others (1140ms) → idle
   //
   function startDrillBack() {
     if (drillPhase !== "personal") return;
@@ -686,47 +675,40 @@ export default function HouseholdDonutChart({
 
     clearDrillTimers();
 
-    // A: personal fades, bright full circle appears on household SVG (300ms)
+    // A: personal fades, dark-grey full circle appears on household SVG (300ms pause)
     setHhOpacity(1); // household layer visible; all segs opacity-0 via groupOpacity
-    setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: gb.groupColor });
-    setArcBrightness("bright");
+    setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: "#2d3748" });
     setPersOpacity(0);
     setDrillPhase("full-circle"); // personal unmounts after fade (showPersonal = "personal"|"full-circle")
 
     push(setTimeout(() => {
-      // B: circle dims — crossfade bright → dim (400ms)
-      setArcBrightness("dim");
-      setDrillPhase("dim-circle");
+      // B: contract the dark-grey circle back to member's arc position (650ms)
+      setDrillPhase("contracting");
+      animateArc(gb.startDeg, gb.endDeg, "#2d3748", true, 650, () => {
+        // C: snap — grey member parts appear, arc disappears (200ms hold)
+        setMemberTransSegs(memberSegsRef.current);
+        setMemberTransColored(false);
+        setArcAnim(null);
+        setDrillPhase("snap-member");
 
-      push(setTimeout(() => {
-        // C: contract the dimmed circle back to member's arc position (650ms)
-        setDrillPhase("contracting");
-        animateArc(gb.startDeg, gb.endDeg, gb.groupColor, true, 650, () => {
-          // D: snap — grey member parts appear, arc disappears (200ms hold)
-          setMemberTransSegs(memberSegsRef.current);
-          setMemberTransColored(false);
-          setArcAnim(null);
-          setDrillPhase("snap-member");
+        push(setTimeout(() => {
+          // D: member parts get their real colors back (1350ms)
+          setMemberTransColored(true);
+          setDrillPhase("color-restore");
 
           push(setTimeout(() => {
-            // E: member parts get their real colors back (450ms)
-            setMemberTransColored(true);
-            setDrillPhase("color-restore");
+            // E: other household segments fade in (1140ms)
+            setMemberTransSegs([]);
+            setDrillPhase("restore-others");
 
             push(setTimeout(() => {
-              // F: other household segments fade in (380ms)
-              setMemberTransSegs([]);
-              setDrillPhase("restore-others");
-
-              push(setTimeout(() => {
-                setDrillPhase("idle");
-                setDrilledMemberId(null);
-              }, 380));
-            }, 450));
-          }, 200));
-        });
-      }, 400)); // hold at dim before contracting
-    }, 300)); // hold at bright before dimming
+              setDrillPhase("idle");
+              setDrilledMemberId(null);
+            }, 1140));
+          }, 1350));
+        }, 200));
+      });
+    }, 300)); // pause before contracting
   }
 
   // ── Long-press helpers ──────────────────────────────────────────────────────
@@ -781,7 +763,7 @@ export default function HouseholdDonutChart({
     const isDrilled = groupId === `member-${drilledMemberId}`;
     if (drillPhase === "fade-others")    return isDrilled ? "opacity 0.1s ease" : "opacity 0.28s ease";
     if (drillPhase === "to-arc")         return isDrilled ? "opacity 0.18s ease" : "opacity 0s";
-    if (drillPhase === "restore-others") return "opacity 0.38s ease";
+    if (drillPhase === "restore-others") return "opacity 1.14s ease";
     if (drillPhase === "color-restore")  return "opacity 0.1s ease";
     return "opacity 0.15s ease";
   }
@@ -819,7 +801,7 @@ export default function HouseholdDonutChart({
   // showPersonal: keep personal overlay mounted during full-circle so it can fade out gracefully
   const showPersonal = drillPhase === "personal" || drillPhase === "full-circle";
   // Legend hidden whenever the arc/trans overlays are the main visual focus
-  const LEGEND_DRILL_PHASES: DrillPhase[] = ["to-arc","dim-arc","expanding","hold-circle","snap-cats","color-in","full-circle","dim-circle","contracting","snap-member","color-restore"];
+  const LEGEND_DRILL_PHASES: DrillPhase[] = ["to-arc","expanding","hold-circle","snap-cats","color-in","full-circle","contracting","snap-member","color-restore"];
   const legendHidden = LEGEND_DRILL_PHASES.includes(drillPhase);
 
   // Header row height — reserved in BOTH layers so the donut sits at the
@@ -836,7 +818,7 @@ export default function HouseholdDonutChart({
       <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.9s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
         {/* Invisible spacer — reserves same height as the personal overlay's header
             row so the donut appears at the exact same Y in both views. */}
         <div style={{ height: HEADER_H, flexShrink: 0 }} />
@@ -916,33 +898,20 @@ export default function HouseholdDonutChart({
               );
             })}
 
-            {/* ── Arc overlay — dual-layer brightness crossfade ──────────────────
-                arcBrightness="bright" → member color shown
-                arcBrightness="dim"    → darkened version shown
-                Both layers always carry `transition: opacity 0.35s ease` so
-                switching arcBrightness triggers a smooth crossfade. ── */}
-            {arcAnim && (() => {
-              const dimColor = hexDarken(arcAnim.color, 0.55);
-              return (
-                <>
-                  {/* Bright layer */}
-                  <path d={arcAnim.d} fill={arcAnim.color} stroke="none"
-                    style={{ pointerEvents: "none", opacity: arcBrightness === "bright" ? 1 : 0, transition: "opacity 0.35s ease" }} />
-                  {/* Dim layer */}
-                  <path d={arcAnim.d} fill={dimColor} stroke="none"
-                    style={{ pointerEvents: "none", opacity: arcBrightness === "dim" ? 1 : 0, transition: "opacity 0.35s ease" }} />
-                </>
-              );
-            })()}
+            {/* ── Arc overlay — always dark grey ───────────────────────────────── */}
+            {arcAnim && (
+              <path d={arcAnim.d} fill="#2d3748" stroke="none"
+                style={{ pointerEvents: "none" }} />
+            )}
 
             {/* ── Snap-cats transition segs (grey → real colors) ───────────────
                 Two layers per segment: grey fades out, colored fades in. ── */}
             {catTransSegs.length > 0 && catTransSegs.map((seg, i) => (
               <g key={`ct-${i}`} style={{ pointerEvents: "none" }}>
                 <path d={seg.d} fill="#2d3748"
-                  style={{ opacity: catTransColored ? 0 : 1, transition: "opacity 0.55s ease" }} />
+                  style={{ opacity: catTransColored ? 0 : 1, transition: "opacity 1.65s ease" }} />
                 <path d={seg.d} fill={seg.color}
-                  style={{ opacity: catTransColored ? 1 : 0, transition: "opacity 0.55s ease" }} />
+                  style={{ opacity: catTransColored ? 1 : 0, transition: "opacity 1.65s ease" }} />
               </g>
             ))}
 
@@ -951,9 +920,9 @@ export default function HouseholdDonutChart({
             {memberTransSegs.length > 0 && memberTransSegs.map((seg, i) => (
               <g key={`mt-${i}`} style={{ pointerEvents: "none" }}>
                 <path d={seg.d} fill="#2d3748"
-                  style={{ opacity: memberTransColored ? 0 : 1, transition: "opacity 0.45s ease" }} />
+                  style={{ opacity: memberTransColored ? 0 : 1, transition: "opacity 1.35s ease" }} />
                 <path d={seg.d} fill={seg.color}
-                  style={{ opacity: memberTransColored ? 1 : 0, transition: "opacity 0.45s ease" }} />
+                  style={{ opacity: memberTransColored ? 1 : 0, transition: "opacity 1.35s ease" }} />
               </g>
             ))}
 
@@ -1087,7 +1056,7 @@ export default function HouseholdDonutChart({
           gridArea: "1 / 1",
           width: "100%",
           opacity:    persOpacity,
-          transition: "opacity 0.3s ease",
+          transition: "opacity 0.9s ease",
           pointerEvents: persOpacity < 0.1 ? "none" : "auto",
           display: "flex", flexDirection: "column",
         }}>
