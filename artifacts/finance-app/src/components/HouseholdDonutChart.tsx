@@ -669,20 +669,27 @@ export default function HouseholdDonutChart({
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", flexDirection: "column", width: "100%" }}>
+    <div ref={containerRef} className="select-none" style={{ position: "relative", width: "100%" }}>
+      {/* ── Grid stacking: household and personal share one cell so the card
+          height = max(household height, personal height) with no clipping.
+          Absolute-overlay approach clipped the personal legend when it was
+          taller than the household donut. ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
         {/* Invisible spacer — reserves same height as the personal overlay's header
             row so the donut appears at the exact same Y in both views. */}
         <div style={{ height: HEADER_H, flexShrink: 0 }} />
         {/* SVG + legend row */}
         <div style={{ display: "flex", alignItems: "center" }}>
-        {/* SVG wrapper — compact: 180px, expanded: full width; no CSS transition
-            so the width change is instant and never repositions during drills. */}
+        {/* SVG wrapper — compact: 180px, expanded: full width.
+            Same timing as DonutBudgetChart: expand delayed 0.3 s (legend exits first),
+            collapse immediate (mirror of expand). */}
         <div style={{
           width:      expanded ? containerWidth : 180,
           flexShrink: 0,
+          transition: inDrill ? "none" : (expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`),
         }}>
           <svg width="100%" viewBox="0 0 320 320" style={{ overflow: "visible", display: "block" }}
             aria-label={t("hh.household_donut_label")}>
@@ -879,7 +886,8 @@ export default function HouseholdDonutChart({
       {/* ══ Personal overlay (drill-down) ═══════════════════════════════════ */}
       {showPersonal && (
         <div style={{
-          position: "absolute", inset: 0,
+          gridArea: "1 / 1",
+          width: "100%",
           opacity:    persOpacity,
           transition: "opacity 0.3s ease",
           pointerEvents: persOpacity < 0.1 ? "none" : "auto",
@@ -982,6 +990,7 @@ export default function HouseholdDonutChart({
           </div>
         </div>
       )}
+      </div>{/* ── close grid stacking container ── */}
     </div>
   );
 }
