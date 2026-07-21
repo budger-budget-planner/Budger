@@ -1437,6 +1437,50 @@ export default function HouseholdPage() {
             </div>
           )}
 
+          {/* ── Goal Contributions ── */}
+          {sharedGoals.length > 0 && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <Users className="w-4 h-4 text-white/40" />
+                <p className="text-sm font-semibold">{t("goals.member_contributions")}</p>
+              </div>
+              <div className="divide-y divide-white/5">
+                {sharedGoals.map((g: any) => {
+                  const isExpanded = expandedGoalId === g.id;
+                  return (
+                    <div key={g.id} className="px-4 py-3">
+                      <button
+                        className="w-full flex items-center gap-3 text-left"
+                        onClick={() => setExpandedGoalId(isExpanded ? null : g.id)}
+                      >
+                        <div
+                          className="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: g.color + "33" }}
+                        >
+                          <Target className="w-3 h-3" style={{ color: g.color }} />
+                        </div>
+                        <span className="text-sm flex-1 truncate font-medium">{g.name}</span>
+                        {isExpanded
+                          ? <ChevronDown className="w-4 h-4 text-white/30 flex-shrink-0" />
+                          : <ChevronRight className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                      </button>
+                      {isExpanded && (
+                        <div className="mt-2 pt-2 border-t border-white/5">
+                          <GoalBreakdownPanel
+                            goalId={g.id}
+                            divideByMonths={!!g.divideByMonths}
+                            rates={splitRates}
+                            viewerCurrency={prefs.currency}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── Pending invites — head only ── */}
           {iAmHead && invites && invites.length > 0 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
