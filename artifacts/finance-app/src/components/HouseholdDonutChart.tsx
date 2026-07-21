@@ -485,8 +485,6 @@ export default function HouseholdDonutChart({
 
   // ── Drill-down ──────────────────────────────────────────────────────────────
   function startDrillDown(groupId: string) {
-    // Skip virtual member until Phase 3
-    if (groupId === "member--1") return;
     const gb = groupBorders.find(g => g.groupId === groupId);
     if (!gb) return;
     drilledGroupRef.current = gb;

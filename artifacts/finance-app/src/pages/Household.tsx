@@ -302,6 +302,7 @@ function MemberSheet({
   onRemove,
   rates,
   anchorY,
+  hideSpending = false,
 }: {
   member: MemberRow;
   onClose: () => void;
@@ -311,6 +312,7 @@ function MemberSheet({
   onRemove?: () => void;
   rates: Record<string, number> | null;
   anchorY: number;
+  hideSpending?: boolean;
 }) {
   const isVirtual = member.userId === -1;
 
@@ -425,63 +427,65 @@ function MemberSheet({
         </div>
 
         <div className="px-5 py-4 space-y-4 pb-6">
-          {/* Spending breakdown — shown first */}
-          <div>
-            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              </div>
-            ) : isError ? (
-              <div className="flex flex-col items-center py-8 gap-3 text-white/40">
-                <EyeOff className="w-8 h-8" />
-                <p className="text-sm text-center">{t("hh.dashboard_private_msg")}</p>
-              </div>
-            ) : !data?.length ? (
-              <div className="text-center py-8 text-white/40 text-sm">{t("hh.no_spending")}</div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.category_col")}</p>
-                  <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
+          {/* Spending breakdown — hidden when opened from donut (drill-down shows it) */}
+          {!hideSpending && (
+            <div>
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 </div>
-                <div className="space-y-3">
-                  {data.map(row => {
-                    const isRP = (row as any).isRecurringPayment === true;
-                    const rowKey = isRP
-                      ? `rp-${(row as any).recurringPaymentId}`
-                      : (row.categoryId ?? "uncategorized");
-                    // For recurring payments: show 100% bar if applied, 0% if not
-                    const barPct = isRP
-                      ? (row.total > 0 ? 100 : 0)
-                      : row.percentage;
-                    return (
-                    <div key={rowKey} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
-                        <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
-                        {isRP && (
-                          <span className="text-[10px] text-white/30 font-medium">↺</span>
-                        )}
-                        <span className="text-sm font-semibold tabular-nums">{fmt(convertMemberAmt(row.total))}</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${barPct}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
-                        />
-                      </div>
-                    </div>
-                    );
-                  })}
-                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
-                    <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + convertMemberAmt(r.total), 0))}</span>
+              ) : isError ? (
+                <div className="flex flex-col items-center py-8 gap-3 text-white/40">
+                  <EyeOff className="w-8 h-8" />
+                  <p className="text-sm text-center">{t("hh.dashboard_private_msg")}</p>
+                </div>
+              ) : !data?.length ? (
+                <div className="text-center py-8 text-white/40 text-sm">{t("hh.no_spending")}</div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.category_col")}</p>
+                    <p className="text-xs text-white/40 uppercase tracking-wider">{t("hh.amount_col")}</p>
                   </div>
-                </div>
-              </>
-            )}
-          </div>
+                  <div className="space-y-3">
+                    {data.map(row => {
+                      const isRP = (row as any).isRecurringPayment === true;
+                      const rowKey = isRP
+                        ? `rp-${(row as any).recurringPaymentId}`
+                        : (row.categoryId ?? "uncategorized");
+                      // For recurring payments: show 100% bar if applied, 0% if not
+                      const barPct = isRP
+                        ? (row.total > 0 ? 100 : 0)
+                        : row.percentage;
+                      return (
+                      <div key={rowKey} className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.categoryColor ?? "#94a3b8" }} />
+                          <span className="text-sm flex-1">{(!row.categoryName || row.categoryName === "Uncategorized") ? t("common.uncategorized") : row.categoryName}</span>
+                          {isRP && (
+                            <span className="text-[10px] text-white/30 font-medium">↺</span>
+                          )}
+                          <span className="text-sm font-semibold tabular-nums">{fmt(convertMemberAmt(row.total))}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${barPct}%`, backgroundColor: row.categoryColor ?? "#94a3b8" }}
+                          />
+                        </div>
+                      </div>
+                      );
+                    })}
+                    <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                      <span className="text-sm text-white/50">{t("hh.total_month_txt")}</span>
+                      <span className="font-bold tabular-nums">{fmt(data.reduce((s, r) => s + convertMemberAmt(r.total), 0))}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Goal contributions section — shown below spending */}
           <div>
@@ -839,6 +843,7 @@ export default function HouseholdPage() {
   const [inviteActionLoading, setInviteActionLoading] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
+  const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1467,6 +1472,7 @@ export default function HouseholdPage() {
                 iAmHead={iAmHead}
                 onMemberTap={(m) => {
                   setMemberAnchorY(Math.round(window.innerHeight * 0.55));
+                  setMemberSheetHideSpending(true);
                   setSelectedMember(m as MemberRow);
                 }}
               />
@@ -1834,7 +1840,8 @@ export default function HouseholdPage() {
           isMe={selectedMember.userId === me?.id}
           viewerRole={myRole}
           anchorY={memberAnchorY}
-          onClose={() => setSelectedMember(null)}
+          hideSpending={memberSheetHideSpending}
+          onClose={() => { setSelectedMember(null); setMemberSheetHideSpending(false); }}
           onRoleChange={async (newRole) => {
             await handleRoleChange(selectedMember.userId, newRole);
           }}
