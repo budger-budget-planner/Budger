@@ -290,17 +290,27 @@ type Props = {
   /** Pass true once the user has ≥1 recorded category or recurring payment.
    *  The segment-wiggle hint won't fire until this is true. */
   hasData?: boolean;
+  /** Start the chart in this mode; defaults to "compact". Used by drill-downs
+   *  that want to preserve the household donut's current view mode. */
+  initialMode?: "compact" | "expanded";
+  /** Called when the user double-taps center to toggle mode. Lets the parent
+   *  (e.g. HouseholdDonutChart) stay in sync and persist the choice. */
+  onModeChange?: (mode: "compact" | "expanded") => void;
+  /** Pre-measured container width from the parent. When provided the width
+   *  state is seeded with this value so there is no initial growing animation
+   *  when the chart mounts directly in expanded mode (e.g. drill-down). */
+  initialContainerWidth?: number;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
   const idHintBlur = `hintBlur-${uid}`;
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
-  const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
-  const [containerWidth, setContainerWidth] = useState(320);
+  const [mode,           setMode]           = useState<"compact" | "expanded">(initialMode);
+  const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
   const lastCenterTapRef  = useRef<number>(0);
@@ -432,7 +442,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
       // Double-tap: toggle mode AND cancel any pending/active hint pulses
-      setMode(m => (m === "compact" ? "expanded" : "compact"));
+      const nextMode = mode === "compact" ? "expanded" : "compact";
+      setMode(nextMode);
+      onModeChange?.(nextMode);
       setSelectedCat(null);
       lastCenterTapRef.current = 0;
       // Clear scheduled hint timers so pulses 2 and 3 never fire
@@ -451,7 +463,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       ref={containerRef}
       style={{
         display:    "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         width:      "100%",
       }}
     >

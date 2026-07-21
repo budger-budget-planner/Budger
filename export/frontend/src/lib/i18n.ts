@@ -302,7 +302,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.leave_confirm":   { en: "Leave this household?",      pl: "Opuścić to gospodarstwo?"       },
   "hh.edit_budget":     { en: "Edit budget",                pl: "Edytuj budżet"                  },
   "hh.set_budget":      { en: "Set monthly budget",         pl: "Ustaw miesięczny budżet"        },
-  "hh.members":         { en: "Members",                    pl: "Członkowie"                     },
+  "hh.members":         { en: "Expenses",                   pl: "Wydatki"                        },
   "hh.member_budgets":  { en: "Member budgets",             pl: "Budżety członków"               },
   "hh.members_total":   { en: "Members total",              pl: "Suma członków"                  },
   "hh.no_budget_set":   { en: "No budget set",              pl: "Brak budżetu"                   },
@@ -772,6 +772,11 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.not_found":               { en: "Not found",                pl: "Nie znaleziono"                         },
   "hh.try_again":               { en: "Try again",                pl: "Spróbuj ponownie"                       },
   "hh.already_in_hh":           { en: "Already in a household",   pl: "Już w gospodarstwie"                    },
+  "hh.additional_funds":        { en: "Additional Funds",          pl: "Dodatkowe środki"                        },
+  "hh.household_donut_label":   { en: "Household Spending",        pl: "Wydatki gospodarstwa"                    },
+  "hh.private_lock_msg":        { en: "Private dashboard",         pl: "Prywatny pulpit"                         },
+  "hh.drill_back_hint":         { en: "tap to return",             pl: "dotknij, aby wrócić"                     },
+  "hh.manage":                  { en: "Manage",                    pl: "Zarządzaj"                               },
 
   // ── Shared slide-viewer chrome (used by both the screenshot-import manual
   //    and the Share Sheet tutorial) — kept under "ap.*" since it's generic,

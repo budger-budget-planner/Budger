@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import HouseholdDonutChart from "@/components/HouseholdDonutChart";
 import { useToast } from "@/hooks/use-toast";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
@@ -301,6 +302,7 @@ function MemberSheet({
   onRemove,
   rates,
   anchorY,
+  hideSpending = false,
 }: {
   member: MemberRow;
   onClose: () => void;
@@ -310,6 +312,7 @@ function MemberSheet({
   onRemove?: () => void;
   rates: Record<string, number> | null;
   anchorY: number;
+  hideSpending?: boolean;
 }) {
   const isVirtual = member.userId === -1;
 
@@ -424,7 +427,8 @@ function MemberSheet({
         </div>
 
         <div className="px-5 py-4 space-y-4 pb-6">
-          {/* Spending breakdown — shown first */}
+          {/* Spending breakdown — hidden when opened from donut (drill-down shows it) */}
+          {!hideSpending && (
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.this_month_spending")}</p>
             {isLoading ? (
@@ -481,6 +485,8 @@ function MemberSheet({
               </>
             )}
           </div>
+
+          )}
 
           {/* Goal contributions section — shown below spending */}
           <div>
@@ -838,6 +844,7 @@ export default function HouseholdPage() {
   const [inviteActionLoading, setInviteActionLoading] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
+  const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1433,10 +1440,16 @@ export default function HouseholdPage() {
             )}
           </div>
 
-          {/* ── Members ── */}
+          {/* ── Members — Household Donut ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+            {/* Header row: count + invite button */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.filter(m => m.userId !== -1).length ?? 0})</span></p>
+              <p className="text-sm font-semibold">
+                {t("hh.members")}{" "}
+                <span className="text-white/40 font-normal">
+                  ({members?.filter(m => m.userId !== -1).length ?? 0})
+                </span>
+              </p>
               {iAmHead && (
                 <Button
                   size="sm"
@@ -1450,147 +1463,22 @@ export default function HouseholdPage() {
               )}
             </div>
 
-            <div className="divide-y divide-white/5">
-              {members?.map(m => {
-                const isMe = m.userId === me?.id;
-                const spentConverted = memberSpentInViewerCurrency(m);
-                const barPct = barPercent(spentConverted);
-                return (
-                  <button
-                    key={m.userId}
-                    data-testid={`row-member-${m.userId}`}
-                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors group"
-                    onClick={(e) => {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      setMemberAnchorY(rect.bottom);
-                      setSelectedMember(m as MemberRow);
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
-                        style={{ backgroundColor: m.memberColor }}
-                      >
-                        {m.userId === -1
-                          ? <Home className="w-4 h-4 text-black" />
-                          : m.name.charAt(0).toUpperCase()}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
-                              {isMe && m.userId !== -1 && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
-                            </p>
-                            {m.dashboardBlocked && !isMe && (
-                              <span className="text-white/30 flex-shrink-0" title="Dashboard private">
-                                <EyeOff className="w-3 h-3 inline" />
-                              </span>
-                            )}
-                            <RoleBadge role={m.role} />
-                          </div>
-                          <span className="text-sm font-semibold tabular-nums flex-shrink-0">
-                            {fmt(spentConverted)}
-                          </span>
-                        </div>
-
-                        <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${barPct}%`, backgroundColor: m.memberColor }}
-                          />
-                        </div>
-                      </div>
-
-                    </div>
-                  </button>
-                );
-              })}
+            {/* Donut chart */}
+            <div className="px-4 py-4">
+              <HouseholdDonutChart
+                members={(members ?? []) as any[]}
+                householdBudget={budgetInViewerCurrency}
+                currency={prefs.currency}
+                rates={splitRates}
+                iAmHead={iAmHead}
+                onMemberTap={(m) => {
+                  setMemberAnchorY(Math.round(window.innerHeight * 0.55));
+                  setMemberSheetHideSpending(true);
+                  setSelectedMember(m as MemberRow);
+                }}
+              />
             </div>
           </div>
-
-          {/* ── Shared Goals ── */}
-          {sharedGoals.length > 0 && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
-                <Target className="w-4 h-4 text-white/40" />
-                <p className="text-sm font-semibold">{t("hh.shared_goals")} <span className="text-white/40 font-normal">({sharedGoals.length})</span></p>
-              </div>
-              <div className="divide-y divide-white/5">
-                {sharedGoals.map((g: any) => {
-                  const s = summaryMap.get(g.id);
-                  const contributedGoalCur = s?.totalContributed ?? 0;
-                  const rawBudget = parseFloat(g.budget);
-                  const hhViewerCur = prefs.currency;
-                  const hhGoalCur: string = g.currency ?? hhViewerCur;
-                  const hhHasRates = !!splitRates && Object.keys(splitRates).length > 0;
-                  const goalBudgetDisplay = hhHasRates && hhGoalCur !== hhViewerCur
-                    ? convertAmount(rawBudget, hhGoalCur, hhViewerCur, splitRates!)
-                    : rawBudget;
-                  const contributedDisplay = hhHasRates && hhGoalCur !== hhViewerCur
-                    ? convertAmount(contributedGoalCur, hhGoalCur, hhViewerCur, splitRates!)
-                    : contributedGoalCur;
-                  const pct = rawBudget > 0 ? Math.min((contributedGoalCur / rawBudget) * 100, 100) : 0;
-                  const isExpanded = expandedGoalId === g.id;
-                  return (
-                    <div key={g.id} className="px-4 py-3 space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-                          style={{ backgroundColor: g.color + "33" }}
-                        >
-                          <Target className="w-3.5 h-3.5" style={{ color: g.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{g.name}</p>
-                          <p className="text-xs text-white/40">{t("hh.due")} {g.deadline}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold tabular-nums">{fmtAmtRound(contributedDisplay, hhViewerCur)}</p>
-                          <p className="text-xs text-white/40">{t("goals.total_target")}: {fmtAmtRound(goalBudgetDisplay, hhViewerCur)}</p>
-                        </div>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: pct >= 100 ? "#34d399" : g.color,
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/30">
-                          {pct >= 100 ? t("hh.goal_reached") : `${pct.toFixed(0)}% ${t("hh.combined")}`}
-                        </p>
-                        <button
-                          onClick={() => setExpandedGoalId(isExpanded ? null : g.id)}
-                          className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition active:opacity-70"
-                        >
-                          <Users className="w-3 h-3" />
-                          {t("goals.member_contributions")}
-                          {isExpanded
-                            ? <ChevronDown className="w-3 h-3" />
-                            : <ChevronRight className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      {isExpanded && (
-                        <div className="pt-1 border-t border-white/5">
-                          <GoalBreakdownPanel
-                            goalId={g.id}
-                            divideByMonths={!!g.divideByMonths}
-                            rates={splitRates}
-                            viewerCurrency={hhViewerCur}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* ── Privacy toggle — hidden for children ── */}
           {!iAmChild && (
@@ -1871,7 +1759,8 @@ export default function HouseholdPage() {
           isMe={selectedMember.userId === me?.id}
           viewerRole={myRole}
           anchorY={memberAnchorY}
-          onClose={() => setSelectedMember(null)}
+          hideSpending={memberSheetHideSpending}
+          onClose={() => { setSelectedMember(null); setMemberSheetHideSpending(false); }}
           onRoleChange={async (newRole) => {
             await handleRoleChange(selectedMember.userId, newRole);
           }}
