@@ -674,7 +674,7 @@ export default function HouseholdDonutChart({
           height = max(household height, personal height) with no clipping.
           Absolute-overlay approach clipped the personal legend when it was
           taller than the household donut. ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", minHeight: containerWidth }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
       <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
@@ -686,8 +686,9 @@ export default function HouseholdDonutChart({
             position in both household and personal views for correct arc alignment. */}
         <div style={{ display: "flex", alignItems: "flex-start" }}>
         {/* SVG wrapper — compact: 180px, expanded: full width.
-            Same timing as DonutBudgetChart: expand delayed 0.3 s (legend exits first),
-            collapse immediate (mirror of expand). */}
+            Natural size in compact mode (180×180 px square); the legend beside it
+            can grow to any height without shifting the donut.
+            Same timing as DonutBudgetChart: expand delayed 0.3 s, collapse immediate. */}
         <div style={{
           width:      expanded ? containerWidth : 180,
           flexShrink: 0,
