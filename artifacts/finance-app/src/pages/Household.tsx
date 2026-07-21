@@ -1479,6 +1479,34 @@ export default function HouseholdPage() {
             </div>
           </div>
 
+          {/* ── Privacy toggle — hidden for children ── */}
+          {!iAmChild && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                  {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {me?.dashboardBlocked
+                      ? myRole === "parent"
+                        ? t("hh.privacy_parent_on")
+                        : t("hh.privacy_head_on")
+                      : myRole === "parent"
+                        ? t("hh.privacy_parent_off")
+                        : t("hh.visible")}
+                  </p>
+                </div>
+                <Switch
+                  checked={me?.dashboardBlocked ?? false}
+                  onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
+                  data-testid="switch-dashboard-blocked"
+                />
+              </div>
+            </div>
+          )}
+
           {/* ── Shared Goals ── */}
           {sharedGoals.length > 0 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
@@ -1533,27 +1561,7 @@ export default function HouseholdPage() {
                         <p className="text-xs text-white/30">
                           {pct >= 100 ? t("hh.goal_reached") : `${pct.toFixed(0)}% ${t("hh.combined")}`}
                         </p>
-                        <button
-                          onClick={() => setExpandedGoalId(isExpanded ? null : g.id)}
-                          className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition active:opacity-70"
-                        >
-                          <Users className="w-3 h-3" />
-                          {t("goals.member_contributions")}
-                          {isExpanded
-                            ? <ChevronDown className="w-3 h-3" />
-                            : <ChevronRight className="w-3 h-3" />}
-                        </button>
                       </div>
-                      {isExpanded && (
-                        <div className="pt-1 border-t border-white/5">
-                          <GoalBreakdownPanel
-                            goalId={g.id}
-                            divideByMonths={!!g.divideByMonths}
-                            rates={splitRates}
-                            viewerCurrency={hhViewerCur}
-                          />
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1561,30 +1569,46 @@ export default function HouseholdPage() {
             </div>
           )}
 
-          {/* ── Privacy toggle — hidden for children ── */}
-          {!iAmChild && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                  {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {me?.dashboardBlocked
-                      ? myRole === "parent"
-                        ? t("hh.privacy_parent_on")
-                        : t("hh.privacy_head_on")
-                      : myRole === "parent"
-                        ? t("hh.privacy_parent_off")
-                        : t("hh.visible")}
-                  </p>
-                </div>
-                <Switch
-                  checked={me?.dashboardBlocked ?? false}
-                  onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
-                  data-testid="switch-dashboard-blocked"
-                />
+          {/* ── Goal Contributions ── */}
+          {sharedGoals.length > 0 && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <Users className="w-4 h-4 text-white/40" />
+                <p className="text-sm font-semibold">{t("goals.member_contributions")}</p>
+              </div>
+              <div className="divide-y divide-white/5">
+                {sharedGoals.map((g: any) => {
+                  const isExpanded = expandedGoalId === g.id;
+                  return (
+                    <div key={g.id} className="px-4 py-3">
+                      <button
+                        className="w-full flex items-center gap-3 text-left"
+                        onClick={() => setExpandedGoalId(isExpanded ? null : g.id)}
+                      >
+                        <div
+                          className="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: g.color + "33" }}
+                        >
+                          <Target className="w-3 h-3" style={{ color: g.color }} />
+                        </div>
+                        <span className="text-sm flex-1 truncate font-medium">{g.name}</span>
+                        {isExpanded
+                          ? <ChevronDown className="w-4 h-4 text-white/30 flex-shrink-0" />
+                          : <ChevronRight className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                      </button>
+                      {isExpanded && (
+                        <div className="mt-2 pt-2 border-t border-white/5">
+                          <GoalBreakdownPanel
+                            goalId={g.id}
+                            divideByMonths={!!g.divideByMonths}
+                            rates={splitRates}
+                            viewerCurrency={prefs.currency}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

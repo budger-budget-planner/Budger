@@ -297,7 +297,7 @@ export default function HouseholdDonutChart({
 
   // ── Refs ────────────────────────────────────────────────────────────────────
   const lastCenterTapRef   = useRef<number>(0);
-  const lastSegTapRef      = useRef<Map<string, number>>(new Map());
+  const longPressTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hintTimersRef      = useRef<ReturnType<typeof setTimeout>[]>([]);
   const drillTimersRef     = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lockTimersRef      = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -563,19 +563,25 @@ export default function HouseholdDonutChart({
     drillTimersRef.current.push(t1);
   }
 
-  // ── Segment click (with double-tap drill trigger) ───────────────────────────
+  // ── Long-press helpers ──────────────────────────────────────────────────────
+  function startLongPress(groupId: string) {
+    if (drillPhase !== "idle") return;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      startDrillDown(groupId);
+    }, 500);
+  }
+  function cancelLongPress() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  // ── Segment click (simple toggle; drill-down via tap-and-hold) ──────────────
   function handleSegmentClick(groupId: string) {
     if (drillPhase !== "idle") return;
-    const now = Date.now();
-    const lastTap = lastSegTapRef.current.get(groupId) ?? 0;
-
-    if (selectedId === groupId && now - lastTap < 350) {
-      // Double-tap on already-selected segment → drill down
-      lastSegTapRef.current.set(groupId, 0);
-      startDrillDown(groupId);
-      return;
-    }
-    lastSegTapRef.current.set(groupId, now);
     setSelectedId(prev => prev === groupId ? null : groupId);
   }
 
@@ -586,15 +592,10 @@ export default function HouseholdDonutChart({
 
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
-      if (selectedId !== null) {
-        // Double-tap center while member selected → drill down
-        startDrillDown(selectedId);
-      } else {
-        // Double-tap center without selection → toggle compact/expanded
-        setMode(m => m === "compact" ? "expanded" : "compact");
-        hintTimersRef.current.forEach(clearTimeout);
-        setHintKey(0);
-      }
+      // Double-tap center → toggle compact/expanded
+      setMode(m => m === "compact" ? "expanded" : "compact");
+      hintTimersRef.current.forEach(clearTimeout);
+      setHintKey(0);
       lastCenterTapRef.current = 0;
     } else {
       lastCenterTapRef.current = now;
@@ -622,6 +623,7 @@ export default function HouseholdDonutChart({
     clearDrillTimers();
     lockTimersRef.current.forEach(clearTimeout);
     hintTimersRef.current.forEach(clearTimeout);
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   }, []);
 
   // ─── Empty state ─────────────────────────────────────────────────────────────
@@ -704,6 +706,9 @@ export default function HouseholdDonutChart({
                           filter: seg.isOverBudget ? `url(#${idRedGlow})` : "none",
                           cursor: "pointer",
                         }}
+                        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); startLongPress(seg.groupId); }}
+                        onPointerUp={cancelLongPress}
+                        onPointerCancel={cancelLongPress}
                         onClick={() => handleSegmentClick(seg.groupId)} />
                     );
                   })}
@@ -776,7 +781,7 @@ export default function HouseholdDonutChart({
                   {/* Drill hint */}
                   {selectedItem.userId > 0 && (
                     <text x={CX} y={CY + 48} textAnchor="middle" dominantBaseline="middle" fontSize="8.5" fill="#4b5563">
-                      double-tap to view details
+                      hold to view details
                     </text>
                   )}
                 </>
@@ -822,6 +827,9 @@ export default function HouseholdDonutChart({
               return (
                 <button key={item.groupId} className="w-full text-left"
                   style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
+                  onPointerDown={() => startLongPress(item.groupId)}
+                  onPointerUp={cancelLongPress}
+                  onPointerCancel={cancelLongPress}
                   onClick={() => handleSegmentClick(item.groupId)}>
                   <div className="flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-black"
