@@ -502,6 +502,7 @@ export default function HouseholdDonutChart({
     if (!gb) return;
     drilledGroupRef.current = gb;
     const mid = parseInt(groupId.replace("member-", ""), 10);
+    setSelectedId(null); // snap segment back flush before the transition fires
     setDrilledMemberId(mid);
     setIsPrivate(false);
     setLockPhase(null);
