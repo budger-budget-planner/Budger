@@ -651,16 +651,12 @@ export default function HouseholdDonutChart({
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+    <div ref={containerRef} className="select-none" style={{ position: "relative", display: "flex", flexDirection: "column", width: "100%" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
-        {/* SVG wrapper */}
-        <div style={{
-          width:      expanded ? containerWidth : 180,
-          flexShrink: 0,
-          transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
-        }}>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", opacity: hhOpacity, transition: "opacity 0.3s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+        {/* SVG wrapper — always full width */}
+        <div style={{ width: "100%", flexShrink: 0 }}>
           <svg width="100%" viewBox="0 0 320 320" style={{ overflow: "visible", display: "block" }}
             aria-label={t("hh.household_donut_label")}>
             <defs>
@@ -810,22 +806,24 @@ export default function HouseholdDonutChart({
           </svg>
         </div>
 
-        {/* ── Legend ── */}
+        {/* ── Legend (below the donut, visible in compact mode only) ── */}
         <div style={{
-          maxWidth:   expanded ? 0 : 220,
-          marginLeft: expanded ? 0 : 12,
+          maxHeight:  expanded ? 0 : 600,
           opacity:    expanded ? 0 : 1,
-          overflow:   "hidden", flexShrink: 1,
-          transition: expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS,
+          overflow:   "hidden",
+          marginTop:  expanded ? 0 : 10,
+          transition: expanded
+            ? `max-height ${TRANS}, margin-top ${TRANS}, opacity 0.15s ease`
+            : `max-height ${DUR} 0.3s ${EASE}, margin-top ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`,
         }}>
-          <div style={{ width: 160 }} className="space-y-2.5">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 20px", padding: "0 4px" }}>
             {legend.map(item => {
               const pct    = item.budgetInViewer != null && item.budgetInViewer > 0
                 ? Math.round((item.spentInViewer / item.budgetInViewer) * 100) : null;
               const isSel  = selectedId === item.groupId;
               const dimmed = selectedId !== null && !isSel;
               return (
-                <button key={item.groupId} className="w-full text-left"
+                <button key={item.groupId} className="text-left"
                   style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                   onPointerDown={() => startLongPress(item.groupId)}
                   onPointerUp={cancelLongPress}
@@ -848,7 +846,6 @@ export default function HouseholdDonutChart({
                 </button>
               );
             })}
-
           </div>
         </div>
       </div>
@@ -882,10 +879,10 @@ export default function HouseholdDonutChart({
           </div>
 
           {/* Personal donut or lock or spinner */}
-          <div className="flex-1 flex items-center">
+          <div className="flex-1 flex items-start">
             {isPrivate ? (
               /* ─── Private dashboard lock ─── */
-              <div style={{ width: expanded ? containerWidth : 180, flexShrink: 0 }}>
+              <div style={{ width: "100%", flexShrink: 0 }}>
                 <svg width="100%" viewBox="0 0 320 320" style={{ overflow: "visible", display: "block" }}>
                   <defs>
                     <filter id={`${idHintBlur}-lock`} x="-25%" y="-25%" width="150%" height="150%">
@@ -940,7 +937,7 @@ export default function HouseholdDonutChart({
               </div>
             ) : personalLoading || personalSpending.length === 0 ? (
               /* ─── Loading spinner in centre of donut footprint ─── */
-              <div style={{ width: expanded ? containerWidth : 180, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", aspectRatio: "1" }}>
+              <div style={{ width: "100%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", aspectRatio: "1" }}>
                 <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               </div>
             ) : (
