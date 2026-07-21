@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import HouseholdDonutChart from "@/components/HouseholdDonutChart";
 import { useToast } from "@/hooks/use-toast";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
@@ -1433,10 +1434,16 @@ export default function HouseholdPage() {
             )}
           </div>
 
-          {/* ── Members ── */}
+          {/* ── Members — Household Donut ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+            {/* Header row: count + invite button */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <p className="text-sm font-semibold">{t("hh.members")} <span className="text-white/40 font-normal">({members?.filter(m => m.userId !== -1).length ?? 0})</span></p>
+              <p className="text-sm font-semibold">
+                {t("hh.members")}{" "}
+                <span className="text-white/40 font-normal">
+                  ({members?.filter(m => m.userId !== -1).length ?? 0})
+                </span>
+              </p>
               {iAmHead && (
                 <Button
                   size="sm"
@@ -1450,63 +1457,19 @@ export default function HouseholdPage() {
               )}
             </div>
 
-            <div className="divide-y divide-white/5">
-              {members?.map(m => {
-                const isMe = m.userId === me?.id;
-                const spentConverted = memberSpentInViewerCurrency(m);
-                const barPct = barPercent(spentConverted);
-                return (
-                  <button
-                    key={m.userId}
-                    data-testid={`row-member-${m.userId}`}
-                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors group"
-                    onClick={(e) => {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      setMemberAnchorY(rect.bottom);
-                      setSelectedMember(m as MemberRow);
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-black"
-                        style={{ backgroundColor: m.memberColor }}
-                      >
-                        {m.userId === -1
-                          ? <Home className="w-4 h-4 text-black" />
-                          : m.name.charAt(0).toUpperCase()}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
-                              {isMe && m.userId !== -1 && <span className="text-white/40 font-normal text-xs">{t("hh.you_label")}</span>}
-                            </p>
-                            {m.dashboardBlocked && !isMe && (
-                              <span className="text-white/30 flex-shrink-0" title="Dashboard private">
-                                <EyeOff className="w-3 h-3 inline" />
-                              </span>
-                            )}
-                            <RoleBadge role={m.role} />
-                          </div>
-                          <span className="text-sm font-semibold tabular-nums flex-shrink-0">
-                            {fmt(spentConverted)}
-                          </span>
-                        </div>
-
-                        <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${barPct}%`, backgroundColor: m.memberColor }}
-                          />
-                        </div>
-                      </div>
-
-                    </div>
-                  </button>
-                );
-              })}
+            {/* Donut chart */}
+            <div className="px-4 py-4">
+              <HouseholdDonutChart
+                members={(members ?? []) as any[]}
+                householdBudget={budgetInViewerCurrency}
+                currency={prefs.currency}
+                rates={splitRates}
+                iAmHead={iAmHead}
+                onMemberTap={(m) => {
+                  setMemberAnchorY(Math.round(window.innerHeight * 0.55));
+                  setSelectedMember(m as MemberRow);
+                }}
+              />
             </div>
           </div>
 
