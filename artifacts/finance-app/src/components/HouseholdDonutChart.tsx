@@ -78,25 +78,79 @@ function arc(cx: number, cy: number, ri: number, ro: number, start: number, end:
 }
 function easeInOut(t: number) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
 
-// ─── Transition cat/member seg builder ───────────────────────────────────────
+// ─── Transition cat seg builder — mirrors DonutBudgetChart.buildChart exactly ─
+// Produces the same arc paths + colors the personal chart will render, so the
+// snap segments sit at the correct positions and the color-bloom lands in-place.
+const _UNCAT_SPENT_COLOR  = "#9ca3af";
+const _UNCAT_REMAIN_COLOR = "#374151";
+
 function buildTransitionCatSegs(
-  spending: Array<{ total: number; categoryColor: string | null }>,
+  spending: SpendingItem[],
+  totalBudget: number,
 ): Array<{ d: string; color: string }> {
-  const filtered = spending.filter(c => c.total > 0.001);
-  if (filtered.length === 0) return [];
-  const total = filtered.reduce((s, c) => s + c.total, 0);
-  if (total === 0) return [];
-  const gapDeg = 2.5;
-  const drawDeg = 360 - gapDeg * filtered.length;
-  const result: Array<{ d: string; color: string }> = [];
-  let cursor = 0;
-  for (const cat of filtered) {
-    const deg = (cat.total / total) * drawDeg;
-    if (deg > 0.01) {
-      result.push({ d: arc(CX, CY, RI, RO, cursor, cursor + deg), color: cat.categoryColor ?? "#6b7280" });
-      cursor += deg + gapDeg;
+  const CAT_GAP = 2.5;
+
+  const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
+  const unbudgeted = spending.filter(s => s.budget == null || s.budget <= 0);
+
+  const sumBudgets     = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
+  const uncatBudget    = Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
+  const uncatSpent     = unbudgeted.reduce((a, s) => a + s.total, 0);
+  const uncatRemain    = Math.max(0, uncatBudget - uncatSpent);
+  const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
+
+  type Part = { fraction: number; color: string };
+  const groups: Array<{ parts: Part[] }> = [];
+
+  for (const s of budgeted) {
+    const color  = s.categoryColor ?? "#818cf8";
+    const spent  = s.total;
+    const budget = s.budget!;
+    const over   = spent > budget;
+    if (over) {
+      groups.push({ parts: [{ fraction: budget / effectiveTotal, color }] });
+    } else {
+      const spentFrac  = spent / effectiveTotal;
+      const remainFrac = (budget - spent) / effectiveTotal;
+      const parts: Part[] = [];
+      if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  color });
+      if (remainFrac > 0.001) parts.push({ fraction: remainFrac, color: hexDarken(color, 0.52) });
+      if (parts.length === 0) parts.push({ fraction: budget / effectiveTotal, color: hexDarken(color, 0.52) });
+      groups.push({ parts });
     }
   }
+
+  // Uncategorized bucket — mirrors DonutBudgetChart logic
+  if (uncatBudget > 0 || uncatSpent > 0) {
+    const over  = uncatSpent > uncatBudget;
+    const parts: Part[] = [];
+    if (over || uncatBudget === 0) {
+      const frac = uncatBudget > 0 ? uncatBudget / effectiveTotal : uncatSpent / effectiveTotal;
+      parts.push({ fraction: frac, color: _UNCAT_SPENT_COLOR });
+    } else {
+      if (uncatSpent  / effectiveTotal > 0.001) parts.push({ fraction: uncatSpent  / effectiveTotal, color: _UNCAT_SPENT_COLOR  });
+      if (uncatRemain / effectiveTotal > 0.001) parts.push({ fraction: uncatRemain / effectiveTotal, color: _UNCAT_REMAIN_COLOR });
+    }
+    if (parts.length > 0) groups.push({ parts });
+  }
+
+  if (groups.length === 0) return [];
+
+  const drawDeg = 360 - CAT_GAP * groups.length;
+  const result: Array<{ d: string; color: string }> = [];
+  let cursor = 0;
+
+  for (const g of groups) {
+    for (const p of g.parts) {
+      const partDeg = p.fraction * drawDeg;
+      if (partDeg > 0.01) {
+        result.push({ d: arc(CX, CY, RI, RO, cursor, cursor + partDeg), color: p.color });
+        cursor += partDeg;
+      }
+    }
+    cursor += CAT_GAP; // gap after each group (between categories, not between sub-arcs)
+  }
+
   return result;
 }
 
@@ -394,7 +448,9 @@ export default function HouseholdDonutChart({
   // Saved member arc segs for snap-member (drill-back)
   const memberSegsRef         = useRef<Array<{ d: string; color: string }>>([]);
   // Latest personal spending for snap-cats (drill-forward)
-  const personalSpendingRef   = useRef<SpendingItem[]>([]);
+  const personalSpendingRef     = useRef<SpendingItem[]>([]);
+  // Latest personal total budget — kept in a ref so the timer closure reads fresh value
+  const personalTotalBudgetRef  = useRef<number>(0);
 
   // ── Derived chart data ──────────────────────────────────────────────────────
   const { segs, groupBorders, legend, effectiveBudget, totalSpentV } =
@@ -463,7 +519,7 @@ export default function HouseholdDonutChart({
       isLarderDesignated: row.isLarderDesignated,
     }));
   }, [memberSpendRaw, virtualSpendRaw, drilledMember, rates, currency, isVirtualDrill]);
-  // Keep a ref so animation closures can read the latest data without stale captures
+  // Keep refs so animation closures can read the latest data without stale captures
   personalSpendingRef.current = personalSpending;
 
   const personalTotalBudget = useMemo(() => {
@@ -472,6 +528,7 @@ export default function HouseholdDonutChart({
     if (!rates || mc === currency) return drilledMember.totalBudget;
     return convertAmount(drilledMember.totalBudget, mc, currency, rates);
   }, [drilledMember, rates, currency]);
+  personalTotalBudgetRef.current = personalTotalBudget;
 
   // ── Detect private dashboard ────────────────────────────────────────────────
   useEffect(() => {
@@ -624,7 +681,7 @@ export default function HouseholdDonutChart({
 
           push(setTimeout(() => {
             // E: snap — grey category segments appear, arc disappears (200ms hold)
-            const cSegs = buildTransitionCatSegs(personalSpendingRef.current);
+            const cSegs = buildTransitionCatSegs(personalSpendingRef.current, personalTotalBudgetRef.current);
             setCatTransSegs(cSegs);
             setCatTransColored(false);
             setArcAnim(null);
