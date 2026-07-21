@@ -962,7 +962,7 @@ export default function HouseholdDonutChart({
             {/* ── Arc overlay — color transitions from member color → dark grey ─── */}
             {arcAnim && (
               <path d={arcAnim.d} fill={arcAnim.color} stroke="none"
-                style={{ pointerEvents: "none", transition: "fill 0.25s ease" }} />
+                style={{ pointerEvents: "none", transition: "fill 0.5s ease" }} />
             )}
 
             {/* ── Snap-cats transition segs (grey → real colors) ───────────────
