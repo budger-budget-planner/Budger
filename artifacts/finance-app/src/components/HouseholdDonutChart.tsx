@@ -667,9 +667,13 @@ export default function HouseholdDonutChart({
     setPersOpacity(0);
 
     push(setTimeout(() => {
-      // B: dark-grey arc takes the segment's place (200ms hold)
-      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: "#2d3748" });
+      // B: arc appears in member's color, then CSS-transitions to dark grey (200ms hold)
+      setArcAnim({ d: arc(CX, CY, RI, RO, gb.startDeg, gb.endDeg), color: gb.groupColor });
       setDrillPhase("to-arc"); // segment fades via groupOpacity
+      // One frame later: trigger CSS fill-transition to dark grey
+      push(setTimeout(() => {
+        setArcAnim(prev => prev ? { ...prev, color: "#2d3748" } : prev);
+      }, 16));
 
       push(setTimeout(() => {
         // C: expand the dark-grey arc to full circle (650ms)
@@ -955,10 +959,10 @@ export default function HouseholdDonutChart({
               );
             })}
 
-            {/* ── Arc overlay — always dark grey ───────────────────────────────── */}
+            {/* ── Arc overlay — color transitions from member color → dark grey ─── */}
             {arcAnim && (
-              <path d={arcAnim.d} fill="#2d3748" stroke="none"
-                style={{ pointerEvents: "none" }} />
+              <path d={arcAnim.d} fill={arcAnim.color} stroke="none"
+                style={{ pointerEvents: "none", transition: "fill 0.25s ease" }} />
             )}
 
             {/* ── Snap-cats transition segs (grey → real colors) ───────────────
