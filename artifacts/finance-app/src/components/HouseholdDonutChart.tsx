@@ -454,6 +454,10 @@ export default function HouseholdDonutChart({
   const memberSegsRef         = useRef<Array<{ d: string; color: string }>>([]);
   // Latest personal spending for snap-cats (drill-forward)
   const personalSpendingRef     = useRef<SpendingItem[]>([]);
+  // Starts true so the very first expand/collapse after mount skips the CSS
+  // width transition (container width isn't known yet). Cleared to false after
+  // the initial layout measurement in useLayoutEffect below.
+  const skipExpandTransRef      = useRef<boolean>(true);
   // Latest personal total budget — kept in a ref so the timer closure reads fresh value
   const personalTotalBudgetRef  = useRef<number>(0);
 
