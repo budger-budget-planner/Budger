@@ -35,6 +35,12 @@ if (typeof document !== "undefined" && !document.getElementById(LOCK_KF_ID)) {
       from { opacity: 1; }
       to   { opacity: 0; }
     }
+    @keyframes donutLockFlash {
+      0%   { opacity: 0; }
+      25%  { opacity: 1; }
+      75%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -1185,12 +1191,14 @@ export default function HouseholdDonutChart({
                   {/* Gray full ring */}
                   <path d={arc(CX, CY, RI, RO, 0, 359.99)} fill="#374151" />
 
-                  {/* Amber hint pulses */}
-                  {lockPulseKey > 0 && (
-                    <g key={lockPulseKey}>
-                      <circle cx={CX} cy={CY} r={RI - 10} fill="#f59e0b"
-                        filter={`url(#${idHintBlur}-lock)`}
-                        style={{ animation: `${lockPulseKey === 1 ? "donutBlink045" : "donutBlink053"} 0.224s ease 0s both` }} />
+                  {/* White lock flash (2 quick pulses) */}
+                  {lockPulseKey > 0 && lockPhase !== "fading" && (
+                    <g key={lockPulseKey} style={{ animation: "donutLockFlash 0.2s ease both", pointerEvents: "none" }}>
+                      {/* Shackle */}
+                      <path d={`M ${CX - 9} ${CY - 4} L ${CX - 9} ${CY - 13} A 9 9 0 0 1 ${CX + 9} ${CY - 13} L ${CX + 9} ${CY - 4}`}
+                        fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+                      {/* Body */}
+                      <rect x={CX - 13} y={CY - 4} width="26" height="20" rx="3" fill="#ffffff" />
                     </g>
                   )}
 
