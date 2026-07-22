@@ -169,6 +169,10 @@ app.use(
 // 2. authLimiter — tighter overlay on /api/auth for brute-force protection.
 //    /auth/me is excluded: it's a read-only session check the client calls on
 //    every window focus event; counting it would crowd out genuine PIN attempts.
+//    /auth/logout is excluded: it is not a brute-force target, and counting
+//    logout calls against the same budget that guards PIN attempts meant that
+//    logout loops (e.g. from the staySignedIn=false sessionStorage race) could
+//    exhaust the 150-slot window and block the user's very next login attempt.
 //    skipSuccessfulRequests keeps failed guesses accumulating toward the cap.
 //
 // 3. aiLimiter — cost/abuse guard on the paid Gemini endpoint.
@@ -188,7 +192,7 @@ const authLimiter = rateLimit({
   limit: 150,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === "/me",
+  skip: (req) => req.path === "/me" || req.path === "/logout",
   skipSuccessfulRequests: true,
   message: { error: "Too many attempts, please try again later" },
 });
