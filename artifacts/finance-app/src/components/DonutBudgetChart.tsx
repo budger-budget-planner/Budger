@@ -676,18 +676,16 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
           {/* ── Zero-budget uncategorised hairline ───────────────────────
               When all budget is allocated to categories (uncatBudget === 0)
-              but there IS uncategorised spending, we draw a thin radial line
-              at 12 o'clock instead of an arc segment — an arc would overflow
-              the 360° already claimed by the budgeted categories and cause
-              visible overlap.  The line spans the ring (RI → RO) at degree 0
-              (polar(CX, CY, r, 0) = top of circle = 12 o'clock).           */}
+              but there IS uncategorised spending, the ring is already full so
+              we cannot add a real arc segment without overflowing 360°.
+              Instead we draw a proper donut-arc path (same RI/RO as every
+              other segment) spanning 2% of the circle (7.2°) centred at the
+              0° seam (12 o'clock).  It looks identical to other slices but
+              is deliberately thin, and is wide enough to be tappable.       */}
           {showUncatHairline && (
-            <line
-              x1={CX} y1={CY - RO}
-              x2={CX} y2={CY - RI}
-              stroke={UNCAT_SPENT_COLOR}
-              strokeWidth={2 * Math.PI * RO * 0.01 /* ≈ 8 SVG units = 1% of outer circumference */}
-              strokeLinecap="round"
+            <path
+              d={arc(CX, CY, RI, RO, -3.6, 3.6)}
+              fill={UNCAT_SPENT_COLOR}
             />
           )}
 
