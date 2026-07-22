@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fmtAmt, checkDonutWiggleDue, loadPrefs } from "@/lib/prefs";
 import { convertAmount } from "@/lib/rates";
@@ -573,11 +573,20 @@ export default function HouseholdDonutChart({
     if (!el) return;
     const ro = new ResizeObserver(entries => {
       setContainerWidth(Math.round(entries[0].contentRect.width));
-      skipExpandTransRef.current = false; // first measurement done — transitions ok from now on
+      // Do NOT clear skipExpandTransRef here — it must stay true until after
+      // the re-render with the new width has committed to the DOM.
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // After the DOM commits each new containerWidth, clear the skip-transition
+  // flag so future expand/collapse interactions animate normally.
+  // useLayoutEffect fires synchronously after DOM paint — the width has already
+  // been applied without a transition, so clearing here is safe.
+  useLayoutEffect(() => {
+    skipExpandTransRef.current = false;
+  }, [containerWidth]);
 
   // ── Hint pulse ──────────────────────────────────────────────────────────────
   useEffect(() => {
