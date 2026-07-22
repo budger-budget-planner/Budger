@@ -199,23 +199,34 @@ function buildChart(
 
   // Show uncategorised segment whenever there is spending, even when all
   // budget is allocated (budget = 0 → no percentage shown in the legend).
+  //
+  // Special case: when uncatBudget === 0 (all budget assigned to categories)
+  // but uncatSpent > 0, DO NOT add a donut segment — the budgeted categories
+  // already fill 100 % of effectiveTotal, so adding uncatSpent/effectiveTotal
+  // as an extra fraction pushes the arc beyond 360° and causes overlap.
+  // Instead show a hairline marker at 12 o'clock and a legend entry.
+  let showUncatHairline = false;
   if (uncatBudget > 0 || uncatSpent > 0) {
-    const catKey = "cat-uncat";
-    const parts  = [];
-    const over   = uncatSpent > uncatBudget;
-    if (over || uncatBudget === 0) {
-      const frac = uncatBudget > 0 ? uncatBudget / effectiveTotal : uncatSpent / effectiveTotal;
-      parts.push({ id: "uncat-over", fraction: frac, fill: UNCAT_SPENT_COLOR,
-        isOverBudget: uncatBudget > 0 && over });
+    if (uncatBudget === 0 && uncatSpent > 0) {
+      // Zero budget, non-zero spending → hairline only, no arc segment.
+      showUncatHairline = true;
     } else {
-      const spentFrac  = uncatSpent / effectiveTotal;
-      const remainFrac = uncatRemain / effectiveTotal;
-      if (spentFrac  > 0.001) parts.push({ id: "uncat-spent",  fraction: spentFrac,  fill: UNCAT_SPENT_COLOR,  isOverBudget: false });
-      if (remainFrac > 0.001) parts.push({ id: "uncat-remain", fraction: remainFrac, fill: UNCAT_REMAIN_COLOR, isOverBudget: false });
-    }
-    if (parts.length > 0) {
-      groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
-        spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, isLarderDesignated: false, parts });
+      const catKey = "cat-uncat";
+      const parts  = [];
+      const over   = uncatSpent > uncatBudget;
+      if (over) {
+        parts.push({ id: "uncat-over", fraction: uncatBudget / effectiveTotal,
+          fill: UNCAT_SPENT_COLOR, isOverBudget: true });
+      } else {
+        const spentFrac  = uncatSpent / effectiveTotal;
+        const remainFrac = uncatRemain / effectiveTotal;
+        if (spentFrac  > 0.001) parts.push({ id: "uncat-spent",  fraction: spentFrac,  fill: UNCAT_SPENT_COLOR,  isOverBudget: false });
+        if (remainFrac > 0.001) parts.push({ id: "uncat-remain", fraction: remainFrac, fill: UNCAT_REMAIN_COLOR, isOverBudget: false });
+      }
+      if (parts.length > 0) {
+        groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
+          spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, isLarderDesignated: false, parts });
+      }
     }
   }
 
@@ -265,7 +276,15 @@ function buildChart(
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
       isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
 
-  return { segs, groupBorders, legend, sumBudgets };
+  // For the hairline case the uncat group was never pushed into `groups`;
+  // add its legend entry directly so it still appears in the key.
+  if (showUncatHairline) {
+    legend.push({ catKey: "cat-uncat", color: UNCAT_SPENT_COLOR,
+      name: t("common.uncategorized"), spent: uncatSpent, budget: 0,
+      isOverBudget: false, isRecurringApplied: false, isLarderDesignated: false });
+  }
+
+  return { segs, groupBorders, legend, sumBudgets, showUncatHairline };
 }
 
 // ─── Animation constants ──────────────────────────────────────────────────────
@@ -333,7 +352,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   // Latest hasData value — updated every render, read inside the timer closure
   const hasDataRef = useRef<boolean>(false);
 
-  const { segs, groupBorders, legend, sumBudgets } = buildChart(spending, totalBudget, selectedCat);
+  const { segs, groupBorders, legend, sumBudgets, showUncatHairline } = buildChart(spending, totalBudget, selectedCat);
 
   // Keep refs current every render so timer callbacks read the latest values at fire time.
   // wiggle1 = first group; wiggle2 = 4th group clockwise (fallback: 3rd, 2nd, none if <2 groups)
@@ -652,6 +671,23 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               </>
             );
           })()}
+
+          {/* ── Zero-budget uncategorised hairline ───────────────────────
+              When all budget is allocated to categories (uncatBudget === 0)
+              but there IS uncategorised spending, we draw a thin radial line
+              at 12 o'clock instead of an arc segment — an arc would overflow
+              the 360° already claimed by the budgeted categories and cause
+              visible overlap.  The line spans the ring (RI → RO) at degree 0
+              (polar(CX, CY, r, 0) = top of circle = 12 o'clock).           */}
+          {showUncatHairline && (
+            <line
+              x1={CX} y1={CY - RO}
+              x2={CX} y2={CY - RI}
+              stroke={UNCAT_SPENT_COLOR}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          )}
 
           {/* ── Larder-designated segment sparkles ─────────────────────────
               Disabled: set DONUT_SPARKLES_ENABLED = true to restore.
