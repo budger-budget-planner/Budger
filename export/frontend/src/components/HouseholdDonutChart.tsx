@@ -1220,6 +1220,9 @@ export default function HouseholdDonutChart({
                         fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
                       {/* Body */}
                       <rect x={CX - 13} y={CY - 4} width="26" height="20" rx="3" fill="#ffffff" />
+                      {/* Keyhole — keep dark so it stays visible during flash */}
+                      <circle cx={CX} cy={CY + 5} r="3.5" fill="#1f2937" />
+                      <rect x={CX - 1.5} y={CY + 5} width="3" height="6" rx="1.5" fill="#1f2937" />
                     </g>
                   )}
 
