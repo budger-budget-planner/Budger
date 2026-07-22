@@ -1191,17 +1191,6 @@ export default function HouseholdDonutChart({
                   {/* Gray full ring */}
                   <path d={arc(CX, CY, RI, RO, 0, 359.99)} fill="#374151" />
 
-                  {/* White lock flash (2 quick pulses — pop phase only) */}
-                  {lockPulseKey > 0 && lockPhase === "pop" && (
-                    <g key={lockPulseKey} style={{ animation: "donutLockFlash 0.2s ease both", pointerEvents: "none" }}>
-                      {/* Shackle */}
-                      <path d={`M ${CX - 9} ${CY - 4} L ${CX - 9} ${CY - 13} A 9 9 0 0 1 ${CX + 9} ${CY - 13} L ${CX + 9} ${CY - 4}`}
-                        fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
-                      {/* Body */}
-                      <rect x={CX - 13} y={CY - 4} width="26" height="20" rx="3" fill="#ffffff" />
-                    </g>
-                  )}
-
                   {/* Padlock (shown until "text" phase) */}
                   {lockPhase !== "text" && lockPhase !== null && (
                     <g style={{
@@ -1220,6 +1209,17 @@ export default function HouseholdDonutChart({
                       {/* Keyhole */}
                       <circle cx={CX} cy={CY + 5} r="3.5" fill="#1f2937" />
                       <rect x={CX - 1.5} y={CY + 5} width="3" height="6" rx="1.5" fill="#1f2937" />
+                    </g>
+                  )}
+
+                  {/* White lock flash — rendered AFTER padlock so it paints on top */}
+                  {lockPulseKey > 0 && lockPhase === "pop" && (
+                    <g key={lockPulseKey} style={{ animation: "donutLockFlash 0.35s ease both", pointerEvents: "none" }}>
+                      {/* Shackle */}
+                      <path d={`M ${CX - 9} ${CY - 4} L ${CX - 9} ${CY - 13} A 9 9 0 0 1 ${CX + 9} ${CY - 13} L ${CX + 9} ${CY - 4}`}
+                        fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+                      {/* Body */}
+                      <rect x={CX - 13} y={CY - 4} width="26" height="20" rx="3" fill="#ffffff" />
                     </g>
                   )}
 
