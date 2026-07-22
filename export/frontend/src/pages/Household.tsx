@@ -1798,7 +1798,7 @@ export default function HouseholdPage() {
             <div className="space-y-1.5">
               <Label>{t("hh.monthly_budget_lbl")} <span className="text-white/30 font-normal">{t("hh.optional_lbl")}</span></Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">{currencySymbol(loadPrefs().currency)}</span>
                 <Input
                   data-testid="input-household-budget"
                   placeholder={t("hh.budget_eg")}
@@ -1836,7 +1836,7 @@ export default function HouseholdPage() {
             <div className="space-y-1.5">
               <Label>{t("hh.budget_amount_lbl")}</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">{currencySymbol(loadPrefs().currency)}</span>
                 <Input
                   placeholder={t("hh.budget_eg")}
                   type="number"
