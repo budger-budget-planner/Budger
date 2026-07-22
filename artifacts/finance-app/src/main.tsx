@@ -27,8 +27,18 @@ document.documentElement.classList.add("dark");
 scheduleRateRefreshes();
 // When a new service worker takes control (after skipWaiting + clients.claim),
 // reload the page so the browser discards old cached JS and loads fresh code.
+//
+// Guard: skip the reload if the page is younger than SPLASH_GUARD_MS.
+// On a cold PWA open the SW often updates within the first second — without
+// this guard the reload interrupts the splash animation and plays it twice.
+// The new SW already controls the page via clients.claim(), so no reload is
+// needed to get fresh assets on a fresh page load. For long-lived background
+// tabs (open > SPLASH_GUARD_MS) the reload still fires as intended.
+const _swPageLoadTime = Date.now();
+const SPLASH_GUARD_MS = 10_000;
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (Date.now() - _swPageLoadTime < SPLASH_GUARD_MS) return;
     window.location.reload();
   });
 }
