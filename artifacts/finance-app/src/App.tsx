@@ -108,6 +108,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   // Track the last userId we applied server prefs for, to avoid re-applying on every render
   const syncedUserIdRef = useRef<number | null>(null);
+  // One-shot guard: logout.mutate() must only fire once per AuthGuard lifetime.
+  // Without this, every re-render while isLoading/user/error are in flux
+  // (e.g. during a staySignedIn=false sessionStorage check) can call mutate()
+  // again, hammering the auth limiter and causing "Too many attempts".
+  const logoutCalledRef = useRef(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -128,6 +133,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!prefs.staySignedIn && !hasActiveSession()) {
         clearSession();
         setActiveUserId(null);
+        if (logoutCalledRef.current) return;
+        logoutCalledRef.current = true;
         logout.mutate({} as any, {
           onSettled: async () => {
             queryClient.clear();
