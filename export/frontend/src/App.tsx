@@ -174,6 +174,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         // sessionStorage flag). Force logout so the next login re-triggers it.
         clearSession();
         setActiveUserId(null);
+        if (logoutCalledRef.current) return;
+        logoutCalledRef.current = true;
         logout.mutate({} as any, {
           onSettled: async () => {
             queryClient.clear();
