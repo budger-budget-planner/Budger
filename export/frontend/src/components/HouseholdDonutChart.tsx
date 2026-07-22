@@ -579,7 +579,10 @@ export default function HouseholdDonutChart({
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
-      setContainerWidth(Math.round(entries[0].contentRect.width));
+      const w = Math.round(entries[0].contentRect.width);
+      // Ignore zero-width reports (fired when the tab is hidden) so that
+      // returning to the tab doesn't trigger a 0 → realWidth growth animation.
+      if (w > 0) setContainerWidth(w);
     });
     ro.observe(el);
     return () => ro.disconnect();
