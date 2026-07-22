@@ -403,18 +403,8 @@ export default function HouseholdDonutChart({
 
   // ── Phase 1 state ───────────────────────────────────────────────────────────
   const [selectedId,     setSelectedId]     = useState<string | null>(null);
-  const [mode,           setMode]           = useState<"compact" | "expanded">(() => {
-    try { return (localStorage.getItem("hh-donut-mode") as "compact" | "expanded") ?? "compact"; }
-    catch { return "compact"; }
-  });
+  const [mode,           setMode]           = useState<"compact" | "expanded">("compact");
   const [containerWidth, setContainerWidth] = useState(320);
-  // Suppress the expand-width CSS transition until containerWidth has been
-  // measured at least once. Cleared after the first synchronous measurement
-  // fires in the useLayoutEffect below, so subsequent expand/collapse taps
-  // animate normally.
-  const skipExpandTransRef = useRef(
-    (() => { try { return localStorage.getItem("hh-donut-mode") === "expanded"; } catch { return false; } })()
-  );
 
   // Persist mode to localStorage and update state — used by both household
   // centre-tap and personal DonutBudgetChart's onModeChange callback so any
