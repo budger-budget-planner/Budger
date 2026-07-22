@@ -1,9 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fmtAmt, checkDonutWiggleDue, loadPrefs } from "@/lib/prefs";
 import { convertAmount } from "@/lib/rates";
 import { t } from "@/lib/i18n";
-import { useGetMemberSpending } from "@/lib/api-client";
+import { useGetMemberSpending, getGetMemberSpendingQueryKey } from "@/lib/api-client";
 import DonutBudgetChart, { type SpendingItem } from "@/components/DonutBudgetChart";
 
 // ─── Hint keyframes (reuse the ones DonutBudgetChart injects) ─────────────────
@@ -433,6 +433,8 @@ export default function HouseholdDonutChart({
   const [hhOpacity,   setHhOpacity]   = useState(1);
   const [persOpacity, setPersOpacity] = useState(0);
 
+  const queryClient = useQueryClient();
+
   // ── Refs ────────────────────────────────────────────────────────────────────
   const lastCenterTapRef      = useRef<number>(0);
   const longPressTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -694,6 +696,11 @@ export default function HouseholdDonutChart({
     if (!gb) return;
     drilledGroupRef.current = gb;
     const mid = parseInt(groupId.replace("member-", ""), 10);
+    // Remove any cached error for this member's spending query before drilling
+    // in. Without this, a stale 403 error from a previous drill stays in the
+    // React Query cache and immediately re-triggers setIsPrivate(true) via the
+    // memberSpendError effect, even though setIsPrivate(false) was just called.
+    queryClient.removeQueries({ queryKey: getGetMemberSpendingQueryKey(mid) });
     setSelectedId(null);
     setDrilledMemberId(mid);
     setIsPrivate(false);
