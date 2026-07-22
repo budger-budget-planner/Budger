@@ -415,6 +415,11 @@ export default function HouseholdDonutChart({
   const skipExpandTransRef = useRef(
     (() => { try { return localStorage.getItem("hh-donut-mode") === "expanded"; } catch { return false; } })()
   );
+  // Tracks whether the ResizeObserver has fired at least once.
+  // Used to gate skipExpandTransRef clearing — without this, the useLayoutEffect
+  // below fires on the initial mount (containerWidth=320) and clears the flag
+  // before the real measurement arrives, defeating the whole suppression.
+  const roFiredRef = useRef(false);
 
   // Persist mode to localStorage and update state — used by both household
   // centre-tap and personal DonutBudgetChart's onModeChange callback so any
@@ -572,20 +577,25 @@ export default function HouseholdDonutChart({
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
+      roFiredRef.current = true;
       setContainerWidth(Math.round(entries[0].contentRect.width));
-      // Do NOT clear skipExpandTransRef here — it must stay true until after
-      // the re-render with the new width has committed to the DOM.
+      // Do NOT clear skipExpandTransRef here — clearing it in the same batch as
+      // setContainerWidth means the flag is already false by the time React
+      // re-renders, so the transition still fires. Clear it in useLayoutEffect
+      // instead, which runs after the DOM has committed the new width.
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // After the DOM commits each new containerWidth, clear the skip-transition
-  // flag so future expand/collapse interactions animate normally.
-  // useLayoutEffect fires synchronously after DOM paint — the width has already
-  // been applied without a transition, so clearing here is safe.
+  // Clear the skip-transition flag only AFTER the ResizeObserver has fired AND
+  // the DOM has committed the new containerWidth with transition:none.
+  // Gating on roFiredRef prevents this from clearing the flag on the initial
+  // mount render (containerWidth=320), which would defeat the suppression.
   useLayoutEffect(() => {
-    skipExpandTransRef.current = false;
+    if (roFiredRef.current) {
+      skipExpandTransRef.current = false;
+    }
   }, [containerWidth]);
 
   // ── Hint pulse ──────────────────────────────────────────────────────────────
