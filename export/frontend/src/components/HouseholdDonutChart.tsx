@@ -408,18 +408,13 @@ export default function HouseholdDonutChart({
     catch { return "compact"; }
   });
   const [containerWidth, setContainerWidth] = useState(320);
-  // Suppress the width transition on the very first ResizeObserver measurement
-  // when the component mounts already in expanded mode (restored from localStorage).
-  // Without this, the width animates from the 320 default to the real container
-  // width, producing a spurious grow animation every time the tab is re-entered.
+  // Suppress the expand-width CSS transition until containerWidth has been
+  // measured at least once. Cleared after the first synchronous measurement
+  // fires in the useLayoutEffect below, so subsequent expand/collapse taps
+  // animate normally.
   const skipExpandTransRef = useRef(
     (() => { try { return localStorage.getItem("hh-donut-mode") === "expanded"; } catch { return false; } })()
   );
-  // Tracks whether the ResizeObserver has fired at least once.
-  // Used to gate skipExpandTransRef clearing — without this, the useLayoutEffect
-  // below fires on the initial mount (containerWidth=320) and clears the flag
-  // before the real measurement arrives, defeating the whole suppression.
-  const roFiredRef = useRef(false);
 
   // Persist mode to localStorage and update state — used by both household
   // centre-tap and personal DonutBudgetChart's onModeChange callback so any
@@ -573,30 +568,32 @@ export default function HouseholdDonutChart({
   }, [isPrivate, drillPhase]);
 
   // ── Container width tracking ────────────────────────────────────────────────
+  // Measure synchronously in useLayoutEffect (fires after DOM commit, before the
+  // browser paints) so the first visible frame already has the correct width.
+  // This eliminates the 320→realWidth flash entirely — no intermediate painted
+  // frame ever shows the wrong size. After measuring, clear skipExpandTransRef
+  // so subsequent expand/collapse taps animate normally.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const w = Math.round(el.getBoundingClientRect().width);
+    if (w > 0) {
+      setContainerWidth(w);
+      skipExpandTransRef.current = false;
+    }
+  }, []);
+
+  // Keep a ResizeObserver for subsequent layout changes (orientation flip,
+  // panel resize, etc.). The initial measurement is already handled above.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
-      roFiredRef.current = true;
       setContainerWidth(Math.round(entries[0].contentRect.width));
-      // Do NOT clear skipExpandTransRef here — clearing it in the same batch as
-      // setContainerWidth means the flag is already false by the time React
-      // re-renders, so the transition still fires. Clear it in useLayoutEffect
-      // instead, which runs after the DOM has committed the new width.
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  // Clear the skip-transition flag only AFTER the ResizeObserver has fired AND
-  // the DOM has committed the new containerWidth with transition:none.
-  // Gating on roFiredRef prevents this from clearing the flag on the initial
-  // mount render (containerWidth=320), which would defeat the suppression.
-  useLayoutEffect(() => {
-    if (roFiredRef.current) {
-      skipExpandTransRef.current = false;
-    }
-  }, [containerWidth]);
 
   // ── Hint pulse ──────────────────────────────────────────────────────────────
   useEffect(() => {
