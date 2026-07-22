@@ -408,6 +408,13 @@ export default function HouseholdDonutChart({
     catch { return "compact"; }
   });
   const [containerWidth, setContainerWidth] = useState(320);
+  // Suppress the width transition on the very first ResizeObserver measurement
+  // when the component mounts already in expanded mode (restored from localStorage).
+  // Without this, the width animates from the 320 default to the real container
+  // width, producing a spurious grow animation every time the tab is re-entered.
+  const skipExpandTransRef = useRef(
+    (() => { try { return localStorage.getItem("hh-donut-mode") === "expanded"; } catch { return false; } })()
+  );
 
   // Persist mode to localStorage and update state — used by both household
   // centre-tap and personal DonutBudgetChart's onModeChange callback so any
@@ -564,8 +571,10 @@ export default function HouseholdDonutChart({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(entries =>
-      setContainerWidth(Math.round(entries[0].contentRect.width)));
+    const ro = new ResizeObserver(entries => {
+      setContainerWidth(Math.round(entries[0].contentRect.width));
+      skipExpandTransRef.current = false; // first measurement done — transitions ok from now on
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -928,7 +937,7 @@ export default function HouseholdDonutChart({
         <div style={{
           width:      expanded ? containerWidth : 180,
           flexShrink: 0,
-          transition: inDrill ? "none" : (expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`),
+          transition: inDrill || skipExpandTransRef.current ? "none" : (expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`),
         }}>
           <svg width="100%" viewBox="0 0 320 320" style={{ overflow: "visible", display: "block" }}
             aria-label={t("hh.household_donut_label")}>
