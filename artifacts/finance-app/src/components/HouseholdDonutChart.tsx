@@ -1191,8 +1191,8 @@ export default function HouseholdDonutChart({
                   {/* Gray full ring */}
                   <path d={arc(CX, CY, RI, RO, 0, 359.99)} fill="#374151" />
 
-                  {/* White lock flash (2 quick pulses) */}
-                  {lockPulseKey > 0 && lockPhase !== "fading" && (
+                  {/* White lock flash (2 quick pulses — pop phase only) */}
+                  {lockPulseKey > 0 && lockPhase === "pop" && (
                     <g key={lockPulseKey} style={{ animation: "donutLockFlash 0.2s ease both", pointerEvents: "none" }}>
                       {/* Shackle */}
                       <path d={`M ${CX - 9} ${CY - 4} L ${CX - 9} ${CY - 13} A 9 9 0 0 1 ${CX + 9} ${CY - 13} L ${CX + 9} ${CY - 4}`}
