@@ -684,7 +684,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               x1={CX} y1={CY - RO}
               x2={CX} y2={CY - RI}
               stroke={UNCAT_SPENT_COLOR}
-              strokeWidth="2"
+              strokeWidth={2 * Math.PI * RO * 0.01 /* ≈ 8 SVG units = 1% of outer circumference */}
               strokeLinecap="round"
             />
           )}
