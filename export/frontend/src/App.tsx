@@ -85,6 +85,12 @@ const queryClient = new QueryClient({
       // Run queries against the SW cache even when offline so the app
       // stays readable without a network connection.
       networkMode: "offlineFirst",
+      // Suppress window-focus refetches for data that was fetched in the
+      // last 30 s. Without this, switching tabs rapidly fires 10-15
+      // simultaneous refetches per switch, quickly exhausting the API's
+      // rate limit (600 req / 15 min) and triggering false 429 errors that
+      // the AuthGuard previously misread as "logged out".
+      staleTime: 30_000,
     },
   },
 });
@@ -95,7 +101,7 @@ function SmartNotificationsRunner() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading } = useGetMe();
+  const { data: user, isLoading, error } = useGetMe();
   const [, navigate] = useLocation();
   const logout = useLogout();
   const resetSplash = useSplashReset();
@@ -119,7 +125,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      navigate("/login");
+      // Only redirect to login on a genuine 401 (session gone / never existed).
+      // Any other failure — 429 Too Many Requests, 500 Server Error, network
+      // timeout — must NOT trigger a redirect: the session is still valid and
+      // the server is temporarily unhappy. Redirecting here caused a cascade
+      // where rate-limit spikes from fast tab-switching appeared as logouts.
+      const httpStatus = (error as any)?.status as number | undefined;
+      if (!httpStatus || httpStatus === 401) {
+        navigate("/login");
+      }
       return;
     }
     if (user) {
@@ -172,7 +186,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         navigate(`/invite/${pendingInviteToken}${qs}`);
       }
     }
-  }, [isLoading, user, navigate]);
+  }, [isLoading, user, error, navigate]);
 
   if (isLoading) {
     return (
