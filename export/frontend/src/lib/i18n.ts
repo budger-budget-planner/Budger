@@ -320,6 +320,8 @@ const translations: Record<string, Record<Lang, string>> = {
                            pl: "zaoszczędzono — łączny postęp gospodarstwa w tym miesiącu"       },
   "hh.private_dash":    { en: "Private dashboard",          pl: "Prywatny dashboard"             },
   "hh.others_cant":     { en: "Others can't see your spending breakdown", pl: "Inni nie widzą Twojego zestawienia wydatków"},
+  "hh.fetch_error":     { en: "Couldn't load data.",                     pl: "Nie udało się załadować danych."                },
+  "hh.retry":           { en: "Retry",                                   pl: "Spróbuj ponownie"                               },
   "hh.visible":         { en: "Your breakdown is visible to household members", pl: "Twoje zestawienie jest widoczne dla członków gospodarstwa"},
   "hh.pending_invites": { en: "Pending Invites",            pl: "Oczekujące zaproszenia"         },
   "hh.incoming_invites":{ en: "Invitations",               pl: "Zaproszenia"                    },

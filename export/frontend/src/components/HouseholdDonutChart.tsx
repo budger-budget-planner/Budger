@@ -419,6 +419,7 @@ export default function HouseholdDonutChart({
   const [drillPhase,      setDrillPhase]      = useState<DrillPhase>("idle");
   const [drilledMemberId, setDrilledMemberId] = useState<number | null>(null);
   const [isPrivate,       setIsPrivate]       = useState(false);
+  const [memberFetchError, setMemberFetchError] = useState(false);
   const [lockPhase,       setLockPhase]       = useState<"pop" | "fading" | "text" | null>(null);
   const [lockPulseKey,    setLockPulseKey]    = useState(0);
   // Expanding/contracting arc overlay — driven by rAF (always rendered as dark grey)
@@ -492,7 +493,8 @@ export default function HouseholdDonutChart({
   const {
     data: memberSpendRaw,
     isLoading: memberSpendLoading,
-    isError: memberSpendError,
+    isError: memberSpendIsError,
+    error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
     query: { enabled: drillPhase !== "idle" && !isVirtualDrill && realMemberId > 0 },
   });
@@ -544,9 +546,18 @@ export default function HouseholdDonutChart({
   personalTotalBudgetRef.current = personalTotalBudget;
 
   // ── Detect private dashboard ────────────────────────────────────────────────
+  // Only a genuine 403 "blocked" response means the member set their dashboard
+  // private. Any other error (500, timeout, network) is a transient fetch
+  // failure — show a retry banner instead of falsely locking the padlock.
   useEffect(() => {
-    if (memberSpendError && drillPhase !== "idle") setIsPrivate(true);
-  }, [memberSpendError, drillPhase]);
+    if (!memberSpendIsError || drillPhase === "idle") return;
+    const status = (memberSpendErrorObj as any)?.status as number | undefined;
+    if (status === 403) {
+      setIsPrivate(true);
+    } else {
+      setMemberFetchError(true);
+    }
+  }, [memberSpendIsError, memberSpendErrorObj, drillPhase]);
 
   // ── Lock animation sequence ─────────────────────────────────────────────────
   useEffect(() => {
@@ -704,6 +715,7 @@ export default function HouseholdDonutChart({
     setSelectedId(null);
     setDrilledMemberId(mid);
     setIsPrivate(false);
+    setMemberFetchError(false);
     setLockPhase(null);
     setLockPulseKey(0);
     setCatTransColored(false);
@@ -1267,6 +1279,20 @@ export default function HouseholdDonutChart({
                     </>
                   )}
                 </svg>
+              </div>
+            ) : memberFetchError ? (
+              /* ─── Fetch error — not a privacy block, show retry ─── */
+              <div style={{ width: expanded ? containerWidth : 180, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", aspectRatio: "1", gap: 10 }}>
+                <p className="text-xs text-muted-foreground text-center px-6">{t("hh.fetch_error")}</p>
+                <button
+                  className="text-xs text-white/60 underline underline-offset-2"
+                  onClick={() => {
+                    setMemberFetchError(false);
+                    queryClient.refetchQueries({ queryKey: getGetMemberSpendingQueryKey(realMemberId) });
+                  }}
+                >
+                  {t("hh.retry")}
+                </button>
               </div>
             ) : personalLoading || personalSpending.length === 0 ? (
               /* ─── Loading spinner in centre of donut footprint ─── */
