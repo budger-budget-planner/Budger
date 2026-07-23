@@ -66,3 +66,15 @@ id = "8bLjexteT34gxrkUW9hzn"
 uri = "file://attached_assets/budger-google-play-readiness-audit.pdf"
 type = "pdf"
 title = "Budger Google Play Readiness Audit (PDF)"
+
+[[outputs]]
+id = "Pfqi_Y7ke2CZnB5zWQtT8"
+uri = "file://attached_assets/budger-app-store-readiness-audit.docx"
+type = "word_document"
+title = "Budger App Store Readiness Audit (DOCX)"
+
+[[outputs]]
+id = "XcFfzTfMG3SGinsWsaBpm"
+uri = "file://attached_assets/budger-google-play-readiness-audit.docx"
+type = "word_document"
+title = "Budger Google Play Readiness Audit (DOCX)"
