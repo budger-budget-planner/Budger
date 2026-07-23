@@ -1,0 +1,373 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 6035 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.040 0.100 0.180 rg BT /F2 25.00 Tf 48.00 736.00 Td (Google Play Store readiness) Tj ET
+0.380 0.430 0.500 rg BT /F1 11.00 Tf 48.00 708.00 Td (Budger  |  Read-only technical audit) Tj ET
+1.000 0.970 0.920 rg 48.00 631.00 516.00 56.00 re f
+0.960 0.730 0.450 RG 0.7 w 48.00 631.00 516.00 56.00 re S
+0.950 0.420 0.120 rg 48.00 631.00 5.00 56.00 re f
+0.660 0.280 0.060 rg BT /F2 8.50 Tf 64.00 669.00 Td (CURRENT STATUS: NOT GOOGLE PLAY-READY YET) Tj ET
+0.250 0.220 0.170 rg BT /F1 9.20 Tf 64.00 654.00 Td (The repository contains an Android section inside an Expo-style configuration, but) Tj ET
+0.250 0.220 0.170 rg BT /F1 9.20 Tf 64.00 641.00 Td (it does not contain a buildable Android project or signed Android App Bundle.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 621.00 Td (What is already in good shape) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 606.00 m 130.00 606.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 593.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 593.00 Td (Production frontend is reachable at https://budger.app) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 578.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 578.00 Td (Production backend health endpoint responds successfully) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 563.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 563.00 Td (The production Vite frontend build passes) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 548.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 548.00 Td (Privacy policy includes data export, account deletion, receipt/photo handling, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 535.00 Td (opt-in crash diagnostics) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 520.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 520.00 Td (In-app data export endpoint exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 505.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 505.00 Td (Account deletion request flow exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 490.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 490.00 Td (Crash reporting is opt-in by default) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 475.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 475.00 Td (Receipt and screenshot imports use browser file and camera capabilities) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 460.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 460.00 Td (The web app has notification permission and Web Push subscription logic) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 445.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 445.00 Td (The existing legal text names Google LLC as an Android platform service provider) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 430.00 Td (Current Android/native project state) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 415.00 m 130.00 415.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 402.00 Td (The repository search found no Android project files. There is no AndroidManifest.xml,) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 388.00 Td (Gradle project, Gradle wrapper, package.json for a native app, google-services.json, EAS) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 374.00 Td (configuration, or Capacitor configuration.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 355.00 Td (The only Android-specific configuration is an android section inside) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 341.00 Td (export/ios/app.config.ts. That file is explicitly described as an iOS-focused Expo) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 327.00 Td (configuration and references assets that are not present.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 308.00 Td (The current configuration references:) Tj ET
+0.910 0.930 0.960 rg 48.00 266.00 516.00 28.00 re f
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 281.00 Td (export/ios/assets/adaptive-icon.png) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 258.00 Td (That asset is missing. There are also no Android launcher icon sets, splash assets, adaptive) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 244.00 Td (icon XML files, or native resource directories.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 225.00 Td (The configuration contains a placeholder EAS project identifier:) Tj ET
+0.910 0.930 0.960 rg 48.00 183.00 516.00 28.00 re f
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 198.00 Td (REPLACE_WITH_EAS_PROJECT_ID) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 175.00 Td (This means the current Android material is a preparation template, not a project that can be) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 161.00 Td (opened in Android Studio or uploaded to Google Play Console.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 142.00 Td (What is required before a Play upload) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 127.00 m 130.00 127.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 114.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 114.00 Td (A real native Android project, or a configured Expo/EAS or Capacitor project) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 99.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 99.00 Td (A unique application ID/package name and final app name) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 84.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 84.00 Td (Android launcher icons, adaptive icons, splash assets, and store graphics) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 69.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 69.00 Td (A release build targeting the current Google Play API requirement) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 7317 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 736.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 736.00 Td (A signed Android App Bundle \(.aab\), not only a web build or unsigned APK) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 721.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 721.00 Td (Play App Signing enrollment and an upload key) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 706.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 706.00 Td (A reproducible release build process) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 691.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 691.00 Td (Testing on supported Android versions, screen sizes, and network conditions) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 676.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 676.00 Td (A Google Play Console app entry and completed store listing) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 661.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 661.00 Td (Content rating questionnaire, target audience declaration, and app-access instructions) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 646.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 646.00 Td (Data Safety form and privacy-policy URL) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 631.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 631.00 Td (App screenshots, short description, full description, category, and contact details) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 616.00 Td (Important technical concern: the product is currently web-first) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 601.00 m 130.00 601.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 588.00 Td (The application currently relies on React/Vite, browser localStorage, browser service) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 574.00 Td (workers, browser Notification, browser PushManager, VAPID Web Push, and browser camera/file) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 560.00 Td (APIs.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 541.00 Td (A basic WebView wrapper would not automatically provide:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 522.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 522.00 Td (Firebase Cloud Messaging or reliable native Android push-token registration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 507.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 507.00 Td (Android notification channels and notification runtime permission handling) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 492.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 492.00 Td (Native background work and boot-time scheduling) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 477.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 477.00 Td (Native camera and photo-picker integrations) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 462.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 462.00 Td (Native biometric authentication) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 447.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 447.00 Td (Reliable Web Push behavior inside every WebView configuration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 432.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 432.00 Td (Native offline behavior and lifecycle handling) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 417.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 417.00 Td (Play-compliant native value beyond simply displaying the website) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 402.00 Td (The current frontend registers a browser service worker at /sw.js and uses PushManager with) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 388.00 Td (a VAPID key. That is a web-push design, not an Android FCM design. A native Android wrapper) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 374.00 Td (would need an intentional push architecture and backend token registration path.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 355.00 Td (Google Play may question or reject a thin website wrapper if the submitted app does not) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 341.00 Td (provide meaningful native-app functionality. The final approach should therefore be chosen) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 327.00 Td (deliberately: native Android/Expo features, a carefully configured hybrid shell, or a) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 313.00 Td (well-tested trusted-web-activity/PWA strategy where appropriate.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 294.00 Td (Android permissions and declarations needing verification) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 279.00 m 130.00 279.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 266.00 Td (The current Android section declares:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 247.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 247.00 Td (android.permission.CAMERA) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 232.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 232.00 Td (android.permission.READ_EXTERNAL_STORAGE) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 217.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 217.00 Td (android.permission.RECEIVE_BOOT_COMPLETED) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 202.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 202.00 Td (android.permission.VIBRATE) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 187.00 Td (These declarations are not backed by a compiled native project yet. Before submission:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 168.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 168.00 Td (Use the modern Android photo picker or scoped media permissions where possible;) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 155.00 Td (READ_EXTERNAL_STORAGE is obsolete or ineffective on newer Android versions.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 140.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 140.00 Td (Add POST_NOTIFICATIONS for Android 13+ if the native app posts notifications, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 127.00 Td (request it at an appropriate user-driven moment.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 112.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 112.00 Td (Keep CAMERA only if the native app actually invokes native camera functionality.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 97.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 97.00 Td (Keep RECEIVE_BOOT_COMPLETED only if real native scheduled work needs to resume after) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 84.00 Td (reboot.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 69.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 69.00 Td (Do not declare permissions merely for future features.) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 6542 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 736.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 736.00 Td (Verify all merged permissions in the final AAB and document them in Play Console if) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 723.00 Td (required.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 708.00 Td (Google Play target API and packaging) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 693.00 m 130.00 693.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 680.00 Td (Google's current target-SDK guidance says that, starting August 31, 2026, new apps and app) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 666.00 Td (updates must target Android 16 \(API level 36\) or higher, with limited platform-specific) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 652.00 Td (exceptions. For a release planned before that date, the applicable current Play requirement) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 638.00 Td (must be checked again at upload time.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 619.00 Td (Google Play uses the Android App Bundle format for distribution. The deliverable must) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 605.00 Td (therefore be a signed .aab produced from the native Android build, with Play App Signing) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 591.00 Td (configured. The current repository contains neither an Android build nor an AAB.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 572.00 Td (The final release should also be checked for 64-bit support, modern SDK compatibility,) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 558.00 Td (dependency security, network security, backup behavior, deep links, and correct handling of) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 544.00 Td (Android process death and rotation.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 525.00 Td (Data Safety and privacy status) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 510.00 m 130.00 510.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 497.00 Td (The privacy foundation is promising but the Play Console declarations have not been) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 483.00 Td (completed or verified against a native dependency tree.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 464.00 Td (Likely data categories requiring review include:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 445.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 445.00 Td (Name and email address, linked to the user's account) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 430.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 430.00 Td (Financial information, including transactions, budgets, goals, and recurring payments) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 415.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 415.00 Td (Photos or videos for receipts and bank/screenshot imports) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 400.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 400.00 Td (Device or push-token identifiers when notifications are enabled) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 385.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 385.00 Td (Crash and performance diagnostics when the user opts in) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 370.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 370.00 Td (Authentication/session data and account-deletion requests) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 355.00 Td (Before submission, the owner must confirm:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 336.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 336.00 Td (Whether each data type is collected, shared, optional, encrypted in transit, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 323.00 Td (linked to the user) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 308.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 308.00 Td (The purpose for each category and the retention period) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 293.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 293.00 Td (All third-party processors, including Vercel, Render, Neon, Supabase, Sentry, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 280.00 Td (Google services) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 265.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 265.00 Td (Whether crash data can include screen replay or financial information visible on) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 252.00 Td (screen) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 237.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 237.00 Td (Whether the privacy policy accurately describes Android-specific behavior) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 222.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 222.00 Td (That the Data Safety form matches the final native SDKs and their automatic collection) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 209.00 Td (behavior) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 194.00 Td (Account deletion and user access) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 179.00 m 130.00 179.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 166.00 Td (The app already has an account-deletion request flow and a data-export endpoint, which is a) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 152.00 Td (strong starting point.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 133.00 Td (For Google Play, verify the complete submitted-app flow:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 114.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 114.00 Td (A user can initiate deletion from inside the app.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 99.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 99.00 Td (The deletion request actually removes the account and associated data according to the) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 86.00 Td (stated policy.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 71.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 71.00 Td (The Play Console account-deletion declaration is completed.) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 6988 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 736.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 736.00 Td (If a web URL is required for deletion requests, it is publicly reachable, clearly) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 723.00 Td (branded, and does not require unnecessary sign-in.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 708.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 708.00 Td (The export action returns the user's data in a usable format.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 693.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 693.00 Td (Receipt images and third-party storage records are included in deletion handling.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 678.00 Td (Monetization and policy checks) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 663.00 m 130.00 663.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 650.00 Td (No Google Play Billing implementation was found in the audited source. If Budger later sells) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 636.00 Td (digital subscriptions, premium features, or other in-app digital goods, Google Play Billing) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 622.00 Td (and the relevant payments policy must be evaluated before release.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 603.00 Td (If the app remains free with no ads and no digital purchases, the store listing and Data) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 589.00 Td (Safety answers should say so accurately. Do not add billing, advertising, or analytics) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 575.00 Td (declarations unless those SDKs and flows are actually present.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 556.00 Td (Testing and release checklist) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 541.00 m 130.00 541.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 528.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 528.00 Td (Build and install a release-signed AAB on physical Android devices.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 513.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 513.00 Td (Test login, session persistence, CSRF-protected mutations, export, and account) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 500.00 Td (deletion.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 485.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 485.00 Td (Test receipt camera capture, image-picker import, compression, upload, and deletion.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 470.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 470.00 Td (Test notification permission, notification delivery, deep links, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 457.00 Td (disabled-notification behavior.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 442.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 442.00 Td (Test offline/online transitions, service-worker behavior, and native lifecycle events.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 427.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 427.00 Td (Test Android 13+ notification permission and modern photo-picker behavior.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 412.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 412.00 Td (Test dark mode, small screens, tablets if supported, keyboard behavior, and rotation) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 399.00 Td (policy.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 384.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 384.00 Td (Run a release build dependency/security audit.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 369.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 369.00 Td (Use Play internal testing before production rollout.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 354.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 354.00 Td (Prepare a reviewer account and clear app-access instructions.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 339.00 Td (Overall assessment) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 324.00 m 130.00 324.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 311.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 311.00 Td (Web/PWA production readiness: Good) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 296.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 296.00 Td (Privacy-feature readiness: Mostly good) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 281.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 281.00 Td (Android native-wrapper readiness: Early scaffold only) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 266.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 266.00 Td (Google Play upload readiness: Not ready) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 251.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 251.00 Td (Native push readiness: Not ready; current implementation is Web Push) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 236.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 236.00 Td (Android release artifact: Missing; no signed AAB) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 221.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 221.00 Td (Estimated remaining work: A proper native or hybrid Android implementation, not merely) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 208.00 Td (packaging) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 193.00 Td (Once the native approach is selected - Expo/React Native, Capacitor, or another intentional) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 179.00 Td (Android strategy - the project can be prepared with native permissions, push registration,) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 165.00 Td (Android assets, a reproducible signed AAB build, Play Console metadata, and release testing.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 146.00 Td (Official Google reference basis) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 131.00 m 130.00 131.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 118.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 118.00 Td (Target API requirements:) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 105.00 Td (https://developer.android.com/google/play/requirements/target-sdk) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 90.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 90.00 Td (Data Safety section:) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 77.00 Td (https://support.google.com/googleplay/android-developer/answer/10787469) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 1322 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 736.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 736.00 Td (Account deletion requirements:) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 723.00 Td (https://support.google.com/googleplay/android-developer/answer/13327111) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 708.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 708.00 Td (Android App Bundle format:) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 695.00 Td (https://developer.android.com/guide/app-bundle/app-bundle-format) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 680.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 680.00 Td (Upload a bundle to Play: https://developer.android.com/studio/publish/upload-bundle) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 665.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 665.00 Td (Google Play policies: https://developer.android.com/distribute/play-policies) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+xref
+0 16
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000148 00000 n 
+0000000218 00000 n 
+0000000293 00000 n 
+0000000361 00000 n 
+0000006448 00000 n 
+0000006594 00000 n 
+0000013963 00000 n 
+0000014109 00000 n 
+0000020704 00000 n 
+0000020852 00000 n 
+0000027893 00000 n 
+0000028041 00000 n 
+0000029416 00000 n 
+trailer
+<< /Size 16 /Root 1 0 R >>
+startxref
+29564
+%%EOF
