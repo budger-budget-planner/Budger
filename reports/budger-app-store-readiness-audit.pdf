@@ -1,0 +1,294 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 5942 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.040 0.100 0.180 rg BT /F2 25.00 Tf 48.00 736.00 Td (App Store wrapper readiness) Tj ET
+0.380 0.430 0.500 rg BT /F1 11.00 Tf 48.00 708.00 Td (Budger  |  Read-only technical audit) Tj ET
+1.000 0.970 0.920 rg 48.00 631.00 516.00 56.00 re f
+0.960 0.730 0.450 RG 0.7 w 48.00 631.00 516.00 56.00 re S
+0.950 0.420 0.120 rg 48.00 631.00 5.00 56.00 re f
+0.660 0.280 0.060 rg BT /F2 8.50 Tf 64.00 669.00 Td (CURRENT STATUS: NOT APP STORE-READY YET) Tj ET
+0.250 0.220 0.170 rg BT /F1 9.20 Tf 64.00 654.00 Td (The repository has a useful compliance scaffold, but it is not currently a) Tj ET
+0.250 0.220 0.170 rg BT /F1 9.20 Tf 64.00 641.00 Td (buildable iOS application.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 621.00 Td (What is already in good shape) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 606.00 m 130.00 606.00 l S
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 593.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 593.00 Td (Production frontend is reachable at https://budger.app) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 578.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 578.00 Td (Production backend health endpoint responds successfully) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 563.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 563.00 Td (Production frontend build passes) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 548.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 548.00 Td (Privacy policy includes crash-report consent, data export, account deletion, and) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 535.00 Td (receipt/photo handling) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 520.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 520.00 Td (In-app data export endpoint exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 505.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 505.00 Td (Account deletion flow exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 490.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 490.00 Td (Crash reporting is opt-in by default) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 475.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 475.00 Td (Camera and photo-library browser functionality exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 460.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 460.00 Td (Backend has APNs-related code) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 445.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 445.00 Td (An initial PrivacyInfo.xcprivacy file exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 430.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 430.00 Td (An initial Expo-style iOS configuration exists) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 415.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 415.00 Td (The web app has notification permission and push subscription logic) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 400.00 Td (What is missing before a native build can be produced) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 385.00 m 130.00 385.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 372.00 Td (The export/ios directory currently contains only:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 353.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 353.00 Td (app.config.ts) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 338.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 338.00 Td (PrivacyInfo.xcprivacy) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 323.00 Td (It does not contain:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 304.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 304.00 Td (An Xcode project) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 289.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 289.00 Td (An Expo project with package.json) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 274.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 274.00 Td (Native iOS source files) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 259.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 259.00 Td (CocoaPods configuration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 244.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 244.00 Td (EAS configuration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 229.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 229.00 Td (App icon assets) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 214.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 214.00 Td (Splash-screen assets) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 199.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 199.00 Td (A valid EAS project ID) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 184.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 184.00 Td (Signing or provisioning configuration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 169.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 169.00 Td (A buildable .ipa) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 154.00 Td (The configuration references these missing files:) Tj ET
+0.910 0.930 0.960 rg 48.00 88.00 516.00 52.00 re f
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 127.00 Td (export/ios/assets/icon.png) Tj ET
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 115.00 Td (export/ios/assets/splash.png) Tj ET
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 103.00 Td (export/ios/assets/adaptive-icon.png) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 80.00 Td (It also contains the placeholder:) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 6172 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.910 0.930 0.960 rg 48.00 713.00 516.00 28.00 re f
+0.100 0.180 0.250 rg BT /F3 8.40 Tf 60.00 728.00 Td (REPLACE_WITH_EAS_PROJECT_ID) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 705.00 Td (The current iOS folder is therefore a preparation template, not something that can be opened) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 691.00 Td (in Xcode or uploaded to App Store Connect.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 672.00 Td (Important technical concern: this is currently a web app, not a native app) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 657.00 m 130.00 657.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 644.00 Td (The application uses:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 625.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 625.00 Td (React/Vite) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 610.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 610.00 Td (Browser localStorage) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 595.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 595.00 Td (Browser service workers) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 580.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 580.00 Td (Browser Notification) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 565.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 565.00 Td (Browser PushManager) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 550.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 550.00 Td (VAPID web push) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 535.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 535.00 Td (Browser camera/file APIs) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 520.00 Td (A simple WKWebView wrapper would not automatically provide:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 501.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 501.00 Td (Native APNs push notifications) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 486.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 486.00 Td (Native background tasks) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 471.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 471.00 Td (Native camera/photo integrations) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 456.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 456.00 Td (Native biometric authentication) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 441.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 441.00 Td (Reliable iOS push-token registration) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 426.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 426.00 Td (Native offline behavior) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 411.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 411.00 Td (Native Live Activities) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 396.00 Td (The existing backend APNs code is not enough by itself. A native iOS client would need to) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 382.00 Td (register an APNs token and send that token to the backend through a native bridge or native) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 368.00 Td (app code.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 349.00 Td (Apple could also reject a basic website wrapper under the minimum-functionality guideline if) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 335.00 Td (it does not provide meaningful native-app value.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 316.00 Td (Configuration items that need correction or verification) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 301.00 m 130.00 301.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 288.00 Td (The current scaffold includes declarations that are not yet backed by native implementation:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 269.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 269.00 Td (aps-environment) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 254.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 254.00 Td (Background fetch) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 239.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 239.00 Td (Remote notifications) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 224.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 224.00 Td (Face ID usage description) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 209.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 209.00 Td (Native camera/photo permission declarations) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 194.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 194.00 Td (Live Activity comments) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 179.00 Td (These should only remain if the final native app actually implements those capabilities. In) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 165.00 Td (particular:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 146.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 146.00 Td (Face ID is described as a future feature but is not implemented.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 131.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 131.00 Td (Background fetch is declared, but the current application uses browser/service-worker) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 118.00 Td (behavior rather than a native background task.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 103.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 103.00 Td (APNs is declared, but native token registration is not present.) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 88.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 88.00 Td (The notification system currently uses web push rather than native APNs.) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 6068 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 736.00 Td (Leaving unsupported declarations in the final binary could create App Review questions or) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 722.00 Td (privacy inconsistencies.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 703.00 Td (Privacy and App Store compliance status) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 688.00 m 130.00 688.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 675.00 Td (The privacy foundation is promising but still needs final verification.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 656.00 Td (Already present:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 637.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 637.00 Td (Privacy policy) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 622.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 622.00 Td (Data export) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 607.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 607.00 Td (Account deletion request flow) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 592.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 592.00 Td (Crash-report consent) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 577.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 577.00 Td (Privacy manifest draft) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 562.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 562.00 Td (Camera/photo explanations) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 547.00 Td (Still required:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 528.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 528.00 Td (App Store Connect privacy questionnaire) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 513.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 513.00 Td (Accurate declaration of email address, name, financial information, photos, device) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 500.00 Td (identifiers, and crash/performance data) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 485.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 485.00 Td (Confirmation of whether Sentry data is linked to identity) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 470.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 470.00 Td (Confirmation of whether receipt images are retained and for how long) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 455.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 455.00 Td (Confirmation of all third-party processors) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 440.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 440.00 Td (Final privacy manifest generated from the actual native dependencies) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 425.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 425.00 Td (App Review test account and review notes) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 410.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 410.00 Td (Verification that account deletion works from the submitted iOS build) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 395.00 Td (The privacy manifest should also be reviewed against the actual native dependency tree. It) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 381.00 Td (is currently written for an anticipated Expo/native app, not an existing compiled app.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 362.00 Td (Typecheck status) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 347.00 m 130.00 347.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 334.00 Td (The production frontend build passes.) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 315.00 Td (The full frontend typecheck currently reports unrelated existing errors in:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 296.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 296.00 Td (HouseholdDonutChart.tsx) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 281.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 281.00 Td (Household.tsx) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 266.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 266.00 Td (usePullToRefresh.ts) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 251.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 251.00 Td (Duplicate translation keys in i18n.ts) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 236.00 Td (Those should be fixed before treating the repository as release-clean, although they do not) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 222.00 Td (prevent the current Vite production build.) Tj ET
+0.040 0.100 0.180 rg BT /F2 15.00 Tf 48.00 203.00 Td (Overall assessment) Tj ET
+0.950 0.420 0.120 RG 2.40 w 48.00 188.00 m 130.00 188.00 l S
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 175.00 Td (I would classify the project as:) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 156.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 156.00 Td (Web/PWA production readiness: Good) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 141.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 141.00 Td (Privacy-feature readiness: Mostly good) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 126.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 126.00 Td (Native iOS wrapper readiness: Early scaffold only) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 111.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 111.00 Td (App Store upload readiness: Not ready) Tj ET
+0.950 0.420 0.120 rg BT /F2 10.00 Tf 48.00 96.00 Td (-) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.20 Tf 59.00 96.00 Td (Estimated remaining work: A proper native-wrapper implementation, not merely packaging) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 758 >>
+stream
+0.970 0.980 0.990 rg 0.00 0.00 612.00 792.00 re f
+0.040 0.100 0.180 rg 0.00 780.00 612.00 12.00 re f
+0.300 0.380 0.480 rg BT /F2 8.00 Tf 48.00 758.00 Td (BUDGER  /  APP STORE READINESS AUDIT) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 736.00 Td (Once the native approach is selected - Expo/React Native or Capacitor - the wrapper can be) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 722.00 Td (prepared with native push/camera/permissions, an Xcode project, assets, signing) Tj ET
+0.190 0.230 0.290 rg BT /F1 9.50 Tf 48.00 708.00 Td (configuration, and an App Store submission workflow.) Tj ET
+0.820 0.850 0.890 RG 0.60 w 48.00 35.00 m 564.00 35.00 l S
+0.380 0.430 0.500 rg BT /F1 7.50 Tf 48.00 21.00 Td (Budger App Store readiness audit  |  4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000141 00000 n 
+0000000211 00000 n 
+0000000286 00000 n 
+0000000354 00000 n 
+0000006348 00000 n 
+0000006494 00000 n 
+0000012718 00000 n 
+0000012864 00000 n 
+0000018985 00000 n 
+0000019133 00000 n 
+0000019943 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+20091
+%%EOF

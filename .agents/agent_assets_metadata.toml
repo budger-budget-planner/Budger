@@ -48,3 +48,9 @@ id = "ykohekabM3TOT4ntuKvwz"
 uri = "file://output/Household_Donut_Chart_Plan.pdf"
 type = "pdf"
 title = "Household Donut Chart — Implementation Plan"
+
+[[outputs]]
+id = "fx5HnTaJSqMksF8hMVA_l"
+uri = "file://reports/budger-app-store-readiness-audit.pdf"
+type = "pdf"
+title = "Budger App Store Readiness Audit"
