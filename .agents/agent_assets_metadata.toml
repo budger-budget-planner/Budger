@@ -78,3 +78,9 @@ id = "XcFfzTfMG3SGinsWsaBpm"
 uri = "file://attached_assets/budger-google-play-readiness-audit.docx"
 type = "word_document"
 title = "Budger Google Play Readiness Audit (DOCX)"
+
+[[outputs]]
+id = "j1_QSxkm94rsGaUGmjExN"
+uri = "file://output/Budger_Donut_Privacy_Bug_Analysis.pdf"
+type = "pdf"
+title = "Household Donut Privacy Bug Analysis"
