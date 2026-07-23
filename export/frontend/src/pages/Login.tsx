@@ -178,9 +178,12 @@ export default function LoginPage() {
         queryClient.invalidateQueries();
         setLocation("/");
         // Sentry initializes before React mounts and reads the active user's
-        // crash consent. Reload after every account transition so the previous
-        // account's replay configuration cannot remain active in this session.
-        if (accountChanged) {
+        // crash consent. Reload after a real account switch (previous user →
+        // new user) so the old replay configuration cannot remain active.
+        // Do NOT reload on a fresh login (previousUserId === null) — that
+        // would reset splashDone and play the full sniff+lick splash instead
+        // of the wink splash the login handler already triggered.
+        if (accountChanged && previousUserId !== null) {
           window.setTimeout(() => window.location.reload(), 100);
         }
       },
