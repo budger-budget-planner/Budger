@@ -496,7 +496,17 @@ export default function HouseholdDonutChart({
     isError: memberSpendIsError,
     error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
-    query: { enabled: drillPhase !== "idle" && !isVirtualDrill && realMemberId > 0 },
+    query: {
+      // Only fetch once the animation has fully settled and the personal-spend
+      // panel is actually visible. Firing during earlier phases (fade-others →
+      // to-arc → …) caused spurious requests every time the user tapped into a
+      // new member mid-animation, and React Query's default retry:3 turned each
+      // network hiccup into a storm of 3 concurrent retries.
+      enabled: drillPhase === "personal" && !isVirtualDrill && realMemberId > 0,
+      staleTime: 30_000,        // 30 s — re-drill within a session reuses cached data
+      retry: 1,                 // one retry is enough; default 3 storms the server
+      refetchOnWindowFocus: false, // prevents focus-triggered fetches on iOS app-switch
+    },
   });
 
   const { data: virtualSpendRaw, isLoading: virtualSpendLoading } = useQuery<any[]>({
@@ -506,7 +516,10 @@ export default function HouseholdDonutChart({
       if (!r.ok) return [];
       return r.json();
     },
-    enabled: drillPhase !== "idle" && isVirtualDrill,
+    enabled: drillPhase === "personal" && isVirtualDrill,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const personalLoading = isVirtualDrill ? virtualSpendLoading : memberSpendLoading;

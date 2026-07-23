@@ -203,9 +203,25 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later" },
 });
+// 4. memberSpendingLimiter — tight guard on the per-member spending endpoint.
+//    Rapid member-to-member drilling (or React Query retry storms after a 500)
+//    can fire many concurrent requests; 30/min per user is ~5× what normal use
+//    needs but blocks runaway retry loops before they cascade into Neon overload.
+const memberSpendingLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req.session as any)?.userId;
+    return userId ? `user:${userId}` : ipKeyGenerator(req);
+  },
+  message: { error: "Too many requests, please slow down" },
+});
 app.use("/api", globalApiLimiter);
 app.use("/api/auth", authLimiter);
 app.use("/api/transactions/extract-screenshot", aiLimiter);
+app.use("/api/households/members", memberSpendingLimiter);
 
 // ── CSRF protection ───────────────────────────────────────────────────────────
 // Synchronizer-token pattern: GET /api/csrf-token issues a per-session random
