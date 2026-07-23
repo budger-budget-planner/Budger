@@ -161,6 +161,7 @@ function buildChart(
   const isUncategorizedItem = (s: SpendingItem) => {
     const catKey = s._catKey ?? `cat-${s.categoryId ?? "null"}`;
     return catKey === "cat-uncat"
+      || catKey === "cat-null"   // null categoryId always means uncategorized, regardless of display name
       || (!s._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
   };
   const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null && s.budget > 0);
@@ -232,14 +233,11 @@ function buildChart(
       const UNCAT_VISIBLE_DEG = 3.6;
       const drawDegWithUncat = 360 - CAT_GAP * (groups.length + 1);
       const uncatFraction = UNCAT_VISIBLE_DEG / Math.max(drawDegWithUncat, 1);
-      // Steal the fixed 1% visible arc from the last budgeted group.
-      if (groups.length > 0) {
-        const last = groups[groups.length - 1];
-        const lastTotal = last.parts.reduce((a, p) => a + p.fraction, 0);
-        const scale = lastTotal > 0
-          ? Math.max(0, (lastTotal - uncatFraction) / lastTotal)
-          : 0;
-        for (const p of last.parts) p.fraction *= scale;
+      // Scale ALL budgeted groups proportionally to make room for the uncat slice.
+      // Stealing only from the last group could leave it as a hairline-thin arc;
+      // if that group was over-budget, its red border remained visible as a line.
+      for (const g of groups) {
+        for (const p of g.parts) p.fraction *= (1 - uncatFraction);
       }
       groups.push({
         catKey: "cat-uncat", color: UNCAT_SPENT_COLOR, isUncategorized: true,
