@@ -207,7 +207,7 @@ function buildChart(
   // total stays at 1.0 and the donut closes perfectly with no overlap.
   if (uncatBudget > 0 || uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0) {
-      const UNCAT_FRAC = 0.02;
+      const UNCAT_FRAC = 0.01;
       // Steal UNCAT_FRAC from the last budgeted group.
       if (groups.length > 0) {
         const last = groups[groups.length - 1];
