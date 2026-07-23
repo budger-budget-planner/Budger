@@ -54,3 +54,9 @@ id = "fx5HnTaJSqMksF8hMVA_l"
 uri = "file://reports/budger-app-store-readiness-audit.pdf"
 type = "pdf"
 title = "Download: Budger App Store Readiness Audit PDF"
+
+[[outputs]]
+id = "J7vHrJqMHbt8O9FpO83-k"
+uri = "file://attached_assets/budger-app-store-readiness-audit.pdf"
+type = "pdf"
+title = "Budger App Store Readiness Audit (PDF)"
