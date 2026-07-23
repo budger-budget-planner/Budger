@@ -142,6 +142,7 @@ type GroupBorder = {
 type LegendItem = {
   catKey: string; color: string; name: string;
   spent: number; budget: number; isOverBudget: boolean;
+  isUncategorized: boolean;
   isRecurringApplied: boolean;
   isLarderDesignated: boolean;
 };
@@ -166,6 +167,7 @@ function buildChart(
 
   type Group = {
     catKey: string; color: string; name: string; spent: number; budget: number;
+    isUncategorized: boolean;
     isRecurringApplied: boolean;
     isLarderDesignated: boolean;
     parts: Array<{ id: string; fraction: number; fill: string; isOverBudget: boolean }>;
@@ -181,11 +183,14 @@ function buildChart(
     const over   = spent > budget;
     const name   = (!s.categoryName || s.categoryName === "Uncategorized")
       ? t("common.uncategorized") : s.categoryName;
+    const isUncategorized = catKey === "cat-uncat"
+      || !s.categoryName
+      || s.categoryName === "Uncategorized";
 
     const isRecurringApplied = s.isRecurringApplied ?? false;
     const isLarderDesignated = s.isLarderDesignated ?? false;
     if (over) {
-      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, isLarderDesignated,
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated,
         parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
@@ -193,7 +198,7 @@ function buildChart(
       const parts = [];
       if (spentFrac  > 0.001) parts.push({ id: `${catKey}-spent`,  fraction: spentFrac,  fill: color,                    isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52),   isOverBudget: false });
-      groups.push({ catKey, color, name, spent, budget, isRecurringApplied, isLarderDesignated, parts });
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, parts });
     }
   }
 
@@ -202,24 +207,28 @@ function buildChart(
   // Special case: when uncatBudget === 0 (sumBudgets >= totalBudget) but
   // uncatSpent > 0, the ring is already claimed 100% by budgeted categories.
   // Adding a full fraction-based arc would overflow 360°.  Instead we carve
-  // a fixed 2% slice out of the last budgeted group (by scaling its parts
-  // fractions down), then push uncat with that exact 2% fraction so the
-  // total stays at 1.0 and the donut closes perfectly with no overlap.
+  // a fixed 1% visible slice out of the last budgeted group (by scaling its
+  // parts down), then push uncat with that exact visible arc. The ring has
+  // fixed gaps between groups, so use 3.6°: exactly 1% of the full donut.
   if (uncatBudget > 0 || uncatSpent > 0) {
-    if (uncatBudget === 0 && uncatSpent > 0) {
-      const UNCAT_FRAC = 0.01;
-      // Steal UNCAT_FRAC from the last budgeted group.
+    if (uncatBudget === 0 && uncatSpent > 0 && groups.length > 0) {
+      const UNCAT_VISIBLE_DEG = 3.6;
+      const drawDegWithUncat = 360 - CAT_GAP * (groups.length + 1);
+      const uncatFraction = UNCAT_VISIBLE_DEG / Math.max(drawDegWithUncat, 1);
+      // Steal the fixed 1% visible arc from the last budgeted group.
       if (groups.length > 0) {
         const last = groups[groups.length - 1];
         const lastTotal = last.parts.reduce((a, p) => a + p.fraction, 0);
-        const scale = Math.max(0, (lastTotal - UNCAT_FRAC) / lastTotal);
+        const scale = lastTotal > 0
+          ? Math.max(0, (lastTotal - uncatFraction) / lastTotal)
+          : 0;
         for (const p of last.parts) p.fraction *= scale;
       }
       groups.push({
-        catKey: "cat-uncat", color: UNCAT_SPENT_COLOR,
+        catKey: "cat-uncat", color: UNCAT_SPENT_COLOR, isUncategorized: true,
         name: t("common.uncategorized"), spent: uncatSpent, budget: 0,
         isRecurringApplied: false, isLarderDesignated: false,
-        parts: [{ id: "uncat-slice", fraction: UNCAT_FRAC,
+        parts: [{ id: "uncat-slice", fraction: uncatFraction,
           fill: UNCAT_SPENT_COLOR, isOverBudget: false }],
       });
     } else {
@@ -237,6 +246,7 @@ function buildChart(
       }
       if (parts.length > 0) {
         groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
+          isUncategorized: true,
           spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, isLarderDesignated: false, parts });
       }
     }
@@ -286,6 +296,7 @@ function buildChart(
     .filter(g => g.spent > 0 || g.budget > 0)
     .map(g => ({ catKey: g.catKey, color: g.color, name: g.name, spent: g.spent,
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
+      isUncategorized: g.isUncategorized,
       isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
 
   return { segs, groupBorders, legend, sumBudgets };
@@ -862,7 +873,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                       {selectedLegend.isRecurringApplied ? t("donut.rp_paid") : t("donut.rp_not_paid")}
                     </text>
                   </>
-                ) : selectedLegend.budget > 0 && (
+                ) : !selectedLegend.isUncategorized && selectedLegend.budget > 0 && (
                   <text x={CX} y={CY + 18}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
@@ -942,7 +953,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
         {/* Fixed inner width prevents items from squishing during the animation */}
         <div style={{ width: 160 }} className="space-y-2.5">
           {legend.map(item => {
-            const pct    = (item.budget > 0 && !(item.catKey === "cat-uncat" && Math.abs(totalBudget - sumBudgets) <= 1.00))
+            const pct    = (!item.isUncategorized && item.budget > 0)
               ? Math.round((item.spent / item.budget) * 100) : null;
             const isSel  = selectedCat === item.catKey;
             const dimmed = selectedCat !== null && !isSel;
