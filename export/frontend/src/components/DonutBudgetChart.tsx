@@ -154,13 +154,28 @@ function buildChart(
 ): { segs: Seg[]; groupBorders: GroupBorder[]; legend: LegendItem[]; sumBudgets: number } {
   const CAT_GAP = 2.5;
 
-  const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
-  const unbudgeted = spending.filter(s => s.budget == null || s.budget <= 0);
+  // The API can return a real category row named "Uncategorized" with a
+  // positive budget. It is still uncategorized spending and must not become
+  // a tiny budgeted/over-budget slice; merge it into the shared uncategorized
+  // bucket so the final-category 1% reserve rule applies consistently.
+  const isUncategorizedItem = (s: SpendingItem) => {
+    const catKey = s._catKey ?? `cat-${s.categoryId ?? "null"}`;
+    return catKey === "cat-uncat"
+      || (!s._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
+  };
+  const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null && s.budget > 0);
+  const unbudgeted = spending.filter(s => isUncategorizedItem(s) || s.budget == null || s.budget <= 0);
 
   const sumBudgets  = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
+  const hasUncategorizedBudget = unbudgeted.some(s => (s.budget ?? 0) > 0);
   // Round to cents so floating-point noise (e.g. 11052 - 11051.9997 = 0.0003)
   // doesn't produce a near-zero budget that makes the % blow up to 196000 %.
-  const uncatBudget = Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
+  // A budget attached to an "Uncategorized" row is not a real category
+  // allocation; ignore it so uncategorized spending uses the fixed reserve
+  // rule instead of becoming a tiny proportional over-budget arc.
+  const uncatBudget = hasUncategorizedBudget
+    ? 0
+    : Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
   const uncatSpent  = unbudgeted.reduce((a, s) => a + s.total, 0);
   const uncatRemain = Math.max(0, uncatBudget - uncatSpent);
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
