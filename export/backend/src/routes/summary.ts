@@ -69,6 +69,10 @@ async function getSpendingGrouped(userId: number, userCurrency?: string, include
     count: entry.count,
     percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
     recurringPaymentId: entry.rp?.id ?? null,
+    // Authoritative flag: true only for the synthetic null-category bucket. Name
+    // matching is unreliable (localised names, user-created categories named
+    // "Uncategorized", etc.). The frontend should use this field, not the name.
+    isUncategorized: key === "uncategorized",
   })).sort((a, b) => b.total - a.total);
 }
 

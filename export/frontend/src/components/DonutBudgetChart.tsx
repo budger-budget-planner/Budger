@@ -83,6 +83,9 @@ export type SpendingItem = {
   isRecurringApplied?: boolean;
   /** True when this recurring payment is designated to also add to the user's Larder */
   isLarderDesignated?: boolean;
+  /** Authoritative flag set by the backend: true only for the synthetic null-category
+   *  bucket. More reliable than name/ID matching which breaks for localised names. */
+  isUncategorized?: boolean;
 };
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
@@ -159,9 +162,11 @@ function buildChart(
   // a tiny budgeted/over-budget slice; merge it into the shared uncategorized
   // bucket so the final-category 1% reserve rule applies consistently.
   const isUncategorizedItem = (s: SpendingItem) => {
+    // Prefer the authoritative backend flag (isUncategorized: true = synthetic null-category bucket).
+    if (s.isUncategorized === true) return true;
     const catKey = s._catKey ?? `cat-${s.categoryId ?? "null"}`;
     return catKey === "cat-uncat"
-      || catKey === "cat-null"   // null categoryId always means uncategorized, regardless of display name
+      || catKey === "cat-null"   // null categoryId → always uncategorized
       || (!s._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
   };
   const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null && s.budget > 0);
@@ -623,7 +628,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             // Helper: border for a single part (used only while the group is
             // detached — each part gets its own border, tracking its own
             // translate offset, in the same lighter-tone-of-category-color style).
-            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean) {
+            function partBorderPath(seg: Seg, groupColor: string, _groupIsOverBudget: boolean) {
               const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
               const tx = EXPAND * Math.cos(midRad);
               const ty = EXPAND * Math.sin(midRad);
@@ -632,8 +637,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   key={`border-${seg.id}`}
                   d={seg.d}
                   fill="none"
-                  stroke={groupIsOverBudget ? "#ef4444" : groupColor + "90"}
-                  strokeWidth={groupIsOverBudget ? 1.5 : 1}
+                  stroke={groupColor + "90"}
+                  strokeWidth={1}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -651,8 +656,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   key={`border-${gb.catKey}`}
                   d={gb.d}
                   fill="none"
-                  stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
-                  strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                  stroke={gb.groupColor + "90"}
+                  strokeWidth={1}
                   style={{
                     transform:     "translate(0px, 0px)",
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
