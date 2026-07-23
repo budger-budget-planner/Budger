@@ -184,6 +184,8 @@ export function ScreenshotImportDialog({
     // async network round-trip, so priming later would run outside any user
     // gesture and mobile browsers would silently refuse to resume playback.
     primeSniffAudio();
+    // Persist the agent name if the user didn't blur the input before choosing a file
+    handleNameSave();
     // Capture session at scan start; incremented by reset() so stale callbacks
     // from a previous session are silently discarded.
     sessionTokenRef.current += 1;
@@ -373,7 +375,7 @@ export function ScreenshotImportDialog({
                 className="text-base font-semibold tracking-wide text-foreground"
                 style={{ animation: "sid-text-in 0.35s ease-out forwards" }}
               >
-                {budgerName ? `${budgerName} is sniffing…` : t("tx.sniffing_label")}
+                {(nameInput || budgerName) ? `${nameInput || budgerName} is sniffing…` : t("tx.sniffing_label")}
               </p>
 
               {/* Bouncing dots loading indicator */}
