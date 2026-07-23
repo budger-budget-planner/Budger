@@ -179,9 +179,17 @@ function buildChart(
   // A budget attached to an "Uncategorized" row is not a real category
   // allocation; ignore it so uncategorized spending uses the fixed reserve
   // rule instead of becoming a tiny proportional over-budget arc.
-  const uncatBudget = hasUncategorizedBudget
+  const _rawUncatBudget = hasUncategorizedBudget
     ? 0
     : Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
+  // Collapse negligible remainders (< 0.5 % of total budget) to zero so they
+  // use the fixed 1 % reserve path instead of drawing a hairline "over-budget"
+  // sliver — e.g. when sumBudgets = 11051.87 and totalBudget = 11052, the
+  // 0.13 remainder is too small to produce a visible arc but big enough to
+  // bypass the cent-rounding guard above and trigger the over-budget branch.
+  const uncatBudget = (_rawUncatBudget > 0 && _rawUncatBudget / Math.max(totalBudget, 1) < 0.005)
+    ? 0
+    : _rawUncatBudget;
   const uncatSpent  = unbudgeted.reduce((a, s) => a + s.total, 0);
   const uncatRemain = Math.max(0, uncatBudget - uncatSpent);
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
