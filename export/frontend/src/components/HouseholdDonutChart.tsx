@@ -806,6 +806,13 @@ export default function HouseholdDonutChart({
   function startDrillBack() {
     if (drillPhase !== "personal") return;
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
+    // Clear privacy/error state immediately so stale padlock doesn't bleed
+    // into the back-animation frames or the next member's drill-in.
+    // (startDrillDown also resets these, but resetting here too ensures the
+    // UI is clean the moment the user taps back — before any new drill starts.)
+    setIsPrivate(false);
+    setMemberFetchError(false);
+    setLockPhase(null);
     setSelectedId(null);
     setMemberTransColored(false);
     setMemberTransSegs([]);
