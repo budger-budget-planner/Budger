@@ -47,6 +47,8 @@ export interface User {
   /** @nullable */
   pendingHouseholdAlert: string | null;
   createdAt: string;
+  /** @nullable */
+  budgerName?: string | null;
 }
 
 export interface UserUpdate {
@@ -60,6 +62,8 @@ export interface UserUpdate {
   firstLoginDone?: boolean;
   /** @nullable */
   pendingHouseholdAlert?: string | null;
+  /** @nullable */
+  budgerName?: string | null;
 }
 
 export interface LoginInput {

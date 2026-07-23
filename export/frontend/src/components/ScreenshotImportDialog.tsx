@@ -373,7 +373,7 @@ export function ScreenshotImportDialog({
                 className="text-base font-semibold tracking-wide text-foreground"
                 style={{ animation: "sid-text-in 0.35s ease-out forwards" }}
               >
-                {budgerName ? `${budgerName} is sniffing…` : t("tx.sniffing_label")}
+                {budgerName ? t("tx.sniffing_named").replace("{name}", budgerName) : t("tx.sniffing_label")}
               </p>
 
               {/* Bouncing dots loading indicator */}
