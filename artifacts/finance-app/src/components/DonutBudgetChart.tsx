@@ -197,19 +197,31 @@ function buildChart(
     }
   }
 
-  // Show uncategorised segment whenever there is spending, even when all
-  // budget is allocated (budget = 0 → no percentage shown in the legend).
+  // Show uncategorised segment whenever there is spending.
   //
-  // Special case: when uncatBudget === 0 (all budget assigned to categories)
-  // but uncatSpent > 0, DO NOT add a donut segment — the budgeted categories
-  // already fill 100 % of effectiveTotal, so adding uncatSpent/effectiveTotal
-  // as an extra fraction pushes the arc beyond 360° and causes overlap.
-  // Instead show a hairline marker at 12 o'clock and a legend entry.
-  let showUncatHairline = false;
+  // Special case: when uncatBudget === 0 (sumBudgets >= totalBudget) but
+  // uncatSpent > 0, the ring is already claimed 100% by budgeted categories.
+  // Adding a full fraction-based arc would overflow 360°.  Instead we carve
+  // a fixed 2% slice out of the last budgeted group (by scaling its parts
+  // fractions down), then push uncat with that exact 2% fraction so the
+  // total stays at 1.0 and the donut closes perfectly with no overlap.
   if (uncatBudget > 0 || uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0) {
-      // Zero budget, non-zero spending → hairline only, no arc segment.
-      showUncatHairline = true;
+      const UNCAT_FRAC = 0.02;
+      // Steal UNCAT_FRAC from the last budgeted group.
+      if (groups.length > 0) {
+        const last = groups[groups.length - 1];
+        const lastTotal = last.parts.reduce((a, p) => a + p.fraction, 0);
+        const scale = Math.max(0, (lastTotal - UNCAT_FRAC) / lastTotal);
+        for (const p of last.parts) p.fraction *= scale;
+      }
+      groups.push({
+        catKey: "cat-uncat", color: UNCAT_SPENT_COLOR,
+        name: t("common.uncategorized"), spent: uncatSpent, budget: 0,
+        isRecurringApplied: false, isLarderDesignated: false,
+        parts: [{ id: "uncat-slice", fraction: UNCAT_FRAC,
+          fill: UNCAT_SPENT_COLOR, isOverBudget: false }],
+      });
     } else {
       const catKey = "cat-uncat";
       const parts  = [];
@@ -276,15 +288,7 @@ function buildChart(
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
       isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
 
-  // For the hairline case the uncat group was never pushed into `groups`;
-  // add its legend entry directly so it still appears in the key.
-  if (showUncatHairline) {
-    legend.push({ catKey: "cat-uncat", color: UNCAT_SPENT_COLOR,
-      name: t("common.uncategorized"), spent: uncatSpent, budget: 0,
-      isOverBudget: false, isRecurringApplied: false, isLarderDesignated: false });
-  }
-
-  return { segs, groupBorders, legend, sumBudgets, showUncatHairline };
+  return { segs, groupBorders, legend, sumBudgets };
 }
 
 // ─── Animation constants ──────────────────────────────────────────────────────
@@ -354,7 +358,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   // Latest hasData value — updated every render, read inside the timer closure
   const hasDataRef = useRef<boolean>(false);
 
-  const { segs, groupBorders, legend, sumBudgets, showUncatHairline } = buildChart(spending, totalBudget, selectedCat);
+  const { segs, groupBorders, legend, sumBudgets } = buildChart(spending, totalBudget, selectedCat);
 
   // Keep refs current every render so timer callbacks read the latest values at fire time.
   // wiggle1 = first group; wiggle2 = 4th group clockwise (fallback: 3rd, 2nd, none if <2 groups)
@@ -673,21 +677,6 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               </>
             );
           })()}
-
-          {/* ── Zero-budget uncategorised hairline ───────────────────────
-              When all budget is allocated to categories (uncatBudget === 0)
-              but there IS uncategorised spending, the ring is already full so
-              we cannot add a real arc segment without overflowing 360°.
-              Instead we draw a proper donut-arc path (same RI/RO as every
-              other segment) spanning 2% of the circle (7.2°) centred at the
-              0° seam (12 o'clock).  It looks identical to other slices but
-              is deliberately thin, and is wide enough to be tappable.       */}
-          {showUncatHairline && (
-            <path
-              d={arc(CX, CY, RI, RO, -3.6, 3.6)}
-              fill={UNCAT_SPENT_COLOR}
-            />
-          )}
 
           {/* ── Larder-designated segment sparkles ─────────────────────────
               Disabled: set DONUT_SPARKLES_ENABLED = true to restore.
