@@ -496,7 +496,12 @@ export default function HouseholdDonutChart({
     isError: memberSpendIsError,
     error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
-    query: { enabled: drillPhase !== "idle" && !isVirtualDrill && realMemberId > 0 },
+    query: {
+      enabled: drillPhase === "personal" && !isVirtualDrill && realMemberId > 0,
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
   });
 
   const { data: virtualSpendRaw, isLoading: virtualSpendLoading } = useQuery<any[]>({
@@ -506,7 +511,10 @@ export default function HouseholdDonutChart({
       if (!r.ok) return [];
       return r.json();
     },
-    enabled: drillPhase !== "idle" && isVirtualDrill,
+    enabled: drillPhase === "personal" && isVirtualDrill,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const personalLoading = isVirtualDrill ? virtualSpendLoading : memberSpendLoading;
@@ -793,6 +801,9 @@ export default function HouseholdDonutChart({
   function startDrillBack() {
     if (drillPhase !== "personal") return;
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
+    setIsPrivate(false);
+    setMemberFetchError(false);
+    setLockPhase(null);
     setSelectedId(null);
     setMemberTransColored(false);
     setMemberTransSegs([]);
