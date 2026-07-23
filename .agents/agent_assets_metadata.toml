@@ -84,3 +84,9 @@ id = "j1_QSxkm94rsGaUGmjExN"
 uri = "file://output/Budger_Donut_Privacy_Bug_Analysis.pdf"
 type = "pdf"
 title = "Household Donut Privacy Bug Analysis"
+
+[[outputs]]
+id = "aq-fV0Czw-X-QHk0InVDr"
+uri = "file://output/budger_icon_2048.png"
+type = "image"
+title = "Budger Icon — 2048×2048 (centered B)"
