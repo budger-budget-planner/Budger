@@ -392,6 +392,15 @@ const translations: Record<string, Record<Lang, string>> = {
                              pl: "Powiadomienia przeglądarki są zablokowane. Włącz je w ustawieniach urządzenia/przeglądarki, aby korzystać z alertów."},
   "notif.enable_settings":{ en: "Enable notifications in your browser settings.", pl: "Włącz powiadomienia w ustawieniach przeglądarki."},
 
+  // ── Privacy controls ──
+  "privacy.crash_reports":     { en: "Send crash reports", pl: "Wysyłaj raporty o błędach" },
+  "privacy.crash_reports_desc": {
+    en: "Share anonymous crash diagnostics and optional screen replay to help improve Budger. Screen replay may include financial data visible during a crash.",
+    pl: "Udostępniaj anonimowe dane diagnostyczne i opcjonalny zapis ekranu, aby pomóc ulepszać Budgera. Zapis ekranu może zawierać dane finansowe widoczne podczas awarii.",
+  },
+  "privacy.export_data":       { en: "Export my data", pl: "Eksportuj moje dane" },
+  "privacy.exporting":         { en: "Preparing export…", pl: "Przygotowywanie eksportu…" },
+
   // ── Login ──
   "login.tagline":          { en: "Your household finances, in one place.", pl: "Twoje finanse domowe, w jednym miejscu."},
   "login.sign_in":          { en: "Sign in",            pl: "Zaloguj się"          },

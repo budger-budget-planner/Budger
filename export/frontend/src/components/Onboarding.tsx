@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { type AppPrefs, CURRENCIES, LANGUAGES, loadPrefs } from "@/lib/prefs";
 import BadgerLogo from "@/components/BadgerLogo";
 import { t } from "@/lib/i18n";
-import { Zap, Bell, Banknote, Check } from "lucide-react";
+import { Zap, Bell, Banknote, Check, ShieldCheck } from "lucide-react";
 import {
   useUpdateNotificationSettings,
   useUpdateMe,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { subscribeToPushNotifications, isPushSupported } from "@/lib/push-notifications";
+import { getCrashReplayConsent, setCrashReplayConsent } from "@/lib/crash-consent";
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,8 @@ export default function Onboarding({
   const [totalBudget, setTotalBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
+  const initialCrashReplayConsent = useRef(getCrashReplayConsent());
+  const [crashReplayConsented, setCrashReplayConsented] = useState(initialCrashReplayConsent.current);
   const [finishing, setFinishing]     = useState(false);
 
   // ── Splash-out state for the welcome screen's CTA ─────────────────────────
@@ -101,6 +104,8 @@ export default function Onboarding({
   async function finish() {
     if (finishing) return;
     setFinishing(true);
+    const shouldReloadForCrashConsent =
+      crashReplayConsented !== initialCrashReplayConsent.current;
     try {
       const updateData: Record<string, unknown> = {
         firstLoginDone: true,
@@ -117,7 +122,17 @@ export default function Onboarding({
     } finally {
       setFinishing(false);
     }
-    onComplete({ currency, language, totalBudget, staySignedIn, disableAnimations: false });
+    onComplete({
+      currency,
+      language,
+      totalBudget,
+      staySignedIn,
+      disableAnimations: false,
+      appIcon: loadPrefs().appIcon,
+    });
+    if (shouldReloadForCrashConsent) {
+      window.setTimeout(() => window.location.reload(), 50);
+    }
   }
 
   function handleLetsStart() {
@@ -360,6 +375,40 @@ export default function Onboarding({
               <p className="text-sm text-muted-foreground">{t("ob.notif_blocked_title")}</p>
             </div>
           )}
+
+          <div className="flex items-start justify-between gap-3 px-4 py-4 rounded-2xl bg-card border border-border">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium">{t("privacy.crash_reports")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {t("privacy.crash_reports_desc")}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={crashReplayConsented}
+              aria-label={t("privacy.crash_reports")}
+              onClick={() => {
+                const next = !crashReplayConsented;
+                setCrashReplayConsented(next);
+                setCrashReplayConsent(next);
+              }}
+              className={`relative mt-0.5 h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
+                crashReplayConsented ? "bg-foreground" : "bg-muted"
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-4 w-4 rounded-full transition-transform ${
+                  crashReplayConsented
+                    ? "translate-x-6 bg-background"
+                    : "translate-x-1 bg-muted-foreground"
+                }`}
+              />
+            </button>
+          </div>
 
           <div className="flex flex-col gap-3">
             {notifStatus !== "granted" && (

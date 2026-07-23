@@ -4,7 +4,7 @@ import {
   Bell, BellOff, X, ChevronLeft, AlarmClock, BookOpen, Settings,
   Plus, Trash2, TrendingUp, Target, CheckCircle, AlertTriangle,
   Smartphone, ExternalLink, Circle, Sparkles, Crown, UserMinus,
-  FileText, ShieldCheck, Clock, WifiOff, Tag, LayoutGrid,
+  FileText, ShieldCheck, Clock, WifiOff, Tag, LayoutGrid, Download,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,6 +34,7 @@ import { discardOp, opLabel } from "@/lib/mutation-queue";
 import { loadPrefs, savePrefs, checkNcSwipeHintDue, getIconPrefFromCookie, saveIconPrefToCookie, applyIconPrefToDocument } from "@/lib/prefs";
 import { LEGAL } from "@/lib/legal";
 import { showNotification } from "@/lib/show-notification";
+import { getCrashReplayConsent, setCrashReplayConsent } from "@/lib/crash-consent";
 
 // ─── Alert (alarm) types ──────────────────────────────────────────────────────
 type Alert = { id: string; time: string; days: string[]; enabled: boolean };
@@ -482,6 +483,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (Notification.permission === "denied")  return "denied";
     return "prompt";
   });
+  const [crashReplayConsented, setCrashReplayConsented] = useState(getCrashReplayConsent);
+  const [exportingData, setExportingData] = useState(false);
   // Offline sync status (shown in the Sync section above Smart alerts)
   const [syncExpanded, setSyncExpanded] = useState(false);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
@@ -565,6 +568,44 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       }
     } catch {
       setPushStatus("denied");
+    }
+  }
+
+  function toggleCrashReplayConsent(consented: boolean) {
+    setCrashReplayConsented(consented);
+    setCrashReplayConsent(consented);
+    // Sentry is initialized before React mounts. Reloading applies the user's
+    // choice without ever collecting replay data in the current opt-out session.
+    window.location.reload();
+  }
+
+  async function exportUserData() {
+    if (exportingData) return;
+    setExportingData(true);
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/user/export`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("export failed");
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `budger-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: lang === "pl" ? "Eksport danych pobrany" : "Data export downloaded" });
+    } catch {
+      toast({
+        title: lang === "pl" ? "Nie udało się wyeksportować danych" : "Could not export your data",
+        description: lang === "pl" ? "Spróbuj ponownie za chwilę." : "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingData(false);
     }
   }
 
@@ -810,6 +851,21 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                 )}
               </div>
             </div>
+             <div className="mt-2 flex items-start justify-between gap-3 py-4 px-4 bg-card border border-border rounded-2xl">
+               <div className="flex items-start gap-3">
+                 <div className="mt-0.5 text-muted-foreground"><ShieldCheck className="w-4 h-4" /></div>
+                 <div>
+                   <p className="text-sm font-medium">{t("privacy.crash_reports")}</p>
+                   <p className="text-xs text-muted-foreground mt-0.5">
+                     {t("privacy.crash_reports_desc")}
+                   </p>
+                 </div>
+               </div>
+               <Switch
+                 checked={crashReplayConsented}
+                 onCheckedChange={toggleCrashReplayConsent}
+               />
+             </div>
           </section>
         )}
 
@@ -931,6 +987,14 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
               <ShieldCheck className="w-4 h-4 text-muted-foreground shrink-0" />
               <span>{t("login.privacy_title")}</span>
             </button>
+             <button
+               onClick={exportUserData}
+               disabled={exportingData}
+               className="flex items-center gap-3 w-full py-3 px-4 rounded-2xl bg-card border border-border text-sm text-foreground transition active:opacity-70 disabled:opacity-60 text-left"
+             >
+               <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+               <span>{exportingData ? t("privacy.exporting") : t("privacy.export_data")}</span>
+             </button>
           </div>
         </section>
 

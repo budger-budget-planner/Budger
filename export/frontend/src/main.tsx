@@ -4,6 +4,7 @@ import App from "./App";
 import "./index.css";
 import { scheduleRateRefreshes } from "@/lib/rates";
 import { applyIconPrefToDocument } from "@/lib/prefs";
+import { getCrashReplayConsent } from "@/lib/crash-consent";
 
 // Initialise Sentry before the React tree mounts so it can instrument
 // every component. VITE_SENTRY_DSN is intentionally public — Sentry
@@ -17,7 +18,7 @@ import { applyIconPrefToDocument } from "@/lib/prefs";
 // localStorage under "budger_crash_consent".
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (sentryDsn) {
-  const crashReplayConsented = localStorage.getItem("budger_crash_consent") === "true";
+  const crashReplayConsented = getCrashReplayConsent();
   Sentry.init({
     dsn: sentryDsn,
     environment: import.meta.env.MODE,
