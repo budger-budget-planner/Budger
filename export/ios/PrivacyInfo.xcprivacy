@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  PrivacyInfo.xcprivacy — Apple-required privacy manifest (mandatory since May 2024).
+  Place this file in your Xcode project root (same level as your .xcodeproj).
+  If using Expo, set expo.ios.privacyManifests in app.config.ts instead of using
+  this standalone file — the Expo build pipeline merges it automatically.
+
+  References:
+    https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
+    https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_data_use_in_privacy_manifests
+-->
+<plist version="1.0">
+<dict>
+
+  <!-- ── Advertising / cross-app tracking ─────────────────────────────────── -->
+  <!-- Budger does not track users across apps or websites for advertising.    -->
+  <key>NSPrivacyTracking</key>
+  <false/>
+
+  <!-- ── Tracking domains ──────────────────────────────────────────────────── -->
+  <!-- No advertising or analytics domains used for cross-app tracking.        -->
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+
+  <!-- ── Required-reason APIs accessed by app or linked SDKs ──────────────── -->
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+
+    <!-- UserDefaults — used by the app to persist user preferences (theme,
+         currency, icon choice, crash-consent flag) and by Expo/React Native
+         runtime internals.                                                     -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- CA92.1: Access info from the same app that wrote it. -->
+        <string>CA92.1</string>
+      </array>
+    </dict>
+
+    <!-- File timestamp APIs — React Native / Metro bundler accesses file
+         modification timestamps during bundle loading.                        -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- C617.1: Access file timestamps for the files your app created. -->
+        <string>C617.1</string>
+      </array>
+    </dict>
+
+    <!-- Disk space APIs — used to check available storage before saving
+         receipt images to the device cache.                                   -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- E174.1: Display available disk space to the user or to
+             determine whether your app can store data locally.               -->
+        <string>E174.1</string>
+      </array>
+    </dict>
+
+  </array>
+
+  <!-- ── Data types collected ──────────────────────────────────────────────── -->
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array>
+
+    <!-- Name -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeName</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Email address -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Financial information (transaction records, budgets, goals, categories) -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeFinancialInfo</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Photos / Videos — receipt images and bank-screenshot imports.
+         Linked to account. Only uploaded when the user explicitly taps
+         "Scan receipt" or "Import screenshot".                                -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypePhotosOrVideos</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Device ID — push notification token stored server-side to deliver
+         budget alerts. Not used for advertising.                              -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeDeviceID</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Crash data — collected by Sentry only when user opts in via
+         Settings → Privacy → Send crash reports.                              -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeCrashData</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <!-- Opt-in analytics to improve app stability. -->
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- Performance data — Sentry tracing (opt-in, same gate as crash data). -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypePerformanceData</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+  </array>
+
+</dict>
+</plist>

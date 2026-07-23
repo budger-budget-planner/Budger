@@ -9,17 +9,24 @@ import { applyIconPrefToDocument } from "@/lib/prefs";
 // every component. VITE_SENTRY_DSN is intentionally public — Sentry
 // client-side DSNs are designed to be embedded in frontend bundles.
 // The integration is a no-op when the variable is not set.
+//
+// Apple App Store / GDPR compliance: screen-level session replay is
+// opt-in only. Budger records sensitive financial data on screen, so
+// replay is disabled until the user explicitly enables "Send crash
+// reports" in Settings → Privacy. The consent flag is stored in
+// localStorage under "budger_crash_consent".
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (sentryDsn) {
+  const crashReplayConsented = localStorage.getItem("budger_crash_consent") === "true";
   Sentry.init({
     dsn: sentryDsn,
     environment: import.meta.env.MODE,
-    // Capture a replay only on sessions that have an error, never on
-    // normal browsing — keeps replay quota low on the free tier.
-    integrations: [Sentry.replayIntegration()],
+    // Only load the replay integration when the user has opted in —
+    // avoids capturing financial screen content without consent.
+    integrations: crashReplayConsented ? [Sentry.replayIntegration()] : [],
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1.0,
+    replaysOnErrorSampleRate: crashReplayConsented ? 1.0 : 0,
   });
 }
 
