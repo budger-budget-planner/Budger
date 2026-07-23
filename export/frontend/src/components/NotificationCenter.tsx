@@ -585,6 +585,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     try {
       const response = await fetch(`${import.meta.env.BASE_URL}api/user/export`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (!response.ok) throw new Error("export failed");
 

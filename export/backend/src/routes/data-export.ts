@@ -109,6 +109,11 @@ router.get("/user/export", async (req, res) => {
 
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    // Never allow an authenticated user's export to be cached and replayed
+    // across accounts by a browser, proxy, or service worker.
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Vary", "Cookie");
     res.status(200).json(exportPayload);
   } catch (err) {
     console.error("[data-export] Error exporting user data:", err);

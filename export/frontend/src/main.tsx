@@ -15,7 +15,7 @@ import { getCrashReplayConsent } from "@/lib/crash-consent";
 // opt-in only. Budger records sensitive financial data on screen, so
 // replay is disabled until the user explicitly enables "Send crash
 // reports" in Settings → Privacy. The consent flag is stored in
-// localStorage under "budger_crash_consent".
+// user-scoped localStorage under "budger_crash_consent_<userId>".
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (sentryDsn) {
   const crashReplayConsented = getCrashReplayConsent();

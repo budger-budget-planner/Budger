@@ -50,7 +50,8 @@ registerRoute(
   ({ request }) =>
     request.method === "GET" &&
     request.url.includes("/api/") &&
-    !request.url.includes("/api/csrf-token"),
+    !request.url.includes("/api/csrf-token") &&
+    !request.url.includes("/api/user/export"),
   new NetworkFirst({
     cacheName: "budger-api-v1",
     networkTimeoutSeconds: 5,

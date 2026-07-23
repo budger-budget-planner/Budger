@@ -18,3 +18,4 @@
 - [Neon DB cutover](neon-cutover.md) — DATABASE_URL is platform-managed, never overwrite; resolve NEON_DATABASE_URL||DATABASE_URL in @workspace/db and import that everywhere
 - [Summary SQL date pushdown](summary-date-pushdown.md) — all summary endpoints filter by date at SQL level; month inputs must pass YYYY-MM regex before use in LIKE to prevent wildcard injection
 - [Frontend fix "not applying"](frontend-fix-not-applying.md) — verify the edit actually compiles (grep for missing imports) and check for stuck service workers/broken cache-bust hacks before assuming the fix itself is wrong
+- [Account-scoped privacy controls](account-scoped-privacy-controls.md) — user-specific consent keys and sensitive exports must bypass URL-only service-worker caching

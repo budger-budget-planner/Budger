@@ -11,7 +11,7 @@ import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
-import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
+import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, getActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
 import { useWinkSplash } from "@/lib/appReady";
 
 type Screen =
@@ -145,6 +145,8 @@ export default function LoginPage() {
   const login = useLogin({
     mutation: {
       onSuccess: (user) => {
+        const previousUserId = getActiveUserId();
+        const accountChanged = previousUserId !== user.id;
         // Scope prefs to this user so switching accounts doesn't bleed settings
         setActiveUserId(user.id);
         // Carry language (selected on login screen) into user-scoped prefs on first login
@@ -175,6 +177,12 @@ export default function LoginPage() {
         showWinkSplash();
         queryClient.invalidateQueries();
         setLocation("/");
+        // Sentry initializes before React mounts and reads the active user's
+        // crash consent. Reload after every account transition so the previous
+        // account's replay configuration cannot remain active in this session.
+        if (accountChanged) {
+          window.setTimeout(() => window.location.reload(), 100);
+        }
       },
       onError: (err: any) => {
         // ApiError stores the parsed response body at err.data (not err.response.data —
