@@ -1012,13 +1012,14 @@ export default function HouseholdPage() {
     : budget;
 
   // Sum of all members' individual budgets converted to the viewer's currency.
-  // We must wait for exchange rates before showing any mismatch warning —
-  // without rates we cannot tell whether the raw numbers are actually mismatched.
-  const sumMemberBudgets: number | null = (members && splitRates)
+  // Computed as soon as `members` is available; uses raw budget values when
+  // exchange rates haven't loaded yet so the row renders without waiting for
+  // the rates fetch (rates only matter for mixed-currency households).
+  const sumMemberBudgets: number | null = members
     ? members.reduce((s, m) => {
         if (m.totalBudget == null) return s;
         const inViewerCurrency =
-          m.currency === prefs.currency
+          m.currency === prefs.currency || !splitRates
             ? m.totalBudget
             : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
         return s + inViewerCurrency;
@@ -1332,11 +1333,9 @@ export default function HouseholdPage() {
                       const inViewerCurrency =
                         m.totalBudget == null
                           ? null
-                          : m.currency === prefs.currency
+                          : m.currency === prefs.currency || !splitRates
                           ? m.totalBudget
-                          : splitRates
-                          ? convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates)
-                          : null;
+                          : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
                       return (
                         <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
                           <div
