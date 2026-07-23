@@ -202,8 +202,8 @@ function buildChart(
   // Special case: when uncatBudget === 0 (sumBudgets >= totalBudget) but
   // uncatSpent > 0, the ring is already claimed 100% by budgeted categories.
   // Adding a full fraction-based arc would overflow 360°.  Instead we carve
-  // a fixed 2% slice out of the last budgeted group (by scaling its parts
-  // fractions down), then push uncat with that exact 2% fraction so the
+  // a fixed 1% slice out of the last budgeted group (by scaling its parts
+  // fractions down), then push uncat with that exact 1% fraction so the
   // total stays at 1.0 and the donut closes perfectly with no overlap.
   if (uncatBudget > 0 || uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0) {
@@ -673,6 +673,30 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 {restFills}
                 {restBorders}
               </>
+            );
+          })()}
+
+          {/* ── Uncategorized touch target ────────────────────────────────
+              When all category budgets consume the monthly budget, the
+              uncategorized group is intentionally only 1% of the ring. The
+              visible fill is therefore too narrow to be a reliable touch
+              target on a phone. Keep the visual slice at 1%, but give that
+              group a transparent, touch-sized stroke so it remains clickable
+              without changing any other segment's appearance or geometry. */}
+          {(() => {
+            const uncatBorder = groupBorders.find(gb => gb.catKey === "cat-uncat");
+            if (!uncatBorder) return null;
+            return (
+              <path
+                key="uncat-touch-target"
+                d={uncatBorder.d}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={10}
+                strokeLinecap="round"
+                style={{ pointerEvents: "stroke", cursor: "pointer" }}
+                onClick={() => handleSegmentClick("cat-uncat")}
+              />
             );
           })()}
 
