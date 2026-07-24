@@ -488,50 +488,6 @@ function MemberSheet({
 
           )}
 
-          {/* Goal contributions section — shown below spending */}
-          <div>
-            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">{t("hh.goal_contributions")}</p>
-            {contribsLoading ? (
-              <div className="flex justify-center py-4">
-                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              </div>
-            ) : !goalContribs?.length ? (
-              <div className="text-center py-4 text-white/40 text-sm">{t("hh.no_goal_contributions")}</div>
-            ) : (
-              <div className="space-y-3">
-                {goalContribs.map(g => {
-                  const viewerCurrency = loadPrefs().currency;
-                  const goalCurrency = g.goalCurrency ?? viewerCurrency;
-                  const convertedAmount = rates && goalCurrency !== viewerCurrency
-                    ? convertAmount(g.displayAmount, goalCurrency, viewerCurrency, rates)
-                    : g.displayAmount;
-                  const amtStr = fmtAmt(convertedAmount, viewerCurrency);
-                  const pctStr = `${g.percentage.toFixed(1).replace(/\.0$/, "")}%`;
-                  const contextLabel = g.divideByMonths ? t("hh.goal_contrib_monthly") : t("hh.goal_contrib_total");
-                  return (
-                    <div key={g.goalId} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.goalColor }} />
-                        <span className="text-sm flex-1 truncate">{g.goalName}</span>
-                        <span className="text-sm font-semibold tabular-nums text-right">
-                          {amtStr}
-                          <span className="text-white/40 font-normal ml-1">({pctStr})</span>
-                        </span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden ml-4">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${Math.min(g.percentage, 100)}%`, backgroundColor: g.goalColor }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-white/30 ml-4">{contextLabel}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Role editor — only for head viewing non-self members, shown below spending */}
           {canEditRole && (
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
@@ -1221,11 +1177,11 @@ export default function HouseholdPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 h-7 text-xs"
-                  onClick={() => setDeleteHouseholdOpen(true)}
-                  data-testid="button-delete-household"
+                  className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
+                  onClick={() => setInviteOpen(true)}
+                  data-testid="button-invite-member"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> {t("hh.delete")}
+                  <Mail className="w-3.5 h-3.5" /> {t("hh.invite_btn")}
                 </Button>
               ) : (
                 <Button
@@ -1441,7 +1397,7 @@ export default function HouseholdPage() {
 
           {/* ── Members — Household Donut ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-            {/* Header row: count + invite button */}
+            {/* Header row: count only */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <p className="text-sm font-semibold">
                 {t("hh.members")}{" "}
@@ -1449,17 +1405,6 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
-              {iAmHead && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
-                  onClick={() => setInviteOpen(true)}
-                  data-testid="button-invite-member"
-                >
-                  <Mail className="w-3.5 h-3.5" /> {t("hh.invite_btn")}
-                </Button>
-              )}
             </div>
 
             {/* Donut chart */}
@@ -1747,6 +1692,17 @@ export default function HouseholdPage() {
 
               </div>
             </div>
+          )}
+
+          {/* ── Delete household — big button at the bottom (head only) ── */}
+          {iAmHead && (
+            <button
+              onClick={() => setDeleteHouseholdOpen(true)}
+              data-testid="button-delete-household"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold active:opacity-70 transition"
+            >
+              <Trash2 className="w-4 h-4" /> {t("hh.delete")}
+            </button>
           )}
         </div>
       )}
