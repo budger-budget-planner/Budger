@@ -503,15 +503,17 @@ router.post("/larder/gl-rule", async (req, res): Promise<void> => {
 
 // DELETE /larder/history — hide all Larder history entries from display for the current user.
 // Entries are soft-hidden (hidden=true) so the Larder balance is unaffected.
+// Query param: includeTransfers=true — also hides great_larder_transfer entries.
 router.delete("/larder/history", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const includeTransfers = req.query.includeTransfers === "true";
+  const conditions = includeTransfers
+    ? [eq(larderEntriesTable.userId, userId)]
+    : [eq(larderEntriesTable.userId, userId), ne(larderEntriesTable.sourceType, "great_larder_transfer")];
   await db.update(larderEntriesTable)
     .set({ hidden: true })
-    .where(and(
-      eq(larderEntriesTable.userId, userId),
-      ne(larderEntriesTable.sourceType, "great_larder_transfer"),
-    ));
+    .where(and(...conditions));
   res.sendStatus(204);
 });
 

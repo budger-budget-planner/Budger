@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
   ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users, Plus,
@@ -190,7 +191,9 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const { data: rates } = useQuery({ queryKey: ["fx-rates"], queryFn: fetchRates, staleTime: 60 * 60 * 1000 });
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
-  const [historyOpen,  setHistoryOpen]  = useState(false);
+  const [historyOpen,       setHistoryOpen]       = useState(false);
+  const [showClearConfirm,  setShowClearConfirm]  = useState(false);
+  const [clearIncludeTransfers, setClearIncludeTransfers] = useState(false);
   const [glBadgeCollapsed, setGlBadgeCollapsed] = useState(true);
 
   // ── GL badge dismiss (long-press to reset the counter) ───────────────────────
@@ -344,14 +347,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
   }
 
-  async function handleClearHistory() {
+  async function handleClearHistory(includeTransfers: boolean) {
     try {
-      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/history`, {
-        method: "DELETE",
-      });
+      const url = `${import.meta.env.BASE_URL}api/larder/history${includeTransfers ? "?includeTransfers=true" : ""}`;
+      const r = await apiFetch(url, { method: "DELETE" });
       if (!r.ok) throw new Error("Failed");
       invalidate();
       setHistoryOpen(false);
+      setShowClearConfirm(false);
+      setClearIncludeTransfers(false);
       toast({ title: t("larder.history_cleared") });
     } catch {
       toast({ title: t("larder.clear_failed") });
@@ -741,7 +745,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                   {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={handleClearHistory}
+                  onClick={() => { setClearIncludeTransfers(false); setShowClearConfirm(true); }}
                   disabled={!isOnline}
                   className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors disabled:opacity-40"
                 >
@@ -985,6 +989,37 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </button>
         </form>
       </Sheet>
+      {/* Clear history confirmation dialog */}
+      <Dialog open={showClearConfirm} onOpenChange={open => { setShowClearConfirm(open); if (!open) setClearIncludeTransfers(false); }}>
+        <DialogContent className="bg-zinc-900 border-white/10 rounded-2xl max-w-xs mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white text-base">{t("larder.history_clear_confirm_title")}</DialogTitle>
+            <DialogDescription className="text-zinc-400 text-sm">{t("larder.history_clear_confirm_desc")}</DialogDescription>
+          </DialogHeader>
+          <label className="flex items-center gap-3 cursor-pointer py-1">
+            <Checkbox
+              checked={clearIncludeTransfers}
+              onCheckedChange={v => setClearIncludeTransfers(Boolean(v))}
+              className="border-white/20 data-[state=checked]:bg-white data-[state=checked]:border-white"
+            />
+            <span className="text-sm text-white/70">{t("larder.history_clear_also_transfers")}</span>
+          </label>
+          <DialogFooter className="flex-row gap-2 pt-1">
+            <button
+              onClick={() => { setShowClearConfirm(false); setClearIncludeTransfers(false); }}
+              className="flex-1 py-3 rounded-2xl border border-white/10 text-white/60 text-sm font-medium active:opacity-70 transition"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={() => handleClearHistory(clearIncludeTransfers)}
+              className="flex-1 py-3 rounded-2xl bg-red-500/80 text-white text-sm font-semibold active:opacity-70 transition"
+            >
+              {t("larder.history_clear_confirm_action")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 });
