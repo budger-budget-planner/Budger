@@ -9,6 +9,7 @@ import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
   ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users, Plus,
@@ -760,7 +761,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                           <EntryIcon sourceType={e.sourceType} positive={positive} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white/70 truncate">{e.note || sourceLabel(e.sourceType)}</p>
+                          <p className="text-xs font-medium text-white/70 truncate">{e.sourceType === "great_larder_transfer" ? sourceLabel(e.sourceType) : (e.note || sourceLabel(e.sourceType))}</p>
                           <p className="text-[10px] text-white/25">{dateStr}</p>
                         </div>
                         <p className={`text-xs font-semibold tabular-nums flex-shrink-0 ${positive ? "text-emerald-400" : "text-red-400"}`}>

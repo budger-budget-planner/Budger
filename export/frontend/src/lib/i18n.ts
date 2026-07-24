@@ -1163,6 +1163,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.save_btn":         { en: "Save to Larder",                  pl: "Oszczędź do Spiżarni"               },
   "larder.history":          { en: "History ({n})",                   pl: "Historia ({n})"                     },
   "larder.clear":            { en: "Clear",                           pl: "Wyczyść"                            },
+  "larder.history_clear_confirm_title": { en: "Clear history?",       pl: "Wyczyścić historię?"                },
+  "larder.history_clear_confirm_desc":  { en: "All history entries will be hidden. Great Larder transfer records will remain visible.", pl: "Wszystkie wpisy historii zostaną ukryte. Wpisy przekazań do Wielkiej Spiżarni pozostaną widoczne." },
   "larder.balance_lbl":      { en: "Balance",                         pl: "Saldo"                              },
   "larder.from_larder_desc": { en: "Creates a transaction from your Larder, marked with a \"From Larder\" badge.", pl: "Tworzy transakcję ze Spiżarni, oznaczoną jako \"Ze Spiżarni\"." },
   "gl.from_gl_desc":         { en: "Creates a transaction from the Great Larder, marked with a \"From Larder\" badge.", pl: "Tworzy transakcję z Wielkiej Spiżarni, oznaczoną jako \"Ze Spiżarni\"." },

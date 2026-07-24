@@ -165,7 +165,6 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
     amount: String(-nativeAmount),
     currency: assetCurrency,
     sourceType: "great_larder_transfer",
-    note: "Sent to Great Larder",
   });
 
   // Credit Great Larder in the same currency (moves that Asset's value across
