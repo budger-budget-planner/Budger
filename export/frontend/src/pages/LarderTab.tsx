@@ -1013,7 +1013,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </button>
             <button
               onClick={() => handleClearHistory(clearIncludeTransfers)}
-              className="flex-1 py-3 rounded-2xl bg-red-500/80 text-white text-sm font-semibold active:opacity-70 transition"
+              className="flex-1 py-3 rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold active:opacity-70 transition"
             >
               {t("larder.history_clear_confirm_action")}
             </button>
