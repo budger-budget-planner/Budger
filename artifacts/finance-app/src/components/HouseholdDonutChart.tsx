@@ -48,6 +48,20 @@ if (typeof document !== "undefined" && !document.getElementById(LOCK_KF_ID)) {
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
 
+// Staggered legend-item entrance (shared keyframe — injected once across both charts)
+const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
+if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
+  const s = document.createElement("style");
+  s.id = LEGEND_ITEM_KF_ID;
+  s.textContent = `
+    @keyframes donutLegendItem {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 // ─── SVG constants (verbatim from DonutBudgetChart) ───────────────────────────
 const CX = 160, CY = 160, RI = 75, RO = 128, EXPAND = 14;
 const CAT_GAP = 2.5;
@@ -414,6 +428,7 @@ export default function HouseholdDonutChart({
     try { localStorage.setItem("hh-donut-mode", next); } catch { /* ignore */ }
   }
   const [hintKey,        setHintKey]        = useState(0);
+  const [legendAnimKey,  setLegendAnimKey]  = useState(0);
 
   // ── Phase 2 state ───────────────────────────────────────────────────────────
   const [drillPhase,      setDrillPhase]      = useState<DrillPhase>("idle");
@@ -566,6 +581,11 @@ export default function HouseholdDonutChart({
       setMemberFetchError(true);
     }
   }, [memberSpendIsError, memberSpendErrorObj, drillPhase]);
+
+  // ── Stagger legend items each time the chart enters compact (visible) mode ──
+  useEffect(() => {
+    if (!expanded && !legendHidden) setLegendAnimKey(k => k + 1);
+  }, [expanded, legendHidden]);
 
   // ── Lock animation sequence ─────────────────────────────────────────────────
   useEffect(() => {
@@ -1164,13 +1184,20 @@ export default function HouseholdDonutChart({
           transition: legendHidden ? "opacity 0.2s ease" : (expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS),
         }}>
           <div style={{ width: 160 }} className="space-y-2.5">
-            {legend.map(item => {
+            {legend.map((item, idx) => {
               const pct    = !item.isVirtual && item.budgetInViewer != null && item.budgetInViewer > 0
                 ? Math.round((item.spentInViewer / item.budgetInViewer) * 100) : null;
               const isSel  = selectedId === item.groupId;
               const dimmed = selectedId !== null && !isSel;
               return (
-                <button key={item.groupId} className="w-full text-left"
+                <div
+                  key={`${item.groupId}-${legendAnimKey}`}
+                  style={{
+                    animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
+                    animationDelay: `${0.48 + idx * 0.07}s`,
+                  }}
+                >
+                <button className="w-full text-left"
                   style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                   onPointerDown={() => startLongPress(item.groupId)}
                   onPointerUp={cancelLongPress}
@@ -1191,6 +1218,7 @@ export default function HouseholdDonutChart({
                     )}
                   </div>
                 </button>
+                </div>
               );
             })}
           </div>

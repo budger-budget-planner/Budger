@@ -64,6 +64,20 @@ if (typeof document !== "undefined" && !document.getElementById(GEM_KF_ID)) {
   document.head.appendChild(s);
 }
 
+// Staggered legend-item entrance
+const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
+if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
+  const s = document.createElement("style");
+  s.id = LEGEND_ITEM_KF_ID;
+  s.textContent = `
+    @keyframes donutLegendItem {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 // Circle A / B keyframe names indexed by pulse (0-based)
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
@@ -380,6 +394,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
+  const [legendAnimKey, setLegendAnimKey] = useState(0);
   const lastCenterTapRef  = useRef<number>(0);
   // Pending hint-pulse timer IDs — exposed here so a double-tap can cancel them
   const hintTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -423,6 +438,11 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ── Stagger legend items each time the chart collapses to compact mode ──────
+  useEffect(() => {
+    if (!expanded) setLegendAnimKey(k => k + 1);
+  }, [expanded]);
 
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
@@ -978,14 +998,20 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       >
         {/* Fixed inner width prevents items from squishing during the animation */}
         <div style={{ width: 160 }} className="space-y-2.5">
-          {legend.map(item => {
+          {legend.map((item, idx) => {
             const pct    = (!item.isUncategorized && item.budget > 0)
               ? Math.round((item.spent / item.budget) * 100) : null;
             const isSel  = selectedCat === item.catKey;
             const dimmed = selectedCat !== null && !isSel;
             return (
+              <div
+                key={`${item.catKey}-${legendAnimKey}`}
+                style={{
+                  animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
+                  animationDelay: `${0.48 + idx * 0.07}s`,
+                }}
+              >
               <button
-                key={item.catKey}
                 className="w-full text-left"
                 style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                 onClick={() => handleSegmentClick(item.catKey)}
@@ -1017,6 +1043,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   )}
                 </div>
               </button>
+              </div>
             );
           })}
         </div>
