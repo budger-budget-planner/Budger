@@ -569,11 +569,6 @@ export default function HouseholdDonutChart({
     }
   }, [memberSpendIsError, memberSpendErrorObj, drillPhase]);
 
-  // ── Stagger legend items each time the chart enters compact (visible) mode ──
-  useEffect(() => {
-    if (!expanded && !legendHidden) setLegendAnimKey(k => k + 1);
-  }, [expanded, legendHidden]);
-
   // ── Lock animation sequence ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isPrivate || drillPhase !== "personal") return;
@@ -930,6 +925,15 @@ export default function HouseholdDonutChart({
     hintTimersRef.current.forEach(clearTimeout);
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   }, []);
+
+  // ── Stagger legend items each time the chart enters compact (visible) mode ──
+  // Uses drillPhase directly (not legendHidden) so this hook stays before the
+  // early return at members.length === 0 and avoids both TDZ and hooks-after-return.
+  const LEGEND_DRILL_PHASES_SET = ["to-arc","expanding","hold-circle","snap-cats","color-in","full-circle","contracting","snap-member","color-restore"];
+  useEffect(() => {
+    if (!expanded && !LEGEND_DRILL_PHASES_SET.includes(drillPhase)) setLegendAnimKey(k => k + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, drillPhase]);
 
   // ─── Empty state ─────────────────────────────────────────────────────────────
   if (members.length === 0) {
