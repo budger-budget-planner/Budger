@@ -458,7 +458,10 @@ export default function HouseholdDonutChart({
   // Saved member arc segs for snap-member (drill-back)
   const memberSegsRef         = useRef<Array<{ d: string; color: string }>>([]);
   // Latest personal spending for snap-cats (drill-forward)
-  const personalSpendingRef     = useRef<SpendingItem[]>([]);
+  const personalSpendingRef           = useRef<SpendingItem[]>([]);
+  // Stored callback: fires when personal data arrives after the animation finishes
+  const pendingPersonalTransitionRef  = useRef<(() => void) | null>(null);
+  const personalLoadingRef            = useRef(false);
   // Starts true so the very first expand/collapse after mount skips the CSS
   // width transition (container width isn't known yet). Cleared to false after
   // the initial layout measurement in useLayoutEffect below.
@@ -499,7 +502,7 @@ export default function HouseholdDonutChart({
     error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
     query: {
-      enabled: drillPhase === "personal" && !isVirtualDrill && realMemberId > 0,
+      enabled: drillPhase !== "idle" && !isVirtualDrill && realMemberId > 0,
       staleTime: 30_000,
       retry: 1,
       refetchOnWindowFocus: false,
@@ -513,13 +516,14 @@ export default function HouseholdDonutChart({
       if (!r.ok) return [];
       return r.json();
     },
-    enabled: drillPhase === "personal" && isVirtualDrill,
+    enabled: drillPhase !== "idle" && isVirtualDrill,
     staleTime: 30_000,
     retry: 1,
     refetchOnWindowFocus: false,
   });
 
   const personalLoading = isVirtualDrill ? virtualSpendLoading : memberSpendLoading;
+  personalLoadingRef.current = personalLoading; // keep closure-accessible without stale capture
 
   const drilledMember = useMemo(
     () => members.find(m => m.userId === drilledMemberId) ?? null,
@@ -782,11 +786,20 @@ export default function HouseholdDonutChart({
               setDrillPhase("color-in");
 
               push(setTimeout(() => {
-                // G: personal view fades in, transition segs gone
-                setCatTransSegs([]);
-                setHhOpacity(0);
-                setPersOpacity(1);
-                setDrillPhase("personal");
+                // G: personal view fades in, transition segs gone — but only once
+                //    personal data is ready. If still loading, park the callback and
+                //    fire it the moment the data arrives (via the personalLoading effect).
+                function doPersonalTransition() {
+                  setCatTransSegs([]);
+                  setHhOpacity(0);
+                  setPersOpacity(1);
+                  setDrillPhase("personal");
+                }
+                if (!personalLoadingRef.current) {
+                  doPersonalTransition();
+                } else {
+                  pendingPersonalTransitionRef.current = doPersonalTransition;
+                }
               }, 1650));
             }, 200));
           }, 400));
@@ -823,6 +836,7 @@ export default function HouseholdDonutChart({
     if (!gb) { setDrillPhase("idle"); setDrilledMemberId(null); return; }
 
     clearDrillTimers();
+    pendingPersonalTransitionRef.current = null; // cancel any in-flight data-wait
 
     // A: personal fades, dark-grey full circle appears on household SVG (300ms pause)
     setHhOpacity(1); // household layer visible; all segs opacity-0 via groupOpacity
@@ -925,6 +939,15 @@ export default function HouseholdDonutChart({
     hintTimersRef.current.forEach(clearTimeout);
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   }, []);
+
+  // ── Fire pending personal transition the moment personal data arrives ────────
+  useEffect(() => {
+    if (!personalLoading && pendingPersonalTransitionRef.current) {
+      const fn = pendingPersonalTransitionRef.current;
+      pendingPersonalTransitionRef.current = null;
+      fn();
+    }
+  }, [personalLoading]);
 
   // ── Stagger legend items each time the chart enters compact (visible) mode ──
   // Uses drillPhase directly (not legendHidden) so this hook stays before the
