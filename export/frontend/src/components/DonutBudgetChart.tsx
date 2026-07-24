@@ -64,6 +64,20 @@ if (typeof document !== "undefined" && !document.getElementById(GEM_KF_ID)) {
   document.head.appendChild(s);
 }
 
+// Staggered legend-item entrance
+const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
+if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
+  const s = document.createElement("style");
+  s.id = LEGEND_ITEM_KF_ID;
+  s.textContent = `
+    @keyframes donutLegendItem {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 // Circle A / B keyframe names indexed by pulse (0-based)
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
@@ -162,11 +176,11 @@ function buildChart(
   // a tiny budgeted/over-budget slice; merge it into the shared uncategorized
   // bucket so the final-category 1% reserve rule applies consistently.
   const isUncategorizedItem = (s: SpendingItem) => {
-    // Prefer the authoritative backend flag (isUncategorized: true = synthetic null-category bucket).
+    // Prefer the authoritative backend flag.
     if (s.isUncategorized === true) return true;
     const catKey = s._catKey ?? `cat-${s.categoryId ?? "null"}`;
     return catKey === "cat-uncat"
-      || catKey === "cat-null"   // null categoryId → always uncategorized
+      || catKey === "cat-null"   // null categoryId always means uncategorized, regardless of display name
       || (!s._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
   };
   const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null && s.budget > 0);
@@ -238,9 +252,7 @@ function buildChart(
   // Adding a full fraction-based arc would overflow 360°.  Instead we carve
   // a fixed 1% visible slice out of the last budgeted group (by scaling its
   // parts down), then push uncat with that exact visible arc. The ring has
-  // fixed gaps between groups, so using a 0.01 fraction would make the
-  // visible slice vary with the number of categories. Reserve 3.6° instead:
-  // exactly 1% of the full donut, regardless of account/category count.
+  // fixed gaps between groups, so use 3.6°: exactly 1% of the full donut.
   if (uncatBudget > 0 || uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0 && groups.length > 0) {
       const UNCAT_VISIBLE_DEG = 3.6;
@@ -377,9 +389,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
   const [mode,           setMode]           = useState<"compact" | "expanded">(initialMode);
+  // Seed with the parent's measured width when drilling in so there is no
+  // "grow from 320→actual" animation on the first render.
   const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
   // Bump triggers hint re-mount → CSS animation restarts
   const [hintKey, setHintKey] = useState(0);
+  const [legendAnimKey, setLegendAnimKey] = useState(0);
   const lastCenterTapRef  = useRef<number>(0);
   // Pending hint-pulse timer IDs — exposed here so a double-tap can cancel them
   const hintTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -423,6 +438,11 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ── Stagger legend items each time the chart collapses to compact mode ──────
+  useEffect(() => {
+    if (!expanded) setLegendAnimKey(k => k + 1);
+  }, [expanded]);
 
   // ── Hint pulse: schedule on mount (= each time Dashboard tab enters) ──────
   useEffect(() => {
@@ -636,7 +656,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             // Helper: border for a single part (used only while the group is
             // detached — each part gets its own border, tracking its own
             // translate offset, in the same lighter-tone-of-category-color style).
-            function partBorderPath(seg: Seg, groupColor: string, _groupIsOverBudget: boolean) {
+            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean) {
               const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
               const tx = EXPAND * Math.cos(midRad);
               const ty = EXPAND * Math.sin(midRad);
@@ -712,30 +732,6 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 {restFills}
                 {restBorders}
               </>
-            );
-          })()}
-
-          {/* ── Uncategorized touch target ────────────────────────────────
-              When all category budgets consume the monthly budget, the
-              uncategorized group is intentionally only 1% of the ring. The
-              visible fill is therefore too narrow to be a reliable touch
-              target on a phone. Keep the visual slice at 1%, but give that
-              group a transparent, touch-sized stroke so it remains clickable
-              without changing any other segment's appearance or geometry. */}
-          {(() => {
-            const uncatBorder = groupBorders.find(gb => gb.catKey === "cat-uncat");
-            if (!uncatBorder) return null;
-            return (
-              <path
-                key="uncat-touch-target"
-                d={uncatBorder.d}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={10}
-                strokeLinecap="round"
-                style={{ pointerEvents: "stroke", cursor: "pointer" }}
-                onClick={() => handleSegmentClick("cat-uncat")}
-              />
             );
           })()}
 
@@ -1002,14 +998,20 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
       >
         {/* Fixed inner width prevents items from squishing during the animation */}
         <div style={{ width: 160 }} className="space-y-2.5">
-          {legend.map(item => {
+          {legend.map((item, idx) => {
             const pct    = (!item.isUncategorized && item.budget > 0)
               ? Math.round((item.spent / item.budget) * 100) : null;
             const isSel  = selectedCat === item.catKey;
             const dimmed = selectedCat !== null && !isSel;
             return (
+              <div
+                key={`${item.catKey}-${legendAnimKey}`}
+                style={{
+                  animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
+                  animationDelay: `${0.48 + idx * 0.07}s`,
+                }}
+              >
               <button
-                key={item.catKey}
                 className="w-full text-left"
                 style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                 onClick={() => handleSegmentClick(item.catKey)}
@@ -1041,6 +1043,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   )}
                 </div>
               </button>
+              </div>
             );
           })}
         </div>

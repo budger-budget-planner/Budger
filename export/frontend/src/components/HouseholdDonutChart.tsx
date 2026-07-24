@@ -48,6 +48,20 @@ if (typeof document !== "undefined" && !document.getElementById(LOCK_KF_ID)) {
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
 
+// Staggered legend-item entrance (shared keyframe — injected once across both charts)
+const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
+if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
+  const s = document.createElement("style");
+  s.id = LEGEND_ITEM_KF_ID;
+  s.textContent = `
+    @keyframes donutLegendItem {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 // ─── SVG constants (verbatim from DonutBudgetChart) ───────────────────────────
 const CX = 160, CY = 160, RI = 75, RO = 128, EXPAND = 14;
 const CAT_GAP = 2.5;
@@ -414,6 +428,7 @@ export default function HouseholdDonutChart({
     try { localStorage.setItem("hh-donut-mode", next); } catch { /* ignore */ }
   }
   const [hintKey,        setHintKey]        = useState(0);
+  const [legendAnimKey,  setLegendAnimKey]  = useState(0);
 
   // ── Phase 2 state ───────────────────────────────────────────────────────────
   const [drillPhase,      setDrillPhase]      = useState<DrillPhase>("idle");
@@ -497,15 +512,10 @@ export default function HouseholdDonutChart({
     error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
     query: {
-      // Only fetch once the animation has fully settled and the personal-spend
-      // panel is actually visible. Firing during earlier phases (fade-others →
-      // to-arc → …) caused spurious requests every time the user tapped into a
-      // new member mid-animation, and React Query's default retry:3 turned each
-      // network hiccup into a storm of 3 concurrent retries.
       enabled: drillPhase === "personal" && !isVirtualDrill && realMemberId > 0,
-      staleTime: 30_000,        // 30 s — re-drill within a session reuses cached data
-      retry: 1,                 // one retry is enough; default 3 storms the server
-      refetchOnWindowFocus: false, // prevents focus-triggered fetches on iOS app-switch
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -571,6 +581,11 @@ export default function HouseholdDonutChart({
       setMemberFetchError(true);
     }
   }, [memberSpendIsError, memberSpendErrorObj, drillPhase]);
+
+  // ── Stagger legend items each time the chart enters compact (visible) mode ──
+  useEffect(() => {
+    if (!expanded && !legendHidden) setLegendAnimKey(k => k + 1);
+  }, [expanded, legendHidden]);
 
   // ── Lock animation sequence ─────────────────────────────────────────────────
   useEffect(() => {
@@ -658,8 +673,8 @@ export default function HouseholdDonutChart({
       el.animate([
         { transform: "translate(0px,0px)",                      opacity: "1",    easing: "cubic-bezier(0.4,0,0.6,1)" },
         { transform: `translate(${inX}px,${inY}px)`, offset: 0.24, opacity: "0.68", easing: "linear" },
-        { transform: `translate(${inX}px,${inY}px)`, offset: 0.66, opacity: "0.68", easing: "cubic-bezier(0.34,1.56,0.64,1)" },
-        { transform: "translate(0px,0px)",                      opacity: "1" },
+        { transform: `translate(${inX}px,${inY}px)`, offset: 0.66, opacity: "0.68", easing: "linear" },
+        { transform: "translate(0px,0px)",                      opacity: "1",    easing: "cubic-bezier(0.34,1.56,0.64,1)" },
       ], { duration: 1000, fill: "none" });
     }
     let t2: ReturnType<typeof setTimeout> | null = null;
@@ -806,10 +821,6 @@ export default function HouseholdDonutChart({
   function startDrillBack() {
     if (drillPhase !== "personal") return;
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
-    // Clear privacy/error state immediately so stale padlock doesn't bleed
-    // into the back-animation frames or the next member's drill-in.
-    // (startDrillDown also resets these, but resetting here too ensures the
-    // UI is clean the moment the user taps back — before any new drill starts.)
     setIsPrivate(false);
     setMemberFetchError(false);
     setLockPhase(null);
@@ -1055,7 +1066,7 @@ export default function HouseholdDonutChart({
               );
             })}
 
-            {/* ── Arc overlay ─── */}
+            {/* ── Arc overlay — color transitions from member color → dark grey ─── */}
             {arcAnim && (
               <path d={arcAnim.d} fill={arcAnim.color} stroke="none"
                 style={{ pointerEvents: "none", transition: arcAnim.fillTransition ?? "none", opacity: arcAnim.opacity ?? 1 }} />
@@ -1173,13 +1184,20 @@ export default function HouseholdDonutChart({
           transition: legendHidden ? "opacity 0.2s ease" : (expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS),
         }}>
           <div style={{ width: 160 }} className="space-y-2.5">
-            {legend.map(item => {
+            {legend.map((item, idx) => {
               const pct    = !item.isVirtual && item.budgetInViewer != null && item.budgetInViewer > 0
                 ? Math.round((item.spentInViewer / item.budgetInViewer) * 100) : null;
               const isSel  = selectedId === item.groupId;
               const dimmed = selectedId !== null && !isSel;
               return (
-                <button key={item.groupId} className="w-full text-left"
+                <div
+                  key={`${item.groupId}-${legendAnimKey}`}
+                  style={{
+                    animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
+                    animationDelay: `${0.48 + idx * 0.07}s`,
+                  }}
+                >
+                <button className="w-full text-left"
                   style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                   onPointerDown={() => startLongPress(item.groupId)}
                   onPointerUp={cancelLongPress}
@@ -1200,6 +1218,7 @@ export default function HouseholdDonutChart({
                     )}
                   </div>
                 </button>
+                </div>
               );
             })}
           </div>
