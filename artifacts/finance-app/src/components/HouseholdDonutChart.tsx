@@ -48,19 +48,6 @@ if (typeof document !== "undefined" && !document.getElementById(LOCK_KF_ID)) {
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
 
-// Staggered legend-item entrance (shared keyframe — injected once across both charts)
-const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
-if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
-  const s = document.createElement("style");
-  s.id = LEGEND_ITEM_KF_ID;
-  s.textContent = `
-    @keyframes donutLegendItem {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  `;
-  document.head.appendChild(s);
-}
 
 // ─── SVG constants (verbatim from DonutBudgetChart) ───────────────────────────
 const CX = 160, CY = 160, RI = 75, RO = 128, EXPAND = 14;

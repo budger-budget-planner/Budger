@@ -64,20 +64,6 @@ if (typeof document !== "undefined" && !document.getElementById(GEM_KF_ID)) {
   document.head.appendChild(s);
 }
 
-// Staggered legend-item entrance
-const LEGEND_ITEM_KF_ID = "donut-legend-item-kf";
-if (typeof document !== "undefined" && !document.getElementById(LEGEND_ITEM_KF_ID)) {
-  const s = document.createElement("style");
-  s.id = LEGEND_ITEM_KF_ID;
-  s.textContent = `
-    @keyframes donutLegendItem {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  `;
-  document.head.appendChild(s);
-}
-
 // Circle A / B keyframe names indexed by pulse (0-based)
 const HINT_ANIM_A = ["donutBlink037", "donutBlink045", "donutBlink053"] as const;
 const HINT_ANIM_B = ["donutBlink045", "donutBlink053", "donutBlink061"] as const;
