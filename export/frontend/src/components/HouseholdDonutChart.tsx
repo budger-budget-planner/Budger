@@ -94,7 +94,7 @@ const _UNCAT_REMAIN_COLOR = "#374151";
 function buildTransitionCatSegs(
   spending: SpendingItem[],
   totalBudget: number,
-): Array<{ d: string; color: string }> {
+): { segs: Array<{ d: string; color: string }>; borders: Array<{ d: string; color: string }> } {
   const CAT_GAP = 2.5;
 
   const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
@@ -107,7 +107,7 @@ function buildTransitionCatSegs(
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
 
   type Part = { fraction: number; color: string };
-  const groups: Array<{ parts: Part[] }> = [];
+  const groups: Array<{ parts: Part[]; borderColor: string }> = [];
 
   for (const s of budgeted) {
     const color  = s.categoryColor ?? "#818cf8";
@@ -115,7 +115,7 @@ function buildTransitionCatSegs(
     const budget = s.budget!;
     const over   = spent > budget;
     if (over) {
-      groups.push({ parts: [{ fraction: budget / effectiveTotal, color }] });
+      groups.push({ parts: [{ fraction: budget / effectiveTotal, color }], borderColor: color });
     } else {
       const spentFrac  = spent / effectiveTotal;
       const remainFrac = (budget - spent) / effectiveTotal;
@@ -123,7 +123,7 @@ function buildTransitionCatSegs(
       if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  color });
       if (remainFrac > 0.001) parts.push({ fraction: remainFrac, color: hexDarken(color, 0.52) });
       if (parts.length === 0) parts.push({ fraction: budget / effectiveTotal, color: hexDarken(color, 0.52) });
-      groups.push({ parts });
+      groups.push({ parts, borderColor: color });
     }
   }
 
@@ -138,27 +138,34 @@ function buildTransitionCatSegs(
       if (uncatSpent  / effectiveTotal > 0.001) parts.push({ fraction: uncatSpent  / effectiveTotal, color: _UNCAT_SPENT_COLOR  });
       if (uncatRemain / effectiveTotal > 0.001) parts.push({ fraction: uncatRemain / effectiveTotal, color: _UNCAT_REMAIN_COLOR });
     }
-    if (parts.length > 0) groups.push({ parts });
+    if (parts.length > 0) groups.push({ parts, borderColor: _UNCAT_SPENT_COLOR });
   }
 
-  if (groups.length === 0) return [];
+  if (groups.length === 0) return { segs: [], borders: [] };
 
   const drawDeg = 360 - CAT_GAP * groups.length;
-  const result: Array<{ d: string; color: string }> = [];
+  const segs: Array<{ d: string; color: string }> = [];
+  const borders: Array<{ d: string; color: string }> = [];
   let cursor = 0;
 
   for (const g of groups) {
+    const groupStart = cursor;
     for (const p of g.parts) {
       const partDeg = p.fraction * drawDeg;
       if (partDeg > 0.01) {
-        result.push({ d: arc(CX, CY, RI, RO, cursor, cursor + partDeg), color: p.color });
+        segs.push({ d: arc(CX, CY, RI, RO, cursor, cursor + partDeg), color: p.color });
         cursor += partDeg;
       }
+    }
+    const groupEnd = cursor;
+    // One border arc spanning the full group (matches DonutBudgetChart groupBorderPath)
+    if (groupEnd > groupStart + 0.01) {
+      borders.push({ d: arc(CX, CY, RI, RO, groupStart, groupEnd), color: g.borderColor + "90" });
     }
     cursor += CAT_GAP; // gap after each group (between categories, not between sub-arcs)
   }
 
-  return result;
+  return { segs, borders };
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -428,6 +435,7 @@ export default function HouseholdDonutChart({
   const [arcAnim, setArcAnim] = useState<{ d: string; color: string; fillTransition?: string; opacity?: number } | null>(null);
   // Transition segments for snap-cats / color-in phases
   const [catTransSegs,    setCatTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
+  const [catTransBorders, setCatTransBorders] = useState<Array<{ d: string; color: string }>>([]);
   const [catTransColored, setCatTransColored] = useState(false);
   // Transition segments for snap-member / color-restore phases
   const [memberTransSegs,    setMemberTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
@@ -734,6 +742,7 @@ export default function HouseholdDonutChart({
     setLockPulseKey(0);
     setCatTransColored(false);
     setCatTransSegs([]);
+    setCatTransBorders([]);
 
     // Save this member's arc segs now (before segs change) for drill-back snap
     memberSegsRef.current = segs
@@ -774,8 +783,9 @@ export default function HouseholdDonutChart({
 
           push(setTimeout(() => {
             // E: snap — grey category segments appear, arc disappears (200ms hold)
-            const cSegs = buildTransitionCatSegs(personalSpendingRef.current, personalTotalBudgetRef.current);
+            const { segs: cSegs, borders: cBorders } = buildTransitionCatSegs(personalSpendingRef.current, personalTotalBudgetRef.current);
             setCatTransSegs(cSegs);
+            setCatTransBorders(cBorders);
             setCatTransColored(false);
             setArcAnim(null);
             setDrillPhase("snap-cats");
@@ -791,6 +801,7 @@ export default function HouseholdDonutChart({
                 //    fire it the moment the data arrives (via the personalLoading effect).
                 function doPersonalTransition() {
                   setCatTransSegs([]);
+                  setCatTransBorders([]);
                   setHhOpacity(0);
                   setPersOpacity(1);
                   setDrillPhase("personal");
@@ -1095,6 +1106,12 @@ export default function HouseholdDonutChart({
                 <path d={seg.d} fill={seg.color}
                   style={{ opacity: catTransColored ? 1 : 0, transition: "opacity 1.65s ease" }} />
               </g>
+            ))}
+            {/* ── Snap-cats border arcs — fade in with the colors ── */}
+            {catTransBorders.length > 0 && catTransBorders.map((seg, i) => (
+              <path key={`ctb-${i}`} d={seg.d} fill="none"
+                stroke={seg.color} strokeWidth={1}
+                style={{ pointerEvents: "none", opacity: catTransColored ? 1 : 0, transition: "opacity 1.65s ease" }} />
             ))}
 
             {/* ── Snap-member transition segs (grey → real colors) ─────────────
