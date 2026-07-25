@@ -547,6 +547,13 @@ export default function HouseholdDonutChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drilledMemberId]);
 
+  // Notify parent when persOpacity changes so the Manage button can fade in/out
+  // in sync with the personal overlay fade
+  useEffect(() => {
+    onManageVisibility?.(persOpacity > 0.1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persOpacity]);
+
   // Convert member spending to viewer currency
   const personalSpending = useMemo<SpendingItem[]>(() => {
     const raw = (isVirtualDrill ? virtualSpendRaw : memberSpendRaw) ?? [];

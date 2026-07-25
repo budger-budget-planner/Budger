@@ -803,6 +803,7 @@ export default function HouseholdPage() {
   const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
   const [drilledHouseholdMember, setDrilledHouseholdMember] = useState<MemberRow | null>(null);
   const [isDrilledVirtual, setIsDrilledVirtual] = useState(false);
+  const [manageVisible, setManageVisible] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1407,12 +1408,18 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
-              {iAmHead && drilledHouseholdMember && !isDrilledVirtual && (
+              {iAmHead && !isDrilledVirtual && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
+                  style={{
+                    opacity: manageVisible ? 1 : 0,
+                    pointerEvents: manageVisible ? "auto" : "none",
+                    transition: "opacity 0.3s ease",
+                  }}
                   onClick={() => {
+                    if (!drilledHouseholdMember) return;
                     setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                     setMemberSheetHideSpending(true);
                     setSelectedMember(drilledHouseholdMember as MemberRow);
@@ -1440,6 +1447,7 @@ export default function HouseholdPage() {
                   setDrilledHouseholdMember(member as MemberRow | null);
                   setIsDrilledVirtual(isVirtual);
                 }}
+                onManageVisibility={(visible) => setManageVisible(visible)}
               />
             </div>
           </div>
