@@ -399,12 +399,13 @@ type Props = {
   onMemberTap?: (member: HouseholdMemberInput) => void;
   iAmHead?: boolean;
   onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
+  onManageVisibility?: (visible: boolean) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap, iAmHead = false,
-  onDrilledMemberChange,
+  onDrilledMemberChange, onManageVisibility,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
