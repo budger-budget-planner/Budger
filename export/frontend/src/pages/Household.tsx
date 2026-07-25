@@ -801,6 +801,8 @@ export default function HouseholdPage() {
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
+  const [drilledHouseholdMember, setDrilledHouseholdMember] = useState<MemberRow | null>(null);
+  const [isDrilledVirtual, setIsDrilledVirtual] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1397,7 +1399,7 @@ export default function HouseholdPage() {
 
           {/* ── Members — Household Donut ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-            {/* Header row: count only */}
+            {/* Header row: count + manage button when a member is drilled */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <p className="text-sm font-semibold">
                 {t("hh.members")}{" "}
@@ -1405,6 +1407,20 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
+              {iAmHead && drilledHouseholdMember && !isDrilledVirtual && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
+                  onClick={() => {
+                    setMemberAnchorY(Math.round(window.innerHeight * 0.55));
+                    setMemberSheetHideSpending(true);
+                    setSelectedMember(drilledHouseholdMember as MemberRow);
+                  }}
+                >
+                  {t("hh.manage")}
+                </Button>
+              )}
             </div>
 
             {/* Donut chart */}
@@ -1419,6 +1435,10 @@ export default function HouseholdPage() {
                   setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                   setMemberSheetHideSpending(true);
                   setSelectedMember(m as MemberRow);
+                }}
+                onDrilledMemberChange={(member, isVirtual) => {
+                  setDrilledHouseholdMember(member as MemberRow | null);
+                  setIsDrilledVirtual(isVirtual);
                 }}
               />
             </div>

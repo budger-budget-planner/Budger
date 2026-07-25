@@ -398,11 +398,13 @@ type Props = {
   rates: Record<string, number> | null;
   onMemberTap?: (member: HouseholdMemberInput) => void;
   iAmHead?: boolean;
+  onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap, iAmHead = false,
+  onDrilledMemberChange,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
@@ -537,6 +539,12 @@ export default function HouseholdDonutChart({
     () => members.find(m => m.userId === drilledMemberId) ?? null,
     [members, drilledMemberId],
   );
+
+  // Notify parent when the drilled member changes so it can show the Manage button
+  useEffect(() => {
+    onDrilledMemberChange?.(drilledMember, isVirtualDrill);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drilledMemberId]);
 
   // Convert member spending to viewer currency
   const personalSpending = useMemo<SpendingItem[]>(() => {
@@ -1277,14 +1285,7 @@ export default function HouseholdDonutChart({
               <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
               <span>{t("hh.drill_back_hint")}</span>
             </button>
-            {iAmHead && onMemberTap && drilledMember && !isVirtualDrill && (
-              <button
-                className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/15 transition-colors"
-                onClick={() => onMemberTap(drilledMember)}
-              >
-                {t("hh.manage")}
-              </button>
-            )}
+            {/* Manage button moved to Members section header in parent */}
           </div>
 
           {/* Personal donut or lock or spinner — flex-start matches household so
