@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import webpush from "web-push";
-import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable, userAlarmsTable } from "../db";
+import { db, notificationSettingsTable, pushSubscriptionsTable, notificationItemsTable, userAlarmsTable, usersTable } from "../db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { UpdateNotificationSettingsBody, SavePushSubscriptionBody, CreateNotificationItemBody } from "../api-zod";
 import { logger } from "../lib/logger";
@@ -401,9 +401,23 @@ async function sendPushToUser(userId: number, alarmId: number) {
     return;
   }
 
+  // Look up the user's preferred language so the notification matches the app's locale
+  let userLanguage = "en";
+  try {
+    const userRows = await db.select({ language: usersTable.language })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    if (userRows[0]?.language) userLanguage = userRows[0].language;
+  } catch { /* fall back to English */ }
+
+  const body = userLanguage === "pl"
+    ? "Nie zapomnij zapisać dzisiejszych wydatków!"
+    : "Don't forget to log today's spending!";
+
   const payload = JSON.stringify({
     title: "",
-    body: "Don't forget to log today's spending!",
+    body,
     url: "/",
     tag: `daily-reminder-${alarmId}`,
   });
