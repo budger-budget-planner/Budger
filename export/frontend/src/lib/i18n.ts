@@ -107,12 +107,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.card":                { en: "Card",                              pl: "Karta"                           },
   "home.cash":                { en: "Cash",                              pl: "Gotówka"                         },
   "home.bank_transfer":       { en: "Bank Transfer",                     pl: "Przelew"                         },
-  "home.dedicate_to_goal":    { en: "Dedicate to Goal",                  pl: "Przypisz do celu"                },
+  "home.dedicate_to_goal":    { en: "Support a Goal",                    pl: "Wesprzyj Cel"                   },
   "home.goal_mode_off":       { en: "Off",                               pl: "Nie"                             },
   "home.goal_mode_all":       { en: "All",                               pl: "Całość"                          },
   "home.goal_mode_part":      { en: "Part",                              pl: "Część"                           },
   "home.goal_all_desc":       { en: "Full amount goes to the goal",      pl: "Cała kwota idzie na cel"         },
-  "home.goal_part_desc":      { en: "Choose how much to dedicate",       pl: "Wybierz ile przeznaczyć"         },
+  "home.goal_part_desc":      { en: "Choose how much to set aside",      pl: "Wybierz, ile odłożyć"            },
   "home.goal":                { en: "Goal",                              pl: "Cel"                             },
   "home.select_goal":         { en: "Select a goal",                     pl: "Wybierz cel"                     },
   "home.amount_toward_goal":  { en: "Amount toward goal",                pl: "Kwota na cel"                    },
@@ -156,7 +156,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.no_results":  { en: "No results found.",pl: "Brak wyników."     },
   "tx.pending_sync":{ en: "Pending sync",    pl: "Oczekuje na sync"  },
   "tx.goals":       { en: "Goals",            pl: "Cele"              },
-  "tx.dedicate":    { en: "Dedicate to Goal", pl: "Przypisz do celu"  },
+  "tx.dedicate":    { en: "Support a Goal",   pl: "Wesprzyj Cel"      },
   "tx.choose_goal": { en: "Choose goal…",     pl: "Wybierz cel…"      },
   "tx.grocery_placeholder": { en: "Coffee, groceries...", pl: "Kawa, zakupy..." },
   "tx.goal":            { en: "Goal",                       pl: "Cel"                            },
@@ -879,12 +879,12 @@ const translations: Record<string, Record<Lang, string>> = {
   },
 
   "badges.s4_title": {
-    en: "Goal & Larder — money set aside",
-    pl: "Cel i Spiżarnia — odłożone pieniądze",
+    en: "Support a Goal or Larder",
+    pl: "Wesprzyj Cel lub Spiżarnię",
   },
   "badges.s4_desc": {
-    en: "The violet badge shows a target icon plus an amount. It means part of this transaction contributed to a savings goal, or was dedicated straight into your Larder.",
-    pl: "Fioletowa odznaka pokazuje ikonę celu i kwotę. Oznacza, że część tej transakcji zasiliła cel oszczędnościowy lub trafiła bezpośrednio do Spiżarni.",
+    en: "The violet badge shows a target icon plus an amount. It means part of this transaction supported a savings goal, or went straight into your Larder.",
+    pl: "Fioletowa odznaka pokazuje ikonę celu i kwotę. Oznacza, że część tej transakcji wsparła cel oszczędnościowy lub trafiła bezpośrednio do Spiżarni.",
   },
 
   "badges.s5_title": {
