@@ -201,9 +201,9 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
         />
       </div>
 
-      {/* Goal toggle */}
-      {goals.length > 0 && (
-        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+      {/* Goal toggle — keep this visible even when there are no active personal
+          goals, because the Larder is always a valid dedication destination. */}
+      <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{t("home.dedicate_to_goal")}</p>
             {/* 3-position pill: Off / All / Part */}
@@ -304,8 +304,7 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
               )}
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       <div className="space-y-1.5">
         <Label>{t("common.date")}</Label>
