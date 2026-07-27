@@ -7,9 +7,10 @@ import { categoriesTable } from "./categories";
 export const budgetStretchesTable = pgTable("budget_stretches", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  /** The transaction this stretch belongs to. Enforced unique at the DB level — one stretch per tx.
+  /** Optional transaction this stretch was created from.
+   *  May be null when a stretch is created directly from the Categories page (not tied to a specific transaction).
    *  No FK constraint added here to avoid circular import issues (same pattern as splitId on transactions). */
-  transactionId: integer("transaction_id").notNull(),
+  transactionId: integer("transaction_id"),
   /** YYYY-MM of the month in which the toCategoryId receives extra budget */
   month: text("month").notNull(),
   /** Category whose effective budget is increased (the one being stretched) */

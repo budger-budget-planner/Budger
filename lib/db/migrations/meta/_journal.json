@@ -57,6 +57,13 @@
       "when": 1785155388669,
       "tag": "0007_legal_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785186700000,
+      "tag": "0008_budget_stretch_optional_tx",
+      "breakpoints": true
     }
   ]
 }

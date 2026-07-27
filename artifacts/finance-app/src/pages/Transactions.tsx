@@ -30,13 +30,12 @@ import {
   getGetLarderQueryKey,
   useAddLarderEntry,
   useDeleteLarderEntry,
-  getListBudgetStretchesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ArrowRightLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,18 +54,8 @@ type TxFormState = {
   paymentMethod: string;
 };
 
-type StretchMode = "no" | "full" | "partial";
-type StretchState = {
-  mode: StretchMode;
-  toCategoryId: string;
-  fromCategoryId: string;
-  amount: string;
-};
-const BLANK_STRETCH: StretchState = { mode: "no", toCategoryId: "", fromCategoryId: "", amount: "" };
-
 function TxForm({
   initial,
-  initialStretch,
   categories,
   goals,
   onSubmit,
@@ -74,42 +63,17 @@ function TxForm({
   loading,
 }: {
   initial: TxFormState;
-  initialStretch?: StretchState | null;
   categories: any[];
   goals: any[];
-  onSubmit: (data: TxFormState, stretch: StretchState) => void;
+  onSubmit: (data: TxFormState) => void;
   onCancel: () => void;
   loading: boolean;
 }) {
   const [form, setForm] = useState<TxFormState>(initial);
-  const [stretch, setStretch] = useState<StretchState>(initialStretch ?? BLANK_STRETCH);
   function set(k: keyof TxFormState, v: string) { setForm(p => ({ ...p, [k]: v })); }
-  const sym = currencySymbol(loadPrefs().currency);
-
-  const isCrossMonth = !!(stretch.toCategoryId && stretch.toCategoryId === stretch.fromCategoryId);
-  const stretchToCat = categories.find((c: any) => String(c.id) === stretch.toCategoryId);
-  const maxCrossMonthAmt = stretchToCat?.budget ? Number(stretchToCat.budget) * 0.5 : null;
-  const partialAmountNum = parseFloat(stretch.amount) || 0;
-  const partialExceedsMax = isCrossMonth && maxCrossMonthAmt !== null && partialAmountNum > maxCrossMonthAmt;
-  const stretchInvalid = stretch.mode !== "no" && (
-    !stretch.toCategoryId ||
-    !stretch.fromCategoryId ||
-    (stretch.mode === "partial" && (!stretch.amount || partialExceedsMax))
-  );
-
-  function activateStretch(m: StretchMode) {
-    const txCatId = form.categoryId && !form.categoryId.startsWith("goal_") && form.categoryId !== "none"
-      ? form.categoryId : "";
-    setStretch(s => ({
-      ...s,
-      mode: m,
-      toCategoryId: m !== "no" && !s.toCategoryId ? txCatId : s.toCategoryId,
-      fromCategoryId: m !== "no" && !s.fromCategoryId ? txCatId : s.fromCategoryId,
-    }));
-  }
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form, stretch); }} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
       <div className="space-y-1.5">
         <Label>{t("common.amount")}</Label>
         <Input data-testid="input-amount" type="number" step="0.01" min="0" placeholder="0.00" value={form.amount} onChange={e => set("amount", e.target.value)} required />
@@ -171,128 +135,9 @@ function TxForm({
         </div>
       </div>
 
-      {/* ── Stretch budget section ── */}
-      {categories.length > 0 && (
-        <div className="border-t border-border pt-3 space-y-3">
-          <div className="flex items-center gap-2">
-            <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">Stretch budget</p>
-          </div>
-
-          {/* Three-way toggle */}
-          <div className="flex rounded-xl overflow-hidden border border-border">
-            {(["no", "full", "partial"] as StretchMode[]).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => activateStretch(m)}
-                className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
-                  stretch.mode === m
-                    ? "bg-orange-500/20 text-orange-400"
-                    : "bg-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "no" ? "No" : m === "full" ? "Fully" : "Partially"}
-              </button>
-            ))}
-          </div>
-
-          {stretch.mode !== "no" && (
-            <div className="space-y-2">
-              {/* Which category gets more budget */}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Category to stretch</Label>
-                <Select
-                  value={stretch.toCategoryId}
-                  onValueChange={v => setStretch(s => ({
-                    ...s,
-                    toCategoryId: v,
-                    fromCategoryId: s.fromCategoryId || v,
-                  }))}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c: any) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        <span className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                          {c.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Source of extra budget */}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Source of extra budget</Label>
-                <Select
-                  value={stretch.fromCategoryId}
-                  onValueChange={v => setStretch(s => ({ ...s, fromCategoryId: v }))}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stretch.toCategoryId && (
-                      <SelectItem value={stretch.toCategoryId}>
-                        <span className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: categories.find((c: any) => String(c.id) === stretch.toCategoryId)?.color ?? "#94a3b8" }} />
-                          {categories.find((c: any) => String(c.id) === stretch.toCategoryId)?.name} (borrow from next month)
-                        </span>
-                      </SelectItem>
-                    )}
-                    {categories
-                      .filter((c: any) => String(c.id) !== stretch.toCategoryId)
-                      .map((c: any) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                            {c.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {isCrossMonth && maxCrossMonthAmt !== null && (
-                <p className="text-xs text-orange-400/80">
-                  Cross-month: borrows from next month's budget (max {sym}{maxCrossMonthAmt.toFixed(2)})
-                </p>
-              )}
-
-              {stretch.mode === "partial" && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Stretch amount{isCrossMonth && maxCrossMonthAmt ? ` (max ${sym}${maxCrossMonthAmt.toFixed(2)})` : ""}
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">{sym}</span>
-                    <Input
-                      type="number" min="0.01" step="0.01" placeholder="0.00"
-                      value={stretch.amount}
-                      onChange={e => setStretch(s => ({ ...s, amount: e.target.value }))}
-                      className="pl-7 h-9 text-sm"
-                    />
-                  </div>
-                  {partialExceedsMax && maxCrossMonthAmt && (
-                    <p className="text-xs text-red-400">Exceeds max cross-month allowance ({sym}{maxCrossMonthAmt.toFixed(2)})</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("common.cancel")}</Button>
-        <Button type="submit" className="flex-1" disabled={loading || stretchInvalid} data-testid="button-save-transaction">
+        <Button type="submit" className="flex-1" disabled={loading} data-testid="button-save-transaction">
           {loading ? t("common.saving") : t("common.save")}
         </Button>
       </div>
@@ -742,7 +587,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, month?: string) {
   qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   qc.invalidateQueries({ queryKey: ["member-goal-contributions"] });
   qc.invalidateQueries({ queryKey: ["larder"] });
-  qc.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
+  qc.invalidateQueries({ queryKey: ["budget-stretches"] });
 }
 
 function getPaymentLabel(): Record<string, string> {
@@ -861,7 +706,7 @@ export default function TransactionsPage() {
     return { categoryId: parseInt(form.categoryId) };
   }
 
-  function handleCreate(form: TxFormState, stretch: StretchState) {
+  function handleCreate(form: TxFormState) {
     if (!isOnline) return;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
     const now = new Date();
@@ -908,43 +753,12 @@ export default function TransactionsPage() {
               queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
             });
           }
-
-          // Apply budget stretch after transaction is saved
-          if (stretch.mode !== "no" && stretch.toCategoryId && stretch.fromCategoryId && (tx as any).id) {
-            const isCrossMonth = stretch.toCategoryId === stretch.fromCategoryId;
-            const toCat = (categories ?? []).find((c: any) => String(c.id) === stretch.toCategoryId);
-            const fromCat = (categories ?? []).find((c: any) => String(c.id) === stretch.fromCategoryId);
-            let stretchAmt = 0;
-            if (stretch.mode === "partial") {
-              stretchAmt = parseFloat(stretch.amount) || 0;
-            } else {
-              stretchAmt = isCrossMonth
-                ? (toCat?.budget ? Number(toCat.budget) * 0.5 : 0)
-                : (fromCat?.budget ? Number(fromCat.budget) : 0);
-            }
-            if (stretchAmt > 0) {
-              apiFetch("/api/budget-stretches", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  transactionId: (tx as any).id,
-                  toCategoryId: parseInt(stretch.toCategoryId),
-                  fromCategoryId: parseInt(stretch.fromCategoryId),
-                  amount: stretchAmt,
-                  stretchType: isCrossMonth ? "cross_month" : "cross_category",
-                }),
-              }).then(() => {
-                queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
-                queryClient.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
-              }).catch(() => {});
-            }
-          }
         },
       }
     );
   }
 
-  async function handleUpdate(form: TxFormState, stretch: StretchState) {
+  async function handleUpdate(form: TxFormState) {
     if (!editTx || isSaving) return;
     const txId = editTx.id;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
@@ -1038,39 +852,6 @@ export default function TransactionsPage() {
         });
       }
       queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-
-      // Step 4: Manage budget stretch — delete existing, then create new if set
-      const existingStretch = (editTx as any).stretch;
-      if (existingStretch) {
-        await apiFetch(`/api/budget-stretches/${existingStretch.id}`, { method: "DELETE" })
-          .catch(() => {});
-      }
-      if (stretch.mode !== "no" && stretch.toCategoryId && stretch.fromCategoryId) {
-        const isCrossMonth = stretch.toCategoryId === stretch.fromCategoryId;
-        const toCat = (categories ?? []).find((c: any) => String(c.id) === stretch.toCategoryId);
-        const fromCat = (categories ?? []).find((c: any) => String(c.id) === stretch.fromCategoryId);
-        let stretchAmt = 0;
-        if (stretch.mode === "partial") {
-          stretchAmt = parseFloat(stretch.amount) || 0;
-        } else {
-          stretchAmt = isCrossMonth
-            ? (toCat?.budget ? Number(toCat.budget) * 0.5 : 0)
-            : (fromCat?.budget ? Number(fromCat.budget) : 0);
-        }
-        if (stretchAmt > 0) {
-          await apiFetch("/api/budget-stretches", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              transactionId: txId,
-              toCategoryId: parseInt(stretch.toCategoryId),
-              fromCategoryId: parseInt(stretch.fromCategoryId),
-              amount: stretchAmt,
-              stretchType: isCrossMonth ? "cross_month" : "cross_category",
-            }),
-          }).catch(() => {});
-        }
-      }
 
       invalidateAll(queryClient, currentMonth);
       setEditTx(null);
@@ -1313,12 +1094,6 @@ export default function TransactionsPage() {
                 <FoundedWithRealizedGoalToggle tx={editTx} isOffline={!isOnline} />
                 <TxForm
                   initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: initCategoryId, date: editTx.date, paymentMethod: editTx.paymentMethod }}
-                  initialStretch={(editTx as any).stretch ? {
-                    mode: "partial",
-                    toCategoryId: String((editTx as any).stretch.toCategoryId),
-                    fromCategoryId: String((editTx as any).stretch.fromCategoryId),
-                    amount: String((editTx as any).stretch.amount),
-                  } : null}
                   categories={categories ?? []}
                   goals={goals ?? []}
                   onSubmit={handleUpdate}

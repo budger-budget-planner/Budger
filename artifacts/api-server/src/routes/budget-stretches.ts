@@ -42,22 +42,50 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   const { transactionId, toCategoryId, fromCategoryId, amount, stretchType } = req.body;
 
   // ── Type validation ─────────────────────────────────────────────────────
-  if (!transactionId || !toCategoryId || !fromCategoryId || !amount || !stretchType) {
-    res.status(400).json({ error: "Missing required fields: transactionId, toCategoryId, fromCategoryId, amount, stretchType" }); return;
+  // transactionId is optional — stretches can be created directly from the Categories page
+  if (!toCategoryId || !fromCategoryId || !amount || !stretchType) {
+    res.status(400).json({ error: "Missing required fields: toCategoryId, fromCategoryId, amount, stretchType" }); return;
   }
   if (!["cross_category", "cross_month"].includes(stretchType)) {
     res.status(400).json({ error: "stretchType must be 'cross_category' or 'cross_month'" }); return;
   }
   const parsedToCategoryId   = parseInt(String(toCategoryId), 10);
   const parsedFromCategoryId = parseInt(String(fromCategoryId), 10);
-  const parsedTransactionId  = parseInt(String(transactionId), 10);
   const parsedAmount         = parseFloat(String(amount));
 
-  if (isNaN(parsedToCategoryId) || isNaN(parsedFromCategoryId) || isNaN(parsedTransactionId)) {
-    res.status(400).json({ error: "transactionId, toCategoryId, and fromCategoryId must be integers" }); return;
+  if (isNaN(parsedToCategoryId) || isNaN(parsedFromCategoryId)) {
+    res.status(400).json({ error: "toCategoryId and fromCategoryId must be integers" }); return;
   }
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  // ── Resolve transactionId and month ─────────────────────────────────────
+  let parsedTransactionId: number | null = null;
+  let month: string;
+
+  if (transactionId != null && transactionId !== "") {
+    parsedTransactionId = parseInt(String(transactionId), 10);
+    if (isNaN(parsedTransactionId)) {
+      res.status(400).json({ error: "transactionId must be an integer" }); return;
+    }
+    // ── Transaction ownership ─────────────────────────────────────────────
+    const [tx] = await db.select().from(transactionsTable)
+      .where(and(eq(transactionsTable.id, parsedTransactionId), eq(transactionsTable.userId, userId)));
+    if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
+    // Month derived from the transaction's date — never client-supplied
+    month = tx.date.slice(0, 7); // YYYY-MM
+
+    // ── Rule 1: One stretch per transaction ───────────────────────────────
+    const [existing] = await db.select().from(budgetStretchesTable)
+      .where(eq(budgetStretchesTable.transactionId, parsedTransactionId));
+    if (existing) {
+      res.status(409).json({ error: "This transaction already has a budget stretch attached" }); return;
+    }
+  } else {
+    // No transaction — use current calendar month
+    const now = new Date();
+    month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }
 
   // ── Mode-specific shape validation ──────────────────────────────────────
@@ -66,21 +94,6 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   }
   if (stretchType === "cross_category" && parsedToCategoryId === parsedFromCategoryId) {
     res.status(400).json({ error: "cross_category stretch requires toCategoryId and fromCategoryId to be different categories" }); return;
-  }
-
-  // ── Rule 5: Transaction ownership ───────────────────────────────────────
-  const [tx] = await db.select().from(transactionsTable)
-    .where(and(eq(transactionsTable.id, parsedTransactionId), eq(transactionsTable.userId, userId)));
-  if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
-
-  // Month derived from the transaction's date — never client-supplied
-  const month = tx.date.slice(0, 7); // YYYY-MM
-
-  // ── Rule 1: One stretch per transaction ─────────────────────────────────
-  const [existing] = await db.select().from(budgetStretchesTable)
-    .where(eq(budgetStretchesTable.transactionId, parsedTransactionId));
-  if (existing) {
-    res.status(409).json({ error: "This transaction already has a budget stretch attached" }); return;
   }
 
   // ── Rule 2: Category ownership ───────────────────────────────────────────
