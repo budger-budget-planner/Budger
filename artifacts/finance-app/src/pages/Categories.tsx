@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiFetch as apiFetchCsrf } from "@/lib/api";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -223,9 +225,8 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
     setError(null);
     try {
       const stretchType = isCrossMonth ? "cross_month" : "cross_category";
-      const res = await fetch(`${import.meta.env.BASE_URL}api/budget-stretches`, {
+      const res = await apiFetchCsrf(`${import.meta.env.BASE_URL}api/budget-stretches`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toCategoryId: category.id,
@@ -250,7 +251,7 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="w-4 h-4 text-orange-400" />
@@ -270,22 +271,31 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
           {/* Source dropdown */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Source of extra budget</Label>
-            <select
-              value={fromCategoryId}
-              onChange={e => { setFromCategoryId(e.target.value); setError(null); }}
-              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {/* Same category = borrow from next month */}
-              <option value={String(category.id)}>
-                {category.name} — borrow from next month
-              </option>
-              {/* Other categories = cross-category donation */}
-              {categories
-                .filter(c => c.id !== category.id)
-                .map(c => (
-                  <option key={c.id} value={String(c.id)}>{c.name}</option>
-                ))}
-            </select>
+            <Select value={fromCategoryId} onValueChange={v => { setFromCategoryId(v); setError(null); }}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Same category = borrow from next month */}
+                <SelectItem value={String(category.id)}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                    <span>{category.name} — borrow from next month</span>
+                  </div>
+                </SelectItem>
+                {/* Other categories = cross-category donation */}
+                {categories
+                  .filter(c => c.id !== category.id)
+                  .map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                        <span>{c.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Cross-month info/warning */}
