@@ -18,3 +18,4 @@ export * from "./recurring_payment_logs";
 export * from "./category_share_proposals";
 export * from "./larder_entries";
 export * from "./great_larder_entries";
+export * from "./budget_stretches";

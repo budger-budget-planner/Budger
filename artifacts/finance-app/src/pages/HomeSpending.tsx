@@ -33,12 +33,13 @@ import {
   getGetLarderQueryKey,
   useDeleteLarderEntry,
   useGetGoalsSummary,
+  useListBudgetStretches,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1129,6 +1130,14 @@ export default function HomeSpending() {
   const toStr          = format(monthEnd,   "yyyy-MM-dd");
   const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
+  const { data: monthStretches } = useListBudgetStretches({ month: viewMonth } as any);
+  // Compute the net cross-month adjustment for the total budget display
+  const crossMonthNetAmt = (monthStretches ?? []).reduce((sum: number, s: any) => {
+    if (s.stretchType === "cross_month") return sum + Number(s.amount);
+    return sum;
+  }, 0);
+  const adjustedTotalBudget = crossMonthNetAmt !== 0 && totalBudget != null
+    ? totalBudget + crossMonthNetAmt : null;
 
   const { data: categories }    = useListCategories();
   const { data: goals }         = useListGoals();
@@ -1191,6 +1200,12 @@ export default function HomeSpending() {
     if ((e.sourceType === "transaction_dedication" || e.sourceType === "recurring_payment") && e.sourceId != null && e.amount > 0) {
       larderByTxId.set(e.sourceId, { id: e.id, amount: e.amount, currency: e.currency });
     }
+  }
+
+  // Map transactionId → stretch (for orange stretch badge on rows)
+  const stretchByTxId = new Map<number, { stretchType: string; amount: number }>();
+  for (const s of monthStretches ?? []) {
+    stretchByTxId.set((s as any).transactionId, { stretchType: (s as any).stretchType, amount: Number((s as any).amount) });
   }
 
   const { pendingTxIds, pendingRpIds, pendingTransactions } = useOfflinePendingOps();
@@ -1582,7 +1597,10 @@ export default function HomeSpending() {
                   {t("common.edit")}
                 </button>
               </div>
-              <p className="text-3xl font-bold leading-tight"><AmtHero amount={totalBudget} currency={prefs.currency} /></p>
+              <p className="text-3xl font-bold leading-tight"><AmtHero amount={adjustedTotalBudget ?? totalBudget} currency={prefs.currency} /></p>
+              {adjustedTotalBudget != null && (
+                <p className="text-xs text-orange-400 mt-0.5">+<AmtHero amount={crossMonthNetAmt} currency={prefs.currency} /> {prefs.language === 'pl' ? 'przeniesione z nast. miesiąca' : 'stretched from next month'}</p>
+              )}
 
               {/* Divider */}
               <div className="border-t border-border" />
@@ -1770,6 +1788,8 @@ export default function HomeSpending() {
                   const hasUnavailable      = !!(tx as any).currencyUnavailable;
                   const hasForeign          = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && !hasUnavailable);
                   const hasFromLarder       = !!(tx as any).isLarderFund;
+                  const txStretch           = stretchByTxId.get(tx.id);
+                  const hasStretch          = !!txStretch;
 
                   // Truncated name (30 chars max in collapsed view)
                   const shortName = tx.description.length > 30
@@ -1826,7 +1846,7 @@ export default function HomeSpending() {
                                   {t("tx.name_it")}
                                 </button>
                               )}
-                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
+                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder || hasStretch) && (
                                 <div className="flex flex-wrap gap-1">
                                   {hasFromLarder && (
                                     <span className="relative inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-white/50 bg-black text-[10px] font-semibold text-white/90"
@@ -1920,7 +1940,7 @@ export default function HomeSpending() {
                             /* ── Collapsed: category name + colored badge dots ── */
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <p className="text-xs text-muted-foreground truncate">{catLabel}</p>
-                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder) && (
+                              {(hasSplit || hasGoal || hasLarderDedication || isRealizedGoal || hasReceipt || hasLocked || hasFromLarder || hasStretch) && (
                                 <div className="flex items-center gap-0.5 flex-shrink-0">
                                   {hasFromLarder  && (
                                     <span className="relative flex-shrink-0 inline-block" style={{ width:10, height:10, animation:"gemFlash 2.6s ease-in-out infinite" }}>

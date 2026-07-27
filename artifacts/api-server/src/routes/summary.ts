@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable, budgetStretchesTable } from "@workspace/db";
 import { eq, desc, and, isNull, or, like, gte, inArray } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
@@ -9,22 +9,86 @@ import { isNativeCurrency, isValidMonthPrefix, monthsAgoDate, roundMoney, native
 
 const router: IRouter = Router();
 
+type StretchInfo = { delta: number; isStretched: boolean; stretchAmount: number; stretchType: string | null };
+
 async function getSpendingGrouped(userId: number, userCurrency?: string, includeAllCategories = false, monthPrefix?: string) {
   const whereClause = monthPrefix
     ? and(eq(transactionsTable.userId, userId), like(transactionsTable.date, `${monthPrefix}-%`))
     : eq(transactionsTable.userId, userId);
 
-  const txs = await db.select().from(transactionsTable).where(whereClause);
-
   // Personal dashboards must only ever show categories the user themselves created.
   // Household membership does NOT grant visibility into other members' categories here —
   // that sharing only happens in the dedicated household-tab view.
-  const categories = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
-  const catMap = new Map(categories.map(c => [c.id, c]));
+  const [txs, categories, userRPs] = await Promise.all([
+    db.select().from(transactionsTable).where(whereClause),
+    db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
+    db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId)),
+  ]);
 
+  const catMap = new Map(categories.map(c => [c.id, c]));
   // Load recurring payments so RP-linked transactions can be grouped by their RP
-  const userRPs = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
-  const rpMap = new Map(userRPs.map(rp => [rp.id, rp]));
+  const rpMap  = new Map(userRPs.map(rp => [rp.id, rp]));
+
+  // ── Stretch budget adjustments ────────────────────────────────────────────
+  // Build a per-categoryId map of effective budget deltas so the summary reflects
+  // cross-category donations and cross-month borrows without touching stored budgets.
+  const catStretchMap = new Map<number, StretchInfo>();
+
+  if (monthPrefix) {
+    // Derive previous month string for deduction lookup
+    const [y, m] = monthPrefix.split("-").map(Number);
+    const prevDate  = new Date(y, m - 2, 1); // JS months are 0-indexed
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const [currentStretches, prevCrossMonthStretches] = await Promise.all([
+      // Stretches active in this month (both cross_category and cross_month borrows)
+      db.select().from(budgetStretchesTable)
+        .where(and(eq(budgetStretchesTable.userId, userId), eq(budgetStretchesTable.month, monthPrefix))),
+      // Cross-month stretches from the PREVIOUS month that reduce this month's budgets
+      db.select().from(budgetStretchesTable)
+        .where(and(
+          eq(budgetStretchesTable.userId, userId),
+          eq(budgetStretchesTable.month, prevMonth),
+          eq(budgetStretchesTable.stretchType, "cross_month"),
+        )),
+    ]);
+
+    const ensure = (id: number): StretchInfo => {
+      if (!catStretchMap.has(id)) catStretchMap.set(id, { delta: 0, isStretched: false, stretchAmount: 0, stretchType: null });
+      return catStretchMap.get(id)!;
+    };
+
+    for (const s of currentStretches) {
+      const amt = parseFloat(s.amount);
+      // toCategoryId receives extra budget
+      const toE = ensure(s.toCategoryId);
+      toE.delta        += amt;
+      toE.isStretched   = true;
+      toE.stretchAmount += amt;
+      toE.stretchType   = s.stretchType;
+      // fromCategoryId donates budget — only meaningful for cross_category
+      // (cross_month has identical from/to so we'd double-apply; skip it)
+      if (s.stretchType === "cross_category") {
+        const fromE = ensure(s.fromCategoryId);
+        fromE.delta        -= amt;
+        fromE.isStretched   = true;
+        fromE.stretchAmount -= amt;
+        if (fromE.stretchType === null) fromE.stretchType = s.stretchType;
+      }
+    }
+
+    // This month is the "donor" month for cross_month stretches made last month
+    for (const s of prevCrossMonthStretches) {
+      const amt = parseFloat(s.amount);
+      // toCategoryId === fromCategoryId for cross_month; the category loses budget here
+      const e = ensure(s.toCategoryId);
+      e.delta        -= amt;
+      e.isStretched   = true;
+      e.stretchAmount -= amt;
+      e.stretchType   = "cross_month";
+    }
+  }
+  // ── End stretch adjustments ───────────────────────────────────────────────
 
   const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && !tx.isLarderFund && isNativeCurrency(tx, userCurrency));
 
@@ -59,17 +123,30 @@ async function getSpendingGrouped(userId: number, userCurrency?: string, include
 
   const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
 
-  return Array.from(grouped.entries()).map(([key, entry]) => ({
-    categoryId: key.startsWith("rp-") || key === "uncategorized" ? null : parseInt(key),
-    categoryName: entry.category?.name ?? entry.rp?.name ?? "Uncategorized",
-    categoryColor: entry.category?.color ?? entry.rp?.color ?? "#94a3b8",
-    categoryIcon: entry.category?.icon ?? "tag",
-    budget: entry.category?.budget ? parseFloat(entry.category.budget) : (entry.rp ? parseFloat(entry.rp.amount) : null),
-    total: Math.round(entry.total * 100) / 100,
-    count: entry.count,
-    percentage: grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
-    recurringPaymentId: entry.rp?.id ?? null,
-  })).sort((a, b) => b.total - a.total);
+  return Array.from(grouped.entries()).map(([key, entry]) => {
+    const catId       = key.startsWith("rp-") || key === "uncategorized" ? null : parseInt(key);
+    const stretchInfo = catId != null ? catStretchMap.get(catId) : undefined;
+    const baseBudget  = entry.category?.budget ? parseFloat(entry.category.budget) : (entry.rp ? parseFloat(entry.rp.amount) : null);
+    // Effective budget = base budget adjusted by any active stretch for this category
+    const effectiveBudget = baseBudget != null && stretchInfo
+      ? Math.round((baseBudget + stretchInfo.delta) * 100) / 100
+      : baseBudget;
+
+    return {
+      categoryId:          catId,
+      categoryName:        entry.category?.name ?? entry.rp?.name ?? "Uncategorized",
+      categoryColor:       entry.category?.color ?? entry.rp?.color ?? "#94a3b8",
+      categoryIcon:        entry.category?.icon ?? "tag",
+      budget:              effectiveBudget,
+      total:               Math.round(entry.total * 100) / 100,
+      count:               entry.count,
+      percentage:          grandTotal > 0 ? Math.round((entry.total / grandTotal) * 10000) / 100 : 0,
+      recurringPaymentId:  entry.rp?.id ?? null,
+      isStretched:         stretchInfo?.isStretched  ?? false,
+      stretchAmount:       Math.round((stretchInfo?.stretchAmount ?? 0) * 100) / 100,
+      stretchType:         stretchInfo?.stretchType   ?? null,
+    };
+  }).sort((a, b) => b.total - a.total);
 }
 
 router.get("/summary/spending", async (req, res): Promise<void> => {

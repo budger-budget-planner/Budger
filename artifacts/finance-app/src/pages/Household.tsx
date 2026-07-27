@@ -29,6 +29,7 @@ import {
   getGetMeQueryKey,
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
+  useListBudgetStretches,
 } from "@/lib/api-client";
 import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";
@@ -555,6 +556,17 @@ export default function HouseholdPage() {
   const { data: incomingInvites } = useListIncomingInvites();
   const { data: goals } = useListGoals();
   const { data: goalSummary } = useGetGoalsSummary({});
+
+  // Current month cross-month stretches — used to show an orange ring on the
+  // household donut for members who are borrowing from next month.
+  const hhCurrentMonth = new Date().toISOString().slice(0, 7);
+  const { data: myStretches } = useListBudgetStretches({ month: hhCurrentMonth } as any);
+  const hasCrossMonthStretch = (myStretches as any[] ?? []).some(
+    (s: any) => s.stretchType === "cross_month",
+  );
+  // Only our own stretches are visible; show orange ring on our own segment.
+  const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id
+    ? [me.id] : [];
 
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
@@ -1399,6 +1411,7 @@ export default function HouseholdPage() {
                 currency={prefs.currency}
                 rates={splitRates}
                 iAmHead={iAmHead}
+                crossMonthStretchUserIds={crossMonthStretchUserIds}
                 onMemberTap={(m) => {
                   setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                   setMemberSheetHideSpending(true);

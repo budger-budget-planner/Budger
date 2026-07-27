@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "@workspace/db";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable, budgetStretchesTable } from "@workspace/db";
 import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
@@ -20,7 +20,22 @@ import {
 } from "@workspace/api-zod";
 const router: IRouter = Router();
 
-function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
+function formatStretch(s: typeof budgetStretchesTable.$inferSelect | null | undefined) {
+  if (!s) return null;
+  return {
+    id:             s.id,
+    userId:         s.userId,
+    transactionId:  s.transactionId,
+    month:          s.month,
+    toCategoryId:   s.toCategoryId,
+    fromCategoryId: s.fromCategoryId,
+    amount:         parseFloat(s.amount),
+    stretchType:    s.stretchType,
+    createdAt:      s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),
+  };
+}
+
+function enrichTransaction(tx: any, category: any, user: any, rp?: any | null, stretch?: typeof budgetStretchesTable.$inferSelect | null) {
   return {
     id: tx.id,
     amount: parseFloat(tx.amount),
@@ -51,6 +66,7 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     recurringPaymentColor: rp?.color ?? null,
     recurringPaymentScope: rp?.scope ?? null,
     isLarderFund: tx.isLarderFund ?? false,
+    stretch: formatStretch(stretch) ?? null,
   };
 }
 
@@ -92,20 +108,24 @@ router.get("/transactions", async (req, res): Promise<void> => {
   const userIds = [...new Set(txs.map(t => t.userId))];
   const rpIds = [...new Set(txs.map(t => t.recurringPaymentId).filter((id): id is number => id != null))];
 
-  const [categories, users, rps] = await Promise.all([
+  const txIds = txs.map(t => t.id);
+  const [categories, users, rps, stretches] = await Promise.all([
     categoryIds.length ? db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIds)) : Promise.resolve([]),
     db.select().from(usersTable).where(inArray(usersTable.id, userIds)),
     rpIds.length ? db.select().from(recurringPaymentsTable).where(inArray(recurringPaymentsTable.id, rpIds)) : Promise.resolve([]),
+    db.select().from(budgetStretchesTable).where(inArray(budgetStretchesTable.transactionId, txIds)),
   ]);
-  const catMap = new Map(categories.map(c => [c.id, c]));
-  const userMap = new Map(users.map(u => [u.id, u]));
-  const rpMap = new Map(rps.map(r => [r.id, r]));
+  const catMap     = new Map(categories.map(c => [c.id, c]));
+  const userMap    = new Map(users.map(u => [u.id, u]));
+  const rpMap      = new Map(rps.map(r => [r.id, r]));
+  const stretchMap = new Map(stretches.map(s => [s.transactionId, s]));
 
   const result = txs.map(tx => enrichTransaction(
     tx,
     tx.categoryId ? catMap.get(tx.categoryId) : null,
     userMap.get(tx.userId),
     tx.recurringPaymentId ? rpMap.get(tx.recurringPaymentId) : null,
+    stretchMap.get(tx.id),
   ));
 
   res.json(result);
@@ -358,11 +378,14 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
   const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   if (!tx || tx.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
-  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
-  const rp = await loadRPForTx(tx.recurringPaymentId);
+  const [category, [user], rp, [stretch]] = await Promise.all([
+    tx.categoryId ? db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0] ?? null) : Promise.resolve(null),
+    db.select().from(usersTable).where(eq(usersTable.id, tx.userId)),
+    loadRPForTx(tx.recurringPaymentId),
+    db.select().from(budgetStretchesTable).where(eq(budgetStretchesTable.transactionId, tx.id)),
+  ]);
 
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(enrichTransaction(tx, category, user, rp, stretch ?? null));
 });
 
 router.patch("/transactions/:id", async (req, res): Promise<void> => {
@@ -399,11 +422,14 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
     await recordMerchantAssignment(tx.userId, tx.description, parsed.data.categoryId);
   }
 
-  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
-  const rp = await loadRPForTx(tx.recurringPaymentId);
+  const [category, [user], rp, [stretch]] = await Promise.all([
+    tx.categoryId ? db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0] ?? null) : Promise.resolve(null),
+    db.select().from(usersTable).where(eq(usersTable.id, tx.userId)),
+    loadRPForTx(tx.recurringPaymentId),
+    db.select().from(budgetStretchesTable).where(eq(budgetStretchesTable.transactionId, tx.id)),
+  ]);
 
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(enrichTransaction(tx, category, user, rp, stretch ?? null));
 });
 
 router.delete("/transactions/:id", async (req, res): Promise<void> => {

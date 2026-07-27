@@ -8,6 +8,10 @@
 
 export * from "./addLarderEntryBody";
 export * from "./applyRecurringPaymentBody";
+export * from "./budgetStretch";
+export * from "./budgetStretchInput";
+export * from "./budgetStretchInputStretchType";
+export * from "./budgetStretchStretchType";
 export * from "./category";
 export * from "./categoryInput";
 export * from "./categorySpending";
@@ -50,6 +54,7 @@ export * from "./larderSaveFromGoal201";
 export * from "./larderSaveFromGoalBody";
 export * from "./larderSummary";
 export * from "./larderSummaryCurrencyBreakdownItem";
+export * from "./listBudgetStretchesParams";
 export * from "./listGoalContributionsParams";
 export * from "./listTransactionsParams";
 export * from "./loginInput";

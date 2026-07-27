@@ -25,4 +25,13 @@ export interface CategorySpending {
    * @nullable
    */
   recurringPaymentId: number | null;
+  /** True when the category has an active budget stretch in this period */
+  isStretched: boolean;
+  /** Net budget adjustment due to stretches (positive = gained, negative = donated) */
+  stretchAmount: number;
+  /**
+   * Type of the active stretch — 'cross_category' or 'cross_month', null if none
+   * @nullable
+   */
+  stretchType: string | null;
 }

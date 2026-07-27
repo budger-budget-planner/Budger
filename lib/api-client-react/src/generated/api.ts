@@ -19,6 +19,8 @@ import type {
 import type {
   AddLarderEntryBody,
   ApplyRecurringPaymentBody,
+  BudgetStretch,
+  BudgetStretchInput,
   Category,
   CategoryInput,
   CategorySpending,
@@ -55,6 +57,7 @@ import type {
   LarderSaveFromGoal201,
   LarderSaveFromGoalBody,
   LarderSummary,
+  ListBudgetStretchesParams,
   ListGoalContributionsParams,
   ListTransactionsParams,
   LoginInput,
@@ -6881,6 +6884,276 @@ export const useUpdateMerchantCategoryRule = <
   TContext
 > => {
   return useMutation(getUpdateMerchantCategoryRuleMutationOptions(options));
+};
+
+/**
+ * @summary List all budget stretches for the current user in a given month
+ */
+export const getListBudgetStretchesUrl = (
+  params: ListBudgetStretchesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/budget-stretches?${stringifiedParams}`
+    : `/api/budget-stretches`;
+};
+
+export const listBudgetStretches = async (
+  params: ListBudgetStretchesParams,
+  options?: RequestInit,
+): Promise<BudgetStretch[]> => {
+  return customFetch<BudgetStretch[]>(getListBudgetStretchesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBudgetStretchesQueryKey = (
+  params?: ListBudgetStretchesParams,
+) => {
+  return [`/api/budget-stretches`, ...(params ? [params] : [])] as const;
+};
+
+export const getListBudgetStretchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBudgetStretches>>,
+  TError = ErrorType<void>,
+>(
+  params: ListBudgetStretchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBudgetStretches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListBudgetStretchesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listBudgetStretches>>
+  > = ({ signal }) =>
+    listBudgetStretches(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBudgetStretches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBudgetStretchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBudgetStretches>>
+>;
+export type ListBudgetStretchesQueryError = ErrorType<void>;
+
+/**
+ * @summary List all budget stretches for the current user in a given month
+ */
+
+export function useListBudgetStretches<
+  TData = Awaited<ReturnType<typeof listBudgetStretches>>,
+  TError = ErrorType<void>,
+>(
+  params: ListBudgetStretchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBudgetStretches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBudgetStretchesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a budget stretch for a transaction
+ */
+export const getCreateBudgetStretchUrl = () => {
+  return `/api/budget-stretches`;
+};
+
+export const createBudgetStretch = async (
+  budgetStretchInput: BudgetStretchInput,
+  options?: RequestInit,
+): Promise<BudgetStretch> => {
+  return customFetch<BudgetStretch>(getCreateBudgetStretchUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(budgetStretchInput),
+  });
+};
+
+export const getCreateBudgetStretchMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBudgetStretch>>,
+    TError,
+    { data: BodyType<BudgetStretchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBudgetStretch>>,
+  TError,
+  { data: BodyType<BudgetStretchInput> },
+  TContext
+> => {
+  const mutationKey = ["createBudgetStretch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBudgetStretch>>,
+    { data: BodyType<BudgetStretchInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBudgetStretch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBudgetStretchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBudgetStretch>>
+>;
+export type CreateBudgetStretchMutationBody = BodyType<BudgetStretchInput>;
+export type CreateBudgetStretchMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a budget stretch for a transaction
+ */
+export const useCreateBudgetStretch = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBudgetStretch>>,
+    TError,
+    { data: BodyType<BudgetStretchInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBudgetStretch>>,
+  TError,
+  { data: BodyType<BudgetStretchInput> },
+  TContext
+> => {
+  return useMutation(getCreateBudgetStretchMutationOptions(options));
+};
+
+/**
+ * @summary Remove a budget stretch
+ */
+export const getDeleteBudgetStretchUrl = (id: number) => {
+  return `/api/budget-stretches/${id}`;
+};
+
+export const deleteBudgetStretch = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteBudgetStretchUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteBudgetStretchMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBudgetStretch>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBudgetStretch>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteBudgetStretch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBudgetStretch>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteBudgetStretch(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBudgetStretchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBudgetStretch>>
+>;
+
+export type DeleteBudgetStretchMutationError = ErrorType<void>;
+
+/**
+ * @summary Remove a budget stretch
+ */
+export const useDeleteBudgetStretch = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBudgetStretch>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBudgetStretch>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteBudgetStretchMutationOptions(options));
 };
 
 /**

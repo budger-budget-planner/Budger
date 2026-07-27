@@ -309,6 +309,41 @@ export const ListTransactionsResponseItem = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
 
@@ -383,6 +418,41 @@ export const GetTransactionResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -454,6 +524,41 @@ export const UpdateTransactionResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -528,6 +633,41 @@ export const ConvertTransactionCurrencyResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -587,6 +727,41 @@ export const LockTransactionCurrencyResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -650,6 +825,41 @@ export const UploadReceiptResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -709,6 +919,41 @@ export const DeleteReceiptResponse = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 
 /**
@@ -819,6 +1064,22 @@ export const GetMemberSpendingResponseItem = zod.object({
     .nullable()
     .describe(
       "Set when this spending group represents an applied recurring payment",
+    ),
+  isStretched: zod
+    .boolean()
+    .describe(
+      "True when the category has an active budget stretch in this period",
+    ),
+  stretchAmount: zod
+    .number()
+    .describe(
+      "Net budget adjustment due to stretches (positive = gained, negative = donated)",
+    ),
+  stretchType: zod
+    .string()
+    .nullable()
+    .describe(
+      "Type of the active stretch — 'cross_category' or 'cross_month', null if none",
     ),
 });
 export const GetMemberSpendingResponse = zod.array(
@@ -1276,6 +1537,22 @@ export const GetSpendingSummaryResponseItem = zod.object({
     .describe(
       "Set when this spending group represents an applied recurring payment",
     ),
+  isStretched: zod
+    .boolean()
+    .describe(
+      "True when the category has an active budget stretch in this period",
+    ),
+  stretchAmount: zod
+    .number()
+    .describe(
+      "Net budget adjustment due to stretches (positive = gained, negative = donated)",
+    ),
+  stretchType: zod
+    .string()
+    .nullable()
+    .describe(
+      "Type of the active stretch — 'cross_category' or 'cross_month', null if none",
+    ),
 });
 export const GetSpendingSummaryResponse = zod.array(
   GetSpendingSummaryResponseItem,
@@ -1318,6 +1595,22 @@ export const GetSpendingHistoryResponseItem = zod.object({
         .nullable()
         .describe(
           "Set when this spending group represents an applied recurring payment",
+        ),
+      isStretched: zod
+        .boolean()
+        .describe(
+          "True when the category has an active budget stretch in this period",
+        ),
+      stretchAmount: zod
+        .number()
+        .describe(
+          "Net budget adjustment due to stretches (positive = gained, negative = donated)",
+        ),
+      stretchType: zod
+        .string()
+        .nullable()
+        .describe(
+          "Type of the active stretch — 'cross_category' or 'cross_month', null if none",
         ),
     }),
   ),
@@ -1383,6 +1676,41 @@ export const GetRecentActivityResponseItem = zod.object({
     .string()
     .nullable()
     .describe("Color of the recurring payment (null for regular transactions)"),
+  stretch: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        userId: zod.number(),
+        transactionId: zod.number(),
+        month: zod
+          .string()
+          .describe(
+            "YYYY-MM of the month in which the toCategoryId receives extra budget",
+          ),
+        toCategoryId: zod
+          .number()
+          .describe("Category whose effective budget is increased"),
+        fromCategoryId: zod
+          .number()
+          .describe(
+            "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+          ),
+        amount: zod
+          .number()
+          .describe(
+            "Amount of budget transferred, in the user's native currency",
+          ),
+        stretchType: zod
+          .enum(["cross_category", "cross_month"])
+          .describe(
+            "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+          ),
+        createdAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe("Budget stretch attached to this transaction, if any"),
 });
 export const GetRecentActivityResponse = zod.array(
   GetRecentActivityResponseItem,
@@ -1762,6 +2090,73 @@ export const UpdateMerchantCategoryRuleResponse = zod.object({
   autoApply: zod.boolean(),
   disabled: zod.boolean(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary List all budget stretches for the current user in a given month
+ */
+export const ListBudgetStretchesQueryParams = zod.object({
+  month: zod.coerce.string(),
+});
+
+export const ListBudgetStretchesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  transactionId: zod.number(),
+  month: zod
+    .string()
+    .describe(
+      "YYYY-MM of the month in which the toCategoryId receives extra budget",
+    ),
+  toCategoryId: zod
+    .number()
+    .describe("Category whose effective budget is increased"),
+  fromCategoryId: zod
+    .number()
+    .describe(
+      "Category whose effective budget is reduced (equals toCategoryId for cross_month)",
+    ),
+  amount: zod
+    .number()
+    .describe("Amount of budget transferred, in the user's native currency"),
+  stretchType: zod
+    .enum(["cross_category", "cross_month"])
+    .describe(
+      "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month",
+    ),
+  createdAt: zod.string(),
+});
+export const ListBudgetStretchesResponse = zod.array(
+  ListBudgetStretchesResponseItem,
+);
+
+/**
+ * @summary Create a budget stretch for a transaction
+ */
+export const createBudgetStretchBodyAmountMin = 0.01;
+
+export const CreateBudgetStretchBody = zod.object({
+  transactionId: zod
+    .number()
+    .describe("ID of the transaction this stretch belongs to"),
+  toCategoryId: zod.number().describe("Category receiving extra budget"),
+  fromCategoryId: zod
+    .number()
+    .describe(
+      "Category donating budget (same as toCategoryId for cross_month stretches)",
+    ),
+  amount: zod
+    .number()
+    .min(createBudgetStretchBodyAmountMin)
+    .describe("Amount of budget to transfer"),
+  stretchType: zod.enum(["cross_category", "cross_month"]),
+});
+
+/**
+ * @summary Remove a budget stretch
+ */
+export const DeleteBudgetStretchParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**

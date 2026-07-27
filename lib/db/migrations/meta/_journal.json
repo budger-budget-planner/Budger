@@ -50,6 +50,13 @@
       "when": 1784554128460,
       "tag": "0006_recurring_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785155388669,
+      "tag": "0007_legal_tomorrow_man",
+      "breakpoints": true
     }
   ]
 }

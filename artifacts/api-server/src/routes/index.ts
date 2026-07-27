@@ -19,6 +19,7 @@ import recurringPaymentsRouter from "./recurring-payments";
 import householdRecurringPaymentsRouter from "./household-recurring-payments";
 import larderRouter from "./larder";
 import greatLarderRouter from "./great-larder";
+import budgetStretchesRouter from "./budget-stretches";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(recurringPaymentsRouter);
 router.use(householdRecurringPaymentsRouter);
 router.use(larderRouter);
 router.use(greatLarderRouter);
+router.use(budgetStretchesRouter);
 
 export default router;

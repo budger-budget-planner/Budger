@@ -155,6 +155,34 @@ export interface CategoryUpdate {
   budget?: number | null;
 }
 
+/**
+ * 'cross_category' = same month different categories; 'cross_month' = same category borrows from next month
+ */
+export type BudgetStretchStretchType =
+  (typeof BudgetStretchStretchType)[keyof typeof BudgetStretchStretchType];
+
+export const BudgetStretchStretchType = {
+  cross_category: "cross_category",
+  cross_month: "cross_month",
+} as const;
+
+export interface BudgetStretch {
+  id: number;
+  userId: number;
+  transactionId: number;
+  /** YYYY-MM of the month in which the toCategoryId receives extra budget */
+  month: string;
+  /** Category whose effective budget is increased */
+  toCategoryId: number;
+  /** Category whose effective budget is reduced (equals toCategoryId for cross_month) */
+  fromCategoryId: number;
+  /** Amount of budget transferred, in the user's native currency */
+  amount: number;
+  /** 'cross_category' = same month different categories; 'cross_month' = same category borrows from next month */
+  stretchType: BudgetStretchStretchType;
+  createdAt: string;
+}
+
 export interface Transaction {
   id: number;
   amount: number;
@@ -203,6 +231,8 @@ export interface Transaction {
    * @nullable
    */
   recurringPaymentColor: string | null;
+  /** Budget stretch attached to this transaction, if any */
+  stretch?: BudgetStretch | null;
 }
 
 export interface TransactionInput {
@@ -418,6 +448,15 @@ export interface CategorySpending {
    * @nullable
    */
   recurringPaymentId: number | null;
+  /** True when the category has an active budget stretch in this period */
+  isStretched: boolean;
+  /** Net budget adjustment due to stretches (positive = gained, negative = donated) */
+  stretchAmount: number;
+  /**
+   * Type of the active stretch — 'cross_category' or 'cross_month', null if none
+   * @nullable
+   */
+  stretchType: string | null;
 }
 
 export interface MonthlyTotal {
@@ -694,6 +733,29 @@ export interface GreatLarderSummary {
   currencyBreakdown?: GreatLarderSummaryCurrencyBreakdownItem[];
 }
 
+export type BudgetStretchInputStretchType =
+  (typeof BudgetStretchInputStretchType)[keyof typeof BudgetStretchInputStretchType];
+
+export const BudgetStretchInputStretchType = {
+  cross_category: "cross_category",
+  cross_month: "cross_month",
+} as const;
+
+export interface BudgetStretchInput {
+  /** ID of the transaction this stretch belongs to */
+  transactionId: number;
+  /** Category receiving extra budget */
+  toCategoryId: number;
+  /** Category donating budget (same as toCategoryId for cross_month stretches) */
+  fromCategoryId: number;
+  /**
+   * Amount of budget to transfer
+   * @minimum 0.01
+   */
+  amount: number;
+  stretchType: BudgetStretchInputStretchType;
+}
+
 export type ListTransactionsParams = {
   categoryId?: number;
   startDate?: string;
@@ -819,4 +881,11 @@ export type FundGreatLarderBody = {
   /** @nullable */
   categoryId?: number | null;
   date?: string;
+};
+
+export type ListBudgetStretchesParams = {
+  /**
+   * Month in YYYY-MM format
+   */
+  month: string;
 };

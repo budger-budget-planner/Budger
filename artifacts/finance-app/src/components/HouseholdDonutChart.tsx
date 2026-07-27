@@ -391,11 +391,13 @@ type Props = {
   rates: Record<string, number> | null;
   onMemberTap?: (member: HouseholdMemberInput) => void;
   iAmHead?: boolean;
+  crossMonthStretchUserIds?: number[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap, iAmHead = false,
+  crossMonthStretchUserIds,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
@@ -1076,6 +1078,13 @@ export default function HouseholdDonutChart({
                         strokeWidth={gb.isOverBudget ? 1.5 : 1}
                         style={{ pointerEvents: "none" }} />
                   }
+                  {/* Orange outer ring for cross-month stretched members */}
+                  {!gb.isOverBudget && gb.userId != null &&
+                    crossMonthStretchUserIds?.includes(gb.userId) && (
+                    <path key={`stretch-ring-${gb.groupId}`} d={gb.d} fill="none"
+                      stroke="#f97316" strokeWidth={2}
+                      style={{ transform: "scale(1.012)", transformOrigin: "160px 160px", pointerEvents: "none" }} />
+                  )}
                 </g>
               );
             })}

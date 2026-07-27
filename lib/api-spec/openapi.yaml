@@ -31,6 +31,8 @@ tags:
     description: Recurring payment management
   - name: Storage
     description: Object storage upload and serving endpoints.
+  - name: budgetStretches
+    description: Budget stretch management — borrow budget between categories or months
 
 paths:
   /healthz:
@@ -1631,6 +1633,74 @@ paths:
               schema:
                 $ref: "#/components/schemas/MerchantCategoryRule"
 
+  /budget-stretches:
+    get:
+      operationId: listBudgetStretches
+      tags: [budgetStretches]
+      summary: List all budget stretches for the current user in a given month
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Month in YYYY-MM format
+      responses:
+        "200":
+          description: List of budget stretches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetStretch"
+        "400":
+          description: Invalid or missing month parameter
+    post:
+      operationId: createBudgetStretch
+      tags: [budgetStretches]
+      summary: Create a budget stretch for a transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BudgetStretchInput"
+      responses:
+        "201":
+          description: Created budget stretch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetStretch"
+        "400":
+          description: Validation error
+        "403":
+          description: Category does not belong to you
+        "404":
+          description: Transaction not found
+        "409":
+          description: Transaction already has a budget stretch
+        "422":
+          description: Business rule violation (amount cap or cooldown)
+
+  /budget-stretches/{id}:
+    delete:
+      operationId: deleteBudgetStretch
+      tags: [budgetStretches]
+      summary: Remove a budget stretch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Stretch not found
+
   /storage/uploads/request-url:
     post:
       tags: [Storage]
@@ -2021,6 +2091,11 @@ components:
         recurringPaymentColor:
           type: ["string", "null"]
           description: Color of the recurring payment (null for regular transactions)
+        stretch:
+          description: Budget stretch attached to this transaction, if any
+          oneOf:
+            - $ref: "#/components/schemas/BudgetStretch"
+            - type: "null"
       required:
         - id
         - amount
@@ -2411,6 +2486,15 @@ components:
         recurringPaymentId:
           type: ["integer", "null"]
           description: Set when this spending group represents an applied recurring payment
+        isStretched:
+          type: boolean
+          description: True when the category has an active budget stretch in this period
+        stretchAmount:
+          type: number
+          description: Net budget adjustment due to stretches (positive = gained, negative = donated)
+        stretchType:
+          type: ["string", "null"]
+          description: Type of the active stretch — 'cross_category' or 'cross_month', null if none
       required:
         - categoryId
         - categoryName
@@ -2421,6 +2505,9 @@ components:
         - count
         - percentage
         - recurringPaymentId
+        - isStretched
+        - stretchAmount
+        - stretchType
 
     MonthlyTotal:
       type: object
@@ -2890,3 +2977,67 @@ components:
                 type: number
             required: [currency, rawTotal]
       required: [total, currency, entries, pendingCount]
+
+    BudgetStretch:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        transactionId:
+          type: integer
+        month:
+          type: string
+          description: YYYY-MM of the month in which the toCategoryId receives extra budget
+        toCategoryId:
+          type: integer
+          description: Category whose effective budget is increased
+        fromCategoryId:
+          type: integer
+          description: Category whose effective budget is reduced (equals toCategoryId for cross_month)
+        amount:
+          type: number
+          description: Amount of budget transferred, in the user's native currency
+        stretchType:
+          type: string
+          enum: [cross_category, cross_month]
+          description: "'cross_category' = same month different categories; 'cross_month' = same category borrows from next month"
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - transactionId
+        - month
+        - toCategoryId
+        - fromCategoryId
+        - amount
+        - stretchType
+        - createdAt
+
+    BudgetStretchInput:
+      type: object
+      required:
+        - transactionId
+        - toCategoryId
+        - fromCategoryId
+        - amount
+        - stretchType
+      properties:
+        transactionId:
+          type: integer
+          description: ID of the transaction this stretch belongs to
+        toCategoryId:
+          type: integer
+          description: Category receiving extra budget
+        fromCategoryId:
+          type: integer
+          description: Category donating budget (same as toCategoryId for cross_month stretches)
+        amount:
+          type: number
+          minimum: 0.01
+          description: Amount of budget to transfer
+        stretchType:
+          type: string
+          enum: [cross_category, cross_month]

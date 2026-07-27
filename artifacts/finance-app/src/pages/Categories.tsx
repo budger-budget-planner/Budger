@@ -17,10 +17,11 @@ import {
   useUpdateMe,
   getGetMeQueryKey,
   getListHouseholdMembersQueryKey,
+  useListBudgetStretches,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
-import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users, Home } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, RefreshCw, TrendingUp, Share2, Users, Home, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -187,7 +188,7 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
   return num;
 }
 
-function CategoryCard({ category, onEdit, currency, canShare = false }: { category: any; onEdit: () => void; currency: string; canShare?: boolean }) {
+function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo }: { category: any; onEdit: () => void; currency: string; canShare?: boolean; stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean } }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
@@ -241,6 +242,20 @@ function CategoryCard({ category, onEdit, currency, canShare = false }: { catego
             {(category as any).excluded > 0 && (
               <p className="text-xs text-teal-400">
                 +{fmtAmt(Number((category as any).excluded), currency)} {t("home.realized_goal_excluded")}
+              </p>
+            )}
+            {stretchInfo && stretchInfo.toAmt > 0 && (
+              <p className="text-xs text-orange-400 flex items-center gap-1 mt-0.5">
+                <ArrowRightLeft className="w-2.5 h-2.5 flex-shrink-0" />
+                {stretchInfo.crossMonth
+                  ? `+${fmtAmt(stretchInfo.toAmt, currency)} stretched from next month`
+                  : `+${fmtAmt(stretchInfo.toAmt, currency)} stretched from donor`}
+              </p>
+            )}
+            {stretchInfo && stretchInfo.fromAmt > 0 && (
+              <p className="text-xs text-orange-400/70 flex items-center gap-1 mt-0.5">
+                <ArrowRightLeft className="w-2.5 h-2.5 flex-shrink-0" />
+                {`−${fmtAmt(stretchInfo.fromAmt, currency)} donated to another`}
               </p>
             )}
           </div>
@@ -855,6 +870,31 @@ export default function CategoriesPage() {
   const { data: categories, isLoading } = useListCategories();
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
 
+  // Fetch current month's budget stretches to show inline labels on category cards
+  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const { data: monthStretches } = useListBudgetStretches({ month: currentMonth } as any);
+  // Build per-category stretch info: { toAmt, fromAmt, crossMonth } indexed by categoryId
+  const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; crossMonth: boolean }>();
+  for (const s of (monthStretches as any[] ?? [])) {
+    const isCrossMonth = s.stretchType === "cross_month";
+    const amt = Number(s.amount);
+    // "to" category = the one that received extra budget (positive)
+    const toId = Number(s.toCategoryId);
+    const entry = stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0, crossMonth: false };
+    entry.toAmt += amt;
+    if (isCrossMonth) entry.crossMonth = true;
+    stretchByCatId.set(toId, entry);
+    // "from" category = the donor (only for cross-category stretches)
+    if (!isCrossMonth) {
+      const fromId = Number(s.fromCategoryId);
+      if (fromId !== toId) {
+        const fe = stretchByCatId.get(fromId) ?? { toAmt: 0, fromAmt: 0, crossMonth: false };
+        fe.fromAmt += amt;
+        stretchByCatId.set(fromId, fe);
+      }
+    }
+  }
+
   const updateMe = useMutationWithQueue({
     endpoint: `${import.meta.env.BASE_URL}api/auth/me`,
     method: "PATCH",
@@ -1056,7 +1096,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} />
           ))}
         </div>
       ) : (

@@ -11,6 +11,7 @@ import {
   getGetMeQueryKey,
   useGetMe,
   useListHouseholdMembers,
+  useListBudgetStretches,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
@@ -80,6 +81,7 @@ export default function DashboardPage() {
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
   const { data: categories } = useListCategories();
+  const { data: monthStretches } = useListBudgetStretches({ month: viewMonth } as any);
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
   // IDs of household RPs — used to exclude them from the donut chart entirely.
@@ -146,6 +148,16 @@ export default function DashboardPage() {
   const householdRpTotalAmount = (householdRPs ?? [])
     .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
   const totalBudgetForChart = Math.max(0, totalBudget - householdRpTotalAmount);
+
+  // Cross-month stretch adjustment for the donut
+  const crossMonthNetAmt = (monthStretches ?? []).reduce((sum: number, s: any) => {
+    if (s.stretchType === "cross_month") return sum + Number(s.amount);
+    return sum;
+  }, 0);
+  const adjustedTotalBudgetDash = crossMonthNetAmt !== 0 && totalBudget > 0
+    ? totalBudget + crossMonthNetAmt : null;
+  const adjustedTotalBudgetForChart = crossMonthNetAmt !== 0 && totalBudgetForChart > 0
+    ? totalBudgetForChart + crossMonthNetAmt : null;
 
   // Donut chart data: strip zero-total uncategorized rows (no category, no RP, nothing spent)
   const spendingForChart = spending?.filter(item =>
@@ -242,12 +254,17 @@ export default function DashboardPage() {
           <p className="text-xs text-muted-foreground mb-0.5">{t("dashboard.budget")}</p>
           {totalBudget > 0 ? (
             <>
-              <p className="text-2xl font-bold">{Math.round((totalSpending / totalBudget) * 100)}%</p>
+              <p className="text-2xl font-bold">{Math.round((totalSpending / (adjustedTotalBudgetDash ?? totalBudget)) * 100)}%</p>
               <div className="mt-1 space-y-0.5">
-                <BudgetBar spent={totalSpending} budget={totalBudget} color="#818cf8" />
+                <BudgetBar spent={totalSpending} budget={adjustedTotalBudgetDash ?? totalBudget} color="#818cf8" />
                 <p className="text-xs text-muted-foreground">
-                  {fmtAmtRound(totalSpending, prefs.currency)} {t("common.of")} {fmtAmtRound(totalBudget, prefs.currency)}
+                  {fmtAmtRound(totalSpending, prefs.currency)} {t("common.of")} {fmtAmtRound(adjustedTotalBudgetDash ?? totalBudget, prefs.currency)}
                 </p>
+                {adjustedTotalBudgetDash != null && (
+                  <p className="text-[10px] text-orange-400">
+                    +{fmtAmtRound(crossMonthNetAmt, prefs.currency)} {prefs.language === "pl" ? "przeniesione z nast. miesiąca" : "stretched from next month"}
+                  </p>
+                )}
               </div>
             </>
           ) : (
@@ -325,6 +342,7 @@ export default function DashboardPage() {
                 spendingForChart.some(s => s.count > 0) ||
                 (recurringPayments?.length ?? 0) > 0
               }
+              adjustedTotalBudget={adjustedTotalBudgetForChart}
             />
           ) : spendingForChart && spendingForChart.length > 0 ? (
             /* Fallback: no total budget set — show spending-proportional donut */

@@ -90,3 +90,9 @@ id = "aq-fV0Czw-X-QHk0InVDr"
 uri = "file://output/budger_icon_2048.png"
 type = "image"
 title = "Budger Icon — 2048×2048 (centered B)"
+
+[[outputs]]
+id = "lZb-N2oqOrASIg1-P3zQT"
+uri = "file://output/Budger_Budget_Stretch_Implementation_Plan.pdf"
+type = "pdf"
+title = "Budget Stretch — Implementation Plan"

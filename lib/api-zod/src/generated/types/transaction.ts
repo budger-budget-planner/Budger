@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { BudgetStretch } from "./budgetStretch";
 
 export interface Transaction {
   id: number;
@@ -54,4 +55,6 @@ export interface Transaction {
    * @nullable
    */
   recurringPaymentColor: string | null;
+  /** Budget stretch attached to this transaction, if any */
+  stretch?: BudgetStretch | null;
 }
