@@ -116,6 +116,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "home.goal":                { en: "Goal",                              pl: "Cel"                             },
   "home.select_goal":         { en: "Select a goal",                     pl: "Wybierz cel"                     },
   "home.amount_toward_goal":  { en: "Amount toward goal",                pl: "Kwota na cel"                    },
+  "home.percent_cannot_exceed": { en: "Cannot exceed 100%",              pl: "Nie może przekroczyć 100%"       },
   "home.up_to":               { en: "up to",                            pl: "do"                              },
   "home.cannot_exceed":       { en: "Cannot exceed transaction amount",  pl: "Nie może przekroczyć kwoty transakcji"},
   "home.goal_remaining":      { en: "Left to complete: {amt}",           pl: "Pozostało do celu: {amt}"            },

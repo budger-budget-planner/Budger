@@ -102,6 +102,7 @@ type TxFormState = {
   date: string;
   paymentMethod: string;
   goalMode: "off" | "all" | "part";
+  goalAmountMode: "amount" | "percent";
   goalId: string;
   goalAmount: string;
   foundedWithRealizedGoal: boolean;
@@ -122,8 +123,13 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
   }
 
   const txAmount = parseFloat(form.amount) || 0;
-  const goalAmountNum = parseFloat(form.goalAmount) || 0;
-  const goalAmountError = form.goalMode === "part" && !!form.goalAmount && goalAmountNum > txAmount;
+  const goalInputNum = parseFloat(form.goalAmount) || 0;
+  const goalAmountValue = form.goalAmountMode === "percent"
+    ? (goalInputNum / 100) * txAmount
+    : goalInputNum;
+  const goalAmountError = form.goalMode === "part" && !!form.goalAmount && (
+    form.goalAmountMode === "percent" ? goalInputNum > 100 : goalAmountValue > txAmount
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -279,27 +285,63 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
               </div>
 
               {form.goalMode === "part" && (
-                <div className="space-y-1.5">
-                  <Label>{t("home.amount_toward_goal")}</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder={`${t("home.up_to")} ${form.amount || "0.00"}`}
-                    value={form.goalAmount}
-                    onChange={e => {
-                      // Same comma → period normalization as the amount field above.
-                      const v = e.target.value.replace(",", ".");
-                      if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
-                    }}
-                    onBlur={() => {
-                      const n = parseFloat(form.goalAmount);
-                      if (!isNaN(n)) set("goalAmount", n.toFixed(2));
-                    }}
-                    required={form.goalMode === "part"}
-                  />
-                  {goalAmountError && (
-                    <p className="text-xs text-destructive">{t("home.cannot_exceed")}</p>
-                  )}
+                <div className="space-y-2">
+                  <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+                    {(["amount", "percent"] as const).map(mode => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          set("goalAmountMode", mode);
+                          set("goalAmount", "");
+                        }}
+                        className={`flex-1 py-1.5 font-medium transition-colors ${
+                          form.goalAmountMode === mode
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {t(`larder.mode_${mode}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>
+                      {form.goalAmountMode === "percent" ? t("larder.mode_percent") : t("home.amount_toward_goal")}
+                    </Label>
+                    <div className="relative">
+                      {form.goalAmountMode === "percent" && (
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                      )}
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder={form.goalAmountMode === "percent" ? "25" : `${t("home.up_to")} ${form.amount || "0.00"}`}
+                        value={form.goalAmount}
+                        onChange={e => {
+                          // Same comma → period normalization as the amount field above.
+                          const v = e.target.value.replace(",", ".");
+                          if (v === "" || /^\d*\.?\d*$/.test(v)) set("goalAmount", v);
+                        }}
+                        onBlur={() => {
+                          const n = parseFloat(form.goalAmount);
+                          if (!isNaN(n)) set("goalAmount", n.toFixed(2));
+                        }}
+                        required={form.goalMode === "part"}
+                        className={form.goalAmountMode === "percent" ? "pl-7" : undefined}
+                      />
+                    </div>
+                    {form.goalAmountMode === "percent" && form.goalAmount && txAmount > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("home.amount_toward_goal")}: {fmtAmt(goalAmountValue, loadPrefs().currency)}
+                      </p>
+                    )}
+                    {goalAmountError && (
+                      <p className="text-xs text-destructive">
+                        {form.goalAmountMode === "percent" ? t("home.percent_cannot_exceed") : t("home.cannot_exceed")}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1266,15 +1308,24 @@ export default function HomeSpending() {
     return {
       amount: "", description: "", categoryId: "none",
       date: format(new Date(), "yyyy-MM-dd"), paymentMethod: "card",
-      goalMode: "off", goalId: "none", goalAmount: "",
+      goalMode: "off", goalAmountMode: "amount", goalId: "none", goalAmount: "",
       foundedWithRealizedGoal: false,
     };
+  }
+
+  function resolveGoalAmount(form: TxFormState): string {
+    if (form.goalMode === "all") return form.amount;
+    if (form.goalAmountMode === "percent") {
+      const percentage = parseFloat(form.goalAmount) || 0;
+      return String((parseFloat(form.amount) * percentage) / 100);
+    }
+    return form.goalAmount;
   }
 
   function handleCreate(form: TxFormState) {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const isGoalExpense = form.goalMode !== "off";
-    const effectiveGoalAmount = form.goalMode === "all" ? form.amount : form.goalAmount;
+    const effectiveGoalAmount = resolveGoalAmount(form);
     create.mutate(
       { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod, foundedWithRealizedGoal: form.foundedWithRealizedGoal } },
       {
@@ -1303,7 +1354,7 @@ export default function HomeSpending() {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const existingContrib = contribByTxId.get(editTx.id) ?? null;
     const isGoalExpense = form.goalMode !== "off";
-    const effectiveGoalAmount = form.goalMode === "all" ? form.amount : form.goalAmount;
+    const effectiveGoalAmount = resolveGoalAmount(form);
 
     // Was this an auto-assigned category that the user is now overriding?
     const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
@@ -1383,6 +1434,7 @@ export default function HomeSpending() {
       date: tx.date,
       paymentMethod: tx.paymentMethod,
       goalMode,
+      goalAmountMode: "amount",
       goalId: contrib ? String(contrib.goalId) : larderEntry ? "larder" : "none",
       goalAmount: goalAmtDisplay,
       foundedWithRealizedGoal: !!tx.foundedWithRealizedGoal,
