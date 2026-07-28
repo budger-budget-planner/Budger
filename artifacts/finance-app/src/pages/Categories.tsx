@@ -277,8 +277,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
         }
       }
       queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
-      if (!isEditMode) handleClose();
-      else { setError(null); setSaving(false); }
+      handleClose();
     } catch {
       setError("Network error — please try again"); setSaving(false);
     }
