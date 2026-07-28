@@ -162,6 +162,53 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   res.status(201).json(formatStretch(stretch));
 });
 
+// ── PATCH /budget-stretches/:id ──────────────────────────────────────────────
+// Only amount can be changed — source, target, type and month are locked.
+router.patch("/budget-stretches/:id", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { amount } = req.body;
+  const parsedAmount = parseFloat(String(amount));
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+
+  // Ownership check
+  const [stretch] = await db.select().from(budgetStretchesTable)
+    .where(and(eq(budgetStretchesTable.id, id), eq(budgetStretchesTable.userId, userId)));
+  if (!stretch) { res.status(404).json({ error: "Budget stretch not found" }); return; }
+
+  // Re-validate cross-month cap if applicable
+  if (stretch.stretchType === "cross_month") {
+    const [toCategory] = await db.select().from(categoriesTable)
+      .where(and(eq(categoriesTable.id, stretch.toCategoryId), eq(categoriesTable.userId, userId)));
+    if (toCategory) {
+      const budget = toCategory.budget ? parseFloat(toCategory.budget) : null;
+      if (budget) {
+        const maxAmount = budget * 0.5;
+        if (parsedAmount > maxAmount + 0.001) {
+          res.status(422).json({
+            error: `Amount exceeds the 50% cross-month limit. Maximum allowed: ${maxAmount.toFixed(2)}`,
+            maxAmount,
+          }); return;
+        }
+      }
+    }
+  }
+
+  const [updated] = await db
+    .update(budgetStretchesTable)
+    .set({ amount: String(parsedAmount) })
+    .where(eq(budgetStretchesTable.id, id))
+    .returning();
+
+  res.json(formatStretch(updated));
+});
+
 // ── DELETE /budget-stretches/:id ─────────────────────────────────────────────
 router.delete("/budget-stretches/:id", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;

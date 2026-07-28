@@ -191,18 +191,118 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
   return num;
 }
 
-function StretchCategoryDialog({ category, categories, open, onClose }: {
-  category: any; categories: any[]; open: boolean; onClose: () => void;
+// Editable row for an existing stretch — lets user tweak the amount or delete it
+function StretchRow({ stretch, category, categories, sym, maxCrossMonth }: {
+  stretch: any; category: any; categories: any[]; sym: string; maxCrossMonth: number | null;
+}) {
+  const queryClient = useQueryClient();
+  const isCrossMonth = stretch.stretchType === "cross_month";
+  const fromCat = categories.find((c: any) => c.id === stretch.fromCategoryId);
+  const [amount, setAmount] = useState(String(Number(stretch.amount)));
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const amtNum = parseFloat(amount) || 0;
+  const exceedsMax = isCrossMonth && maxCrossMonth !== null && amtNum > maxCrossMonth;
+  const isDirty = amtNum !== Number(stretch.amount);
+  const canUpdate = isDirty && amtNum > 0 && !exceedsMax && !saving;
+
+  async function handleUpdate() {
+    if (!canUpdate) return;
+    setSaving(true); setError(null);
+    try {
+      const res = await apiFetchCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${stretch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amtNum }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error ?? "Failed to update"); setSaving(false); return;
+      }
+      queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
+    } catch { setError("Network error"); }
+    setSaving(false);
+  }
+
+  async function handleDelete() {
+    setDeleting(true); setError(null);
+    try {
+      await apiFetchCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${stretch.id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
+    } catch { setError("Network error"); setDeleting(false); }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2.5">
+      {/* Source label */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {isCrossMonth ? (
+          <>
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+            <span>Borrowing from next month</span>
+            {maxCrossMonth != null && (
+              <span className="ml-auto text-orange-400/70">max {sym}{maxCrossMonth.toFixed(2)}</span>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fromCat?.color ?? "#888" }} />
+            <span>From <strong className="text-foreground">{fromCat?.name ?? `#${stretch.fromCategoryId}`}</strong></span>
+          </>
+        )}
+      </div>
+
+      {/* Amount + actions */}
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+          <Input
+            type="number" min="0.01" step="0.01"
+            value={amount}
+            onChange={e => { setAmount(e.target.value); setError(null); }}
+            className="pl-7 h-9 text-sm"
+          />
+        </div>
+        <Button
+          size="sm"
+          className="h-9 px-3 bg-orange-500 hover:bg-orange-600 text-white shrink-0"
+          onClick={handleUpdate}
+          disabled={!canUpdate}
+        >
+          {saving ? "…" : "Save"}
+        </Button>
+        <Button
+          size="sm" variant="ghost"
+          className="h-9 px-2 text-destructive hover:text-destructive shrink-0"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      {exceedsMax && maxCrossMonth != null && (
+        <p className="text-xs text-red-400">Max {sym}{maxCrossMonth.toFixed(2)}</p>
+      )}
+      {error && <p className="text-xs text-red-400">⚠ {error}</p>}
+    </div>
+  );
+}
+
+function StretchCategoryDialog({ category, categories, existingStretches, open, onClose }: {
+  category: any; categories: any[]; existingStretches: any[]; open: boolean; onClose: () => void;
 }) {
   const sym = currencySymbol(loadPrefs().currency);
   const queryClient = useQueryClient();
   const catBudget = category.budget != null ? Number(category.budget) : null;
   const maxCrossMonth = catBudget != null ? catBudget * 0.5 : null;
 
-  // Default to same category (cross-month borrow from next month)
+  // Create-new form state
   const [fromCategoryId, setFromCategoryId] = useState<string>(String(category.id));
   const [amount, setAmount] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const isCrossMonth = fromCategoryId === String(category.id);
@@ -211,18 +311,18 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
   const crossMonthNoBudget = isCrossMonth && catBudget == null;
   const canSave = amount !== "" && amtNum > 0 && !exceedsMax && !crossMonthNoBudget && !saving;
 
-  function handleClose() {
+  function resetCreate() {
     setFromCategoryId(String(category.id));
     setAmount("");
-    setError(null);
+    setCreateError(null);
     setSaving(false);
-    onClose();
   }
 
-  async function handleSave() {
+  function handleClose() { resetCreate(); onClose(); }
+
+  async function handleCreate() {
     if (!canSave) return;
-    setSaving(true);
-    setError(null);
+    setSaving(true); setCreateError(null);
     try {
       const stretchType = isCrossMonth ? "cross_month" : "cross_category";
       const res = await apiFetchCsrf(`${import.meta.env.BASE_URL}api/budget-stretches`, {
@@ -236,15 +336,14 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Failed to create stretch");
-        setSaving(false);
-        return;
+        const d = await res.json().catch(() => ({}));
+        setCreateError(d.error ?? "Failed to create stretch");
+        setSaving(false); return;
       }
       queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
-      handleClose();
+      resetCreate();
     } catch {
-      setError("Network error — please try again");
+      setCreateError("Network error — please try again");
       setSaving(false);
     }
   }
@@ -255,38 +354,54 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="w-4 h-4 text-orange-400" />
-            Stretch budget
+            Stretch — {category.name}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Target category (fixed — this card) */}
-          <div className="px-3 py-2.5 rounded-xl bg-muted/50 border border-border flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Stretching budget for</p>
-              <p className="text-sm font-semibold">{category.name}</p>
-            </div>
-          </div>
 
-          {/* Source dropdown */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Source of extra budget</Label>
-            <Select value={fromCategoryId} onValueChange={v => { setFromCategoryId(v); setError(null); }}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {/* Same category = borrow from next month */}
-                <SelectItem value={String(category.id)}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-                    <span>{category.name} — borrow from next month</span>
-                  </div>
-                </SelectItem>
-                {/* Other categories = cross-category donation */}
-                {categories
-                  .filter(c => c.id !== category.id)
-                  .map(c => (
+          {/* ── Existing stretches (editable) ─────────────────────────── */}
+          {existingStretches.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active this month</p>
+              {existingStretches.map(s => (
+                <StretchRow
+                  key={s.id}
+                  stretch={s}
+                  category={category}
+                  categories={categories}
+                  sym={sym}
+                  maxCrossMonth={s.stretchType === "cross_month" ? maxCrossMonth : null}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ── Divider when both sections are visible ────────────────── */}
+          {existingStretches.length > 0 && (
+            <div className="border-t border-border" />
+          )}
+
+          {/* ── Add new stretch ───────────────────────────────────────── */}
+          <div className="space-y-3">
+            {existingStretches.length > 0 && (
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add another</p>
+            )}
+
+            {/* Source */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Source of extra budget</Label>
+              <Select value={fromCategoryId} onValueChange={v => { setFromCategoryId(v); setCreateError(null); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={String(category.id)}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                      <span>{category.name} — borrow from next month</span>
+                    </div>
+                  </SelectItem>
+                  {categories.filter(c => c.id !== category.id).map(c => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
@@ -294,61 +409,53 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
                       </div>
                     </SelectItem>
                   ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Cross-month info/warning */}
-          {isCrossMonth && (
-            crossMonthNoBudget ? (
-              <p className="text-xs text-amber-400">
-                ⚠ Cross-month stretch requires {category.name} to have a monthly budget set.
-              </p>
-            ) : maxCrossMonth != null ? (
-              <p className="text-xs text-orange-400/80">
-                Borrows from next month's budget (max {sym}{maxCrossMonth.toFixed(2)} — 50% of {sym}{catBudget!.toFixed(2)})
-              </p>
-            ) : null
-          )}
-
-          {/* Amount input */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Amount to stretch{isCrossMonth && maxCrossMonth ? ` (max ${sym}${maxCrossMonth.toFixed(2)})` : ""}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
-              <Input
-                type="number" min="0.01" step="0.01" placeholder="0.00"
-                value={amount} onChange={e => { setAmount(e.target.value); setError(null); }}
-                className="pl-7"
-                autoFocus
-              />
+                </SelectContent>
+              </Select>
             </div>
-            {exceedsMax && maxCrossMonth != null && (
-              <p className="text-xs text-red-400">
-                Exceeds max cross-month allowance ({sym}{maxCrossMonth.toFixed(2)})
-              </p>
+
+            {/* Cross-month hint */}
+            {isCrossMonth && (
+              crossMonthNoBudget ? (
+                <p className="text-xs text-amber-400">⚠ Set a monthly budget on {category.name} first.</p>
+              ) : maxCrossMonth != null ? (
+                <p className="text-xs text-orange-400/70">Borrows from next month (max {sym}{maxCrossMonth.toFixed(2)})</p>
+              ) : null
             )}
-          </div>
 
-          {/* API error */}
-          {error && (
-            <p className="text-xs text-red-400 leading-relaxed">⚠ {error}</p>
-          )}
+            {/* Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Amount{isCrossMonth && maxCrossMonth ? ` (max ${sym}${maxCrossMonth.toFixed(2)})` : ""}
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
+                <Input
+                  type="number" min="0.01" step="0.01" placeholder="0.00"
+                  value={amount}
+                  onChange={e => { setAmount(e.target.value); setCreateError(null); }}
+                  className="pl-7"
+                />
+              </div>
+              {exceedsMax && maxCrossMonth != null && (
+                <p className="text-xs text-red-400">Exceeds max ({sym}{maxCrossMonth.toFixed(2)})</p>
+              )}
+            </div>
 
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1" onClick={handleClose}>
-              <X className="w-3.5 h-3.5 mr-1" /> Cancel
-            </Button>
-            <Button
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={handleSave}
-              disabled={!canSave}
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-              {saving ? "Saving…" : "Stretch"}
-            </Button>
+            {createError && <p className="text-xs text-red-400 leading-relaxed">⚠ {createError}</p>}
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={handleClose}>
+                <X className="w-3.5 h-3.5 mr-1" /> Close
+              </Button>
+              <Button
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={handleCreate}
+                disabled={!canSave}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
+                {saving ? "Adding…" : existingStretches.length > 0 ? "Add" : "Stretch"}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -356,7 +463,7 @@ function StretchCategoryDialog({ category, categories, open, onClose }: {
   );
 }
 
-function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories }: { category: any; onEdit: () => void; currency: string; canShare?: boolean; stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean }; allCategories?: any[] }) {
+function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretches }: { category: any; onEdit: () => void; currency: string; canShare?: boolean; stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean }; allCategories?: any[]; existingStretches?: any[] }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
@@ -496,6 +603,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
         <StretchCategoryDialog
           category={category}
           categories={allCategories ?? []}
+          existingStretches={existingStretches ?? []}
           open={stretchOpen}
           onClose={() => setStretchOpen(false)}
         />
@@ -1061,16 +1169,17 @@ export default function CategoriesPage() {
   const { data: monthStretches } = useListBudgetStretches({ month: currentMonth } as any);
   // Build per-category stretch info: { toAmt, fromAmt, crossMonth } indexed by categoryId
   const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; crossMonth: boolean }>();
+  // Also build a map of raw stretch objects by toCategoryId for the edit dialog
+  const stretchObjectsByCatId = new Map<number, any[]>();
   for (const s of (monthStretches as any[] ?? [])) {
     const isCrossMonth = s.stretchType === "cross_month";
     const amt = Number(s.amount);
-    // "to" category = the one that received extra budget (positive)
     const toId = Number(s.toCategoryId);
+    // Summary map
     const entry = stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0, crossMonth: false };
     entry.toAmt += amt;
     if (isCrossMonth) entry.crossMonth = true;
     stretchByCatId.set(toId, entry);
-    // "from" category = the donor (only for cross-category stretches)
     if (!isCrossMonth) {
       const fromId = Number(s.fromCategoryId);
       if (fromId !== toId) {
@@ -1079,6 +1188,10 @@ export default function CategoriesPage() {
         stretchByCatId.set(fromId, fe);
       }
     }
+    // Raw objects map (keyed by toCategoryId — the card whose button was clicked)
+    const existing = stretchObjectsByCatId.get(toId) ?? [];
+    existing.push(s);
+    stretchObjectsByCatId.set(toId, existing);
   }
 
   const updateMe = useMutationWithQueue({
@@ -1282,7 +1395,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretches={stretchObjectsByCatId.get(cat.id) ?? []} />
           ))}
         </div>
       ) : (
