@@ -52,6 +52,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.over_budget": { en: "over budget",pl: "przekroczono budżet"},
   "common.uncategorized":{ en: "Uncategorized", pl: "brak kategorii"},
   "common.no_limit":    { en: "No limit",   pl: "Bez limitu" },
+  "common.required_field": { en: "This field is required", pl: "To pole jest wymagane" },
   "common.amount":      { en: "Amount",     pl: "Kwota"      },
   "common.name":        { en: "Name",       pl: "Nazwa"      },
   "common.email":       { en: "Email address", pl: "Adres e-mail"},
@@ -552,7 +553,7 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Invite ──
   "invite.revoked":      { en: "Invite revoked",               pl: "Zaproszenie odwołane"         },
-  "invite.revoked_msg":  { en: "This invite link has been cancelled by the household owner.", pl: "Ten link zaproszenia został anulowany przez właściciela gospodarstwa."},
+  "invite.revoked_msg":  { en: "This invite link has been cancelled by the household owner.", pl: "Ten link zaproszenia został anulowany przez właściciela gospodarstwa." },
   "invite.go_to_app":    { en: "Go to App",                    pl: "Przejdź do aplikacji"         },
   "invite.not_found":    { en: "Invite not found",             pl: "Zaproszenie nie znalezione"   },
   "invite.expired_msg":  { en: "This invite link may be expired or invalid.", pl: "Ten link zaproszenia mógł wygasnąć lub jest nieprawidłowy."},
@@ -565,7 +566,6 @@ const translations: Record<string, Record<Lang, string>> = {
   "invite.go_to_login":  { en: "Log in or create account",     pl: "Zaloguj się lub utwórz konto" },
   "invite.expired_title":    { en: "Invitation expired",           pl: "Zaproszenie wygasło"              },
   "invite.revoked_title":    { en: "Invitation revoked",           pl: "Zaproszenie odwołane"             },
-  "invite.revoked_msg":      { en: "This invitation has been cancelled.", pl: "To zaproszenie zostało anulowane." },
   "invite.not_found_title":  { en: "Invitation not found",         pl: "Zaproszenie nie znalezione"       },
   "invite.not_found_msg":    { en: "This invite link is invalid or has already been used.", pl: "Ten link zaproszenia jest nieprawidłowy lub już został użyty." },
   "invite.accepting":        { en: "Accepting…",                   pl: "Akceptowanie…"                    },
@@ -585,7 +585,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "invite.server_error_msg":      { en: "We couldn't load this invitation. Please check your connection and try again.", pl: "Nie udało się załadować zaproszenia. Sprawdź połączenie i spróbuj ponownie." },
   "invite.retry":                 { en: "Try again",                  pl: "Spróbuj ponownie"                 },
   "invite.accept_failed":         { en: "Could not accept invitation", pl: "Nie udało się zaakceptować zaproszenia" },
-  "hh.pending_invites":           { en: "Household Invitation",       pl: "Zaproszenie do gospodarstwa"      },
+  "hh.pending_invite_banner":     { en: "Household Invitation",       pl: "Zaproszenie do gospodarstwa"      },
   "invite.a_household":      { en: "the household",                pl: "gospodarstwem"                    },
   "invite.decline_confirm_title": { en: "Decline invitation?",     pl: "Odrzucić zaproszenie?"            },
   "invite.decline_confirm_msg":   { en: "Are you sure you want to decline the invitation to join {name}?", pl: "Czy na pewno chcesz odrzucić zaproszenie do {name}?" },

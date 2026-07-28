@@ -45,6 +45,7 @@ import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { loadPrefs, currencySymbol, fmtAmt } from "@/lib/prefs";
 import { fetchRates, convertAmount } from "@/lib/rates";
+import { useToast } from "@/hooks/use-toast";
 
 type TxFormState = {
   amount: string;

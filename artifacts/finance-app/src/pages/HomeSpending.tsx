@@ -126,16 +126,29 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
   const txAmount = parseFloat(form.amount) || 0;
   const goalAmountNum = parseFloat(form.goalAmount) || 0;
   const goalAmountError = form.goalMode === "part" && !!form.goalAmount && goalAmountNum > txAmount;
+  const [errors, setErrors] = useState<{ amount?: string; description?: string }>({});
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const newErrors: { amount?: string; description?: string } = {};
+    if (!form.amount || isNaN(parseFloat(form.amount)) || parseFloat(form.amount) <= 0) {
+      newErrors.amount = t("common.required_field");
+    }
+    if (!form.description.trim()) {
+      newErrors.description = t("common.required_field");
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     if (form.goalMode !== "off" && (!form.goalId || form.goalId === "none")) return;
     if (goalAmountError) return;
     onSubmit(form);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <Label>{t("common.amount")}</Label>
         <Input
@@ -150,14 +163,15 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
             // when inputMode="decimal" is set, which the digits-and-dot
             // regex below would otherwise silently reject.
             const v = e.target.value.replace(",", ".");
-            if (v === "" || /^\d*\.?\d*$/.test(v)) set("amount", v);
+            if (v === "" || /^\d*\.?\d*$/.test(v)) { set("amount", v); if (errors.amount) setErrors(p => ({ ...p, amount: undefined })); }
           }}
           onBlur={() => {
             const n = parseFloat(form.amount);
             if (!isNaN(n)) set("amount", n.toFixed(2));
           }}
-          required
+          className={errors.amount ? "border-destructive" : ""}
         />
+        {errors.amount && <p className="text-xs text-destructive">{errors.amount}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -166,10 +180,10 @@ function TxForm({ initial, categories, goals, goalSummaries, onSubmit, onCancel,
           data-testid="input-description"
           placeholder={t("home.coffee_placeholder")}
           value={form.description}
-          onChange={e => set("description", e.target.value)}
-          required
-          className="border-zinc-500/50 focus-visible:ring-zinc-500/50"
+          onChange={e => { set("description", e.target.value); if (errors.description) setErrors(p => ({ ...p, description: undefined })); }}
+          className={`border-zinc-500/50 focus-visible:ring-zinc-500/50${errors.description ? " border-destructive" : ""}`}
         />
+        {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
       </div>
 
       <div className="space-y-1.5">

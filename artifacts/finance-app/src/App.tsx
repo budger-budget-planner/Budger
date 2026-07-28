@@ -4,6 +4,7 @@ import SplashScreen from "@/components/SplashScreen";
 import WinkSplashScreen from "@/components/WinkSplashScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGetMe } from "@workspace/api-client-react";
 import Layout from "@/components/Layout";
@@ -317,6 +318,7 @@ function App() {
             <AppWithSplash />
           </WouterRouter>
           <Toaster />
+          <SonnerToaster position="top-center" />
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
