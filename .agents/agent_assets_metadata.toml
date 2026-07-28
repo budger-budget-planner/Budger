@@ -96,3 +96,9 @@ id = "lZb-N2oqOrASIg1-P3zQT"
 uri = "file://output/Budger_Budget_Stretch_Implementation_Plan.pdf"
 type = "pdf"
 title = "Budget Stretch — Implementation Plan"
+
+[[outputs]]
+id = "t74tuk9oBpsNzjZrMIp7m"
+uri = "file://output/Budger_Stretch_Push_Plan.pdf"
+type = "pdf"
+title = "Budger Stretch Push Plan"
