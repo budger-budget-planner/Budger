@@ -2172,7 +2172,7 @@ export default function HomeSpending() {
 
       {/* ── Add dialog ── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("home.new_tx")}</DialogTitle></DialogHeader>
           <TxForm
             initial={getBlank()}
