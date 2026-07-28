@@ -449,15 +449,14 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const catStretchMap = new Map<number, StretchInfo>();
 
   for (const s of (currentStretches ?? [])) {
-    if (s.stretchType === "cross_month") {
-      const existing = catStretchMap.get(s.toCategoryId);
-      const amount = parseFloat(s.amount as any);
-      catStretchMap.set(s.toCategoryId, {
-        isStretched: true,
-        stretchAmount: (existing?.stretchAmount ?? 0) + amount,
-        stretchType: "cross_month",
-      });
-    }
+    // Both cross_month and cross_category stretches boost toCategoryId's budget
+    const existing = catStretchMap.get(s.toCategoryId);
+    const amount = parseFloat(s.amount as any);
+    catStretchMap.set(s.toCategoryId, {
+      isStretched: true,
+      stretchAmount: (existing?.stretchAmount ?? 0) + amount,
+      stretchType: s.stretchType,
+    });
   }
 
   // Prev-month cross_month stretches borrowed FROM this month → reduce effective

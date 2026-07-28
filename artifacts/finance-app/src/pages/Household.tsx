@@ -1306,7 +1306,7 @@ export default function HouseholdPage() {
                             {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
                             {isMe && <span className="text-white/30 ml-1">{t("hh.you_label")}</span>}
                           </span>
-                          <span className={`text-xs font-medium tabular-nums${isStretched ? " text-amber-400" : ""}`}>
+                          <span className={`text-xs font-medium tabular-nums${isStretched ? " text-orange-500" : ""}`}>
                             {adjustedBudget != null ? fmt(adjustedBudget) : t("hh.no_budget_set")}
                           </span>
                         </div>
