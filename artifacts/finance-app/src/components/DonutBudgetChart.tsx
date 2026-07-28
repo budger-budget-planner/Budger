@@ -1044,33 +1044,37 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-xs text-muted-foreground truncate leading-tight flex-1 min-w-0">
+                  <span className="text-xs text-muted-foreground truncate leading-tight">
                     {item.name}
                   </span>
-                  <span className="text-xs font-semibold leading-tight flex-shrink-0">
+                </div>
+                <div className="flex items-baseline gap-1 ml-4">
+                  <span className="text-xs font-semibold leading-tight">
                     {fmtAmt(item.spent, currency)}
                   </span>
                   {item.catKey.startsWith("rp-") ? (
                     item.isRecurringApplied && (
-                      <span className="text-[13px] font-bold leading-tight flex-shrink-0" style={{ color: "#4ade80" }}>✓</span>
+                      <span className="text-[13px] font-bold leading-tight" style={{ color: "#4ade80" }}>✓</span>
                     )
                   ) : pct !== null && (
                     <span
-                      className="text-[11px] font-medium leading-tight flex-shrink-0"
+                      className="text-[11px] font-medium leading-tight"
                       style={{ color: item.isOverBudget ? "#f87171" : "#6b7280" }}
                     >
                       ({pct}%)
                     </span>
                   )}
-                  {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
+                </div>
+                {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
+                  <div className="ml-4 mt-0.5">
                     <span
-                      className="text-[10px] font-semibold leading-tight flex-shrink-0"
+                      className="text-[10px] font-semibold leading-tight"
                       style={{ color: "#f97316" }}
                     >
-                      +{fmtAmt(item.stretchAmount, currency)}
+                      ({item.stretchAmount > 0 ? "+" : ""}{fmtAmt(item.stretchAmount, currency)})
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </button>
               </div>
             );
