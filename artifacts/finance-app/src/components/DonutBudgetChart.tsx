@@ -1048,7 +1048,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     {item.name}
                   </span>
                 </div>
-                <div className="flex items-baseline gap-1 ml-4">
+                <div className="flex items-baseline gap-1 ml-4 flex-wrap">
                   <span className="text-xs font-semibold leading-tight">
                     {fmtAmt(item.spent, currency)}
                   </span>
@@ -1064,17 +1064,15 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                       ({pct}%)
                     </span>
                   )}
-                </div>
-                {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
-                  <div className="ml-4 mt-0.5">
+                  {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
                     <span
                       className="text-[10px] font-semibold leading-tight"
                       style={{ color: "#f97316" }}
                     >
                       ({item.stretchAmount > 0 ? "+" : ""}{fmtAmt(item.stretchAmount, currency)})
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </button>
               </div>
             );
