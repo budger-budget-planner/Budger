@@ -1071,7 +1071,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                       className="text-[10px] font-semibold leading-tight"
                       style={{ color: "#f97316" }}
                     >
-                      ({item.stretchAmount > 0 ? "+" : ""}{fmtAmt(item.stretchAmount, currency)})
+                      {fmtAmt(item.budget + item.stretchAmount, currency)} budget
                     </span>
                   </div>
                 )}
