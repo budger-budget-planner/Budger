@@ -132,8 +132,22 @@ export function useMutationWithQueue<TVars>(
       })
         .then(async (resp) => {
           if (!resp.ok) {
-            const text = await resp.text().catch(() => `HTTP ${resp.status}`);
-            throw new Error(text);
+            const text = await resp.text().catch(() => "");
+            // Try to extract a human-readable message from a JSON error envelope
+            // like { "error": "..." } before falling back to the raw text or a
+            // generic status string.
+            let message = text;
+            if (text) {
+              try {
+                const parsed = JSON.parse(text) as unknown;
+                if (parsed && typeof parsed === "object" && "error" in parsed && typeof (parsed as Record<string, unknown>).error === "string") {
+                  message = (parsed as Record<string, string>).error;
+                }
+              } catch {
+                // not JSON — use raw text as-is
+              }
+            }
+            throw new Error(message || `Request failed (${resp.status})`);
           }
           // Parse JSON when available; fall back to undefined for 204 / empty.
           let data: unknown;

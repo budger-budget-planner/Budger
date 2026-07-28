@@ -215,8 +215,18 @@ app.use("/api/transactions/extract-screenshot", aiLimiter);
 app.get("/api/csrf-token", (req, res) => {
   if (!req.session.csrfToken) {
     req.session.csrfToken = randomBytes(32).toString("hex");
+    // Await the session save before responding — without this the token is not
+    // yet written to the Postgres store when the client immediately follows up
+    // with a mutation, causing a spurious 403 (same race as the login fix).
+    req.session.save((err) => {
+      if (err) {
+        logger.error({ err }, "Failed to save session in /api/csrf-token");
+      }
+      res.json({ token: req.session.csrfToken });
+    });
+  } else {
+    res.json({ token: req.session.csrfToken });
   }
-  res.json({ token: req.session.csrfToken });
 });
 
 const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
