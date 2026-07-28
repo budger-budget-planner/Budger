@@ -943,7 +943,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     {selectedLegend.isStretched && selectedLegend.stretchAmount != null && selectedLegend.stretchAmount !== 0 && (
                       <text x={CX} y={CY + 27}
                         textAnchor="middle" dominantBaseline="middle"
-                        fontSize="10" fontWeight="600" fill="#c47a2a">
+                        fontSize="10" fontWeight="600" fill="#f97316">
                         ({selectedLegend.stretchAmount > 0 ? "+" : ""}{fmtAmt(selectedLegend.stretchAmount, currency)})
                       </text>
                     )}
@@ -1063,7 +1063,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                         color: item.isOverBudget
                           ? "#ff4040"
                           : item.isStretched
-                            ? "#c47a2a"
+                            ? "#f97316"
                             : "#6b7280",
                       }}
                     >
