@@ -1044,21 +1044,19 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-xs text-muted-foreground truncate leading-tight">
+                  <span className="text-xs text-muted-foreground truncate leading-tight flex-1 min-w-0">
                     {item.name}
                   </span>
-                </div>
-                <div className="flex items-baseline gap-1 ml-4 flex-wrap">
-                  <span className="text-xs font-semibold leading-tight">
+                  <span className="text-xs font-semibold leading-tight flex-shrink-0">
                     {fmtAmt(item.spent, currency)}
                   </span>
                   {item.catKey.startsWith("rp-") ? (
                     item.isRecurringApplied && (
-                      <span className="text-[13px] font-bold leading-tight" style={{ color: "#4ade80" }}>✓</span>
+                      <span className="text-[13px] font-bold leading-tight flex-shrink-0" style={{ color: "#4ade80" }}>✓</span>
                     )
                   ) : pct !== null && (
                     <span
-                      className="text-[11px] font-medium leading-tight"
+                      className="text-[11px] font-medium leading-tight flex-shrink-0"
                       style={{ color: item.isOverBudget ? "#f87171" : "#6b7280" }}
                     >
                       ({pct}%)
@@ -1066,10 +1064,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   )}
                   {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
                     <span
-                      className="text-[10px] font-semibold leading-tight"
+                      className="text-[10px] font-semibold leading-tight flex-shrink-0"
                       style={{ color: "#f97316" }}
                     >
-                      ({item.stretchAmount > 0 ? "+" : ""}{fmtAmt(item.stretchAmount, currency)})
+                      +{fmtAmt(item.stretchAmount, currency)}
                     </span>
                   )}
                 </div>
