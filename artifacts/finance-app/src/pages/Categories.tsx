@@ -193,8 +193,9 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
 
 // existingStretch: the single active stretch for this category this month (or null)
 // categories: all categories with .spent included for showing available amounts
-function StretchCategoryDialog({ category, categories, existingStretch, open, onClose }: {
-  category: any; categories: any[]; existingStretch: any | null; open: boolean; onClose: () => void;
+// receiverCatIds: set of category IDs that are already stretch receivers this month (hide from donor list)
+function StretchCategoryDialog({ category, categories, existingStretch, open, onClose, receiverCatIds }: {
+  category: any; categories: any[]; existingStretch: any | null; open: boolean; onClose: () => void; receiverCatIds?: Set<number>;
 }) {
   const sym = currencySymbol(loadPrefs().currency);
   const queryClient = useQueryClient();
@@ -209,6 +210,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
   const [fromCategoryId, setFromCategoryId] = useState<string>(String(category.id));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmZeroDelete, setConfirmZeroDelete] = useState(false);
 
   // Reset when dialog opens/closes or existingStretch changes
   const prevOpenRef = { current: false };
@@ -224,18 +226,25 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
   const exceedsMax = isCrossMonth && maxCrossMonth !== null && amtNum > maxCrossMonth;
   const crossMonthNoBudget = !isEditMode && isCrossMonth && catBudget == null;
   const isDirty = isEditMode ? amtNum !== Number(existingStretch.amount) : true;
-  const canSave = amount !== "" && amtNum > 0 && !exceedsMax && !crossMonthNoBudget && !saving && isDirty;
+  // In edit mode allow 0 (triggers delete); in create mode require > 0
+  const canSave = amount !== "" && amtNum >= 0 && !exceedsMax && !crossMonthNoBudget && !saving && isDirty;
 
   function handleClose() {
     setAmount(isEditMode ? String(Number(existingStretch.amount)) : "");
     setFromCategoryId(String(category.id));
     setError(null);
     setSaving(false);
+    setConfirmZeroDelete(false);
     onClose();
   }
 
   async function handleSave() {
     if (!canSave) return;
+    // Amount of 0 in edit mode = delete the stretch
+    if (isEditMode && amtNum === 0) {
+      await handleRemove();
+      return;
+    }
     setSaving(true); setError(null);
     try {
       if (isEditMode) {
@@ -343,8 +352,10 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
                       )}
                     </div>
                   </SelectItem>
-                  {/* Cross-category: donate from another category's remaining budget */}
-                  {categories.filter(c => c.id !== category.id).map(c => {
+                  {/* Cross-category: donate from another category's remaining budget.
+                      Exclude the current category (already shown above as cross-month) and
+                      any category that is already a receiver — receivers cannot also be donors. */}
+                  {categories.filter(c => c.id !== category.id && !(receiverCatIds?.has(c.id))).map(c => {
                     const avail = availableFor(c);
                     return (
                       <SelectItem key={c.id} value={String(c.id)}>
@@ -376,9 +387,9 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
               <Input
-                type="number" min="0.01" step="0.01" placeholder="0.00"
+                type="number" min="0" step="0.01" placeholder="0.00"
                 value={amount}
-                onChange={e => { setAmount(e.target.value); setError(null); }}
+                onChange={e => { setAmount(e.target.value); setError(null); setConfirmZeroDelete(false); }}
                 className="pl-7"
                 autoFocus
               />
@@ -386,38 +397,26 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
             {exceedsMax && maxCrossMonth != null && (
               <p className="text-xs text-red-400">Exceeds max cross-month allowance ({sym}{maxCrossMonth.toFixed(2)})</p>
             )}
+            {isEditMode && amtNum === 0 && amount !== "" && (
+              <p className="text-xs text-amber-400">Setting to 0 will remove this stretch.</p>
+            )}
           </div>
 
           {error && <p className="text-xs text-red-400 leading-relaxed">⚠ {error}</p>}
 
           <div className="flex gap-2 pt-1">
-            {isEditMode ? (
-              <>
-                <Button variant="outline" size="sm" className="text-destructive border-destructive/40 hover:bg-destructive/10"
-                  onClick={handleRemove} disabled={saving}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="outline" className="flex-1" onClick={handleClose}>
-                  <X className="w-3.5 h-3.5 mr-1" /> Cancel
-                </Button>
-                <Button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={handleSave} disabled={!canSave}>
-                  <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-                  {saving ? "Saving…" : "Update"}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" className="flex-1" onClick={handleClose}>
-                  <X className="w-3.5 h-3.5 mr-1" /> Cancel
-                </Button>
-                <Button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={handleSave} disabled={!canSave}>
-                  <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-                  {saving ? "Adding…" : "Stretch"}
-                </Button>
-              </>
-            )}
+            <Button variant="outline" className="flex-1" onClick={handleClose}>
+              <X className="w-3.5 h-3.5 mr-1" /> Cancel
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 border-orange-500/50 text-orange-400 bg-orange-500/10 hover:bg-orange-500/20"
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
+              {saving ? (isEditMode ? "Saving…" : "Adding…") : isEditMode ? "Update" : "Stretch"}
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -425,7 +424,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
   );
 }
 
-function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, isDonor }: { category: any; onEdit: () => void; currency: string; canShare?: boolean; stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean }; allCategories?: any[]; existingStretch?: any | null; isDonor?: boolean }) {
+function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, isDonor, receiverCatIds }: { category: any; onEdit: () => void; currency: string; canShare?: boolean; stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean }; allCategories?: any[]; existingStretch?: any | null; isDonor?: boolean; receiverCatIds?: Set<number> }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
@@ -468,7 +467,9 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
             {(() => {
               const base = Number(category.budget);
               const stretched = stretchInfo?.toAmt ?? 0;
-              const effectiveBudget = base + stretched;
+              const donated = stretchInfo?.fromAmt ?? 0;
+              // Effective budget accounts for both received stretches (+) and donated amounts (-)
+              const effectiveBudget = Math.max(0, base + stretched - donated);
               const spent = Number(category.spent ?? 0);
               const isOver = spent > effectiveBudget;
               return (
@@ -477,7 +478,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.min(spent / effectiveBudget * 100, 100)}%`,
+                        width: effectiveBudget > 0 ? `${Math.min(spent / effectiveBudget * 100, 100)}%` : "0%",
                         backgroundColor: isOver ? "#f87171" : category.color,
                       }}
                     />
@@ -487,16 +488,13 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                     {stretched > 0 && (
                       <span className="text-orange-400/80"> (+{fmtAmt(stretched, currency)} stretch)</span>
                     )}
+                    {donated > 0 && (
+                      <span className="text-orange-400/60"> (−{fmtAmt(donated, currency)} donated)</span>
+                    )}
                   </p>
                   {(category as any).excluded > 0 && (
                     <p className="text-xs text-teal-400">
                       +{fmtAmt(Number((category as any).excluded), currency)} {t("home.realized_goal_excluded")}
-                    </p>
-                  )}
-                  {stretchInfo && stretchInfo.fromAmt > 0 && (
-                    <p className="text-xs text-orange-400/70 flex items-center gap-1 mt-0.5">
-                      <ArrowRightLeft className="w-2.5 h-2.5 flex-shrink-0" />
-                      {`−${fmtAmt(stretchInfo.fromAmt, currency)} donated to another`}
                     </p>
                   )}
                 </>
@@ -558,7 +556,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                              : "bg-orange-500/10 text-orange-400 border-orange-500/30"}`}
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
-              {existingStretch ? "Edit stretch" : "Stretch"}
+              Stretch
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
@@ -581,6 +579,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
           existingStretch={existingStretch ?? null}
           open={stretchOpen}
           onClose={() => setStretchOpen(false)}
+          receiverCatIds={receiverCatIds}
         />
       )}
     </div>
@@ -1372,7 +1371,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id)} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} />
           ))}
         </div>
       ) : (
