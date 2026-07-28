@@ -935,18 +935,11 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   </>
                 ) : !selectedLegend.isUncategorized && selectedLegend.budget > 0 && (
                   <>
-                    <text x={CX} y={selectedLegend.isStretched && selectedLegend.stretchAmount ? CY + 12 : CY + 18}
+                    <text x={CX} y={CY + 18}
                       textAnchor="middle" dominantBaseline="middle"
-                      fontSize="11" fill={selectedLegend.isOverBudget ? "#ff4040" : "#6b7280"}>
+                      fontSize="11" fill={selectedLegend.isOverBudget ? "#ff4040" : selectedLegend.isStretched ? "#f97316" : "#6b7280"}>
                       {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
                     </text>
-                    {selectedLegend.isStretched && selectedLegend.stretchAmount != null && selectedLegend.stretchAmount !== 0 && (
-                      <text x={CX} y={CY + 27}
-                        textAnchor="middle" dominantBaseline="middle"
-                        fontSize="10" fontWeight="600" fill="#f97316">
-                        ({selectedLegend.stretchAmount > 0 ? "+" : ""}{fmtAmt(selectedLegend.stretchAmount, currency)})
-                      </text>
-                    )}
                   </>
                 )}
                 <text x={CX} y={CY + 41}
