@@ -442,21 +442,28 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     : new Set<number>();
 
   // Build per-category stretch info for the current month.
-  // cross_month stretches in the current month boost toCategoryId's budget.
-  // cross_month stretches from the PREVIOUS month reduce the current month's
-  // budget for those same categories (already "spent" from this month).
+  // cross_month stretches boost toCategoryId's budget (fromCategoryId === toCategoryId).
+  // cross_category stretches boost toCategoryId and REDUCE fromCategoryId's budget.
+  // cross_month stretches from the PREVIOUS month reduce the current month's budget.
   type StretchInfo = { isStretched: boolean; stretchAmount: number; stretchType: string };
+  // recipient map: categories whose budget is INCREASED
   const catStretchMap = new Map<number, StretchInfo>();
+  // donor map: categories whose budget is REDUCED (cross_category only)
+  const catDonorMap = new Map<number, number>();
 
   for (const s of (currentStretches ?? [])) {
-    // Both cross_month and cross_category stretches boost toCategoryId's budget
-    const existing = catStretchMap.get(s.toCategoryId);
     const amount = parseFloat(s.amount as any);
+    // Recipient always gets a boost
+    const existing = catStretchMap.get(s.toCategoryId);
     catStretchMap.set(s.toCategoryId, {
       isStretched: true,
       stretchAmount: (existing?.stretchAmount ?? 0) + amount,
       stretchType: s.stretchType,
     });
+    // For cross_category, the donor category loses budget
+    if (s.stretchType === "cross_category" && s.fromCategoryId !== s.toCategoryId) {
+      catDonorMap.set(s.fromCategoryId, (catDonorMap.get(s.fromCategoryId) ?? 0) + amount);
+    }
   }
 
   // Prev-month cross_month stretches borrowed FROM this month → reduce effective
@@ -514,12 +521,14 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => {
     const catId = key === "uncategorized" ? null : parseInt(key);
     const stretchInfo = catId != null ? catStretchMap.get(catId) : undefined;
+    const donorReduction = catId != null ? (catDonorMap.get(catId) ?? 0) : 0;
     const baseBudget = entry.category?.budget ? parseFloat(entry.category.budget) : null;
-    // Effective budget = base + cross_month boost - prev_month borrow
+    // Effective budget = base + recipient boost - donor reduction - prev_month borrow
     const prevBorrow = catId != null ? (prevMonthBorrowedMap.get(catId) ?? 0) : 0;
     const adjustedBudget = baseBudget != null
-      ? baseBudget + (stretchInfo?.stretchAmount ?? 0) - prevBorrow
+      ? baseBudget + (stretchInfo?.stretchAmount ?? 0) - donorReduction - prevBorrow
       : null;
+    const isDonor = donorReduction > 0 && !(stretchInfo?.isStretched);
     return {
       categoryId: catId,
       categoryName: entry.category?.name ?? "Uncategorized",
@@ -531,9 +540,9 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
       percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
       isRecurringPayment: false,
       recurringPaymentId: null as null,
-      isStretched: stretchInfo?.isStretched ?? false,
+      isStretched: (stretchInfo?.isStretched ?? false) || isDonor,
       stretchAmount: stretchInfo?.stretchAmount,
-      stretchType: stretchInfo?.stretchType ?? null,
+      stretchType: stretchInfo?.stretchType ?? (isDonor ? "cross_category" : null),
     };
   }).sort((a, b) => b.total - a.total);
 
