@@ -88,6 +88,17 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
     month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }
 
+  // ── Rule: one stretch per (user, toCategory, month) ─────────────────────
+  const [existingForCat] = await db.select().from(budgetStretchesTable)
+    .where(and(
+      eq(budgetStretchesTable.userId, userId),
+      eq(budgetStretchesTable.toCategoryId, parsedToCategoryId),
+      eq(budgetStretchesTable.month, month),
+    ));
+  if (existingForCat) {
+    res.status(409).json({ error: "This category already has a stretch for this month. Edit the existing one instead." }); return;
+  }
+
   // ── Mode-specific shape validation ──────────────────────────────────────
   if (stretchType === "cross_month" && parsedToCategoryId !== parsedFromCategoryId) {
     res.status(400).json({ error: "cross_month stretch requires toCategoryId and fromCategoryId to be the same category" }); return;
