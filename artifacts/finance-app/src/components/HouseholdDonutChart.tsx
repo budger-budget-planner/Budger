@@ -165,7 +165,7 @@ function buildTransitionCatSegs(
 type Seg = { id: string; groupId: string; d: string; fill: string; isOverBudget: boolean; midDeg: number };
 type GroupBorder = {
   groupId: string; d: string; groupColor: string; isOverBudget: boolean;
-  midDeg: number; startDeg: number; endDeg: number;
+  midDeg: number; startDeg: number; endDeg: number; userId: number;
 };
 type LegendItem = {
   groupId: string; color: string; name: string; spentInViewer: number;
@@ -370,6 +370,7 @@ function buildHouseholdChart(
       groupId: g.groupId, groupColor: g.color, isOverBudget: g.isOverBudget,
       d: arc(CX, CY, RI, outerR, groupStartDeg, groupEndDeg),
       midDeg: groupMidDeg, startDeg: groupStartDeg, endDeg: groupEndDeg,
+      userId: g.userId,
     });
     cursor += groupDeg + CAT_GAP;
   }
@@ -536,18 +537,20 @@ export default function HouseholdDonutChart({
   const personalSpending = useMemo<SpendingItem[]>(() => {
     const raw = (isVirtualDrill ? virtualSpendRaw : memberSpendRaw) ?? [];
     const mc = drilledMember?.currency ?? currency;
+    const conv = (v: number) => rates && mc !== currency ? convertAmount(v, mc, currency, rates) : v;
     return raw.map((row: any) => ({
       categoryId:         row.categoryId        ?? null,
       categoryName:       row.categoryName      ?? null,
-      total:              rates && mc !== currency ? convertAmount(row.total ?? 0, mc, currency, rates) : (row.total ?? 0),
-      budget:             row.budget != null
-        ? (rates && mc !== currency ? convertAmount(row.budget, mc, currency, rates) : row.budget)
-        : null,
+      total:              conv(row.total ?? 0),
+      budget:             row.budget != null ? conv(row.budget) : null,
       categoryColor:      row.categoryColor     ?? null,
       count:              row.count             ?? 0,
       _catKey:            row._catKey,
       isRecurringApplied: row.isRecurringApplied,
       isLarderDesignated: row.isLarderDesignated,
+      isStretched:        row.isStretched        ?? false,
+      stretchAmount:      row.stretchAmount != null ? conv(row.stretchAmount) : undefined,
+      stretchType:        row.stretchType        ?? null,
     }));
   }, [memberSpendRaw, virtualSpendRaw, drilledMember, rates, currency, isVirtualDrill]);
   // Keep refs so animation closures can read the latest data without stale captures
@@ -970,12 +973,14 @@ export default function HouseholdDonutChart({
   }
 
   // ─── Border helper ───────────────────────────────────────────────────────────
-  function borderPath(seg: Seg, groupColor: string, isOB: boolean) {
+  function borderPath(seg: Seg, groupColor: string, isOB: boolean, isStretched = false) {
     const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
     const tx = EXPAND * Math.cos(midRad), ty = EXPAND * Math.sin(midRad);
+    const strokeColor = isOB ? "#ff3333" : isStretched ? "#c47a2a" : groupColor + "90";
+    const strokeWidth = (isOB || isStretched) ? 1.5 : 1;
     return (
       <path key={`b-${seg.id}`} d={seg.d} fill="none"
-        stroke={isOB ? "#ef4444" : groupColor + "90"} strokeWidth={isOB ? 1.5 : 1}
+        stroke={strokeColor} strokeWidth={strokeWidth}
         style={{ transform: `translate(${tx}px,${ty}px)`, transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)", pointerEvents: "none" }} />
     );
   }
@@ -1072,19 +1077,12 @@ export default function HouseholdDonutChart({
                   })}
                   {/* Borders: expanded when selected */}
                   {isSelected
-                    ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget))
+                    ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget, crossMonthStretchUserIds?.includes(gb.userId) ?? false))
                     : <path key={`b-${gb.groupId}`} d={gb.d} fill="none"
-                        stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
-                        strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                        stroke={gb.isOverBudget ? "#ff3333" : (crossMonthStretchUserIds?.includes(gb.userId) ? "#c47a2a" : gb.groupColor + "90")}
+                        strokeWidth={(gb.isOverBudget || crossMonthStretchUserIds?.includes(gb.userId)) ? 1.5 : 1}
                         style={{ pointerEvents: "none" }} />
                   }
-                  {/* Orange outer ring for cross-month stretched members */}
-                  {!gb.isOverBudget && gb.userId != null &&
-                    crossMonthStretchUserIds?.includes(gb.userId) && (
-                    <path key={`stretch-ring-${gb.groupId}`} d={gb.d} fill="none"
-                      stroke="#f97316" strokeWidth={2}
-                      style={{ transform: "scale(1.012)", transformOrigin: "160px 160px", pointerEvents: "none" }} />
-                  )}
                 </g>
               );
             })}

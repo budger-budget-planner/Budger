@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "@workspace/db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable, budgetStretchesTable } from "@workspace/db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
@@ -385,12 +385,15 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [pY, pM] = monthPrefix.split("-").map(Number);
+  const prevDate  = new Date(pY, pM - 2, 1);
+  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
 
   // Fire all data queries in parallel. Filtering is done in SQL so we
   // only transfer this month's rows rather than the member's full history.
   // The 5th query fetches the target's household role to determine whether
   // household-scoped RPs should be excluded from their personal view.
-  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember]] = await Promise.all([
+  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember], currentStretches, prevCrossMonthStretches] = await Promise.all([
     db.select().from(transactionsTable)
       .where(and(
         eq(transactionsTable.userId, Number(targetUserId)),
@@ -415,6 +418,20 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     db.select({ role: householdMembersTable.role })
       .from(householdMembersTable)
       .where(eq(householdMembersTable.userId, Number(targetUserId))),
+    // Stretches that apply TO the current month for this user
+    db.select().from(budgetStretchesTable)
+      .where(and(
+        eq(budgetStretchesTable.userId, Number(targetUserId)),
+        eq(budgetStretchesTable.month, monthPrefix),
+      )),
+    // Cross-month stretches from the PREVIOUS month (borrowed from this month,
+    // so they reduce the current month's effective budget for those categories)
+    db.select().from(budgetStretchesTable)
+      .where(and(
+        eq(budgetStretchesTable.userId, Number(targetUserId)),
+        eq(budgetStretchesTable.month, prevMonth),
+        sql`${budgetStretchesTable.stretchType} = 'cross_month'`,
+      )),
   ]);
 
   // If the target is the head, their household RPs are shown under the virtual
@@ -423,6 +440,33 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const householdRpExcludeIds = isTargetHead
     ? new Set(memberRPs.filter(rp => (rp as any).scope === "household").map(rp => rp.id))
     : new Set<number>();
+
+  // Build per-category stretch info for the current month.
+  // cross_month stretches in the current month boost toCategoryId's budget.
+  // cross_month stretches from the PREVIOUS month reduce the current month's
+  // budget for those same categories (already "spent" from this month).
+  type StretchInfo = { isStretched: boolean; stretchAmount: number; stretchType: string };
+  const catStretchMap = new Map<number, StretchInfo>();
+
+  for (const s of (currentStretches ?? [])) {
+    if (s.stretchType === "cross_month") {
+      const existing = catStretchMap.get(s.toCategoryId);
+      const amount = parseFloat(s.amount as any);
+      catStretchMap.set(s.toCategoryId, {
+        isStretched: true,
+        stretchAmount: (existing?.stretchAmount ?? 0) + amount,
+        stretchType: "cross_month",
+      });
+    }
+  }
+
+  // Prev-month cross_month stretches borrowed FROM this month → reduce effective
+  // budget of those categories in the current month.
+  const prevMonthBorrowedMap = new Map<number, number>();
+  for (const s of (prevCrossMonthStretches ?? [])) {
+    const amount = parseFloat(s.amount as any);
+    prevMonthBorrowedMap.set(s.toCategoryId, (prevMonthBorrowedMap.get(s.toCategoryId) ?? 0) + amount);
+  }
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   // txs already pre-filtered by SQL — no JS re-filter needed.
@@ -468,18 +512,31 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const grandTotalFiltered = Array.from(groupedFiltered.values()).reduce((s, e) => s + e.total, 0);
 
-  const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => ({
-    categoryId: key === "uncategorized" ? null : parseInt(key),
-    categoryName: entry.category?.name ?? "Uncategorized",
-    categoryColor: entry.category?.color ?? "#94a3b8",
-    categoryIcon: entry.category?.icon ?? "tag",
-    budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
-    total: Math.round(entry.total * 100) / 100,
-    count: entry.count,
-    percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
-    isRecurringPayment: false,
-    recurringPaymentId: null as null,
-  })).sort((a, b) => b.total - a.total);
+  const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => {
+    const catId = key === "uncategorized" ? null : parseInt(key);
+    const stretchInfo = catId != null ? catStretchMap.get(catId) : undefined;
+    const baseBudget = entry.category?.budget ? parseFloat(entry.category.budget) : null;
+    // Effective budget = base + cross_month boost - prev_month borrow
+    const prevBorrow = catId != null ? (prevMonthBorrowedMap.get(catId) ?? 0) : 0;
+    const adjustedBudget = baseBudget != null
+      ? baseBudget + (stretchInfo?.stretchAmount ?? 0) - prevBorrow
+      : null;
+    return {
+      categoryId: catId,
+      categoryName: entry.category?.name ?? "Uncategorized",
+      categoryColor: entry.category?.color ?? "#94a3b8",
+      categoryIcon: entry.category?.icon ?? "tag",
+      budget: adjustedBudget,
+      total: Math.round(entry.total * 100) / 100,
+      count: entry.count,
+      percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
+      isRecurringPayment: false,
+      recurringPaymentId: null as null,
+      isStretched: stretchInfo?.isStretched ?? false,
+      stretchAmount: stretchInfo?.stretchAmount,
+      stretchType: stretchInfo?.stretchType ?? null,
+    };
+  }).sort((a, b) => b.total - a.total);
 
   res.json([...result, ...rpItems]);
 });

@@ -567,6 +567,10 @@ export default function HouseholdPage() {
   // Only our own stretches are visible; show orange ring on our own segment.
   const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id
     ? [me.id] : [];
+  // Total extra budget this user borrowed from next month (for adjusted budget display)
+  const myStretchAmountRaw: number = (myStretches as any[] ?? [])
+    .filter((s: any) => s.stretchType === "cross_month")
+    .reduce((sum: number, s: any) => sum + (s.amount ?? 0), 0);
 
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
@@ -1277,6 +1281,17 @@ export default function HouseholdPage() {
                           : m.currency === prefs.currency || !splitRates
                           ? m.totalBudget
                           : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
+                      // For the current user, add any cross-month stretch amount (converted to viewer currency)
+                      const isMe = m.userId === me?.id;
+                      const stretchInViewerCurrency = isMe && myStretchAmountRaw > 0
+                        ? (m.currency === prefs.currency || !splitRates
+                            ? myStretchAmountRaw
+                            : convertAmount(myStretchAmountRaw, m.currency, prefs.currency, splitRates))
+                        : 0;
+                      const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency > 0
+                        ? inViewerCurrency + stretchInViewerCurrency
+                        : inViewerCurrency;
+                      const isStretched = isMe && stretchInViewerCurrency > 0;
                       return (
                         <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
                           <div
@@ -1289,10 +1304,10 @@ export default function HouseholdPage() {
                           </div>
                           <span className="text-xs text-white/60 flex-1 truncate">
                             {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
-                            {m.userId === me?.id && <span className="text-white/30 ml-1">{t("hh.you_label")}</span>}
+                            {isMe && <span className="text-white/30 ml-1">{t("hh.you_label")}</span>}
                           </span>
-                          <span className="text-xs font-medium tabular-nums">
-                            {inViewerCurrency != null ? fmt(inViewerCurrency) : t("hh.no_budget_set")}
+                          <span className={`text-xs font-medium tabular-nums${isStretched ? " text-amber-400" : ""}`}>
+                            {adjustedBudget != null ? fmt(adjustedBudget) : t("hh.no_budget_set")}
                           </span>
                         </div>
                       );
