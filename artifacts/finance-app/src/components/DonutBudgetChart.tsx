@@ -670,7 +670,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   key={`border-${seg.id}`}
                   d={seg.d}
                   fill="none"
-                  stroke={groupIsOverBudget ? "#ef4444" : groupColor + "90"}
+                  stroke={groupIsOverBudget ? "#ff3333" : groupColor + "90"}
                   strokeWidth={groupIsOverBudget ? 1.5 : 1}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
@@ -688,9 +688,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               const isRedBorder    = gb.isOverBudget;
               const isOrangeStretch = gb.isStretched && !gb.isOverBudget;
               const strokeColor = isRedBorder
-                ? "#ef4444"
+                ? "#ff3333"
                 : isOrangeStretch
-                  ? "#f97316"
+                  ? "#c47a2a"
                   : gb.groupColor + "90";
               const strokeWidth = (isRedBorder || isOrangeStretch) ? 1.5 : 1;
               return (
@@ -937,13 +937,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   <>
                     <text x={CX} y={selectedLegend.isStretched && selectedLegend.stretchAmount ? CY + 12 : CY + 18}
                       textAnchor="middle" dominantBaseline="middle"
-                      fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
+                      fontSize="11" fill={selectedLegend.isOverBudget ? "#ff4040" : "#6b7280"}>
                       {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
                     </text>
                     {selectedLegend.isStretched && selectedLegend.stretchAmount != null && selectedLegend.stretchAmount !== 0 && (
                       <text x={CX} y={CY + 27}
                         textAnchor="middle" dominantBaseline="middle"
-                        fontSize="10" fontWeight="600" fill="#f97316">
+                        fontSize="10" fontWeight="600" fill="#c47a2a">
                         ({selectedLegend.stretchAmount > 0 ? "+" : ""}{fmtAmt(selectedLegend.stretchAmount, currency)})
                       </text>
                     )}
@@ -1061,9 +1061,9 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                       className="text-[11px] font-medium leading-tight"
                       style={{
                         color: item.isOverBudget
-                          ? "#f87171"
+                          ? "#ff4040"
                           : item.isStretched
-                            ? "#f97316"
+                            ? "#c47a2a"
                             : "#6b7280",
                       }}
                     >
