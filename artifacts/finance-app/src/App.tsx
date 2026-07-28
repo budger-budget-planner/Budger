@@ -166,7 +166,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user) return null;
+  // Return a dark background placeholder while the navigate("/login") useEffect
+  // fires on the next tick — prevents a pure-black flash through the fading splash.
+  if (!user) return <div className="min-h-screen bg-background" />;
 
   // Server is the source of truth for onboarding status.
   const serverSaysOnboarded = user.firstLoginDone === true;
