@@ -154,6 +154,8 @@ type LegendItem = {
   isUncategorized: boolean;
   isRecurringApplied: boolean;
   isLarderDesignated: boolean;
+  isStretched: boolean;
+  stretchAmount?: number;
 };
 
 function buildChart(
@@ -206,6 +208,7 @@ function buildChart(
     isRecurringApplied: boolean;
     isLarderDesignated: boolean;
     isStretched: boolean;
+    stretchAmount?: number;
     parts: Array<{ id: string; fraction: number; fill: string; isOverBudget: boolean }>;
   };
 
@@ -226,8 +229,9 @@ function buildChart(
     const isRecurringApplied = s.isRecurringApplied ?? false;
     const isLarderDesignated = s.isLarderDesignated ?? false;
     const isStretched        = s.isStretched ?? false;
+    const stretchAmount      = s.stretchAmount;
     if (over) {
-      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched,
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched, stretchAmount,
         parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
@@ -235,7 +239,7 @@ function buildChart(
       const parts = [];
       if (spentFrac  > 0.001) parts.push({ id: `${catKey}-spent`,  fraction: spentFrac,  fill: color,                    isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52),   isOverBudget: false });
-      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched, parts });
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched, stretchAmount, parts });
     }
   }
 
@@ -332,7 +336,8 @@ function buildChart(
     .map(g => ({ catKey: g.catKey, color: g.color, name: g.name, spent: g.spent,
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
       isUncategorized: g.isUncategorized,
-      isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
+      isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated,
+      isStretched: g.isStretched, stretchAmount: g.stretchAmount }));
 
   return { segs, groupBorders, legend, sumBudgets };
 }
@@ -665,8 +670,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   key={`border-${seg.id}`}
                   d={seg.d}
                   fill="none"
-                  stroke={groupColor + "90"}
-                  strokeWidth={1}
+                  stroke={groupIsOverBudget ? "#ef4444" : groupColor + "90"}
+                  strokeWidth={groupIsOverBudget ? 1.5 : 1}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -677,11 +682,17 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             }
 
             // Helper: border for a whole (non-detached) group — one border
-            // in a lighter tone of the category color, or orange for stretched segments.
+            // in a lighter tone of the category color, red for over-budget,
+            // or orange for stretched segments.
             function groupBorderPath(gb: GroupBorder) {
+              const isRedBorder    = gb.isOverBudget;
               const isOrangeStretch = gb.isStretched && !gb.isOverBudget;
-              const strokeColor = isOrangeStretch ? "#f97316" : gb.groupColor + "90";
-              const strokeWidth = isOrangeStretch ? 1.5 : 1;
+              const strokeColor = isRedBorder
+                ? "#ef4444"
+                : isOrangeStretch
+                  ? "#f97316"
+                  : gb.groupColor + "90";
+              const strokeWidth = (isRedBorder || isOrangeStretch) ? 1.5 : 1;
               return (
                 <path
                   key={`border-${gb.catKey}`}
@@ -923,19 +934,28 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     </text>
                   </>
                 ) : !selectedLegend.isUncategorized && selectedLegend.budget > 0 && (
-                  <text x={CX} y={CY + 18}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
-                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
-                  </text>
+                  <>
+                    <text x={CX} y={selectedLegend.isStretched && selectedLegend.stretchAmount ? CY + 12 : CY + 18}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
+                      {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
+                    </text>
+                    {selectedLegend.isStretched && selectedLegend.stretchAmount != null && selectedLegend.stretchAmount !== 0 && (
+                      <text x={CX} y={CY + 27}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fontSize="10" fontWeight="600" fill="#f97316">
+                        ({selectedLegend.stretchAmount > 0 ? "+" : ""}{fmtAmt(selectedLegend.stretchAmount, currency)})
+                      </text>
+                    )}
+                  </>
                 )}
-                <text x={CX} y={CY + 37}
+                <text x={CX} y={CY + 41}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="9" fill="#4b5563">
                   {t("donut.tap_to_close_line1")}
                 </text>
                 {t("donut.tap_to_close_line2") && (
-                  <text x={CX} y={CY + 48}
+                  <text x={CX} y={CY + 52}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="9" fill="#4b5563">
                     {t("donut.tap_to_close_line2")}
@@ -1045,6 +1065,16 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     </span>
                   )}
                 </div>
+                {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
+                  <div className="ml-4 mt-0.5">
+                    <span
+                      className="text-[10px] font-semibold leading-tight"
+                      style={{ color: "#f97316" }}
+                    >
+                      ({item.stretchAmount > 0 ? "+" : ""}{fmtAmt(item.stretchAmount, currency)})
+                    </span>
+                  </div>
+                )}
               </button>
               </div>
             );
