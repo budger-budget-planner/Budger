@@ -1059,22 +1059,18 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   ) : pct !== null && (
                     <span
                       className="text-[11px] font-medium leading-tight"
-                      style={{ color: item.isOverBudget ? "#f87171" : "#6b7280" }}
+                      style={{
+                        color: item.isOverBudget
+                          ? "#f87171"
+                          : item.isStretched
+                            ? "#f97316"
+                            : "#6b7280",
+                      }}
                     >
                       ({pct}%)
                     </span>
                   )}
                 </div>
-                {item.isStretched && item.stretchAmount != null && item.stretchAmount !== 0 && (
-                  <div className="ml-4 mt-0.5">
-                    <span
-                      className="text-[10px] font-semibold leading-tight"
-                      style={{ color: "#f97316" }}
-                    >
-                      {fmtAmt(item.budget + item.stretchAmount, currency)} budget
-                    </span>
-                  </div>
-                )}
               </button>
               </div>
             );
