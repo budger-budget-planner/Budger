@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS "budget_stretches" (
   "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 
-ALTER TABLE "budget_stretches" ADD CONSTRAINT "budget_stretches_transaction_id_unique" UNIQUE("transaction_id");
+DO $$ BEGIN
+  ALTER TABLE "budget_stretches" ADD CONSTRAINT "budget_stretches_transaction_id_unique" UNIQUE("transaction_id");
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 CREATE INDEX IF NOT EXISTS "budget_stretches_user_id_month_idx" ON "budget_stretches" ("user_id","month");
 CREATE INDEX IF NOT EXISTS "budget_stretches_to_category_id_month_idx" ON "budget_stretches" ("to_category_id","month");
