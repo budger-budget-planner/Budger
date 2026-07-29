@@ -1193,6 +1193,7 @@ export default function HomeSpending() {
     },
     enabled: isCurrentMonth && isHead && isInHousehold,
   });
+  const { data: monthStretches } = useListBudgetStretches({ month: viewMonth } as any);
   const applyRP = useMutationWithQueue({
     endpoint: (vars: { id: number; data: any; scope?: string }) =>
       vars.scope === "household"
@@ -1208,6 +1209,13 @@ export default function HomeSpending() {
     ...manualRPs.map(rp => ({ ...rp, scope: (rp as any).scope ?? "personal" })),
     ...householdManualRPs.map((rp: any) => ({ ...rp, scope: "household" })),
   ];
+
+  // Map transactionId → stretch (for orange stretch badge on rows)
+  const stretchByTxId = new Map<number, { stretchType: string; amount: number }>();
+  for (const s of monthStretches ?? []) {
+    if ((s as any).transactionId != null)
+      stretchByTxId.set((s as any).transactionId, { stretchType: (s as any).stretchType, amount: Number((s as any).amount) });
+  }
 
   // Map transactionId → contribution (for display + edit pre-fill)
   const contribByTxId = new Map<number, { id: number; goalId: number; name: string; color: string; amount: number; currency: string | null; accountAmount: number | null; accountCurrency: string | null }>();
@@ -1297,6 +1305,14 @@ export default function HomeSpending() {
   const totalBudget = prefs.totalBudget;
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
   const remaining   = totalBudget ? totalBudget - total : null;
+
+  // Net cross-month stretch adjustment for the total budget display
+  const crossMonthNetAmt = (monthStretches ?? []).reduce((sum: number, s: any) => {
+    if (s.stretchType === "cross_month") return sum + Number(s.amount);
+    return sum;
+  }, 0);
+  const adjustedTotalBudget = crossMonthNetAmt !== 0 && totalBudget != null
+    ? totalBudget + crossMonthNetAmt : null;
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum   = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
@@ -1634,7 +1650,10 @@ export default function HomeSpending() {
                   {t("common.edit")}
                 </button>
               </div>
-              <p className="text-3xl font-bold leading-tight"><AmtHero amount={totalBudget} currency={prefs.currency} /></p>
+              <p className="text-3xl font-bold leading-tight"><AmtHero amount={adjustedTotalBudget ?? totalBudget} currency={prefs.currency} /></p>
+              {adjustedTotalBudget != null && (
+                <p className="text-xs text-orange-400 mt-0.5">+<AmtHero amount={crossMonthNetAmt} currency={prefs.currency} /> {prefs.language === 'pl' ? 'przeniesione z nast. miesiąca' : 'stretched from next month'}</p>
+              )}
 
               {/* Divider */}
               <div className="border-t border-border" />

@@ -584,6 +584,18 @@ export default function HouseholdPage() {
   const { data: goals } = useListGoals();
   const { data: goalSummary } = useGetGoalsSummary({});
 
+  // Current month cross-month stretches — used to show an orange ring on the
+  // household donut for members who are borrowing from next month.
+  const hhCurrentMonth = new Date().toISOString().slice(0, 7);
+  const { data: myStretches } = useListBudgetStretches({ month: hhCurrentMonth } as any);
+  const hasCrossMonthStretch = (myStretches as any[] ?? []).some(
+    (s: any) => s.stretchType === "cross_month",
+  );
+  const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id ? [me.id] : [];
+  const myStretchAmountRaw: number = (myStretches as any[] ?? [])
+    .filter((s: any) => s.stretchType === "cross_month")
+    .reduce((sum: number, s: any) => sum + Number(s.amount ?? 0), 0);
+
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
 
@@ -1296,6 +1308,16 @@ export default function HouseholdPage() {
                           : m.currency === prefs.currency || !splitRates
                           ? m.totalBudget
                           : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
+                      const isMe = m.userId === me?.id;
+                      const stretchInViewerCurrency = isMe && myStretchAmountRaw > 0
+                        ? (!splitRates || m.currency === prefs.currency
+                            ? myStretchAmountRaw
+                            : convertAmount(myStretchAmountRaw, m.currency, prefs.currency, splitRates))
+                        : 0;
+                      const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency > 0
+                        ? inViewerCurrency + stretchInViewerCurrency
+                        : null;
+                      const isStretched = isMe && stretchInViewerCurrency > 0;
                       return (
                         <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
                           <div
@@ -1310,8 +1332,8 @@ export default function HouseholdPage() {
                             {m.userId === -1 ? t("hh.virtual_member_name") : m.name}
                             {m.userId === me?.id && <span className="text-white/30 ml-1">{t("hh.you_label")}</span>}
                           </span>
-                          <span className="text-xs font-medium tabular-nums">
-                            {inViewerCurrency != null ? fmt(inViewerCurrency) : t("hh.no_budget_set")}
+                          <span className={`text-xs font-medium tabular-nums ${isStretched ? "text-orange-500" : ""}`}>
+                            {adjustedBudget != null ? fmt(adjustedBudget) : inViewerCurrency != null ? fmt(inViewerCurrency) : t("hh.no_budget_set")}
                           </span>
                         </div>
                       );
@@ -1439,6 +1461,7 @@ export default function HouseholdPage() {
                 currency={prefs.currency}
                 rates={splitRates}
                 iAmHead={iAmHead}
+                crossMonthStretchUserIds={crossMonthStretchUserIds}
                 onMemberTap={(m) => {
                   setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                   setMemberSheetHideSpending(true);
