@@ -1652,7 +1652,7 @@ export default function HomeSpending() {
               </div>
               <p className="text-3xl font-bold leading-tight"><AmtHero amount={adjustedTotalBudget ?? totalBudget} currency={prefs.currency} /></p>
               {adjustedTotalBudget != null && (
-                <p className="text-xs text-orange-400 mt-0.5">+<AmtHero amount={crossMonthNetAmt} currency={prefs.currency} /> {prefs.language === 'pl' ? 'przeniesione z nast. miesiąca' : 'stretched from next month'}</p>
+                <p className="text-xs text-orange-400 mt-0.5">+<AmtHero amount={crossMonthNetAmt} currency={prefs.currency} /> {t("stretch.from_next_month")}</p>
               )}
 
               {/* Divider */}

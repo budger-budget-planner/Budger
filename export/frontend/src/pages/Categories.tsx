@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound } from "@/lib/prefs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { apiFetch as apiFetchWithCsrf } from "@/lib/api";
 
 const PRESET_COLORS = [
   "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
@@ -231,16 +232,16 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
     setSaving(true); setError(null);
     try {
       if (isEditMode) {
-        const res = await fetch(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, {
-          method: "PATCH", credentials: "include",
+        const res = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: amtNum }),
         });
         if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? "Failed to update"); setSaving(false); return; }
       } else {
         const stretchType = isCrossMonth ? "cross_month" : "cross_category";
-        const res = await fetch(`${import.meta.env.BASE_URL}api/budget-stretches`, {
-          method: "POST", credentials: "include",
+        const res = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ toCategoryId: category.id, fromCategoryId: parseInt(fromCategoryId), amount: amtNum, stretchType }),
         });
@@ -248,17 +249,17 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
       }
       queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
       handleClose();
-    } catch { setError("Network error — please try again"); setSaving(false); }
+    } catch { setError(t("stretch.network_error")); setSaving(false); }
   }
 
   async function handleRemove() {
     if (!isEditMode) return;
     setSaving(true); setError(null);
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, { method: "DELETE", credentials: "include" });
+      await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, { method: "DELETE" });
       queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
       onClose();
-    } catch { setError("Network error"); setSaving(false); }
+    } catch { setError(t("stretch.network_error")); setSaving(false); }
   }
 
   function availableFor(c: any): string | null {
@@ -273,44 +274,44 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="w-4 h-4 text-orange-400" />
-            Stretch budget
+            {t("stretch.title")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="px-3 py-2.5 rounded-xl bg-muted/50 border border-border flex items-center gap-3">
             <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Stretching budget for</p>
+              <p className="text-xs text-muted-foreground">{t("stretch.for")}</p>
               <p className="text-sm font-semibold">{category.name}</p>
             </div>
           </div>
 
           {isEditMode ? (
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Source</Label>
+              <Label className="text-xs text-muted-foreground">{t("stretch.source_locked")}</Label>
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/30 border border-border">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: editIsCrossMonth ? category.color : (editFromCat?.color ?? "#888") }} />
                 <span className="text-sm text-foreground">
                   {editIsCrossMonth
-                    ? `${category.name} — next month${maxCrossMonth != null ? ` (max ${sym}${maxCrossMonth.toFixed(2)})` : ""}`
+                    ? `${category.name} — ${t("stretch.next_month")}${maxCrossMonth != null ? ` (${t("stretch.max_note")} ${sym}${maxCrossMonth.toFixed(2)})` : ""}`
                     : (editFromCat?.name ?? `Category #${existingStretch.fromCategoryId}`)}
                 </span>
-                <span className="ml-auto text-xs text-muted-foreground">locked</span>
+                <span className="ml-auto text-xs text-muted-foreground">{t("stretch.locked")}</span>
               </div>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Source of extra budget</Label>
+              <Label className="text-xs text-muted-foreground">{t("stretch.source")}</Label>
               <Select value={fromCategoryId} onValueChange={v => { setFromCategoryId(v); setError(null); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={String(category.id)}>
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-                      <span>{category.name} — next month</span>
+                      <span>{category.name} — {t("stretch.next_month")}</span>
                       {maxCrossMonth != null && (
-                        <span className="ml-auto text-xs text-muted-foreground">max {sym}{maxCrossMonth.toFixed(2)}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{t("stretch.max_note")} {sym}{maxCrossMonth.toFixed(2)}</span>
                       )}
                     </div>
                   </SelectItem>
@@ -330,9 +331,9 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
               </Select>
               {isCrossMonth && (
                 crossMonthNoBudget
-                  ? <p className="text-xs text-amber-400">⚠ Set a monthly budget on {category.name} first.</p>
+                  ? <p className="text-xs text-amber-400">⚠ {t("stretch.no_budget_warn").replace("{name}", category.name)}</p>
                   : maxCrossMonth != null
-                    ? <p className="text-xs text-orange-400/70">Borrows from next month's budget (max {sym}{maxCrossMonth.toFixed(2)})</p>
+                    ? <p className="text-xs text-orange-400/70">{t("stretch.borrows_next")} ({t("stretch.max_note")} {sym}{maxCrossMonth.toFixed(2)})</p>
                     : null
               )}
             </div>
@@ -340,7 +341,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
-              Amount to stretch{isCrossMonth && maxCrossMonth ? ` (max ${sym}${maxCrossMonth.toFixed(2)})` : ""}
+              {t("stretch.amount_label")}{isCrossMonth && maxCrossMonth ? ` (${t("stretch.max_note")} ${sym}${maxCrossMonth.toFixed(2)})` : ""}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{sym}</span>
@@ -353,10 +354,10 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
               />
             </div>
             {exceedsMax && maxCrossMonth != null && (
-              <p className="text-xs text-red-400">Exceeds max cross-month allowance ({sym}{maxCrossMonth.toFixed(2)})</p>
+              <p className="text-xs text-red-400">{t("stretch.exceeds_max")} ({sym}{maxCrossMonth.toFixed(2)})</p>
             )}
             {isEditMode && amtNum === 0 && amount !== "" && (
-              <p className="text-xs text-amber-400">Setting to 0 will remove this stretch.</p>
+              <p className="text-xs text-amber-400">{t("stretch.zero_removes")}</p>
             )}
           </div>
 
@@ -364,7 +365,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
 
           <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={handleClose}>
-              <X className="w-3.5 h-3.5 mr-1" /> Cancel
+              <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel")}
             </Button>
             <Button
               variant="outline"
@@ -373,7 +374,9 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
               disabled={!canSave}
             >
               <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-              {saving ? (isEditMode ? "Saving…" : "Adding…") : isEditMode ? "Update" : "Stretch"}
+              {saving
+                ? (isEditMode ? t("stretch.saving") : t("stretch.adding"))
+                : isEditMode ? t("stretch.update_btn") : t("stretch.stretch_btn")}
             </Button>
           </div>
         </div>
@@ -449,10 +452,10 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                   <p className="text-xs text-muted-foreground">
                     {fmtAmt(spent, currency)} of {fmtAmt(effectiveBudget, currency)}
                     {stretched > 0 && (
-                      <span className="text-orange-400/80"> (+{fmtAmt(stretched, currency)} stretch)</span>
+                      <span className="text-orange-400/80"> ({t("stretch.stretched_label")} {fmtAmt(stretched, currency)})</span>
                     )}
                     {donated > 0 && (
-                      <span className="text-orange-400/60"> (−{fmtAmt(donated, currency)} donated)</span>
+                      <span className="text-orange-400/60"> ({t("stretch.donated_label")} {fmtAmt(donated, currency)})</span>
                     )}
                   </p>
                   {(category as any).excluded > 0 && (
@@ -508,7 +511,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
             <button
               onClick={() => !isDonor && setStretchOpen(true)}
               disabled={!isOnline || isDonor}
-              title={isDonor ? "This category is donating to another — it cannot receive a stretch" : undefined}
+              title={isDonor ? t("stretch.donated_label") : undefined}
               data-testid={`button-stretch-category-${category.id}`}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                          text-xs font-medium border transition active:opacity-70 disabled:opacity-40
@@ -519,7 +522,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                              : "bg-orange-500/10 text-orange-400 border-orange-500/30"}`}
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
-              Stretch
+              {t("stretch.btn_label")}
             </button>
             <button
               onClick={() => setConfirmDelete(true)}

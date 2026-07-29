@@ -263,8 +263,8 @@ export default function DashboardPage() {
                 {adjustedTotalBudgetDash != null && (
                   <p className="text-[10px] text-orange-400">
                     {crossMonthNetAmt > 0
-                      ? `+${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${prefs.language === "pl" ? "z następnego miesiąca" : "from next month"}`
-                      : `${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${prefs.language === "pl" ? "za ostatni miesiąc" : "from last month"}`}
+                      ? `+${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${t("stretch.from_next_month")}`
+                      : `${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${t("stretch.from_last_month")}`}
                   </p>
                 )}
               </div>
