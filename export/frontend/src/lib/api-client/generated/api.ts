@@ -7061,3 +7061,88 @@ export function useGetStorageObject<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+// ─── Budget Stretches ─────────────────────────────────────────────────────────
+
+export const getListBudgetStretchesUrl = (params?: ListBudgetStretchesParams) => {
+  const normalizedParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+  const stringifiedParams = normalizedParams.toString();
+  return stringifiedParams.length > 0
+    ? `/api/budget-stretches?${stringifiedParams}`
+    : `/api/budget-stretches`;
+};
+
+export const listBudgetStretches = async (
+  params?: ListBudgetStretchesParams,
+  options?: RequestInit,
+): Promise<BudgetStretch[]> => {
+  return customFetch<BudgetStretch[]>(getListBudgetStretchesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBudgetStretchesQueryKey = (
+  params?: ListBudgetStretchesParams,
+) => {
+  return [`/api/budget-stretches`, ...(params ? [params] : [])] as const;
+};
+
+export const getListBudgetStretchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBudgetStretches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListBudgetStretchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBudgetStretches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListBudgetStretchesQueryKey(params);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBudgetStretches>>> =
+    ({ signal }) => listBudgetStretches(params, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBudgetStretches>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBudgetStretchesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBudgetStretches>>
+>;
+export type ListBudgetStretchesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List budget stretches for the current user
+ */
+export function useListBudgetStretches<
+  TData = Awaited<ReturnType<typeof listBudgetStretches>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListBudgetStretchesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBudgetStretches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBudgetStretchesQueryOptions(params, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+  return { ...query, queryKey: queryOptions.queryKey };
+}

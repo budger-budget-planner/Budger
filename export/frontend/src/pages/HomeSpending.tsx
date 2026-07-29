@@ -33,6 +33,7 @@ import {
   getGetLarderQueryKey,
   useDeleteLarderEntry,
   useGetGoalsSummary,
+  useListBudgetStretches,
 } from "@/lib/api-client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";

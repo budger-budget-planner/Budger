@@ -86,6 +86,12 @@ export type SpendingItem = {
   /** Authoritative flag set by the backend: true only for the synthetic null-category
    *  bucket. More reliable than name/ID matching which breaks for localised names. */
   isUncategorized?: boolean;
+  /** Set by the server when an active budget stretch affects this category */
+  isStretched?: boolean;
+  /** Net stretch delta (positive = received extra budget, negative = donated) */
+  stretchAmount?: number;
+  /** "cross_month" or "cross_category" */
+  stretchType?: string | null;
 };
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
@@ -138,7 +144,7 @@ type Seg = {
 
 type GroupBorder = {
   catKey: string; d: string; groupColor: string;
-  isOverBudget: boolean; midDeg: number;
+  isOverBudget: boolean; isStretched: boolean; midDeg: number;
   startDeg: number; endDeg: number; groupFraction: number;
 };
 
@@ -148,6 +154,8 @@ type LegendItem = {
   isUncategorized: boolean;
   isRecurringApplied: boolean;
   isLarderDesignated: boolean;
+  isStretched: boolean;
+  stretchAmount?: number;
 };
 
 function buildChart(
@@ -199,6 +207,8 @@ function buildChart(
     isUncategorized: boolean;
     isRecurringApplied: boolean;
     isLarderDesignated: boolean;
+    isStretched: boolean;
+    stretchAmount?: number;
     parts: Array<{ id: string; fraction: number; fill: string; isOverBudget: boolean }>;
   };
 
@@ -218,8 +228,10 @@ function buildChart(
 
     const isRecurringApplied = s.isRecurringApplied ?? false;
     const isLarderDesignated = s.isLarderDesignated ?? false;
+    const isStretched        = s.isStretched ?? false;
+    const stretchAmount      = s.stretchAmount;
     if (over) {
-      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated,
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched, stretchAmount,
         parts: [{ id: `${catKey}-over`, fraction: budget / effectiveTotal, fill: color, isOverBudget: true }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
@@ -227,7 +239,7 @@ function buildChart(
       const parts = [];
       if (spentFrac  > 0.001) parts.push({ id: `${catKey}-spent`,  fraction: spentFrac,  fill: color,                    isOverBudget: false });
       if (remainFrac > 0.001) parts.push({ id: `${catKey}-remain`, fraction: remainFrac, fill: hexDarken(color, 0.52),   isOverBudget: false });
-      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, parts });
+      groups.push({ catKey, color, name, spent, budget, isUncategorized, isRecurringApplied, isLarderDesignated, isStretched, stretchAmount, parts });
     }
   }
 
@@ -253,7 +265,7 @@ function buildChart(
       groups.push({
         catKey: "cat-uncat", color: UNCAT_SPENT_COLOR, isUncategorized: true,
         name: t("common.uncategorized"), spent: uncatSpent, budget: 0,
-        isRecurringApplied: false, isLarderDesignated: false,
+        isRecurringApplied: false, isLarderDesignated: false, isStretched: false,
         parts: [{ id: "uncat-slice", fraction: uncatFraction,
           fill: UNCAT_SPENT_COLOR, isOverBudget: false }],
       });
@@ -272,7 +284,7 @@ function buildChart(
       }
       if (parts.length > 0) {
         groups.push({ catKey, color: UNCAT_SPENT_COLOR, name: t("common.uncategorized"),
-          isUncategorized: true,
+          isUncategorized: true, isStretched: false,
           spent: uncatSpent, budget: uncatBudget, isRecurringApplied: false, isLarderDesignated: false, parts });
       }
     }
@@ -309,6 +321,7 @@ function buildChart(
       d: arc(CX, CY, RI, outerR, groupStartDeg, groupEndDeg),
       groupColor: g.color,
       isOverBudget: g.spent > g.budget && g.budget > 0,
+      isStretched: g.isStretched,
       midDeg: groupMidDeg,
       startDeg: groupStartDeg,
       endDeg: groupEndDeg,
@@ -323,7 +336,8 @@ function buildChart(
     .map(g => ({ catKey: g.catKey, color: g.color, name: g.name, spent: g.spent,
       budget: g.budget, isOverBudget: g.spent > g.budget && g.budget > 0,
       isUncategorized: g.isUncategorized,
-      isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated }));
+      isRecurringApplied: g.isRecurringApplied, isLarderDesignated: g.isLarderDesignated,
+      isStretched: g.isStretched, stretchAmount: g.stretchAmount }));
 
   return { segs, groupBorders, legend, sumBudgets };
 }
@@ -365,9 +379,13 @@ type Props = {
    *  independently of the legend list length — the legend can grow below without
    *  moving the donut. Pass (containerWidth − HEADER_H) from HouseholdDonutChart. */
   fixedSvgWrapperHeight?: number;
+  /** When cross-month stretches are active, the effective total budget for this
+   *  month differs from the base prefs.totalBudget. Pass this adjusted value to
+   *  show a corrected percentage in the donut centre and the orange stretch label. */
+  adjustedTotalBudget?: number | null;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -409,7 +427,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   hasDataRef.current         = hasData;
 
   const totalSpent    = spending.reduce((a, s) => a + s.total, 0);
-  const budgetUsedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : null;
+  const effectiveTotalBudget = (adjustedTotalBudget != null && adjustedTotalBudget > 0) ? adjustedTotalBudget : totalBudget;
+  const budgetUsedPct = effectiveTotalBudget > 0 ? Math.round((totalSpent / effectiveTotalBudget) * 100) : null;
   const selectedLegend = legend.find(l => l.catKey === selectedCat) ?? null;
   const expanded       = mode === "expanded";
 
@@ -651,8 +670,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   key={`border-${seg.id}`}
                   d={seg.d}
                   fill="none"
-                  stroke={groupColor + "90"}
-                  strokeWidth={1}
+                  stroke={groupIsOverBudget ? "#ff3333" : groupColor + "90"}
+                  strokeWidth={groupIsOverBudget ? 1.5 : 1}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -663,15 +682,24 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             }
 
             // Helper: border for a whole (non-detached) group — one border
-            // in a lighter tone of the category color around the entire arc.
+            // in a lighter tone of the category color, red for over-budget,
+            // or orange for stretched segments.
             function groupBorderPath(gb: GroupBorder) {
+              const isRedBorder    = gb.isOverBudget;
+              const isOrangeStretch = gb.isStretched && !gb.isOverBudget;
+              const strokeColor = isRedBorder
+                ? "#ff3333"
+                : isOrangeStretch
+                  ? "#c47a2a"
+                  : gb.groupColor + "90";
+              const strokeWidth = (isRedBorder || isOrangeStretch) ? 1.5 : 1;
               return (
                 <path
                   key={`border-${gb.catKey}`}
                   d={gb.d}
                   fill="none"
-                  stroke={gb.groupColor + "90"}
-                  strokeWidth={1}
+                  stroke={strokeColor}
+                  strokeWidth={strokeWidth}
                   style={{
                     transform:     "translate(0px, 0px)",
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -906,19 +934,21 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     </text>
                   </>
                 ) : !selectedLegend.isUncategorized && selectedLegend.budget > 0 && (
-                  <text x={CX} y={CY + 18}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fontSize="11" fill={selectedLegend.isOverBudget ? "#f87171" : "#6b7280"}>
-                    {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
-                  </text>
+                  <>
+                    <text x={CX} y={CY + 18}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize="11" fill={selectedLegend.isOverBudget ? "#ff4040" : selectedLegend.isStretched ? "#f97316" : "#6b7280"}>
+                      {Math.round((selectedLegend.spent / selectedLegend.budget) * 100)}% {t("donut.of_its_budget")}
+                    </text>
+                  </>
                 )}
-                <text x={CX} y={CY + 37}
+                <text x={CX} y={CY + 41}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize="9" fill="#4b5563">
                   {t("donut.tap_to_close_line1")}
                 </text>
                 {t("donut.tap_to_close_line2") && (
-                  <text x={CX} y={CY + 48}
+                  <text x={CX} y={CY + 52}
                     textAnchor="middle" dominantBaseline="middle"
                     fontSize="9" fill="#4b5563">
                     {t("donut.tap_to_close_line2")}
@@ -1022,7 +1052,13 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   ) : pct !== null && (
                     <span
                       className="text-[11px] font-medium leading-tight"
-                      style={{ color: item.isOverBudget ? "#f87171" : "#6b7280" }}
+                      style={{
+                        color: item.isOverBudget
+                          ? "#ff4040"
+                          : item.isStretched
+                            ? "#f97316"
+                            : "#6b7280",
+                      }}
                     >
                       ({pct}%)
                     </span>

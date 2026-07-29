@@ -11,6 +11,7 @@ import {
   getGetMeQueryKey,
   useGetMe,
   useListHouseholdMembers,
+  useListBudgetStretches,
 } from "@/lib/api-client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {

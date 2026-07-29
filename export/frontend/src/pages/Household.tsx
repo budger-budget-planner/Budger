@@ -29,6 +29,7 @@ import {
   getGetMeQueryKey,
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
+  useListBudgetStretches,
 } from "@/lib/api-client";
 import { getCsrfToken } from "@/lib/api-client/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";

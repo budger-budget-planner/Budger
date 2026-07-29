@@ -94,7 +94,7 @@ const _UNCAT_REMAIN_COLOR = "#374151";
 function buildTransitionCatSegs(
   spending: SpendingItem[],
   totalBudget: number,
-): { segs: Array<{ d: string; color: string }>; borders: Array<{ d: string; color: string }> } {
+): Array<{ d: string; color: string }> {
   const CAT_GAP = 2.5;
 
   const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
@@ -107,7 +107,7 @@ function buildTransitionCatSegs(
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
 
   type Part = { fraction: number; color: string };
-  const groups: Array<{ parts: Part[]; borderColor: string }> = [];
+  const groups: Array<{ parts: Part[] }> = [];
 
   for (const s of budgeted) {
     const color  = s.categoryColor ?? "#818cf8";
@@ -115,7 +115,7 @@ function buildTransitionCatSegs(
     const budget = s.budget!;
     const over   = spent > budget;
     if (over) {
-      groups.push({ parts: [{ fraction: budget / effectiveTotal, color }], borderColor: color });
+      groups.push({ parts: [{ fraction: budget / effectiveTotal, color }] });
     } else {
       const spentFrac  = spent / effectiveTotal;
       const remainFrac = (budget - spent) / effectiveTotal;
@@ -123,7 +123,7 @@ function buildTransitionCatSegs(
       if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  color });
       if (remainFrac > 0.001) parts.push({ fraction: remainFrac, color: hexDarken(color, 0.52) });
       if (parts.length === 0) parts.push({ fraction: budget / effectiveTotal, color: hexDarken(color, 0.52) });
-      groups.push({ parts, borderColor: color });
+      groups.push({ parts });
     }
   }
 
@@ -138,41 +138,34 @@ function buildTransitionCatSegs(
       if (uncatSpent  / effectiveTotal > 0.001) parts.push({ fraction: uncatSpent  / effectiveTotal, color: _UNCAT_SPENT_COLOR  });
       if (uncatRemain / effectiveTotal > 0.001) parts.push({ fraction: uncatRemain / effectiveTotal, color: _UNCAT_REMAIN_COLOR });
     }
-    if (parts.length > 0) groups.push({ parts, borderColor: _UNCAT_SPENT_COLOR });
+    if (parts.length > 0) groups.push({ parts });
   }
 
-  if (groups.length === 0) return { segs: [], borders: [] };
+  if (groups.length === 0) return [];
 
   const drawDeg = 360 - CAT_GAP * groups.length;
-  const segs: Array<{ d: string; color: string }> = [];
-  const borders: Array<{ d: string; color: string }> = [];
+  const result: Array<{ d: string; color: string }> = [];
   let cursor = 0;
 
   for (const g of groups) {
-    const groupStart = cursor;
     for (const p of g.parts) {
       const partDeg = p.fraction * drawDeg;
       if (partDeg > 0.01) {
-        segs.push({ d: arc(CX, CY, RI, RO, cursor, cursor + partDeg), color: p.color });
+        result.push({ d: arc(CX, CY, RI, RO, cursor, cursor + partDeg), color: p.color });
         cursor += partDeg;
       }
-    }
-    const groupEnd = cursor;
-    // One border arc spanning the full group (matches DonutBudgetChart groupBorderPath)
-    if (groupEnd > groupStart + 0.01) {
-      borders.push({ d: arc(CX, CY, RI, RO, groupStart, groupEnd), color: g.borderColor + "90" });
     }
     cursor += CAT_GAP; // gap after each group (between categories, not between sub-arcs)
   }
 
-  return { segs, borders };
+  return result;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Seg = { id: string; groupId: string; d: string; fill: string; isOverBudget: boolean; midDeg: number };
 type GroupBorder = {
   groupId: string; d: string; groupColor: string; isOverBudget: boolean;
-  midDeg: number; startDeg: number; endDeg: number;
+  midDeg: number; startDeg: number; endDeg: number; userId: number;
 };
 type LegendItem = {
   groupId: string; color: string; name: string; spentInViewer: number;
@@ -377,6 +370,7 @@ function buildHouseholdChart(
       groupId: g.groupId, groupColor: g.color, isOverBudget: g.isOverBudget,
       d: arc(CX, CY, RI, outerR, groupStartDeg, groupEndDeg),
       midDeg: groupMidDeg, startDeg: groupStartDeg, endDeg: groupEndDeg,
+      userId: g.userId,
     });
     cursor += groupDeg + CAT_GAP;
   }
@@ -398,14 +392,13 @@ type Props = {
   rates: Record<string, number> | null;
   onMemberTap?: (member: HouseholdMemberInput) => void;
   iAmHead?: boolean;
-  onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
-  onManageVisibility?: (visible: boolean) => void;
+  crossMonthStretchUserIds?: number[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap, iAmHead = false,
-  onDrilledMemberChange, onManageVisibility,
+  crossMonthStretchUserIds,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
@@ -438,7 +431,6 @@ export default function HouseholdDonutChart({
   const [arcAnim, setArcAnim] = useState<{ d: string; color: string; fillTransition?: string; opacity?: number } | null>(null);
   // Transition segments for snap-cats / color-in phases
   const [catTransSegs,    setCatTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
-  const [catTransBorders, setCatTransBorders] = useState<Array<{ d: string; color: string }>>([]);
   const [catTransColored, setCatTransColored] = useState(false);
   // Transition segments for snap-member / color-restore phases
   const [memberTransSegs,    setMemberTransSegs]    = useState<Array<{ d: string; color: string }>>([]);
@@ -541,35 +533,24 @@ export default function HouseholdDonutChart({
     [members, drilledMemberId],
   );
 
-  // Notify parent when the drilled member changes so it can show the Manage button
-  useEffect(() => {
-    onDrilledMemberChange?.(drilledMember, isVirtualDrill);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drilledMemberId]);
-
-  // Notify parent when persOpacity changes so the Manage button can fade in/out
-  // in sync with the personal overlay fade
-  useEffect(() => {
-    onManageVisibility?.(persOpacity > 0.1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persOpacity]);
-
   // Convert member spending to viewer currency
   const personalSpending = useMemo<SpendingItem[]>(() => {
     const raw = (isVirtualDrill ? virtualSpendRaw : memberSpendRaw) ?? [];
     const mc = drilledMember?.currency ?? currency;
+    const conv = (v: number) => rates && mc !== currency ? convertAmount(v, mc, currency, rates) : v;
     return raw.map((row: any) => ({
       categoryId:         row.categoryId        ?? null,
       categoryName:       row.categoryName      ?? null,
-      total:              rates && mc !== currency ? convertAmount(row.total ?? 0, mc, currency, rates) : (row.total ?? 0),
-      budget:             row.budget != null
-        ? (rates && mc !== currency ? convertAmount(row.budget, mc, currency, rates) : row.budget)
-        : null,
+      total:              conv(row.total ?? 0),
+      budget:             row.budget != null ? conv(row.budget) : null,
       categoryColor:      row.categoryColor     ?? null,
       count:              row.count             ?? 0,
       _catKey:            row._catKey,
       isRecurringApplied: row.isRecurringApplied,
       isLarderDesignated: row.isLarderDesignated,
+      isStretched:        row.isStretched        ?? false,
+      stretchAmount:      row.stretchAmount != null ? conv(row.stretchAmount) : undefined,
+      stretchType:        row.stretchType        ?? null,
     }));
   }, [memberSpendRaw, virtualSpendRaw, drilledMember, rates, currency, isVirtualDrill]);
   // Keep refs so animation closures can read the latest data without stale captures
@@ -758,7 +739,6 @@ export default function HouseholdDonutChart({
     setLockPulseKey(0);
     setCatTransColored(false);
     setCatTransSegs([]);
-    setCatTransBorders([]);
 
     // Save this member's arc segs now (before segs change) for drill-back snap
     memberSegsRef.current = segs
@@ -799,9 +779,8 @@ export default function HouseholdDonutChart({
 
           push(setTimeout(() => {
             // E: snap — grey category segments appear, arc disappears (200ms hold)
-            const { segs: cSegs, borders: cBorders } = buildTransitionCatSegs(personalSpendingRef.current, personalTotalBudgetRef.current);
+            const cSegs = buildTransitionCatSegs(personalSpendingRef.current, personalTotalBudgetRef.current);
             setCatTransSegs(cSegs);
-            setCatTransBorders(cBorders);
             setCatTransColored(false);
             setArcAnim(null);
             setDrillPhase("snap-cats");
@@ -817,7 +796,6 @@ export default function HouseholdDonutChart({
                 //    fire it the moment the data arrives (via the personalLoading effect).
                 function doPersonalTransition() {
                   setCatTransSegs([]);
-                  setCatTransBorders([]);
                   setHhOpacity(0);
                   setPersOpacity(1);
                   setDrillPhase("personal");
@@ -995,12 +973,14 @@ export default function HouseholdDonutChart({
   }
 
   // ─── Border helper ───────────────────────────────────────────────────────────
-  function borderPath(seg: Seg, groupColor: string, isOB: boolean) {
+  function borderPath(seg: Seg, groupColor: string, isOB: boolean, isStretched = false) {
     const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
     const tx = EXPAND * Math.cos(midRad), ty = EXPAND * Math.sin(midRad);
+    const strokeColor = isOB ? "#ff3333" : isStretched ? "#c47a2a" : groupColor + "90";
+    const strokeWidth = (isOB || isStretched) ? 1.5 : 1;
     return (
       <path key={`b-${seg.id}`} d={seg.d} fill="none"
-        stroke={isOB ? "#ef4444" : groupColor + "90"} strokeWidth={isOB ? 1.5 : 1}
+        stroke={strokeColor} strokeWidth={strokeWidth}
         style={{ transform: `translate(${tx}px,${ty}px)`, transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)", pointerEvents: "none" }} />
     );
   }
@@ -1097,10 +1077,10 @@ export default function HouseholdDonutChart({
                   })}
                   {/* Borders: expanded when selected */}
                   {isSelected
-                    ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget))
+                    ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget, crossMonthStretchUserIds?.includes(gb.userId) ?? false))
                     : <path key={`b-${gb.groupId}`} d={gb.d} fill="none"
-                        stroke={gb.isOverBudget ? "#ef4444" : gb.groupColor + "90"}
-                        strokeWidth={gb.isOverBudget ? 1.5 : 1}
+                        stroke={gb.isOverBudget ? "#ff3333" : (crossMonthStretchUserIds?.includes(gb.userId) ? "#c47a2a" : gb.groupColor + "90")}
+                        strokeWidth={(gb.isOverBudget || crossMonthStretchUserIds?.includes(gb.userId)) ? 1.5 : 1}
                         style={{ pointerEvents: "none" }} />
                   }
                 </g>
@@ -1122,12 +1102,6 @@ export default function HouseholdDonutChart({
                 <path d={seg.d} fill={seg.color}
                   style={{ opacity: catTransColored ? 1 : 0, transition: "opacity 1.65s ease" }} />
               </g>
-            ))}
-            {/* ── Snap-cats border arcs — fade in with the colors ── */}
-            {catTransBorders.length > 0 && catTransBorders.map((seg, i) => (
-              <path key={`ctb-${i}`} d={seg.d} fill="none"
-                stroke={seg.color} strokeWidth={1}
-                style={{ pointerEvents: "none", opacity: catTransColored ? 1 : 0, transition: "opacity 1.65s ease" }} />
             ))}
 
             {/* ── Snap-member transition segs (grey → real colors) ─────────────
@@ -1293,7 +1267,14 @@ export default function HouseholdDonutChart({
               <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
               <span>{t("hh.drill_back_hint")}</span>
             </button>
-            {/* Manage button moved to Members section header in parent */}
+            {iAmHead && onMemberTap && drilledMember && !isVirtualDrill && (
+              <button
+                className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/15 transition-colors"
+                onClick={() => onMemberTap(drilledMember)}
+              >
+                {t("hh.manage")}
+              </button>
+            )}
           </div>
 
           {/* Personal donut or lock or spinner — flex-start matches household so
