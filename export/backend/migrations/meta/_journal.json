@@ -64,6 +64,13 @@
       "when": 1784850000000,
       "tag": "0008_invite_enhancements",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1753776000000,
+      "tag": "0009_budget_stretches",
+      "breakpoints": true
     }
   ]
 }

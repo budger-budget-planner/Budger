@@ -824,3 +824,31 @@ export type FundGreatLarderBody = {
   categoryId?: number | null;
   date?: string;
 };
+
+export type BudgetStretch = {
+  id: number;
+  userId: number;
+  transactionId: number | null;
+  month: string;
+  toCategoryId: number;
+  fromCategoryId: number;
+  amount: number;
+  stretchType: string;
+  createdAt: string;
+};
+
+export type CreateBudgetStretchBody = {
+  transactionId?: number | null;
+  toCategoryId: number;
+  fromCategoryId: number;
+  amount: number;
+  stretchType: string;
+};
+
+export type UpdateBudgetStretchBody = {
+  amount: number;
+};
+
+export type ListBudgetStretchesParams = {
+  month: string;
+};
