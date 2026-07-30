@@ -502,7 +502,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
                 onClick={() => setProposeOpen(true)}
                 disabled={!isOnline}
                 data-testid={`button-propose-category-${category.id}`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-xl
                            bg-muted text-xs font-medium text-pink-400 border border-pink-500/30 transition active:opacity-70 disabled:opacity-40"
               >
                 <Share2 className="w-3.5 h-3.5" /> {t("cat.share_send")}
@@ -513,7 +513,7 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
               disabled={!isOnline || isDonor}
               title={isDonor ? t("stretch.donated_label") : undefined}
               data-testid={`button-stretch-category-${category.id}`}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+              className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-xl
                          text-xs font-medium border transition active:opacity-70 disabled:opacity-40
                          ${isDonor
                            ? "bg-muted text-muted-foreground border-border cursor-not-allowed"
