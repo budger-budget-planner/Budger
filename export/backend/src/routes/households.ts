@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable } from "../db";
+import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable, budgetStretchesTable } from "../db";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
@@ -381,7 +381,8 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   // only transfer this month's rows rather than the member's full history.
   // The 5th query fetches the target's household role to determine whether
   // household-scoped RPs should be excluded from their personal view.
-  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember]] = await Promise.all([
+  // The 6th query fetches budget stretches for the target user this month.
+  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember], monthStretches] = await Promise.all([
     db.select().from(transactionsTable)
       .where(and(
         eq(transactionsTable.userId, Number(targetUserId)),
@@ -406,6 +407,11 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     db.select({ role: householdMembersTable.role })
       .from(householdMembersTable)
       .where(eq(householdMembersTable.userId, Number(targetUserId))),
+    db.select().from(budgetStretchesTable)
+      .where(and(
+        eq(budgetStretchesTable.userId, Number(targetUserId)),
+        eq(budgetStretchesTable.month, monthPrefix),
+      )),
   ]);
 
   // If the target is the head, their household RPs are shown under the virtual
@@ -458,18 +464,47 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
 
   const grandTotalFiltered = Array.from(groupedFiltered.values()).reduce((s, e) => s + e.total, 0);
 
-  const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => ({
-    categoryId: key === "uncategorized" ? null : parseInt(key),
-    categoryName: entry.category?.name ?? "Uncategorized",
-    categoryColor: entry.category?.color ?? "#94a3b8",
-    categoryIcon: entry.category?.icon ?? "tag",
-    budget: entry.category?.budget ? parseFloat(entry.category.budget) : null,
-    total: Math.round(entry.total * 100) / 100,
-    count: entry.count,
-    percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
-    isRecurringPayment: false,
-    recurringPaymentId: null as null,
-  })).sort((a, b) => b.total - a.total);
+  // Build per-category stretch map so each result item gets accurate effective
+  // budget, isStretched, and stretchAmount (mirrors Categories page frontend logic).
+  const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; stretchType: string }>();
+  for (const s of monthStretches) {
+    const toId   = s.toCategoryId;
+    const fromId = s.fromCategoryId;
+    const isCrossMonth = s.stretchType === "cross_month";
+    const toEntry = stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0, stretchType: s.stretchType };
+    toEntry.toAmt += parseFloat(s.amount);
+    stretchByCatId.set(toId, toEntry);
+    if (!isCrossMonth && fromId !== toId) {
+      const fromEntry = stretchByCatId.get(fromId) ?? { toAmt: 0, fromAmt: 0, stretchType: s.stretchType };
+      fromEntry.fromAmt += parseFloat(s.amount);
+      stretchByCatId.set(fromId, fromEntry);
+    }
+  }
+
+  const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => {
+    const catId = key === "uncategorized" ? null : parseInt(key);
+    const baseBudget = entry.category?.budget ? parseFloat(entry.category.budget) : null;
+    const stretch = catId != null ? stretchByCatId.get(catId) : undefined;
+    const netStretch = stretch ? stretch.toAmt - stretch.fromAmt : 0;
+    const effectiveBudget = baseBudget != null && stretch
+      ? Math.max(0, baseBudget + netStretch)
+      : baseBudget;
+    return {
+      categoryId: catId,
+      categoryName: entry.category?.name ?? "Uncategorized",
+      categoryColor: entry.category?.color ?? "#94a3b8",
+      categoryIcon: entry.category?.icon ?? "tag",
+      budget: effectiveBudget,
+      total: Math.round(entry.total * 100) / 100,
+      count: entry.count,
+      percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
+      isRecurringPayment: false,
+      recurringPaymentId: null as null,
+      isStretched: stretch != null,
+      stretchAmount: stretch ? netStretch : undefined,
+      stretchType: stretch?.stretchType ?? null,
+    };
+  }).sort((a, b) => b.total - a.total);
 
   res.json([...result, ...rpItems]);
 });
