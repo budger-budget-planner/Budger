@@ -97,11 +97,34 @@ function buildTransitionCatSegs(
 ): Array<{ d: string; color: string }> {
   const CAT_GAP = 2.5;
 
-  const budgeted   = spending.filter(s => s.budget != null && s.budget > 0);
-  const unbudgeted = spending.filter(s => s.budget == null || s.budget <= 0);
+  // Mirror DonutBudgetChart's isUncategorizedItem heuristic so that a named
+  // "Uncategorized" category row is treated as unbudgeted spending, not a
+  // budgeted group — otherwise the two charts build different group counts
+  // and the snap-cat arcs don't align with the final personal donut.
+  const isUncatItem = (s: SpendingItem) => {
+    if ((s as any).isUncategorized === true) return true;
+    const catKey = (s as any)._catKey ?? `cat-${s.categoryId ?? "null"}`;
+    return catKey === "cat-uncat"
+      || catKey === "cat-null"
+      || (!(s as any)._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
+  };
 
-  const sumBudgets     = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
-  const uncatBudget    = Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
+  const budgeted   = spending.filter(s => !isUncatItem(s) && s.budget != null && s.budget > 0);
+  const unbudgeted = spending.filter(s => isUncatItem(s) || s.budget == null || s.budget <= 0);
+
+  const sumBudgets = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
+
+  // Mirror DonutBudgetChart's negligible-remainder collapse:
+  // a leftover < 0.5 % of totalBudget is treated as zero so it uses the
+  // fixed 1° reserve path instead of drawing a hairline over-budget sliver.
+  const hasUncatBudget = unbudgeted.some(s => (s.budget ?? 0) > 0);
+  const _rawUncatBudget = hasUncatBudget
+    ? 0
+    : Math.max(0, Math.round((totalBudget - sumBudgets) * 100) / 100);
+  const uncatBudget = (_rawUncatBudget > 0 && _rawUncatBudget / Math.max(totalBudget, 1) < 0.005)
+    ? 0
+    : _rawUncatBudget;
+
   const uncatSpent     = unbudgeted.reduce((a, s) => a + s.total, 0);
   const uncatRemain    = Math.max(0, uncatBudget - uncatSpent);
   const effectiveTotal = Math.max(sumBudgets + uncatBudget, 1);
@@ -127,18 +150,31 @@ function buildTransitionCatSegs(
     }
   }
 
-  // Uncategorized bucket — mirrors DonutBudgetChart logic
+  // Uncategorized bucket — mirrors DonutBudgetChart logic exactly, including
+  // the special case where uncatBudget === 0 but uncatSpent > 0.
   if (uncatBudget > 0 || uncatSpent > 0) {
-    const over  = uncatSpent > uncatBudget;
-    const parts: Part[] = [];
-    if (over || uncatBudget === 0) {
-      const frac = uncatBudget > 0 ? uncatBudget / effectiveTotal : uncatSpent / effectiveTotal;
-      parts.push({ fraction: frac, color: _UNCAT_SPENT_COLOR });
+    if (uncatBudget === 0 && uncatSpent > 0 && groups.length > 0) {
+      // Ring is already 100% claimed by budgeted categories.
+      // Reserve exactly 3.6° (1% of 360°) by scaling all existing groups down,
+      // exactly mirroring DonutBudgetChart's fixed-reserve path.
+      const UNCAT_VISIBLE_DEG  = 3.6;
+      const drawDegWithUncat   = 360 - CAT_GAP * (groups.length + 1);
+      const uncatFraction      = UNCAT_VISIBLE_DEG / Math.max(drawDegWithUncat, 1);
+      for (const g of groups) {
+        for (const p of g.parts) p.fraction *= (1 - uncatFraction);
+      }
+      groups.push({ parts: [{ fraction: uncatFraction, color: _UNCAT_SPENT_COLOR }] });
     } else {
-      if (uncatSpent  / effectiveTotal > 0.001) parts.push({ fraction: uncatSpent  / effectiveTotal, color: _UNCAT_SPENT_COLOR  });
-      if (uncatRemain / effectiveTotal > 0.001) parts.push({ fraction: uncatRemain / effectiveTotal, color: _UNCAT_REMAIN_COLOR });
+      const over  = uncatSpent > uncatBudget;
+      const parts: Part[] = [];
+      if (over) {
+        parts.push({ fraction: uncatBudget / effectiveTotal, color: _UNCAT_SPENT_COLOR });
+      } else {
+        if (uncatSpent  / effectiveTotal > 0.001) parts.push({ fraction: uncatSpent  / effectiveTotal, color: _UNCAT_SPENT_COLOR  });
+        if (uncatRemain / effectiveTotal > 0.001) parts.push({ fraction: uncatRemain / effectiveTotal, color: _UNCAT_REMAIN_COLOR });
+      }
+      if (parts.length > 0) groups.push({ parts });
     }
-    if (parts.length > 0) groups.push({ parts });
   }
 
   if (groups.length === 0) return [];
