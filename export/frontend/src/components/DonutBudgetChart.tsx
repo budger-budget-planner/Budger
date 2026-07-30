@@ -135,11 +135,30 @@ function arc(cx: number, cy: number, ri: number, ro: number, start: number, end:
   return `M${s0.x} ${s0.y} A${ro} ${ro} 0 ${lg} 1 ${e0.x} ${e0.y} L${e1.x} ${e1.y} A${ri} ${ri} 0 ${lg} 0 ${s1.x} ${s1.y}Z`;
 }
 
+// Split a donut arc into its 4 constituent stroke paths so touching radial
+// end-caps can be rendered at a different width from the arc curves.
+function arcParts(cx: number, cy: number, ri: number, ro: number, start: number, end: number) {
+  const sweep = Math.min(end - start, 359.99);
+  const e = start + sweep;
+  const s0 = polar(cx, cy, ro, start);
+  const e0 = polar(cx, cy, ro, e);
+  const s1 = polar(cx, cy, ri, start);
+  const e1 = polar(cx, cy, ri, e);
+  const lg = sweep > 180 ? 1 : 0;
+  return {
+    outerArc: `M${s0.x} ${s0.y} A${ro} ${ro} 0 ${lg} 1 ${e0.x} ${e0.y}`,
+    innerArc: `M${e1.x} ${e1.y} A${ri} ${ri} 0 ${lg} 0 ${s1.x} ${s1.y}`,
+    startCap: `M${s0.x} ${s0.y} L${s1.x} ${s1.y}`,
+    endCap:   `M${e0.x} ${e0.y} L${e1.x} ${e1.y}`,
+  };
+}
+
 // ─── Segment data ─────────────────────────────────────────────────────────────
 
 type Seg = {
   id: string; catKey: string; d: string; fill: string;
   isOverBudget: boolean; midDeg: number;
+  startDeg: number; endDeg: number;
 };
 
 type GroupBorder = {
@@ -312,7 +331,7 @@ function buildChart(
       const midDeg   = (startDeg + endDeg) / 2;
       segs.push({ id: part.id, catKey: g.catKey,
         d: arc(CX, CY, RI, outerR, startDeg, endDeg),
-        fill: part.fill, isOverBudget: part.isOverBudget, midDeg });
+        fill: part.fill, isOverBudget: part.isOverBudget, midDeg, startDeg, endDeg });
       partCursor = endDeg;
     }
 
@@ -661,26 +680,57 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             // Helper: border for a single part (used only while the group is
             // detached — each part gets its own border, tracking its own
             // translate offset, in the same lighter-tone-of-category-color style).
-            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean, groupIsStretched = false) {
+            // touchingStart/touchingEnd indicate which radial end-cap faces a
+            // sibling part — those get 2.5px instead of the full 3px so there
+            // is a visible sliver of air between adjacent parts.
+            function partBorderPath(
+              seg: Seg,
+              groupColor: string,
+              groupIsOverBudget: boolean,
+              groupIsStretched = false,
+              touchingStart = false,
+              touchingEnd   = false,
+            ) {
               const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
               const tx = EXPAND * Math.cos(midRad);
               const ty = EXPAND * Math.sin(midRad);
               const isOrangeStretch = groupIsStretched && !groupIsOverBudget;
               const strokeColor = groupIsOverBudget ? "#ff3333" : isOrangeStretch ? "#c47a2a" : groupColor + "90";
-              const strokeWidth = (groupIsOverBudget || isOrangeStretch) ? 3 : 1;
+              const outerW  = (groupIsOverBudget || isOrangeStretch) ? 3   : 1;
+              const touchW  = (groupIsOverBudget || isOrangeStretch) ? 2.5 : 1;
+              const style = {
+                transform:     `translate(${tx}px, ${ty}px)`,
+                transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                pointerEvents: "none" as const,
+              };
+
+              // No touching caps — simple single path (unchanged behaviour)
+              if (!touchingStart && !touchingEnd) {
+                return (
+                  <path
+                    key={`border-${seg.id}`}
+                    d={seg.d}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={outerW}
+                    style={style}
+                  />
+                );
+              }
+
+              // Split into arc curves + individual caps so we can stroke them
+              // at different widths.
+              const outerR = RO + EXPAND; // partBorderPath is only called when selected
+              const { outerArc, innerArc, startCap, endCap } =
+                arcParts(CX, CY, RI, outerR, seg.startDeg, seg.endDeg);
+
               return (
-                <path
-                  key={`border-${seg.id}`}
-                  d={seg.d}
-                  fill="none"
-                  stroke={strokeColor}
-                  strokeWidth={strokeWidth}
-                  style={{
-                    transform:     `translate(${tx}px, ${ty}px)`,
-                    transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                    pointerEvents: "none",
-                  }}
-                />
+                <g key={`border-${seg.id}`} style={style} fill="none" stroke={strokeColor} strokeLinecap="round">
+                  <path d={outerArc} strokeWidth={outerW} />
+                  <path d={innerArc} strokeWidth={outerW} />
+                  <path d={startCap} strokeWidth={touchingStart ? touchW : outerW} />
+                  <path d={endCap}   strokeWidth={touchingEnd   ? touchW : outerW} />
+                </g>
               );
             }
 
@@ -718,7 +768,17 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               const isSel = selectedCat === gb.catKey;
               if (!isSel) return [groupBorderPath(gb)];
               const groupSegs = segs.filter(s => s.catKey === gb.catKey);
-              return groupSegs.map(s => partBorderPath(s, gb.groupColor, gb.isOverBudget, gb.isStretched));
+              return groupSegs.map((s, i) => {
+                // A cap is "touching" when there is a sibling part on that side.
+                // First seg: start cap is at the group boundary (outer);
+                //            end cap faces the next sibling (touching).
+                // Last seg:  start cap faces the previous sibling (touching);
+                //            end cap is at the group boundary (outer).
+                // Middle segs: both caps touch siblings.
+                const touchingStart = i > 0;
+                const touchingEnd   = i < groupSegs.length - 1;
+                return partBorderPath(s, gb.groupColor, gb.isOverBudget, gb.isStretched, touchingStart, touchingEnd);
+              });
             }
 
             // Three buckets: wiggle1 (first group), wiggle2 (4th/3rd/2nd fallback), rest
