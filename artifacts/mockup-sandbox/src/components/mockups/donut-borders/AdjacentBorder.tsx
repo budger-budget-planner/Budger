@@ -1,7 +1,7 @@
 // Mockup: adjacent segment border comparison
 // Shows two neighboring expanded donut segments.
 // LEFT  — current:  all edges 3px (touching inner edges feel merged)
-// RIGHT — proposed: arc edges 3px, touching end-caps 1px (creates air)
+// RIGHT — proposed: arc edges 3px, touching end-caps 2px (creates air)
 
 const CX = 160, CY = 160, RI = 75, RO = 128, EXPAND = 14;
 
@@ -95,7 +95,7 @@ function DonutSegments({ variant }: { variant: Variant }) {
                 <path d={outer}       fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
                 <path d={inner}       fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
                 <path d={outerCap}    fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
-                <path d={touchingCap} fill="none" stroke={seg.color} strokeWidth={1} strokeLinecap="round" />
+                <path d={touchingCap} fill="none" stroke={seg.color} strokeWidth={2} strokeLinecap="round" />
               </>
             )}
           </g>
