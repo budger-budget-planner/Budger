@@ -164,6 +164,33 @@ export default function DashboardPage() {
     !(item.categoryId == null && !(item as any).recurringPaymentId && item.total === 0 && item.count === 0)
   );
 
+  // Per-category stretch enrichment: adjust each segment's budget and flag isStretched/stretchAmount
+  // so DonutBudgetChart shows correct fill percentages, over-budget state, and orange borders.
+  const _stretchByCatId = new Map<number, { toAmt: number; fromAmt: number }>();
+  for (const s of monthStretches ?? []) {
+    const toId   = (s as any).toCategoryId  as number | null;
+    const fromId = (s as any).fromCategoryId as number | null;
+    const isCrossMonth = (s as any).stretchType === "cross_month";
+    if (toId != null) {
+      const e = _stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0 };
+      e.toAmt += Number((s as any).amount);
+      _stretchByCatId.set(toId, e);
+    }
+    if (!isCrossMonth && fromId != null && fromId !== toId) {
+      const e = _stretchByCatId.get(fromId) ?? { toAmt: 0, fromAmt: 0 };
+      e.fromAmt += Number((s as any).amount);
+      _stretchByCatId.set(fromId, e);
+    }
+  }
+  const spendingForChartEnriched = spendingForChart?.map((item: any) => {
+    if (item.categoryId == null) return item;
+    const stretch = _stretchByCatId.get(item.categoryId as number);
+    if (!stretch) return item;
+    const netAmt = stretch.toAmt - stretch.fromAmt;
+    const effectiveBudget = Math.max(0, (item.budget ?? 0) + netAmt);
+    return { ...item, budget: effectiveBudget, isStretched: true, stretchAmount: netAmt };
+  }) ?? spendingForChart;
+
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
   const rpBudgetSumDash = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
@@ -335,27 +362,27 @@ export default function DashboardPage() {
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
-          ) : spendingForChart && spendingForChart.length > 0 && totalBudgetForChart > 0 ? (
+          ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 && totalBudgetForChart > 0 ? (
             <DonutBudgetChart
-              spending={spendingForChart as any}
+              spending={spendingForChartEnriched as any}
               totalBudget={totalBudgetForChart}
               currency={prefs.currency}
               hasData={
-                spendingForChart.some(s => s.count > 0) ||
+                spendingForChartEnriched.some((s: any) => s.count > 0) ||
                 (recurringPayments?.length ?? 0) > 0
               }
               adjustedTotalBudget={adjustedTotalBudgetForChart}
             />
-          ) : spendingForChart && spendingForChart.length > 0 ? (
+          ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 ? (
             /* Fallback: no total budget set — show spending-proportional donut */
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
                 <ResponsiveContainer width={140} height={140}>
                   <PieChart style={{ outline: "none" }}>
-                    <Pie data={spendingForChart} dataKey="total" cx="50%" cy="50%"
+                    <Pie data={spendingForChartEnriched} dataKey="total" cx="50%" cy="50%"
                       innerRadius={38} outerRadius={64} paddingAngle={2}
                       style={{ outline: "none" }}>
-                      {spendingForChart.map((entry, i) => (
+                      {spendingForChartEnriched.map((entry: any, i: number) => (
                         <Cell key={(entry as any)._catKey ?? entry.categoryId ?? `unc-${i}`}
                           fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
@@ -364,7 +391,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 space-y-2 min-w-0">
-                {spendingForChart.slice(0, 6).map((item, i) => (
+                {spendingForChartEnriched.slice(0, 6).map((item: any, i: number) => (
                   <div key={(item as any)._catKey ?? item.categoryId ?? `unc-${i}`} className="space-y-0.5">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">
