@@ -667,7 +667,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               const ty = EXPAND * Math.sin(midRad);
               const isOrangeStretch = groupIsStretched && !groupIsOverBudget;
               const strokeColor = groupIsOverBudget ? "#ff3333" : isOrangeStretch ? "#c47a2a" : groupColor + "90";
-              const strokeWidth = (groupIsOverBudget || isOrangeStretch) ? 3 : 1;
+              const strokeWidth = (groupIsOverBudget || isOrangeStretch) ? 2 : 1;
               return (
                 <path
                   key={`border-${seg.id}`}
@@ -695,7 +695,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 : isOrangeStretch
                   ? "#c47a2a"
                   : gb.groupColor + "90";
-              const strokeWidth = (isRedBorder || isOrangeStretch) ? 3 : 1;
+              const strokeWidth = (isRedBorder || isOrangeStretch) ? 2 : 1;
               return (
                 <path
                   key={`border-${gb.catKey}`}
