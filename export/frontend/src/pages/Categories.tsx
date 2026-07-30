@@ -33,9 +33,9 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { apiFetch as apiFetchWithCsrf } from "@/lib/api";
 
 const PRESET_COLORS = [
-  "#818cf8", "#34d399", "#fb923c", "#f472b6", "#38bdf8",
-  "#a78bfa", "#fbbf24", "#f87171", "#4ade80", "#60a5fa",
-  "#e879f9", "#2dd4bf", "#facc15", "#fb7185", "#a3e635",
+  "#818cf8", "#34d399", "#06b6d4", "#f472b6", "#38bdf8",
+  "#a78bfa", "#fbbf24", "#c084fc", "#4ade80", "#60a5fa",
+  "#e879f9", "#2dd4bf", "#facc15", "#f9a8d4", "#a3e635",
 ];
 
 function isHeadRole(role: string) { return role === "head" || role === "owner"; }

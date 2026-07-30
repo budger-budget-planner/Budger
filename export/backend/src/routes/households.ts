@@ -13,9 +13,12 @@ import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
 
+// Orange is reserved exclusively for the virtual "Household Spendings" member.
+// Reds and oranges are intentionally excluded — they visually conflict with
+// over-budget (red) and budget-stretch (orange) indicators in the donut chart.
 const MEMBER_COLORS = [
-  "#818cf8", "#34d399", "#fb923c", "#f472b6",
-  "#38bdf8", "#a78bfa", "#fbbf24", "#f87171",
+  "#818cf8", "#34d399", "#06b6d4", "#f472b6",
+  "#38bdf8", "#a78bfa", "#fbbf24", "#c084fc",
   "#4ade80", "#60a5fa", "#e879f9", "#2dd4bf",
 ];
 
@@ -245,7 +248,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
       userId: -1,
       householdId: headEntry.householdId,
       role: "household-spendings",
-      memberColor: "#f59e0b",
+      memberColor: "#f97316", // orange — reserved exclusively for household spendings
       name: "Household Spendings",
       email: "",
       dashboardBlocked: false,
