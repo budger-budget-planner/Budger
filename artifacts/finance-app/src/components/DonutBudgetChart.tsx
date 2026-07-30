@@ -661,17 +661,20 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             // Helper: border for a single part (used only while the group is
             // detached — each part gets its own border, tracking its own
             // translate offset, in the same lighter-tone-of-category-color style).
-            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean) {
+            function partBorderPath(seg: Seg, groupColor: string, groupIsOverBudget: boolean, groupIsStretched = false) {
               const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
               const tx = EXPAND * Math.cos(midRad);
               const ty = EXPAND * Math.sin(midRad);
+              const isOrangeStretch = groupIsStretched && !groupIsOverBudget;
+              const strokeColor = groupIsOverBudget ? "#ff3333" : isOrangeStretch ? "#c47a2a" : groupColor + "90";
+              const strokeWidth = (groupIsOverBudget || isOrangeStretch) ? 3 : 1;
               return (
                 <path
                   key={`border-${seg.id}`}
                   d={seg.d}
                   fill="none"
-                  stroke={groupIsOverBudget ? "#ff3333" : groupColor + "90"}
-                  strokeWidth={groupIsOverBudget ? 3 : 1}
+                  stroke={strokeColor}
+                  strokeWidth={strokeWidth}
                   style={{
                     transform:     `translate(${tx}px, ${ty}px)`,
                     transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -715,7 +718,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               const isSel = selectedCat === gb.catKey;
               if (!isSel) return [groupBorderPath(gb)];
               const groupSegs = segs.filter(s => s.catKey === gb.catKey);
-              return groupSegs.map(s => partBorderPath(s, gb.groupColor, gb.isOverBudget));
+              return groupSegs.map(s => partBorderPath(s, gb.groupColor, gb.isOverBudget, gb.isStretched));
             }
 
             // Three buckets: wiggle1 (first group), wiggle2 (4th/3rd/2nd fallback), rest
