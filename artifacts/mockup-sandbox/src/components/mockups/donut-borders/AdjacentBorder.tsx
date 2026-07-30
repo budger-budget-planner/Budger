@@ -95,7 +95,7 @@ function DonutSegments({ variant }: { variant: Variant }) {
                 <path d={outer}       fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
                 <path d={inner}       fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
                 <path d={outerCap}    fill="none" stroke={seg.color} strokeWidth={3} strokeLinecap="round" />
-                <path d={touchingCap} fill="none" stroke={seg.color} strokeWidth={2} strokeLinecap="round" />
+                <path d={touchingCap} fill="none" stroke={seg.color} strokeWidth={2.5} strokeLinecap="round" />
               </>
             )}
           </g>
