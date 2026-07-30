@@ -16,10 +16,21 @@ const router: IRouter = Router();
 // Orange is reserved exclusively for the virtual "Household Spendings" member.
 // Reds and oranges are intentionally excluded — they visually conflict with
 // over-budget (red) and budget-stretch (orange) indicators in the donut chart.
+// Palette rotates through four contrast families: green → purple → blue → yellow.
+// Each successive slot uses a different shade so adjacent members are never similar.
 const MEMBER_COLORS = [
-  "#818cf8", "#34d399", "#06b6d4", "#f472b6",
-  "#38bdf8", "#a78bfa", "#fbbf24", "#c084fc",
-  "#4ade80", "#60a5fa", "#e879f9", "#2dd4bf",
+  "#4ade80", // 1  vivid green
+  "#a78bfa", // 2  violet
+  "#60a5fa", // 3  cornflower blue
+  "#fbbf24", // 4  amber
+  "#34d399", // 5  emerald green
+  "#e879f9", // 6  fuchsia
+  "#38bdf8", // 7  sky blue
+  "#facc15", // 8  bright yellow
+  "#86efac", // 9  light green
+  "#c084fc", // 10 lavender purple
+  "#818cf8", // 11 indigo blue
+  "#fde047", // 12 pale yellow
 ];
 
 function isHead(role: string) { return role === "head" || role === "owner"; }

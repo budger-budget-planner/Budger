@@ -228,10 +228,12 @@ function buildHouseholdChart(
   // The backend already handles this, but old/cached data may still clash.
   // Orange/red excluded — they conflict with over-budget and stretch indicators.
   // #f97316 is reserved for the virtual "Household Spendings" member.
+  // Safety-net pool mirrors the backend MEMBER_COLORS order so that clash-
+  // resolution produces the same family rotation: green → purple → blue → yellow.
   const COLOR_POOL = [
-    "#818cf8","#34d399","#06b6d4","#f472b6","#38bdf8","#a78bfa",
-    "#0ea5e9","#f9a8d4","#4ade80","#60a5fa","#e879f9","#2dd4bf",
-    "#fbbf24","#94a3b8","#c084fc","#22d3ee",
+    "#4ade80","#a78bfa","#60a5fa","#fbbf24",
+    "#34d399","#e879f9","#38bdf8","#facc15",
+    "#86efac","#c084fc","#818cf8","#fde047",
   ];
   const seen = new Set<string>();
   for (const m of memberData) {
