@@ -922,6 +922,7 @@ export default function HouseholdDonutChart({
   // ── Long-press helpers ──────────────────────────────────────────────────────
   function startLongPress(groupId: string) {
     if (drillPhase !== "idle") return;
+    if (groupId === "additional-funds") return; // no personal view for this virtual bucket
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       longPressTimerRef.current = null;
