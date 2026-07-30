@@ -28,9 +28,9 @@ function hexDarken(hex: string, amt: number) {
 // Each occupies ~115° with 2.5° gaps
 const GAP = 2.5;
 const segs = [
-  { start: 0,                end: 117.5, fill: "#6366f1",   darken: hexDarken("#6366f1", 0.52), label: "Normal",     borderColor: "#6366f190", strokeWidth: 1,   spent: 400, budget: 600  },
-  { start: 120,              end: 237.5, fill: "#ef4444",   darken: null,                        label: "Over-budget",borderColor: "#ff3333",   strokeWidth: 1.5, spent: 800, budget: 500  },
-  { start: 240,              end: 357.5, fill: "#f59e0b",   darken: hexDarken("#f59e0b", 0.52),  label: "Stretched",  borderColor: "#c47a2a",   strokeWidth: 1.5, spent: 300, budget: 450  },
+  { start: 0,   end: 117.5, fill: "#6366f1", darken: hexDarken("#6366f1", 0.52), label: "Normal",      borderColor: "#6366f190", strokeWidth: 1,   spent: 400, budget: 600 },
+  { start: 120, end: 237.5, fill: "#14b8a6", darken: null,                        label: "Over-budget", borderColor: "#ff3333",   strokeWidth: 1.5, spent: 800, budget: 500 },
+  { start: 240, end: 357.5, fill: "#3b82f6", darken: hexDarken("#3b82f6", 0.52),  label: "Stretched",   borderColor: "#c47a2a",   strokeWidth: 1.5, spent: 300, budget: 450 },
 ];
 
 function Segment({ seg }: { seg: typeof segs[0] }) {
