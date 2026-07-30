@@ -1018,7 +1018,7 @@ export default function HouseholdDonutChart({
     const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
     const tx = EXPAND * Math.cos(midRad), ty = EXPAND * Math.sin(midRad);
     const strokeColor = isOB ? "#ff3333" : isStretched ? "#c47a2a" : groupColor + "90";
-    const strokeWidth = (isOB || isStretched) ? 1.5 : 1;
+    const strokeWidth = (isOB || isStretched) ? 3 : 1;
     return (
       <path key={`b-${seg.id}`} d={seg.d} fill="none"
         stroke={strokeColor} strokeWidth={strokeWidth}
@@ -1121,7 +1121,7 @@ export default function HouseholdDonutChart({
                     ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget, crossMonthStretchUserIds?.includes(gb.userId) ?? false))
                     : <path key={`b-${gb.groupId}`} d={gb.d} fill="none"
                         stroke={gb.isOverBudget ? "#ff3333" : (crossMonthStretchUserIds?.includes(gb.userId) ? "#c47a2a" : gb.groupColor + "90")}
-                        strokeWidth={(gb.isOverBudget || crossMonthStretchUserIds?.includes(gb.userId)) ? 1.5 : 1}
+                        strokeWidth={(gb.isOverBudget || crossMonthStretchUserIds?.includes(gb.userId)) ? 3 : 1}
                         style={{ pointerEvents: "none" }} />
                   }
                 </g>
