@@ -227,9 +227,9 @@ function buildHouseholdChart(
   // Safety net: ensure every member has a visually distinct color.
   // The backend already handles this, but old/cached data may still clash.
   const COLOR_POOL = [
-    "#818cf8","#34d399","#fb923c","#f472b6","#38bdf8","#a78bfa",
-    "#f59e0b","#f87171","#4ade80","#60a5fa","#e879f9","#2dd4bf",
-    "#fbbf24","#94a3b8","#c084fc","#22d3ee",
+    "#4ade80","#a78bfa","#60a5fa","#fbbf24",
+    "#34d399","#e879f9","#38bdf8","#facc15",
+    "#86efac","#c084fc","#818cf8","#fde047",
   ];
   const seen = new Set<string>();
   for (const m of memberData) {
