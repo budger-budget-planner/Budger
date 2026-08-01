@@ -391,12 +391,20 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+  // Previous month prefix — needed to fetch cross_month stretches that were
+  // taken last month and therefore reduce this month's effective budgets.
+  const [_y, _m] = monthPrefix.split("-").map(Number);
+  const prevDate        = new Date(_y, _m - 2, 1);
+  const prevMonthPrefix = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
   // Fire all data queries in parallel. Filtering is done in SQL so we
   // only transfer this month's rows rather than the member's full history.
   // The 5th query fetches the target's household role to determine whether
   // household-scoped RPs should be excluded from their personal view.
   // The 6th query fetches budget stretches for the target user this month.
-  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember], monthStretches] = await Promise.all([
+  // The 7th query fetches cross_month stretches from last month that reduce
+  // this month's effective budget.
+  const [txs, categories, memberRPs, validRpLogs, [targetHouseholdMember], monthStretches, prevMonthCrossStretches] = await Promise.all([
     db.select().from(transactionsTable)
       .where(and(
         eq(transactionsTable.userId, Number(targetUserId)),
@@ -425,6 +433,13 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
       .where(and(
         eq(budgetStretchesTable.userId, Number(targetUserId)),
         eq(budgetStretchesTable.month, monthPrefix),
+      )),
+    // cross_month stretches from last month that reduce THIS month's budget
+    db.select().from(budgetStretchesTable)
+      .where(and(
+        eq(budgetStretchesTable.userId, Number(targetUserId)),
+        eq(budgetStretchesTable.month, prevMonthPrefix),
+        eq(budgetStretchesTable.stretchType, "cross_month"),
       )),
   ]);
 
@@ -494,13 +509,22 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
       stretchByCatId.set(fromId, fromEntry);
     }
   }
+  // Previous-month cross_month stretches reduce this month's effective budget.
+  // The borrowed amount must be "paid back" from this month's category budget.
+  for (const s of prevMonthCrossStretches) {
+    const catId = s.toCategoryId; // toCategoryId === fromCategoryId for cross_month
+    const entry = stretchByCatId.get(catId) ?? { toAmt: 0, fromAmt: 0, stretchType: "cross_month" };
+    entry.fromAmt += parseFloat(s.amount);
+    stretchByCatId.set(catId, entry);
+  }
 
   const result = Array.from(groupedFiltered.entries()).map(([key, entry]) => {
     const catId = key === "uncategorized" ? null : parseInt(key);
     const baseBudget = entry.category?.budget ? parseFloat(entry.category.budget) : null;
     const stretch = catId != null ? stretchByCatId.get(catId) : undefined;
     const netStretch = stretch ? stretch.toAmt - stretch.fromAmt : 0;
-    const effectiveBudget = baseBudget != null && stretch
+    // Only apply stretch adjustment when there is a non-zero net effect
+    const effectiveBudget = baseBudget != null && stretch && (stretch.toAmt > 0 || stretch.fromAmt > 0)
       ? Math.max(0, baseBudget + netStretch)
       : baseBudget;
     return {
@@ -514,8 +538,9 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
       percentage: grandTotalFiltered > 0 ? Math.round((entry.total / grandTotalFiltered) * 10000) / 100 : 0,
       isRecurringPayment: false,
       recurringPaymentId: null as null,
-      isStretched: stretch != null,
-      stretchAmount: stretch ? netStretch : undefined,
+      // isStretched = true only when there is a positive incoming amount this month
+      isStretched: stretch != null && stretch.toAmt > 0,
+      stretchAmount: stretch && stretch.toAmt > 0 ? netStretch : undefined,
       stretchType: stretch?.stretchType ?? null,
     };
   }).sort((a, b) => b.total - a.total);

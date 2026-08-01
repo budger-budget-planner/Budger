@@ -1104,16 +1104,34 @@ export default function CategoriesPage() {
   const { data: categories, isLoading } = useListCategories();
   const { data: recurringPayments, isLoading: rpLoading } = useListRecurringPayments();
 
-  // Stretch data for the current month
+  // Stretch data for the current month.
+  // The GET endpoint also returns prev-month cross_month stretches (identified
+  // by s.month !== currentMonth) — those reduce this month's effective budget
+  // and lock the category from being stretched again.
   const currentMonth = new Date().toISOString().slice(0, 7);
   const { data: monthStretches } = useListBudgetStretches({ month: currentMonth } as any);
   const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; crossMonth: boolean }>();
   const stretchObjectsByCatId = new Map<number, any>();
   const donorCatIds = new Set<number>();
+  // Categories whose budget is reduced because they borrowed from this month last month
+  const prevMonthLockedCatIds = new Set<number>();
   for (const s of monthStretches ?? []) {
     const toId = (s as any).toCategoryId;
     const fromId = (s as any).fromCategoryId;
     const isCrossMonth = (s as any).stretchType === "cross_month";
+    const isPrevMonthImpact = (s as any).month !== currentMonth;
+
+    if (isPrevMonthImpact) {
+      // cross_month stretch from last month — reduce this month's budget for the category
+      const entry = stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0, crossMonth: false };
+      entry.fromAmt += Number((s as any).amount);
+      stretchByCatId.set(toId, entry);
+      // Lock the stretch button — the cooldown rule prevents a new stretch anyway,
+      // and this makes the UI consistent with that constraint.
+      prevMonthLockedCatIds.add(toId);
+      continue;
+    }
+
     const toEntry = stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0, crossMonth: false };
     toEntry.toAmt += Number((s as any).amount);
     toEntry.crossMonth = toEntry.crossMonth || isCrossMonth;
@@ -1328,7 +1346,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id) || prevMonthLockedCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} />
           ))}
         </div>
       ) : (

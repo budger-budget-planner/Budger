@@ -28,10 +28,27 @@ router.get("/budget-stretches", async (req, res): Promise<void> => {
     res.status(400).json({ error: "month query param is required (YYYY-MM)" }); return;
   }
 
-  const stretches = await db.select().from(budgetStretchesTable)
-    .where(and(eq(budgetStretchesTable.userId, userId), eq(budgetStretchesTable.month, month)));
+  // Also compute the previous month so we can fetch any cross_month stretches
+  // that were taken in month-1 and therefore reduce this month's budget.
+  const [y, m] = month.split("-").map(Number);
+  const prevDate  = new Date(y, m - 2, 1);
+  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
 
-  res.json(stretches.map(formatStretch));
+  const [stretches, prevMonthImpacts] = await Promise.all([
+    db.select().from(budgetStretchesTable)
+      .where(and(eq(budgetStretchesTable.userId, userId), eq(budgetStretchesTable.month, month))),
+    // cross_month stretches from prev month reduce this month's effective budget
+    db.select().from(budgetStretchesTable)
+      .where(and(
+        eq(budgetStretchesTable.userId, userId),
+        eq(budgetStretchesTable.month, prevMonth),
+        eq(budgetStretchesTable.stretchType, "cross_month"),
+      )),
+  ]);
+
+  // Return both sets; the frontend distinguishes prev-month entries by
+  // checking s.month !== requestedMonth.
+  res.json([...stretches, ...prevMonthImpacts].map(formatStretch));
 });
 
 // ── POST /budget-stretches ───────────────────────────────────────────────────
