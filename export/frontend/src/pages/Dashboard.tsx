@@ -149,10 +149,13 @@ export default function DashboardPage() {
     .reduce((s: number, rp: any) => s + Number(rp.amount), 0);
   const totalBudgetForChart = Math.max(0, totalBudget - householdRpTotalAmount);
 
-  // Cross-month stretch adjustment for the donut
+  // Cross-month stretch adjustment for the donut.
+  // Entries whose month === viewMonth were borrowed FROM next month → boost this month's budget (+).
+  // Entries whose month !== viewMonth were borrowed last month FROM this month → reduce this month's budget (−).
   const crossMonthNetAmt = (monthStretches ?? []).reduce((sum: number, s: any) => {
-    if (s.stretchType === "cross_month") return sum + Number(s.amount);
-    return sum;
+    if (s.stretchType !== "cross_month") return sum;
+    const isCurrentMonth = (s as any).month === viewMonth;
+    return sum + (isCurrentMonth ? Number(s.amount) : -Number(s.amount));
   }, 0);
   const adjustedTotalBudgetDash = crossMonthNetAmt !== 0 && totalBudget > 0
     ? totalBudget + crossMonthNetAmt : null;
@@ -166,11 +169,24 @@ export default function DashboardPage() {
 
   // Per-category stretch enrichment: adjust each segment's budget and flag isStretched/stretchAmount
   // so DonutBudgetChart shows correct fill percentages, over-budget state, and orange borders.
+  // Prev-month cross_month entries (month !== viewMonth) reduce this month's budget → fromAmt.
   const _stretchByCatId = new Map<number, { toAmt: number; fromAmt: number }>();
   for (const s of monthStretches ?? []) {
-    const toId   = (s as any).toCategoryId  as number | null;
-    const fromId = (s as any).fromCategoryId as number | null;
+    const toId         = (s as any).toCategoryId  as number | null;
+    const fromId       = (s as any).fromCategoryId as number | null;
     const isCrossMonth = (s as any).stretchType === "cross_month";
+    const isPrevMonth  = (s as any).month !== viewMonth;
+
+    if (isPrevMonth) {
+      // Debt from last month: reduce this month's category budget
+      if (toId != null) {
+        const e = _stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0 };
+        e.fromAmt += Number((s as any).amount);
+        _stretchByCatId.set(toId, e);
+      }
+      continue;
+    }
+
     if (toId != null) {
       const e = _stretchByCatId.get(toId) ?? { toAmt: 0, fromAmt: 0 };
       e.toAmt += Number((s as any).amount);
@@ -188,7 +204,8 @@ export default function DashboardPage() {
     if (!stretch) return item;
     const netAmt = stretch.toAmt - stretch.fromAmt;
     const effectiveBudget = Math.max(0, (item.budget ?? 0) + netAmt);
-    return { ...item, budget: effectiveBudget, isStretched: true, stretchAmount: netAmt };
+    // isStretched only when this month has a positive incoming amount (shows orange border)
+    return { ...item, budget: effectiveBudget, isStretched: stretch.toAmt > 0, stretchAmount: netAmt };
   }) ?? spendingForChart;
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set

@@ -1306,10 +1306,13 @@ export default function HomeSpending() {
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
   const remaining   = totalBudget ? totalBudget - total : null;
 
-  // Net cross-month stretch adjustment for the total budget display
+  // Net cross-month stretch adjustment for the total budget display.
+  // Current-month entries borrowed FROM next month → positive (budget boost).
+  // Prev-month entries (month !== viewMonth) borrowed FROM this month last month → negative (budget reduction).
   const crossMonthNetAmt = (monthStretches ?? []).reduce((sum: number, s: any) => {
-    if (s.stretchType === "cross_month") return sum + Number(s.amount);
-    return sum;
+    if (s.stretchType !== "cross_month") return sum;
+    const isCurrentMonth = (s as any).month === viewMonth;
+    return sum + (isCurrentMonth ? Number(s.amount) : -Number(s.amount));
   }, 0);
   const adjustedTotalBudget = crossMonthNetAmt !== 0 && totalBudget != null
     ? totalBudget + crossMonthNetAmt : null;
@@ -1652,7 +1655,11 @@ export default function HomeSpending() {
               </div>
               <p className="text-3xl font-bold leading-tight"><AmtHero amount={adjustedTotalBudget ?? totalBudget} currency={prefs.currency} /></p>
               {adjustedTotalBudget != null && (
-                <p className="text-xs text-orange-400 mt-0.5">+<AmtHero amount={crossMonthNetAmt} currency={prefs.currency} /> {t("stretch.from_next_month")}</p>
+                <p className="text-xs text-orange-400 mt-0.5">
+                  {crossMonthNetAmt > 0
+                    ? `+${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${t("stretch.from_next_month")}`
+                    : `${fmtAmtRound(crossMonthNetAmt, prefs.currency)} ${t("stretch.from_last_month")}`}
+                </p>
               )}
 
               {/* Divider */}
