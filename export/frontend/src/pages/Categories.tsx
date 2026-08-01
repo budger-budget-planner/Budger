@@ -1197,9 +1197,12 @@ export default function CategoriesPage() {
 
   const [adjustBudgetOpen, setAdjustBudgetOpen] = useState(false);
 
-  const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
-  const rpBudgetSum  = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
-  const combinedBudgetSum = catBudgetSum + rpBudgetSum;
+  const catBudgetSum   = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
+  const rpBudgetSum    = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
+  // Head of family pays household recurring payments — include them in the budget sum so the
+  // "Suma budżetów" banner reflects the true monthly commitment (categories + personal RPs + household RPs).
+  const hhRpBudgetSum  = (householdRPs ?? []).reduce((s: number, rp: any) => s + Number(rp.amount), 0);
+  const combinedBudgetSum = catBudgetSum + rpBudgetSum + hhRpBudgetSum;
   const catBudgetExceeds = totalBudget != null && combinedBudgetSum > totalBudget;
 
   function handleAcceptBudgetAdjust() {

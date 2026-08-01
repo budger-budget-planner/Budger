@@ -1321,7 +1321,9 @@ export default function HouseholdPage() {
                       const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency !== 0
                         ? inViewerCurrency + stretchInViewerCurrency
                         : null;
-                      const isStretched = isMe && stretchInViewerCurrency > 0;
+                      // Orange for any stretch involvement: borrowed from next month (> 0) OR
+                      // repaying last month's borrow (< 0). Both states are "adjusted" budget.
+                      const isStretched = isMe && stretchInViewerCurrency !== 0;
                       return (
                         <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
                           <div

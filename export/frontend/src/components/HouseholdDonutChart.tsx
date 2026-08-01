@@ -999,6 +999,16 @@ export default function HouseholdDonutChart({
     }
   }, [personalLoading]);
 
+  // ── Auto-drill-back when a member has no recorded payments ──────────────────
+  // If the personal spending data loads and is empty (member has no transactions),
+  // silently collapse back to the household donut — same behaviour as "additional funds".
+  useEffect(() => {
+    if (drillPhase === "personal" && !personalLoading && personalSpending.length === 0) {
+      startDrillBack();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drillPhase, personalLoading, personalSpending.length]);
+
   // ── Stagger legend items each time the chart enters compact (visible) mode ──
   // Uses drillPhase directly (not legendHidden) so this hook stays before the
   // early return at members.length === 0 and avoids both TDZ and hooks-after-return.
