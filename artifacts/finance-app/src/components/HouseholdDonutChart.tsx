@@ -331,8 +331,12 @@ function buildHouseholdChart(
         const parts: GroupDef["parts"] = [];
         // Virtual member (household spendings) always renders as a single solid
         // segment — no spent/remaining split — so it appears as one unified arc.
+        // When spent = 0 but budget > 0, use remainFrac so the segment fills its
+        // full budget allocation and the donut forms a complete circle.
         if (m.isVirtual) {
-          const frac = spentFrac > 0.001 ? spentFrac : 1 / Math.max(members.length, 1) * 0.5;
+          const frac = spentFrac > 0.001
+            ? spentFrac
+            : remainFrac > 0.001 ? remainFrac : 1 / Math.max(members.length, 1) * 0.5;
           parts.push({ fraction: frac, fill: m.memberColor, isOverBudget: false });
         } else {
           if (spentFrac  > 0.001) parts.push({ fraction: spentFrac,  fill: m.memberColor,                 isOverBudget: false });
