@@ -927,6 +927,9 @@ export default function HouseholdDonutChart({
   function startLongPress(groupId: string) {
     if (drillPhase !== "idle") return;
     if (groupId === "additional-funds") return; // no personal view for this virtual bucket
+    // No transactions recorded this month → nothing to drill into; stay on the household donut
+    const legendItem = legend.find(l => l.groupId === groupId);
+    if (legendItem && legendItem.spentInViewer === 0) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       longPressTimerRef.current = null;
@@ -999,15 +1002,6 @@ export default function HouseholdDonutChart({
     }
   }, [personalLoading]);
 
-  // ── Auto-drill-back when a member has no recorded payments ──────────────────
-  // If the personal spending data loads and is empty (member has no transactions),
-  // silently collapse back to the household donut — same behaviour as "additional funds".
-  useEffect(() => {
-    if (drillPhase === "personal" && !personalLoading && personalSpending.length === 0) {
-      startDrillBack();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drillPhase, personalLoading, personalSpending.length]);
 
   // ── Stagger legend items each time the chart enters compact (visible) mode ──
   // Uses drillPhase directly (not legendHidden) so this hook stays before the
