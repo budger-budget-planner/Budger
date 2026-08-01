@@ -204,8 +204,9 @@ export default function DashboardPage() {
     if (!stretch) return item;
     const netAmt = stretch.toAmt - stretch.fromAmt;
     const effectiveBudget = Math.max(0, (item.budget ?? 0) + netAmt);
-    // isStretched only when this month has a positive incoming amount (shows orange border)
-    return { ...item, budget: effectiveBudget, isStretched: stretch.toAmt > 0, stretchAmount: netAmt };
+    // isStretched for any stretch involvement: received extra budget (toAmt) OR
+    // repaying last month's borrow (fromAmt). Both states get orange border + text.
+    return { ...item, budget: effectiveBudget, isStretched: stretch.toAmt > 0 || stretch.fromAmt > 0, stretchAmount: netAmt };
   }) ?? spendingForChart;
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
