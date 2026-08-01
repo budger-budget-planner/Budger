@@ -588,13 +588,17 @@ export default function HouseholdPage() {
   // household donut for members who are borrowing from next month.
   const hhCurrentMonth = new Date().toISOString().slice(0, 7);
   const { data: myStretches } = useListBudgetStretches({ month: hhCurrentMonth } as any);
-  const hasCrossMonthStretch = (myStretches as any[] ?? []).some(
-    (s: any) => s.stretchType === "cross_month",
-  );
-  const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id ? [me.id] : [];
-  const myStretchAmountRaw: number = (myStretches as any[] ?? [])
+  // Net signed cross-month adjustment: current-month entries add to budget (borrowed from next month),
+  // prev-month entries subtract (this month is repaying last month's borrow).
+  const myStretchNetAmt: number = (myStretches as any[] ?? [])
     .filter((s: any) => s.stretchType === "cross_month")
-    .reduce((sum: number, s: any) => sum + Number(s.amount ?? 0), 0);
+    .reduce((sum: number, s: any) => {
+      const isCurrentMonth = (s as any).month === hhCurrentMonth;
+      return sum + (isCurrentMonth ? Number(s.amount ?? 0) : -Number(s.amount ?? 0));
+    }, 0);
+  // Only show the orange ring when the user is actively borrowing from next month (positive net).
+  const hasCrossMonthStretch = myStretchNetAmt > 0;
+  const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id ? [me.id] : [];
 
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
@@ -1309,12 +1313,12 @@ export default function HouseholdPage() {
                           ? m.totalBudget
                           : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
                       const isMe = m.userId === me?.id;
-                      const stretchInViewerCurrency = isMe && myStretchAmountRaw > 0
+                      const stretchInViewerCurrency = isMe && myStretchNetAmt !== 0
                         ? (!splitRates || m.currency === prefs.currency
-                            ? myStretchAmountRaw
-                            : convertAmount(myStretchAmountRaw, m.currency, prefs.currency, splitRates))
+                            ? myStretchNetAmt
+                            : convertAmount(myStretchNetAmt, m.currency, prefs.currency, splitRates))
                         : 0;
-                      const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency > 0
+                      const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency !== 0
                         ? inViewerCurrency + stretchInViewerCurrency
                         : null;
                       const isStretched = isMe && stretchInViewerCurrency > 0;
