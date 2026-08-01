@@ -240,14 +240,27 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       );
     }
 
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+    // IMPORTANT: do NOT cancel t2 (the onDone timer) here.
+    //
+    // This effect has `user` and `onDone` in its dep array so ESLint is happy,
+    // but that means React can re-run it (and fire this cleanup) if either
+    // reference changes — e.g. React Query refetches useGetMe mid-animation
+    // on iOS focus, or the parent re-renders creating a new onDone reference.
+    // When that happens while the 1.4 s animation is in flight, cancelling t2
+    // prevents onDone from ever firing → splashDone stays false → black screen.
+    //
+    // resolvedRef.current ensures the logic block only executes once, so t2 is
+    // only ever set once. It is safe to let it fire even if the effect re-runs.
     return () => {
       cancelled = true;
       cancelLogo();
       cancelWordmark?.();
       clearTimeout(t1);
-      clearTimeout(t2);
+      // t2 (onDone) intentionally NOT cancelled — see comment above.
     };
-  }, [seqDone, isLoading, user, onDone, urlMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seqDone, isLoading, urlMode]); // user + onDone omitted: resolvedRef guards re-entry; cancelling t2 on re-run caused black screen
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const isBigText    = phase === "bigText";
