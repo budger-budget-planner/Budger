@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { loadPrefs, hasActiveSession } from "@/lib/prefs";
+import { prefetchHomeData, prefetchHouseholdData } from "@/lib/prefetch";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
 // Phase 1 "bigText"  : large wordmark centered, logo invisible (holds 700 ms)
@@ -24,6 +26,13 @@ const T_SNIFF_END   = T_SNIFF_START + SNIFF_MS;      // 2 400 ms
 const T_LICK_START  = T_SNIFF_END + GAP_MS;          // 2 500 ms
 const T_LICK_END    = T_LICK_START + LICK_MS;        // 3 567 ms
 const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
+
+// ── Prefetch timing ───────────────────────────────────────────────────────────
+// Logo pulses for at least MIN_PULSE_MS before sniff fires (even if data loads fast).
+// If data takes longer, sniff waits. MAX_PULSE_MS is a hard cap so the splash
+// never hangs indefinitely on very slow or offline connections.
+const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float start)
+const MAX_PULSE_MS = 8000; // safety cap: sniff fires regardless after this
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
@@ -141,6 +150,13 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
 
+  // ── Prefetch state ────────────────────────────────────────────────────────
+  const queryClient      = useQueryClient();
+  const [dataReady, setDataReady] = useState(false);
+  const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
+  const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
+  const floatStartedAtRef = useRef<number | null>(null); // records when "showing" began
+
   // Detect URL at mount to determine the correct exit behaviour.
   // Must run synchronously at mount so the exit effect always sees a stable value.
   // ‣ /invite/:token       — invite decision page: logo can't fly to home nav;
@@ -155,22 +171,76 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Full animation sequence ───────────────────────────────────────────────
+  // ── Intro animation sequence ──────────────────────────────────────────────
+  // Only drives the intro phase transitions (bigText → shrinkText → showing).
+  // Sniff / lick / settle are now data-gated — see effects below.
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = [];
-
-    // Intro phases
     ids.push(setTimeout(() => setPhase("shrinkText"), INTRO_BIG_MS));
     ids.push(setTimeout(() => setPhase("showing"),    FLOAT_START_MS));
-
-    // Face animations after float begins
-    ids.push(setTimeout(() => { setAnimStep("sniff"); setAnimDurMs(SNIFF_MS); }, T_SNIFF_START));
-    ids.push(setTimeout(() => setAnimStep("idle"),                               T_SNIFF_END));
-    ids.push(setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },   T_LICK_START));
-    ids.push(setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        T_SEQ_DONE));
-
     return () => ids.forEach(clearTimeout);
   }, []);
+
+  // ── Wave 1 prefetch: fire all home-page queries as soon as logo pulses ────
+  useEffect(() => {
+    if (phase !== "showing" || prefetchFiredRef.current) return;
+    prefetchFiredRef.current    = true;
+    floatStartedAtRef.current   = Date.now();
+    let cancelled = false;
+    prefetchHomeData(queryClient).then(() => {
+      if (!cancelled) setDataReady(true);
+    });
+    return () => { cancelled = true; };
+  // queryClient is the stable module-level instance; excluding from deps is safe.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // ── Wave 2 prefetch: household members, once /me resolves ────────────────
+  useEffect(() => {
+    if (isLoading || !user) return;
+    prefetchHouseholdData(queryClient, (user as any).householdId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user]);
+
+  // ── Sniff trigger: fires when data is ready + min pulse time has elapsed ──
+  useEffect(() => {
+    if (!dataReady || sniffFiredRef.current) return;
+    const elapsed = floatStartedAtRef.current != null
+      ? Date.now() - floatStartedAtRef.current
+      : MIN_PULSE_MS;
+    const wait = Math.max(0, MIN_PULSE_MS - elapsed);
+    const fire = () => {
+      if (sniffFiredRef.current) return;
+      sniffFiredRef.current = true;
+      setAnimStep("sniff");
+      setAnimDurMs(SNIFF_MS);
+      // Lick and settle are relative to the moment sniff fires.
+      setTimeout(() => setAnimStep("idle"),                               SNIFF_MS);
+      setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },  SNIFF_MS + GAP_MS);
+      setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS);
+    };
+    const id = setTimeout(fire, wait);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataReady]);
+
+  // ── Safety cap: force sniff after MAX_PULSE_MS on very slow networks ──────
+  useEffect(() => {
+    if (phase !== "showing") return;
+    const id = setTimeout(() => {
+      if (sniffFiredRef.current) return;
+      setDataReady(true); // also unblocks exit-glide condition
+      sniffFiredRef.current = true;
+      setAnimStep("sniff");
+      setAnimDurMs(SNIFF_MS);
+      setTimeout(() => setAnimStep("idle"),                               SNIFF_MS);
+      setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },  SNIFF_MS + GAP_MS);
+      setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS);
+    }, MAX_PULSE_MS);
+    return () => clearTimeout(id);
+  // phase transitions once (bigText→shrinkText→showing); only "showing" triggers the cap.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
