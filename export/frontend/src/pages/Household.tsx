@@ -596,8 +596,9 @@ export default function HouseholdPage() {
       const isCurrentMonth = (s as any).month === hhCurrentMonth;
       return sum + (isCurrentMonth ? Number(s.amount ?? 0) : -Number(s.amount ?? 0));
     }, 0);
-  // Only show the orange ring when the user is actively borrowing from next month (positive net).
-  const hasCrossMonthStretch = myStretchNetAmt > 0;
+  // Show the orange ring whenever the budget is adjusted (borrowed or repaying) — matches the
+  // "text-orange-500" rule in the member budget list which also triggers on !== 0.
+  const hasCrossMonthStretch = myStretchNetAmt !== 0;
   const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id ? [me.id] : [];
 
   const prefs2 = loadPrefs();
