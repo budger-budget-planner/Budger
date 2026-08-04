@@ -196,8 +196,8 @@ function buildChart(
       || catKey === "cat-null"   // null categoryId always means uncategorized, regardless of display name
       || (!s._catKey && (!s.categoryName || s.categoryName === "Uncategorized"));
   };
-  const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null && s.budget > 0);
-  const unbudgeted = spending.filter(s => isUncategorizedItem(s) || s.budget == null || s.budget <= 0);
+  const budgeted   = spending.filter(s => !isUncategorizedItem(s) && s.budget != null);
+  const unbudgeted = spending.filter(s => isUncategorizedItem(s) || s.budget == null);
 
   const sumBudgets  = budgeted.reduce((a, s) => a + (s.budget ?? 0), 0);
   const hasUncategorizedBudget = unbudgeted.some(s => (s.budget ?? 0) > 0);
@@ -433,7 +433,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   // Latest hasData value — updated every render, read inside the timer closure
   const hasDataRef = useRef<boolean>(false);
 
-  const { segs, groupBorders, legend, sumBudgets } = buildChart(spending, totalBudget, selectedCat);
+  const effectiveChartBudget = (adjustedTotalBudget != null && adjustedTotalBudget > 0)
+    ? adjustedTotalBudget
+    : totalBudget;
+  const { segs, groupBorders, legend, sumBudgets } = buildChart(spending, effectiveChartBudget, selectedCat);
 
   // Keep refs current every render so timer callbacks read the latest values at fire time.
   // wiggle1 = first group; wiggle2 = 4th group clockwise (fallback: 3rd, 2nd, none if <2 groups)
