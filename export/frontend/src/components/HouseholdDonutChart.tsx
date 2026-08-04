@@ -338,7 +338,11 @@ function buildHouseholdChart(
         // When spent = 0 but budget > 0, use remainFrac so the segment fills its
         // full budget allocation and the donut forms a complete circle.
         if (m.isVirtual) {
-          const frac = spentFrac > 0.001
+          // Use the full budget allocation so the ring stays closed.
+          // Without this, the remaining-budget portion is dropped and rawTotal < 1.
+          const frac = (m.budgetV != null && m.budgetV > 0)
+            ? m.budgetV / effectiveBudget
+            : spentFrac > 0.001
             ? spentFrac
             : remainFrac > 0.001 ? remainFrac : 1 / Math.max(members.length, 1) * 0.5;
           parts.push({ fraction: frac, fill: m.memberColor, isOverBudget: false });
@@ -1025,7 +1029,7 @@ export default function HouseholdDonutChart({
   function borderPath(seg: Seg, groupColor: string, isOB: boolean, isStretched = false) {
     const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
     const tx = EXPAND * Math.cos(midRad), ty = EXPAND * Math.sin(midRad);
-    const strokeColor = isOB ? "#ff3333" : isStretched ? "#c47a2a" : groupColor + "90";
+    const strokeColor = isOB ? "#ff3333" : isStretched ? "#f97316" : groupColor + "90";
     const strokeWidth = (isOB || isStretched) ? 3 : 1;
     return (
       <path key={`b-${seg.id}`} d={seg.d} fill="none"
@@ -1128,7 +1132,7 @@ export default function HouseholdDonutChart({
                   {isSelected
                     ? groupSegs.map(s => borderPath(s, gb.groupColor, gb.isOverBudget, crossMonthStretchUserIds?.includes(gb.userId) ?? false))
                     : <path key={`b-${gb.groupId}`} d={gb.d} fill="none"
-                        stroke={gb.isOverBudget ? "#ff3333" : (crossMonthStretchUserIds?.includes(gb.userId) ? "#c47a2a" : gb.groupColor + "90")}
+                        stroke={gb.isOverBudget ? "#ff3333" : (crossMonthStretchUserIds?.includes(gb.userId) ? "#f97316" : gb.groupColor + "90")}
                         strokeWidth={(gb.isOverBudget || crossMonthStretchUserIds?.includes(gb.userId)) ? 3 : 1}
                         style={{ pointerEvents: "none" }} />
                   }

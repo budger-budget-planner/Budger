@@ -274,9 +274,13 @@ router.get("/households/members", async (req, res): Promise<void> => {
 });
 
 // GET /households/members/household-spendings/spending
-// Returns applied household RP spending for the current month as a breakdown.
+// Returns ALL household RP spending for the current month as a breakdown:
+// applied ones with their actual total, unapplied ones with total=0 (pending).
+// Showing all RPs prevents the confusing "brak kategorii: 0.00" uncategorised
+// bucket that appeared when only applied RPs were included but totalBudget
+// still covered the full scheduled amount.
 // Always accessible to all household members (never privacy-blocked).
-// MUST be declared before the parameterized /:userId/spending route.
+// MUST be declared before the parameterised /:userId/spending route.
 router.get("/households/members/household-spendings/spending", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -312,21 +316,23 @@ router.get("/households/members/household-spendings/spending", async (req, res):
 
   const appliedRPIds = new Set(appliedLogs.map(l => l.recurringPaymentId));
 
-  const result = hhRPs
-    .filter(rp => appliedRPIds.has(rp.id))
-    .map(rp => ({
-      categoryId: null as null,
-      categoryName: rp.name,
-      categoryColor: rp.color,
-      categoryIcon: "repeat",
-      budget: parseFloat(rp.amount),
-      total: parseFloat(rp.amount),
-      count: 1,
-      percentage: 0,
-      isRecurringPayment: true,
-      recurringPaymentId: rp.id,
-      _catKey: `rp-${rp.id}`,
-    }));
+  // Return ALL household RPs so the breakdown is complete.
+  // Applied ones show their actual amount; unapplied ones show total=0 (pending).
+  // This keeps the donut a full circle (sumBudgets == totalBudget, no leftover
+  // uncategorised bucket) and lets the user see every scheduled household expense.
+  const result = hhRPs.map(rp => ({
+    categoryId: null as null,
+    categoryName: rp.name,
+    categoryColor: rp.color,
+    categoryIcon: "repeat",
+    budget: parseFloat(rp.amount),
+    total: appliedRPIds.has(rp.id) ? parseFloat(rp.amount) : 0,
+    count: appliedRPIds.has(rp.id) ? 1 : 0,
+    percentage: 0,
+    isRecurringPayment: true,
+    recurringPaymentId: rp.id,
+    _catKey: `rp-${rp.id}`,
+  }));
 
   res.json(result);
 });
