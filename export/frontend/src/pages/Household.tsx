@@ -577,7 +577,13 @@ export default function HouseholdPage() {
   const sym = currencySymbol(prefs.currency);
 
   const { data: me } = useGetMe();
-  const { data: household, isLoading: householdLoading } = useGetHousehold();
+  const {
+    data: household,
+    isLoading: householdLoading,
+    isError: householdLoadError,
+    error: householdError,
+    refetch: refetchHousehold,
+  } = useGetHousehold();
   const { data: members } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
   const { data: incomingInvites } = useListIncomingInvites();
@@ -1026,6 +1032,27 @@ export default function HouseholdPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+      </div>
+    );
+  }
+
+  // An absent response is not the same as a confirmed empty household.
+  // In particular, a transient 500/network failure must not render the
+  // destructive-looking "No household yet" state after another mutation
+  // triggers a background refetch.
+  const householdErrorStatus = (householdError as any)?.status as number | undefined;
+  const householdRequestFailed = householdLoadError && householdErrorStatus !== 404 && !household;
+  if (householdRequestFailed) {
+    return (
+      <div className="px-4 py-20 flex flex-col items-center text-center gap-4">
+        <AlertCircle className="w-8 h-8 text-amber-400" />
+        <div>
+          <p className="font-semibold">{t("common.error")}</p>
+          <p className="text-sm text-white/50 mt-1">Could not load your household right now.</p>
+        </div>
+        <Button variant="outline" onClick={() => refetchHousehold()}>
+          {t("common.try_again") || "Try again"}
+        </Button>
       </div>
     );
   }

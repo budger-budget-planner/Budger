@@ -565,6 +565,14 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, month?: string) {
   qc.invalidateQueries({ queryKey: ["larder"] });
 }
 
+function cacheTransactionUpdate(qc: ReturnType<typeof useQueryClient>, updated: any) {
+  if (!updated?.id) return;
+  qc.setQueriesData({ queryKey: getListTransactionsQueryKey() }, (current: unknown) => {
+    if (!Array.isArray(current)) return current;
+    return current.map((tx: any) => tx.id === updated.id ? { ...tx, ...updated } : tx);
+  });
+}
+
 function getPaymentLabel(): Record<string, string> {
   return {
     card: t("home.card"),
@@ -643,14 +651,22 @@ export default function TransactionsPage() {
   async function saveName(txId: number) {
     const trimmed = nameEditValue.trim();
     if (!trimmed) return;
-    const res = await apiFetch(`/api/transactions/${txId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: trimmed }),
-    });
-    if (res.ok) {
+    try {
+      const res = await apiFetch(`/api/transactions/${txId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? "Failed to save transaction name");
+      }
+      const updated = await res.json().catch(() => null);
+      cacheTransactionUpdate(queryClient, updated);
       invalidateAll(queryClient, currentMonth);
       setNameEditTxId(null);
+    } catch (err: any) {
+      toast.error(err?.message ?? t("common.error_saving") ?? "Failed to save changes.");
     }
   }
 
@@ -681,58 +697,47 @@ export default function TransactionsPage() {
     return { categoryId: parseInt(form.categoryId) };
   }
 
-  function handleCreate(form: TxFormState) {
+  async function handleCreate(form: TxFormState) {
     if (!isOnline) return;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
     const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const month = /^\d{4}-\d{2}/.test(form.date)
+      ? form.date.slice(0, 7)
+      : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    let atomicGoalContribution: any = null;
+    if (goalContribution) {
+      const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
+      const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
+      let contribAmount = goalContribution.amount;
+      if (goalCurrency !== prefs.currency) {
+        try {
+          contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, await fetchRates());
+        } catch {
+          // Keep the account-currency amount if rates are temporarily unavailable.
+        }
+      }
+      atomicGoalContribution = {
+        goalId: goalContribution.goalId,
+        amount: contribAmount,
+        currency: goalCurrency,
+        month,
+      };
+    }
     create.mutate(
-      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod } },
       {
-        onSuccess: async (tx) => {
-          if (goalContribution) {
-            const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
-            const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
-            let contribAmount = goalContribution.amount;
-            if (goalCurrency !== prefs.currency) {
-              try {
-                const convRates = await fetchRates();
-                contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
-              } catch { /* keep original if fetch fails */ }
-            }
-            apiFetch("/api/goal-contributions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                goalId: goalContribution.goalId,
-                transactionId: (tx as any).id,
-                amount: contribAmount,
-                currency: goalCurrency,
-                month,
-              }),
-            }).then(() => {
-              queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-              queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
-            }).catch((err: unknown) => {
-              console.error("[handleCreate] goal-contribution side-effect failed:", err);
-            });
-          } else if (larderAmount && larderAmount > 0) {
-            apiFetch("/api/larder/entries", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                amount: larderAmount,
-                currency: prefs.currency,
-                sourceType: "transaction_dedication",
-                sourceId: (tx as any).id,
-              }),
-            }).then(() => {
-              queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-            }).catch((err: unknown) => {
-              console.error("[handleCreate] larder side-effect failed:", err);
-            });
-          }
+        data: {
+          amount: parseFloat(form.amount),
+          description: form.description,
+          categoryId,
+          date: form.date,
+          paymentMethod: form.paymentMethod,
+          goalContribution: atomicGoalContribution,
+          larderAmount: larderAmount ?? null,
+          larderCurrency: larderAmount ? prefs.currency : null,
         },
+      },
+      {
+        onSuccess: () => invalidateAll(queryClient, month),
       }
     );
   }
@@ -747,14 +752,29 @@ export default function TransactionsPage() {
     const overriddenMerchant = wasAutoAssigned ? editTx.description : null;
     const overriddenCategoryName = wasAutoAssigned ? (editTx.categoryName ?? "that category") : null;
 
-    // Detect whether this tx previously had a goal assignment (categoryId null = goal tx)
-    const hadGoal = !editTx.categoryId;
     const nowHasGoal = !!goalContribution;
     const nowHasLarder = larderAmount != null && larderAmount > 0;
-    const needsContribUpdate = nowHasGoal || hadGoal;
-
     setIsSaving(true);
     try {
+      let atomicGoalContribution: any = null;
+      if (goalContribution) {
+        const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
+        const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
+        let contribAmount = goalContribution.amount;
+        if (goalCurrency !== prefs.currency) {
+          try {
+            contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, await fetchRates());
+          } catch {
+            // Keep the account-currency amount if rates are temporarily unavailable.
+          }
+        }
+        atomicGoalContribution = {
+          goalId: goalContribution.goalId,
+          amount: contribAmount,
+          currency: goalCurrency,
+          month: /^\d{4}-\d{2}/.test(form.date) ? form.date.slice(0, 7) : currentMonth,
+        };
+      }
       // Step 1: Update the transaction
       const patchRes = await apiFetch(`/api/transactions/${txId}`, {
         method: "PATCH",
@@ -765,77 +785,31 @@ export default function TransactionsPage() {
           categoryId,
           date: form.date,
           paymentMethod: form.paymentMethod,
+          goalContribution: atomicGoalContribution,
+          larderAmount: nowHasLarder ? larderAmount : null,
+          larderCurrency: nowHasLarder ? prefs.currency : null,
         }),
       });
-      if (!patchRes.ok) return;
+      if (!patchRes.ok) {
+        const body = await patchRes.json().catch(() => ({}));
+        throw new Error(body?.error ?? "Failed to save transaction");
+      }
+      // The PATCH response is authoritative. Patch every matching list cache
+      // before invalidating so a refetch that races with a rapid edit cannot
+      // briefly put the old category back on screen.
+      const updatedTx = await patchRes.json().catch(() => null);
+      if (!updatedTx?.id) throw new Error("The server returned an invalid transaction");
+      cacheTransactionUpdate(queryClient, updatedTx);
 
       // Show popup if user overrode an auto-assigned category
       if (wasAutoAssigned && overriddenMerchant && overriddenCategoryName) {
         setAutoRulePrompt({ merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName });
       }
 
-      // Step 2: Manage contributions when goal assignment changes in either direction
-      if (needsContribUpdate) {
-        // Search by transactionId across ALL months — avoids missing contributions
-        // on transactions from past months.
-        const contribsRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
-        const linked: any[] = contribsRes.ok ? await contribsRes.json() : [];
-        await Promise.all(linked.map((c: any) =>
-          apiFetch(`/api/goal-contributions/${c.id}`, { method: "DELETE" }),
-        ));
-
-        if (goalContribution) {
-          const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
-          const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
-          let contribAmount = goalContribution.amount;
-          if (goalCurrency !== prefs.currency) {
-            try {
-              const convRates = await fetchRates();
-              contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, convRates);
-            } catch { /* keep original if fetch fails */ }
-          }
-          await apiFetch("/api/goal-contributions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              goalId: goalContribution.goalId,
-              transactionId: txId,
-              amount: contribAmount,
-              currency: goalCurrency,
-              month: currentMonth,
-            }),
-          });
-        }
-      }
-
-      // Step 3: Manage the Larder entry when the tx is dedicated straight to the Larder,
-      // or clean up a stale one when switching away from it.
-      const larderRes = await fetch("/api/larder", { credentials: "include" });
-      const larderData = larderRes.ok ? await larderRes.json() : { entries: [] };
-      const priorLarderEntries: any[] = (larderData.entries ?? []).filter(
-        (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
-      );
-      await Promise.all(priorLarderEntries.map(e =>
-        apiFetch(`/api/larder/entries/${e.id}`, { method: "DELETE" }),
-      ));
-      if (nowHasLarder) {
-        await apiFetch("/api/larder/entries", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: larderAmount,
-            currency: prefs.currency,
-            sourceType: "transaction_dedication",
-            sourceId: txId,
-          }),
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-
       invalidateAll(queryClient, currentMonth);
       // Use functional update so a concurrent edit of a *different* tx is not
       // accidentally cleared if this async chain outlived the original dialog.
-      setEditTx(prev => (prev?.id === txId ? null : prev));
+      setEditTx((prev: any) => (prev?.id === txId ? null : prev));
     } catch (err: unknown) {
       console.error("[handleUpdate] failed:", err);
       toast.error(t("common.error_saving") || "Failed to save changes. Please try again.");

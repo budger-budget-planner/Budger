@@ -1,5 +1,15 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable } from "../db";
+import {
+  db,
+  transactionsTable,
+  categoriesTable,
+  usersTable,
+  goalsTable,
+  goalContributionsTable,
+  larderEntriesTable,
+  recurringPaymentLogsTable,
+  recurringPaymentsTable,
+} from "../db";
 import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
@@ -52,6 +62,112 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     recurringPaymentScope: rp?.scope ?? null,
     isLarderFund: tx.isLarderFund ?? false,
   };
+}
+
+type AllocationInput = {
+  goalId: number;
+  amount: number;
+  currency?: string | null;
+  month?: string;
+  accountAmount?: number | null;
+  accountCurrency?: string | null;
+};
+
+function validAllocationAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Validate and apply allocation rows on the same DB transaction as the
+ * transaction row. This is intentionally kept here rather than composing
+ * separate HTTP endpoints: a client retry must never leave only half of an
+ * edit persisted.
+ */
+async function applyAtomicAllocation(
+  tx: any,
+  userId: number,
+  householdId: number | null,
+  transactionId: number,
+  goalContribution: AllocationInput | null | undefined,
+  larderAmount: number | null | undefined,
+  larderCurrency: string | null | undefined,
+): Promise<void> {
+  if (goalContribution !== undefined && goalContribution !== null && !validAllocationAmount(goalContribution.amount)) {
+    throw new Error("Goal contribution amount must be a positive finite number");
+  }
+  if (larderAmount !== undefined && larderAmount !== null && !validAllocationAmount(larderAmount)) {
+    throw new Error("Larder amount must be a positive finite number");
+  }
+  if (larderAmount !== undefined && larderAmount !== null && !larderCurrency?.trim()) {
+    throw new Error("Larder currency is required");
+  }
+  if (
+    goalContribution !== undefined &&
+    goalContribution !== null &&
+    larderAmount !== undefined &&
+    larderAmount !== null
+  ) {
+    throw new Error("A transaction can be allocated to a goal or Larder, not both");
+  }
+
+  if (goalContribution !== undefined) {
+    await tx.delete(goalContributionsTable)
+      .where(eq(goalContributionsTable.transactionId, transactionId));
+
+    if (goalContribution) {
+      const [goal] = await tx.select().from(goalsTable)
+        .where(eq(goalsTable.id, goalContribution.goalId));
+      const canUseGoal = goal && (
+        goal.userId === userId ||
+        (goal.householdId !== null && goal.householdId === householdId)
+      );
+      if (!canUseGoal) throw new Error("Goal not found or unavailable");
+
+      await tx.insert(goalContributionsTable).values({
+        goalId: goal.id,
+        transactionId,
+        amount: String(goalContribution.amount),
+        currency: goalContribution.currency ?? null,
+        accountAmount: goalContribution.accountAmount != null ? String(goalContribution.accountAmount) : null,
+        accountCurrency: goalContribution.accountCurrency ?? null,
+        month: goalContribution.month ?? new Date().toISOString().slice(0, 7),
+        userId,
+        householdId,
+      });
+
+      // Keep the goal's completion state consistent with the contribution
+      // without requiring a second request. The activity/notification worker
+      // can still observe this state on its next refresh.
+      const contributions = await tx.select({ amount: goalContributionsTable.amount })
+        .from(goalContributionsTable)
+        .where(eq(goalContributionsTable.goalId, goal.id));
+      const total = contributions.reduce((sum: number, row: any) => sum + Number(row.amount), 0);
+      if (total >= Number(goal.budget) && goal.realizedAt == null) {
+        await tx.update(goalsTable)
+          .set({ realizedAt: new Date() })
+          .where(eq(goalsTable.id, goal.id));
+      }
+    }
+  }
+
+  if (larderAmount !== undefined) {
+    await tx.delete(larderEntriesTable)
+      .where(and(
+        eq(larderEntriesTable.userId, userId),
+        eq(larderEntriesTable.sourceType, "transaction_dedication"),
+        eq(larderEntriesTable.sourceId, transactionId),
+      ));
+
+    if (larderAmount != null) {
+      await tx.insert(larderEntriesTable).values({
+        userId,
+        amount: String(larderAmount),
+        currency: larderCurrency!.trim(),
+        sourceType: "transaction_dedication",
+        sourceId: transactionId,
+      });
+    }
+  }
 }
 
 async function loadRPForTx(rpId: number | null | undefined): Promise<any | null> {
@@ -117,8 +233,18 @@ router.post("/transactions", async (req, res): Promise<void> => {
 
   const parsed = CreateTransactionBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!Number.isFinite(parsed.data.amount) || parsed.data.amount <= 0) {
+    res.status(400).json({ error: "amount must be a positive finite number" }); return;
+  }
+  if (!parsed.data.description.trim()) {
+    res.status(400).json({ error: "description is required" }); return;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.date)) {
+    res.status(400).json({ error: "date must use YYYY-MM-DD format" }); return;
+  }
 
   const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!currentUser) { res.status(401).json({ error: "User not found" }); return; }
 
   // If user didn't provide a category, check for an active auto-apply rule
   let resolvedCategoryId = parsed.data.categoryId ?? null;
@@ -128,18 +254,67 @@ router.post("/transactions", async (req, res): Promise<void> => {
     if (autoId) { resolvedCategoryId = autoId; categoryAutoAssigned = true; }
   }
 
-  const [tx] = await db.insert(transactionsTable).values({
-    ...parsed.data,
-    amount: String(parsed.data.amount),
-    categoryId: resolvedCategoryId,
-    categoryAutoAssigned,
-    userId,
-    householdId: currentUser?.householdId ?? null,
-  }).returning();
+  // Categories are private to their creator. Do not allow a stale or crafted
+  // category id to silently attach another user's category to this transaction.
+  if (resolvedCategoryId != null) {
+    const [ownedCategory] = await db.select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(and(eq(categoriesTable.id, resolvedCategoryId), eq(categoriesTable.userId, userId)));
+    if (!ownedCategory) {
+      if (categoryAutoAssigned) {
+        resolvedCategoryId = null;
+        categoryAutoAssigned = false;
+      } else {
+        res.status(400).json({ error: "Category not found or unavailable" }); return;
+      }
+    }
+  }
+
+  const { goalContribution, larderAmount, ...transactionInput } = parsed.data;
+  let tx: any;
+  try {
+    await db.transaction(async (dbTx) => {
+      [tx] = await dbTx.insert(transactionsTable).values({
+        ...transactionInput,
+        description: transactionInput.description.trim(),
+        amount: String(transactionInput.amount),
+        categoryId: resolvedCategoryId,
+        categoryAutoAssigned,
+        userId,
+        householdId: currentUser.householdId ?? null,
+      }).returning();
+      await applyAtomicAllocation(
+        dbTx,
+        userId,
+        currentUser.householdId ?? null,
+        tx.id,
+        goalContribution,
+        larderAmount,
+        larderCurrency,
+      );
+    });
+  } catch (err: any) {
+    if (typeof err?.message === "string" && (
+      err.message.includes("amount must") ||
+      err.message.includes("allocation") ||
+      err.message.includes("Goal not found") ||
+      err.message.includes("Larder")
+    )) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 
   // Record the manual assignment so the engine can learn from it
   if (parsed.data.categoryId && !categoryAutoAssigned) {
-    await recordMerchantAssignment(userId, parsed.data.description, parsed.data.categoryId);
+    // Learning is secondary to the transaction write. A transient failure in
+    // this helper must never turn a committed transaction into a reported 500.
+    try {
+      await recordMerchantAssignment(userId, parsed.data.description, parsed.data.categoryId);
+    } catch (err) {
+      logger.warn({ err, userId, transactionId: tx.id }, "Could not record merchant category assignment");
+    }
   }
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
@@ -374,29 +549,81 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
 
   const parsed = UpdateTransactionBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (parsed.data.amount !== undefined && (!Number.isFinite(parsed.data.amount) || parsed.data.amount <= 0)) {
+    res.status(400).json({ error: "amount must be a positive finite number" }); return;
+  }
+  if (parsed.data.description !== undefined && !parsed.data.description.trim()) {
+    res.status(400).json({ error: "description is required" }); return;
+  }
+  if (parsed.data.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.date)) {
+    res.status(400).json({ error: "date must use YYYY-MM-DD format" }); return;
+  }
 
   // Verify ownership before patching
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
-  const updateData: any = { ...parsed.data };
+  if (parsed.data.categoryId !== undefined && parsed.data.categoryId !== null) {
+    const [ownedCategory] = await db.select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(and(eq(categoriesTable.id, parsed.data.categoryId), eq(categoriesTable.userId, userId)));
+    if (!ownedCategory) {
+      res.status(400).json({ error: "Category not found or unavailable" }); return;
+    }
+  }
+
+  const { goalContribution, larderAmount, larderCurrency, ...transactionFields } = parsed.data;
+  const updateData: any = { ...transactionFields };
   if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
+  if (parsed.data.description !== undefined) updateData.description = parsed.data.description.trim();
 
   // When user manually sets a category, clear the auto-assigned flag
   if (parsed.data.categoryId !== undefined) {
     updateData.categoryAutoAssigned = false;
   }
 
-  const [tx] = await db.update(transactionsTable)
-    .set(updateData)
-    .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)))
-    .returning();
+  let tx: any;
+  try {
+    await db.transaction(async (dbTx) => {
+      [tx] = await dbTx.update(transactionsTable)
+        .set(updateData)
+        .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)))
+        .returning();
+      await applyAtomicAllocation(
+        dbTx,
+        userId,
+        existing.householdId ?? null,
+        params.data.id,
+        goalContribution,
+        larderAmount,
+        larderCurrency,
+      );
+    });
+  } catch (err: any) {
+    if (typeof err?.message === "string" && (
+      err.message.includes("amount must") ||
+      err.message.includes("allocation") ||
+      err.message.includes("Goal not found") ||
+      err.message.includes("Larder")
+    )) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 
   if (!tx) { res.status(404).json({ error: "Not found" }); return; }
 
   // Record the manual assignment so the engine can learn from it
   if (parsed.data.categoryId && tx.description) {
-    await recordMerchantAssignment(tx.userId, tx.description, parsed.data.categoryId);
+    // This is deliberately best-effort. The transaction update above is the
+    // user's requested operation and must not be reported as failed merely
+    // because the optional learning rule could not be updated.
+    try {
+      await recordMerchantAssignment(tx.userId, tx.description, parsed.data.categoryId);
+    } catch (err) {
+      logger.warn({ err, userId, transactionId: tx.id }, "Could not record merchant category assignment");
+    }
   }
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
@@ -416,24 +643,23 @@ router.delete("/transactions/:id", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
-  // Remove any goal contributions that were linked to this transaction so
-  // goal progress bars and totals stay accurate.
-  await db.delete(goalContributionsTable)
-    .where(eq(goalContributionsTable.transactionId, params.data.id));
+  await db.transaction(async (tx) => {
+    // Remove any goal contributions that were linked to this transaction so
+    // goal progress bars and totals stay accurate.
+    await tx.delete(goalContributionsTable)
+      .where(eq(goalContributionsTable.transactionId, params.data.id));
 
-  // NOTE: Larder entries whose sourceId points at this transaction are intentionally
-  // NOT deleted here. Larder is a conceptual "jar" — putting money in (via dedicating
-  // a transaction) is a one-way action. Deleting the source transaction does not
-  // reverse the Larder deposit; the money stays in the jar. This matches the stated
-  // product rule: "if I delete a transaction that was funded from larder, that money
-  // is gone — larder does NOT revert."
+    // NOTE: Larder entries whose sourceId points at this transaction are
+    // intentionally NOT deleted. Larder deposits are one-way events.
 
-  // If this transaction was created by a recurring payment auto-apply, remove
-  // the log entry so the recurring payment becomes applicable again this month.
-  await db.delete(recurringPaymentLogsTable)
-    .where(eq(recurringPaymentLogsTable.transactionId, params.data.id));
+    // If this transaction was created by a recurring payment auto-apply,
+    // remove its log so the recurring payment becomes applicable again.
+    await tx.delete(recurringPaymentLogsTable)
+      .where(eq(recurringPaymentLogsTable.transactionId, params.data.id));
 
-  await db.delete(transactionsTable).where(eq(transactionsTable.id, params.data.id));
+    await tx.delete(transactionsTable)
+      .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)));
+  });
   res.sendStatus(204);
 });
 

@@ -327,6 +327,18 @@ export const CreateTransactionBody = zod.object({
   receiptImage: zod.string().nullish(),
   transactionCurrency: zod.string().nullish(),
   foundedWithRealizedGoal: zod.boolean().optional(),
+  /** Optional atomic allocation created with the transaction. */
+  goalContribution: zod.object({
+    goalId: zod.number(),
+    amount: zod.number(),
+    currency: zod.string().nullish(),
+    month: zod.string().optional(),
+    accountAmount: zod.number().nullish(),
+    accountCurrency: zod.string().nullish(),
+  }).nullish(),
+  /** Optional personal Larder allocation created with the transaction. */
+  larderAmount: zod.number().nullish(),
+  larderCurrency: zod.string().nullish(),
 });
 
 /**
@@ -405,6 +417,18 @@ export const UpdateTransactionBody = zod.object({
   transactionCurrency: zod.string().nullish(),
   currencyLocked: zod.boolean().optional(),
   foundedWithRealizedGoal: zod.boolean().optional(),
+  /** When present, replace all goal allocation rows for this transaction. */
+  goalContribution: zod.object({
+    goalId: zod.number(),
+    amount: zod.number(),
+    currency: zod.string().nullish(),
+    month: zod.string().optional(),
+    accountAmount: zod.number().nullish(),
+    accountCurrency: zod.string().nullish(),
+  }).nullable().optional(),
+  /** When present, replace the transaction's Larder allocation. */
+  larderAmount: zod.number().nullish().optional(),
+  larderCurrency: zod.string().nullish().optional(),
 });
 
 export const UpdateTransactionResponse = zod.object({
