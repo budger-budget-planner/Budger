@@ -441,6 +441,14 @@ export async function customFetch<T = unknown>(
     // Clear the CSRF token cache on 403 so the next attempt re-fetches a
     // fresh token (guards against stale tokens after session rotation).
     if (response.status === 403) resetCsrfToken();
+
+    // Broadcast a global signal on 401 so any part of the app (e.g. AuthGuard)
+    // can immediately trigger a /api/me refetch and redirect to login — without
+    // waiting for the 30-second staleTime window to expire.
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("budger:unauthorized"));
+    }
+
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

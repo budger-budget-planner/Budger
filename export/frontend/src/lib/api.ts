@@ -14,7 +14,10 @@ async function getCsrf(): Promise<string> {
   if (_csrfToken) return _csrfToken;
   if (_csrfInflight) return _csrfInflight;
   _csrfInflight = fetch(`${BASE}/api/csrf-token`, { credentials: "include" })
-    .then((r) => r.json())
+    .then((r) => {
+      if (!r.ok) throw new Error(`CSRF fetch failed: HTTP ${r.status}`);
+      return r.json();
+    })
     .then((d: { token: string }) => {
       _csrfToken = d.token;
       _csrfInflight = null;

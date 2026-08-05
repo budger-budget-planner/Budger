@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { receiptSrc, compressImage } from "@/lib/imageUtils";
@@ -712,6 +713,8 @@ export default function TransactionsPage() {
             }).then(() => {
               queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
               queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month }) });
+            }).catch((err: unknown) => {
+              console.error("[handleCreate] goal-contribution side-effect failed:", err);
             });
           } else if (larderAmount && larderAmount > 0) {
             apiFetch("/api/larder/entries", {
@@ -725,6 +728,8 @@ export default function TransactionsPage() {
               }),
             }).then(() => {
               queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+            }).catch((err: unknown) => {
+              console.error("[handleCreate] larder side-effect failed:", err);
             });
           }
         },
@@ -828,7 +833,12 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
 
       invalidateAll(queryClient, currentMonth);
-      setEditTx(null);
+      // Use functional update so a concurrent edit of a *different* tx is not
+      // accidentally cleared if this async chain outlived the original dialog.
+      setEditTx(prev => (prev?.id === txId ? null : prev));
+    } catch (err: unknown) {
+      console.error("[handleUpdate] failed:", err);
+      toast.error(t("common.error_saving") || "Failed to save changes. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -1067,6 +1077,7 @@ export default function TransactionsPage() {
               <>
                 <FoundedWithRealizedGoalToggle tx={editTx} isOffline={!isOnline} />
                 <TxForm
+                  key={editTx.id}
                   initial={{ amount: String(editTx.amount), description: editTx.description, categoryId: initCategoryId, date: editTx.date, paymentMethod: editTx.paymentMethod }}
                   categories={categories ?? []}
                   goals={goals ?? []}

@@ -5,7 +5,7 @@ import WinkSplashScreen from "@/components/WinkSplashScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useGetMe } from "@/lib/api-client";
+import { useGetMe, getGetMeQueryKey } from "@/lib/api-client";
 import Layout from "@/components/Layout";
 import Onboarding from "@/components/Onboarding";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
@@ -116,6 +116,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   // again, hammering the auth limiter and causing "Too many attempts".
   const logoutCalledRef = useRef(false);
 
+  // Global 401 handler: any API call (not just /api/me) that returns 401 fires
+  // the "budger:unauthorized" event from customFetch.  Invalidating /api/me here
+  // forces an immediate re-check so AuthGuard's redirect logic runs straight
+  // away — without waiting for the 30-second staleTime window to expire.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+    };
+    window.addEventListener("budger:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("budger:unauthorized", onUnauthorized);
+  }, []);
+
   // Re-subscribe to Web Push on every app load when permission is already
   // granted. Push subscriptions can expire or be silently invalidated by the
   // browser; without this the server's minute-tick scheduler would have a
@@ -204,7 +216,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user) return null;
+  // Return a spinner instead of null — null renders a black screen for one frame
+  // before the navigate("/login") effect fires, which can look like a crash.
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
 
   // Server is the source of truth for onboarding status.
   const serverSaysOnboarded = user.firstLoginDone === true;
