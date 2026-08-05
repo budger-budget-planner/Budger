@@ -596,10 +596,13 @@ export default function HouseholdPage() {
       const isCurrentMonth = (s as any).month === hhCurrentMonth;
       return sum + (isCurrentMonth ? Number(s.amount ?? 0) : -Number(s.amount ?? 0));
     }, 0);
-  // Show the orange ring whenever the budget is adjusted (borrowed or repaying) — matches the
-  // "text-orange-500" rule in the member budget list which also triggers on !== 0.
-  const hasCrossMonthStretch = myStretchNetAmt !== 0;
-  const crossMonthStretchUserIds: number[] = hasCrossMonthStretch && me?.id ? [me.id] : [];
+  // Derive stretched user IDs from the server-returned stretchNetAmt on each
+  // member so all household viewers see the orange donut ring — not just the
+  // member who created the stretch. myStretchNetAmt is still used below for the
+  // adjusted-budget numbers in the budget-breakdown list.
+  const crossMonthStretchUserIds: number[] = (members ?? [])
+    .filter(m => ((m as any).stretchNetAmt ?? 0) !== 0 && m.userId > 0)
+    .map(m => m.userId);
 
   const prefs2 = loadPrefs();
   const sym2 = currencySymbol(prefs2.currency);
@@ -1314,17 +1317,20 @@ export default function HouseholdPage() {
                           ? m.totalBudget
                           : convertAmount(m.totalBudget, m.currency, prefs.currency, splitRates);
                       const isMe = m.userId === me?.id;
-                      const stretchInViewerCurrency = isMe && myStretchNetAmt !== 0
+                      // Use the server-returned stretchNetAmt so every household
+                      // member sees the orange indicator, not just the one who stretched.
+                      const memberStretchNet: number = (m as any).stretchNetAmt ?? 0;
+                      const stretchInViewerCurrency = memberStretchNet !== 0
                         ? (!splitRates || m.currency === prefs.currency
-                            ? myStretchNetAmt
-                            : convertAmount(myStretchNetAmt, m.currency, prefs.currency, splitRates))
+                            ? memberStretchNet
+                            : convertAmount(memberStretchNet, m.currency, prefs.currency, splitRates))
                         : 0;
                       const adjustedBudget = inViewerCurrency != null && stretchInViewerCurrency !== 0
                         ? inViewerCurrency + stretchInViewerCurrency
                         : null;
                       // Orange for any stretch involvement: borrowed from next month (> 0) OR
                       // repaying last month's borrow (< 0). Both states are "adjusted" budget.
-                      const isStretched = isMe && stretchInViewerCurrency !== 0;
+                      const isStretched = stretchInViewerCurrency !== 0;
                       return (
                         <div key={m.userId} className="flex items-center gap-2.5" data-testid={`row-member-budget-${m.userId}`}>
                           <div

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, householdsTable, householdMembersTable, usersTable, transactionsTable, categoriesTable, recurringPaymentsTable, recurringPaymentLogsTable, notificationItemsTable, invitesTable, budgetStretchesTable } from "../db";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, or, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
   CreateHouseholdBody,
@@ -194,6 +194,33 @@ router.get("/households/members", async (req, res): Promise<void> => {
     .groupBy(transactionsTable.userId);
   const spendingMap = new Map(spendingRows.map(r => [r.userId, parseFloat(r.total)]));
 
+  // Batch-fetch cross-month stretch net amounts for all household members so
+  // every viewer — not just the member who created the stretch — sees the orange
+  // indicator and the adjusted budget number.
+  // Net = Σ(current-month cross_month) − Σ(prev-month cross_month)
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthPrefix = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+  const allCrossMonthStretches = memberIds.length > 0
+    ? await db.select().from(budgetStretchesTable).where(
+        and(
+          inArray(budgetStretchesTable.userId, memberIds),
+          eq(budgetStretchesTable.stretchType, "cross_month"),
+          or(
+            eq(budgetStretchesTable.month, monthPrefix),
+            eq(budgetStretchesTable.month, prevMonthPrefix),
+          ),
+        )
+      )
+    : [];
+
+  const stretchNetMap = new Map<number, number>();
+  for (const s of allCrossMonthStretches) {
+    const isCurrentMonth = s.month === monthPrefix;
+    const contribution = isCurrentMonth ? parseFloat(s.amount) : -parseFloat(s.amount);
+    stretchNetMap.set(s.userId, (stretchNetMap.get(s.userId) ?? 0) + contribution);
+  }
+
   const enriched = members.map(m => {
     const memberUser = userMap.get(m.userId);
     const monthlySpent = spendingMap.get(m.userId) ?? 0;
@@ -210,6 +237,8 @@ router.get("/households/members", async (req, res): Promise<void> => {
       totalBudget: memberUser?.totalBudget != null ? parseFloat(String(memberUser.totalBudget)) : null,
       currency: memberUser?.currency ?? "USD",
       joinedAt: m.joinedAt.toISOString(),
+      // Net signed stretch adjustment visible to all household members.
+      stretchNetAmt: Math.round((stretchNetMap.get(m.userId) ?? 0) * 100) / 100,
     };
   });
 
@@ -267,6 +296,7 @@ router.get("/households/members", async (req, res): Promise<void> => {
       totalBudget: Math.round(householdRPBudget * 100) / 100,
       currency: headEntry.currency,
       joinedAt: new Date().toISOString(),
+      stretchNetAmt: 0, // virtual member never stretches
     });
   }
 
