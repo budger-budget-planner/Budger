@@ -158,8 +158,6 @@ export default function SplashScreen({
 
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
-  // Safety cap: if /api/me is still loading after seqDone, don't wait forever.
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   // ── Prefetch state ────────────────────────────────────────────────────────
   const queryClient      = useQueryClient();
@@ -372,7 +370,7 @@ export default function SplashScreen({
       // t2 (onDone) intentionally NOT cancelled — see comment above.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seqDone, isLoading, loadingTimedOut, urlMode]); // user + onDone omitted: resolvedRef guards re-entry; cancelling t2 on re-run caused black screen
+  }, [seqDone, urlMode]); // user + onDone omitted: resolvedRef guards re-entry; cancelling t2 on re-run caused black screen
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const isBigText    = phase === "bigText";
