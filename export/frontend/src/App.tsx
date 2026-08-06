@@ -347,13 +347,17 @@ function AppWithSplash() {
     setWinkActive(true);
   }, []);
 
-  // Called by SplashScreen with the exit destination.
-  // When landing on login: navigate proactively BEFORE removing the overlay so
-  // LoginPage is already mounted the moment the splash fades out.  Without this,
-  // if the backend is slow (Render cold start / high latency), /api/me is still
-  // pending when the splash exits via the 5-second loadingTimedOut, and the user
-  // sees AuthGuard's black spinner instead of the login screen.
+  // Called by SplashScreen when the exit destination is known, BEFORE polling
+  // for DOM markers.  Navigating here ensures LoginPage is mounted and its
+  // markers are at rest before the splash measures them.
+  const handleSplashNavigate = useCallback((dest: "home" | "login") => {
+    if (dest === "login") navigate("/login");
+  }, [navigate]);
+
+  // Called by SplashScreen after the full exit animation completes.
   const handleSplashDone = useCallback((dest: "home" | "login" | "vanish") => {
+    // Navigation already happened via handleSplashNavigate; keep it here as a
+    // fallback for the vanish path and any edge cases.
     if (dest === "login") navigate("/login");
     setSplashDone(true);
   }, [navigate]);
@@ -366,7 +370,7 @@ function AppWithSplash() {
             {/* key=appVersion remounts routes after language/currency change */}
             <AppRoutes key={appVersion} />
             {/* Full 3-animation splash: only on app open or logout */}
-            {!splashDone && <SplashScreen onDone={handleSplashDone} />}
+            {!splashDone && <SplashScreen onDone={handleSplashDone} onNavigate={handleSplashNavigate} />}
             {/* Wink-only splash: afterDone may be async — overlay stays (invisible,
                 non-blocking) until the promise resolves so callers can pre-warm
                 caches before the route tree becomes visible. */}
