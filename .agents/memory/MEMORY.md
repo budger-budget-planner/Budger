@@ -20,3 +20,4 @@
 - [Summary SQL date pushdown](summary-date-pushdown.md) — all summary endpoints filter by date at SQL level; month inputs must pass YYYY-MM regex before use in LIKE to prevent wildcard injection
 - [Frontend fix "not applying"](frontend-fix-not-applying.md) — verify the edit actually compiles (grep for missing imports) and check for stuck service workers/broken cache-bust hacks before assuming the fix itself is wrong
 - [Account-scoped privacy controls](account-scoped-privacy-controls.md) — user-specific consent keys and sensitive exports must bypass URL-only service-worker caching
+- [Splash→login black spinner fix](splash-login-spinner.md) — two confirmed splash bugs: (1) login-enter CSS anim shifts markers 18px during polling → wrong glide target; (2) slow backend causes spinner after splash — fix: navigate("/login") before setSplashDone
