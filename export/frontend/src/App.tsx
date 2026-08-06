@@ -224,13 +224,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  // Return a spinner instead of null — null renders a black screen for one frame
-  // before the navigate("/login") effect fires, which can look like a crash.
-  if (!user) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
-  );
+  // Return null when !user — onNavigate() already switches the route to /login
+  // before polling starts, so AuthGuard is not in the tree when the splash fades.
+  // A spinner here bleeds through the semi-transparent fading overlay (Bug 3).
+  if (!user) return null;
 
   // Server is the source of truth for onboarding status.
   const serverSaysOnboarded = user.firstLoginDone === true;
