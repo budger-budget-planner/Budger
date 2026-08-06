@@ -1,0 +1,41 @@
+I have enough to give a thorough diagnosis. Here's what I found:
+
+Root causes — two distinct bugs
+
+Bug 1: Logout button gets stuck disabled ("wouldn't let me")
+
+In Layout.tsx, the logout is wired with onSuccess, not onSettled:
+
+const logout = useLogout({
+  mutation: {
+    onSuccess: () => {           // ← only fires on success
+      setActiveUserId(null);
+      queryClient.clear();
+      resetSplash();
+    },
+  },
+});
+Before the POST /api/auth/logout can even send, customFetch has to fetch a fresh CSRF token (a separate GET /api/csrf-token request). If the backend is slow or cold (Render free tier cold-starts), that CSRF fetch hangs → the whole mutation stays isPending=true → button stays disabled for however long the server takes to wake up. The user cannot click again. If the logout POST eventually fails rather than succeeds, onSuccess never fires — queryClient.clear() and resetSplash() are never called, so the session state isn't even cleaned up client-side.
+
+The AuthGuard's own forced-logout (which runs on staySignedIn=false) correctly uses onSettled — meaning cleanup happens regardless. The manual logout button doesn't.
+
+Bug 2: Splash screen freezes with no escape ("stuck in the splash screen")
+
+The exit glide in SplashScreen.tsx has this guard (line 247):
+
+useEffect(() => {
+  if (!seqDone || isLoading || resolvedRef.current) return;
+  // fires the fly-to-login/home animation + onDone
+}, [seqDone, isLoading, urlMode]);
+There is a safety cap for seqDone (after MAX_PULSE_MS it force-fires the sniff/lick sequence). There is no safety cap for isLoading.
+
+The animation sequence takes ~5 seconds total (2s intro + ~3s sniff/lick). Once seqDone becomes true, the exit glide waits indefinitely for useGetMe()'s isLoading to become false. On a normal fast server this is imperceptible. But if GET /api/me is slow — the same cold-start condition that trapped the logout button can also trap the splash here — the logo animation finishes, the screen goes quiet, and nothing happens. The app looks crashed. There is no fallback timeout.
+
+How they connect
+
+The most likely chain of events:
+
+User clicked Sign Out → CSRF fetch / logout POST hung (cold server) → button disabled, visually stuck
+Eventually the server responded and logout succeeded → onSuccess fired → resetSplash() showed the splash
+The splash ran its animation, hit seqDone=true, then stalled on isLoading — /api/me was still taking its time — leaving the app frozen on the splash
+Two targeted fixes would address both. Want me to go ahead?
