@@ -39,6 +39,15 @@ export default function LoginPage() {
   // glides to the wrong screen position.  With the animation suppressed the
   // markers sit at their final resting place so the poll gets accurate coords.
   const appReady = useAppReady();
+  // Capture appReady at mount — logo/wordmark container must NEVER re-trigger
+  // login-enter when appReady transitions false→true: the splash already glided
+  // them into position, so replaying the animation would be jarring.
+  const appReadyAtMount = useRef(appReady);
+  // Helper: hides elements under the splash overlay (opacity-0), then triggers
+  // their entrance animation the instant the overlay is gone.  The swap from
+  // opacity-0 → login-enter dN is seamless because both start at opacity:0
+  // (animation-fill-mode:both applies the from-keyframe during the delay).
+  const le = (d: string) => appReady ? `login-enter ${d}` : "opacity-0";
 
   const prefs = loadPrefs();
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
@@ -457,21 +466,21 @@ export default function LoginPage() {
         <div key="start" className="min-h-screen flex flex-col items-center justify-center px-6 pb-10">
           {/* Pending-deletion notice banner */}
           {pendingDeletion && (
-            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-destructive/10 border border-destructive/30 px-4 py-3 text-center mb-4">
+            <div className={`${le("login-enter-d1")} w-full max-w-sm rounded-2xl bg-destructive/10 border border-destructive/30 px-4 py-3 text-center mb-4`}>
               <p className="text-sm font-semibold text-destructive">{t("login.pending_deletion")}</p>
               <p className="text-xs text-destructive/70 mt-0.5">{t("login.pending_deletion_sub")}</p>
             </div>
           )}
           {/* Account-created success banner */}
           {justRegistered && !pendingDeletion && (
-            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
+            <div className={`${le("login-enter-d1")} w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4`}>
               <p className="text-sm font-semibold text-green-400">{t("login.account_created")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.account_created_sub")}</p>
             </div>
           )}
           {/* PIN-reset success banner */}
           {justPinReset && !pendingDeletion && (
-            <div className="login-enter login-enter-d1 w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4">
+            <div className={`${le("login-enter-d1")} w-full max-w-sm rounded-2xl bg-green-900/25 border border-green-700/40 px-4 py-3 text-center mb-4`}>
               <p className="text-sm font-semibold text-green-400">{t("login.pin_reset_success")}</p>
               <p className="text-xs text-green-400/70 mt-0.5">{t("login.pin_reset_success_sub")}</p>
             </div>
@@ -483,7 +492,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm flex flex-col items-center" style={{ gap: "clamp(24px, 8vw, 48px)" }}>
 
             {/* Language buttons */}
-            <div className={`login-enter login-enter-d1 flex gap-2 self-end overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-16 opacity-100"}`}>
+            <div className={`${le("login-enter-d1")} flex gap-2 self-end overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-16 opacity-100"}`}>
               {LANGUAGES.map(l => (
                 <button
                   key={l.code}
@@ -503,7 +512,7 @@ export default function LoginPage() {
             {/* login-enter suppressed while splash is active: measuring mid-animation
                 produces wrong coords and the logo glides to the wrong position.
                 The splash overlay IS the entrance; suppress the redundant CSS anim. */}
-            <div className={`${appReady ? "login-enter login-enter-d2 " : ""}flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
+            <div className={`${appReadyAtMount.current ? "login-enter login-enter-d2 " : ""}flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
               <span data-splash-logo-login>
                 <BadgerLogo size={88} pauseIdleAnimations growPulse={false} />
               </span>
@@ -513,7 +522,7 @@ export default function LoginPage() {
             </div>
 
             {/* Login form */}
-            <form onSubmit={handleLoginContinue} className="login-enter login-enter-d3 w-full space-y-3">
+            <form onSubmit={handleLoginContinue} className={`${le("login-enter-d3")} w-full space-y-3`}>
               <div className="space-y-1.5">
                 <Label className="text-sm text-muted-foreground">{t("common.email")}</Label>
                 <Input
@@ -559,7 +568,7 @@ export default function LoginPage() {
 
           </div>
 
-          <p className={`login-enter login-enter-d4 text-xs text-muted-foreground/50 mt-6 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>{t("login.footer")}</p>
+          <p className={`${le("login-enter-d4")} text-xs text-muted-foreground/50 mt-6 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>{t("login.footer")}</p>
         </div>
       )}
 

@@ -39,6 +39,15 @@ export default function LoginPage() {
   // glides to the wrong screen position.  With the animation suppressed the
   // markers sit at their final resting place so the poll gets accurate coords.
   const appReady = useAppReady();
+  // Capture appReady at mount — logo/wordmark container must NEVER re-trigger
+  // login-enter when appReady transitions false→true: the splash already glided
+  // them into position, so replaying the animation would be jarring.
+  const appReadyAtMount = useRef(appReady);
+  // Helper: hides elements under the splash overlay (opacity-0), then triggers
+  // their entrance animation the instant the overlay is gone.  The swap from
+  // opacity-0 → login-enter dN is seamless because both start at opacity:0
+  // (animation-fill-mode:both applies the from-keyframe during the delay).
+  const le = (d: string) => appReady ? `login-enter ${d}` : "opacity-0";
 
   const prefs = loadPrefs();
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
