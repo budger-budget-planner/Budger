@@ -149,6 +149,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
   const { data: user, isLoading } = useGetMe();
   const resolvedRef = useRef(false);
+  // Safety cap: if /api/me is still loading after seqDone, don't wait forever.
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   // ── Prefetch state ────────────────────────────────────────────────────────
   const queryClient      = useQueryClient();
@@ -242,9 +244,16 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // ── isLoading safety cap: give /api/me at most 5 s after seqDone ─────────
+  useEffect(() => {
+    if (!seqDone || !isLoading) return;
+    const id = setTimeout(() => setLoadingTimedOut(true), 5000);
+    return () => clearTimeout(id);
+  }, [seqDone, isLoading]);
+
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!seqDone || isLoading || resolvedRef.current) return;
+    if (!seqDone || (isLoading && !loadingTimedOut) || resolvedRef.current) return;
     resolvedRef.current = true;
 
     // ── Vanish mode: invite URLs where the landing page isn't the home tab ──
@@ -330,7 +339,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       // t2 (onDone) intentionally NOT cancelled — see comment above.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seqDone, isLoading, urlMode]); // user + onDone omitted: resolvedRef guards re-entry; cancelling t2 on re-run caused black screen
+  }, [seqDone, isLoading, loadingTimedOut, urlMode]); // user + onDone omitted: resolvedRef guards re-entry; cancelling t2 on re-run caused black screen
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const isBigText    = phase === "bigText";

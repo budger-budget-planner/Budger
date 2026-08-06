@@ -426,7 +426,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const softRefresh = useAppRefresh();
   const logout = useLogout({
     mutation: {
-      onSuccess: () => {
+      onSettled: () => {
         setActiveUserId(null);
         queryClient.clear();
         setAppBadgeCount(0); // clear the home-screen badge — it belongs to this account's unread count
