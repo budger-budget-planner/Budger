@@ -17,7 +17,7 @@ import {
   getListGoalContributionsQueryKey,
   getListGoalsQueryKey,
 } from "@/lib/api-client";
-import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, fmtDateTime } from "@/lib/prefs";
+import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, clearSession, fmtDateTime } from "@/lib/prefs";
 import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { apiFetch } from "@/lib/api";
@@ -418,9 +418,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const softRefresh = useAppRefresh();
   const logout = useLogout({
     mutation: {
-      onSettled: () => {
+      onSettled: async () => {
+        clearSession();   // clear sessionStorage flag so hasActiveSession() returns false
         setActiveUserId(null);
         queryClient.clear();
+        // Clear the SW's NetworkFirst API cache so the splash screen's fresh
+        // useGetMe() hits the live server (which now has no session) rather than
+        // receiving a stale cached response that would route it to "home".
+        if ("caches" in window) {
+          await caches.delete("budger-api-v1").catch(() => {});
+        }
         setAppBadgeCount(0); // clear the home-screen badge — it belongs to this account's unread count
         resetSplash(); // re-show splash → sequence plays → lands on login
       },
