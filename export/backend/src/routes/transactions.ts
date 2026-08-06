@@ -30,7 +30,18 @@ import {
 } from "../api-zod";
 const router: IRouter = Router();
 
+const MAX_RECEIPT_IMAGES = 3;
+
+function getReceiptImages(tx: any): string[] {
+  const images = Array.isArray(tx.receiptImages)
+    ? tx.receiptImages.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
+    : [];
+  if (images.length > 0) return images.slice(0, MAX_RECEIPT_IMAGES);
+  return typeof tx.receiptImage === "string" && tx.receiptImage.length > 0 ? [tx.receiptImage] : [];
+}
+
 function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
+  const receiptImages = getReceiptImages(tx);
   return {
     id: tx.id,
     amount: parseFloat(tx.amount),
@@ -41,7 +52,9 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     categoryIcon: category?.icon ?? null,
     date: tx.date,
     paymentMethod: tx.paymentMethod,
-    receiptImage: tx.receiptImage ?? null,
+    // Keep receiptImage as the first image for older clients.
+    receiptImage: receiptImages[0] ?? null,
+    receiptImages,
     userId: tx.userId,
     householdId: tx.householdId,
     userName: user?.name ?? null,
@@ -737,6 +750,11 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
 
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
+  const existingImages = getReceiptImages(existing);
+  if (existingImages.length >= MAX_RECEIPT_IMAGES) {
+    res.status(400).json({ error: "A transaction can have up to 3 receipt images" });
+    return;
+  }
 
   // Upload directly to Supabase Storage rather than persisting the base64
   // blob in Postgres; receiptImage stores the resulting permanent public URL.
@@ -754,16 +772,13 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
     }
   }
 
-  // Clean up the previous receipt's stored object (best-effort — never blocks
-  // the update on a storage error; no-ops for legacy base64 values).
-  if (existing.receiptImage && existing.receiptImage !== imageData) {
-    objectStorageService.deleteObjectEntity(existing.receiptImage).catch((err) => {
-      logger.warn({ err }, "Failed to delete previous receipt object");
-    });
-  }
-
+  const receiptImages = [...existingImages, imageData];
   const [tx] = await db.update(transactionsTable)
-    .set({ receiptImage: imageData })
+    .set({
+      // Keep the legacy field synchronized for older clients.
+      receiptImage: receiptImages[0] ?? null,
+      receiptImages,
+    })
     .where(eq(transactionsTable.id, id))
     .returning();
 
@@ -786,14 +801,28 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
 
-  if (existing.receiptImage) {
-    objectStorageService.deleteObjectEntity(existing.receiptImage).catch((err) => {
+  const existingImages = getReceiptImages(existing);
+  const requestedIndex = typeof req.query.index === "string" ? Number(req.query.index) : null;
+  if (requestedIndex !== null && (!Number.isInteger(requestedIndex) || requestedIndex < 0 || requestedIndex >= existingImages.length)) {
+    res.status(404).json({ error: "Receipt image not found" });
+    return;
+  }
+  const requestedImage = requestedIndex === null ? null : existingImages[requestedIndex];
+  const imagesToDelete = requestedImage ? [requestedImage] : existingImages;
+  for (const image of imagesToDelete) {
+    objectStorageService.deleteObjectEntity(image).catch((err) => {
       logger.warn({ err }, "Failed to delete receipt object");
     });
   }
+  const remainingImages = requestedImage
+    ? existingImages.filter(image => image !== requestedImage)
+    : [];
 
   const [tx] = await db.update(transactionsTable)
-    .set({ receiptImage: null })
+    .set({
+      receiptImage: remainingImages[0] ?? null,
+      receiptImages: remainingImages,
+    })
     .where(eq(transactionsTable.id, id))
     .returning();
 

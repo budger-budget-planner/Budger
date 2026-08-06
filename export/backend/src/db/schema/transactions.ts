@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -14,6 +14,7 @@ export const transactionsTable = pgTable("transactions", {
   date: text("date").notNull(),
   paymentMethod: text("payment_method").notNull().default("card"),
   receiptImage: text("receipt_image"),
+  receiptImages: jsonb("receipt_images").$type<string[]>().notNull().default([]),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   householdId: integer("household_id").references(() => householdsTable.id, { onDelete: "set null" }),
   /** Currency code (e.g. "PLN", "EUR") this transaction was captured in.

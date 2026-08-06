@@ -263,7 +263,10 @@ router.get("/summary/recent", async (req, res): Promise<void> => {
     categoryIcon: tx.categoryId ? catMap.get(tx.categoryId)?.icon ?? null : null,
     date: tx.date,
     paymentMethod: tx.paymentMethod,
-    receiptImage: tx.receiptImage ?? null,
+    receiptImage: Array.isArray(tx.receiptImages) && tx.receiptImages.length > 0
+      ? tx.receiptImages[0]
+      : tx.receiptImage ?? null,
+    receiptImages: Array.isArray(tx.receiptImages) ? tx.receiptImages : (tx.receiptImage ? [tx.receiptImage] : []),
     userId: tx.userId,
     householdId: tx.householdId,
     userName: userMap.get(tx.userId)?.name ?? null,

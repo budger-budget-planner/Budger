@@ -175,6 +175,7 @@ export interface Transaction {
   paymentMethod: string;
   /** @nullable */
   receiptImage: string | null;
+  receiptImages: string[];
   userId: number;
   /** @nullable */
   householdId: number | null;

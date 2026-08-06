@@ -316,8 +316,9 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
       householdId: origTx.householdId,
       splitId: split.id,
       splitRole: "recipient",
-      // Carry over receipt image if the original had one
+      // Carry over all receipt images if the original had any.
       ...(origTx.receiptImage ? { receiptImage: origTx.receiptImage } : {}),
+      ...(Array.isArray(origTx.receiptImages) ? { receiptImages: origTx.receiptImages } : {}),
       // Currency: only a locked/foreign original transaction propagates a
       // `transactionCurrency` tag (the recipient inherits the same lock, since
       // `finalAmount` above is the raw, unconverted split amount in that
