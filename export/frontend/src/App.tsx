@@ -326,7 +326,13 @@ function AppRoutes() {
 }
 
 function AppWithSplash() {
-  const [splashDone,   setSplashDone]   = useState(false);
+  // splashContentReady: true when the splash starts fading (t=1050ms after seqDone).
+  // Passed as AppReadyContext so destination-page content can animate in while
+  // the splash overlay is still fading out — a seamless crossfade.
+  const [splashContentReady, setSplashContentReady] = useState(false);
+  // splashGone: true when the full exit animation finishes (t=1400ms).
+  // Controls whether the SplashScreen component is mounted.
+  const [splashGone,         setSplashGone]         = useState(false);
   const [winkActive,   setWinkActive]   = useState(false);
   // appVersion is a key for <AppRoutes> — bumping it remounts the entire route
   // tree so components re-render with updated language/currency from prefs/cache,
@@ -335,7 +341,10 @@ function AppWithSplash() {
   const afterWinkRef = useRef<(() => void | Promise<void>) | undefined>(undefined);
   const [, navigate]  = useLocation();
 
-  const resetSplash  = useCallback(() => setSplashDone(false), []);
+  const resetSplash  = useCallback(() => {
+    setSplashContentReady(false);
+    setSplashGone(false);
+  }, []);
   // Remount routes so all t() calls and currency formatters pick up new values.
   // Callers must pre-warm the query cache before invoking this.
   const softRefresh  = useCallback(() => setAppVersion(v => v + 1), []);
@@ -351,23 +360,32 @@ function AppWithSplash() {
     if (dest === "login") navigate("/login");
   }, [navigate]);
 
-  // Called by SplashScreen after the full exit animation completes.
+  // Called when the splash STARTS fading (t=1050ms after seqDone).
+  // Setting splashContentReady here lets the destination page's entrance
+  // animations run while the splash overlay is still fading — seamless crossfade.
+  const handleSplashFading = useCallback(() => {
+    setSplashContentReady(true);
+  }, []);
+
+  // Called by SplashScreen after the full exit animation completes (t=1400ms).
   const handleSplashDone = useCallback((dest: "home" | "login" | "vanish") => {
     // Navigation already happened via handleSplashNavigate; keep it here as a
     // fallback for the vanish path and any edge cases.
     if (dest === "login") navigate("/login");
-    setSplashDone(true);
+    setSplashGone(true);
+    // Ensure content is ready even on the vanish path (no onFading fires there).
+    setSplashContentReady(true);
   }, [navigate]);
 
   return (
     <SplashResetContext.Provider value={resetSplash}>
       <WinkSplashContext.Provider value={showWinkSplash}>
         <AppRefreshContext.Provider value={softRefresh}>
-          <AppReadyContext.Provider value={splashDone}>
+          <AppReadyContext.Provider value={splashContentReady}>
             {/* key=appVersion remounts routes after language/currency change */}
             <AppRoutes key={appVersion} />
             {/* Full 3-animation splash: only on app open or logout */}
-            {!splashDone && <SplashScreen onDone={handleSplashDone} onNavigate={handleSplashNavigate} />}
+            {!splashGone && <SplashScreen onDone={handleSplashDone} onNavigate={handleSplashNavigate} onFading={handleSplashFading} />}
             {/* Wink-only splash: afterDone may be async — overlay stays (invisible,
                 non-blocking) until the promise resolves so callers can pre-warm
                 caches before the route tree becomes visible. */}
