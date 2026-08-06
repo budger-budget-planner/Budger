@@ -253,16 +253,9 @@ export default function SplashScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // ── isLoading safety cap: give /api/me at most 5 s after seqDone ─────────
-  useEffect(() => {
-    if (!seqDone || !isLoading) return;
-    const id = setTimeout(() => setLoadingTimedOut(true), 5000);
-    return () => clearTimeout(id);
-  }, [seqDone, isLoading]);
-
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!seqDone || (isLoading && !loadingTimedOut) || resolvedRef.current) return;
+    if (!seqDone || resolvedRef.current) return;
     resolvedRef.current = true;
 
     // ── Vanish mode: invite URLs where the landing page isn't the home tab ──
