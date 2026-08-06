@@ -36,7 +36,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -385,31 +385,32 @@ function ReceiptModal({
   isOffline?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const sym = currencySymbol(loadPrefs().currency);
   const libraryRef = useRef<HTMLInputElement>(null);
-  const [lightbox, setLightbox] = useState(false);
-  // Holds the receipt image immediately after a successful upload/delete so
-  // the preview updates at once without waiting for the query refetch.
-  // `undefined` = no local override yet (use tx.receiptImage); `null` =
-  // explicitly cleared (removed). Using `null` for "no override" would make
-  // `localReceiptImage ?? tx.receiptImage` fall through to the stale server
-  // value right after a delete, since `??` treats null the same as unset.
-  const [localReceiptImage, setLocalReceiptImage] = useState<string | null | undefined>(undefined);
+  // null = closed; number = index of image shown in lightbox
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  // undefined = no local override (use server data); string[] = optimistic list
+  const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
 
-  // Reset local state whenever the dialog closes or the transaction changes.
   useEffect(() => {
-    if (!open) setLocalReceiptImage(undefined);
+    if (!open) { setLocalImages(undefined); setLightboxIdx(null); }
   }, [open]);
 
-  // The effective receipt image: prefer the freshly-uploaded/deleted local
-  // override over the (potentially stale) server-fetched version.
-  const effectiveReceiptImage = localReceiptImage !== undefined ? localReceiptImage : (tx.receiptImage ?? null);
+  // Derive the canonical list from server data, with local optimistic override.
+  function serverImages(): string[] {
+    if (Array.isArray(tx.receiptImages) && tx.receiptImages.length > 0) return tx.receiptImages;
+    if (tx.receiptImage) return [tx.receiptImage];
+    return [];
+  }
+  const effectiveImages = localImages !== undefined ? localImages : serverImages();
+  const canAddMore = effectiveImages.length < 3;
 
   const uploadReceipt = useUploadReceipt({
     mutation: {
       onSuccess: (data: any) => {
-        // Show the image immediately from the server response.
-        if (data?.receiptImage) setLocalReceiptImage(data.receiptImage);
+        const next: string[] = Array.isArray(data?.receiptImages) && data.receiptImages.length > 0
+          ? data.receiptImages
+          : data?.receiptImage ? [data.receiptImage] : effectiveImages;
+        setLocalImages(next);
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
@@ -417,8 +418,11 @@ function ReceiptModal({
   });
   const deleteReceipt = useDeleteReceipt({
     mutation: {
-      onSuccess: () => {
-        setLocalReceiptImage(null);
+      onSuccess: (data: any) => {
+        const next: string[] = Array.isArray(data?.receiptImages) ? data.receiptImages
+          : data?.receiptImage ? [data.receiptImage] : [];
+        setLocalImages(next);
+        setLightboxIdx(null);
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
@@ -432,11 +436,8 @@ function ReceiptModal({
     try {
       let dataUrl: string;
       try {
-        // Compress to 800 px / 65 % quality → keeps uploads under ~300 KB.
         dataUrl = await compressImage(file, 800, 0.65);
       } catch {
-        // Canvas can fail on iOS for HEIC/HEIF or under memory pressure.
-        // Fall back to reading the raw file as a base64 data URL.
         dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -450,9 +451,11 @@ function ReceiptModal({
     }
   }
 
+  const isBusy = uploadReceipt.isPending || deleteReceipt.isPending;
+
   return (
     <>
-      <Dialog open={open && !lightbox} onOpenChange={onClose}>
+      <Dialog open={open && lightboxIdx === null} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>{t("tx.receipt_label", { desc: tx.description })}</DialogTitle>
@@ -464,35 +467,29 @@ function ReceiptModal({
               {" "}· {tx.categoryName ?? t("common.uncategorized")} · {tx.date}
             </div>
 
-            {effectiveReceiptImage ? (
-              <div className="relative group rounded-xl overflow-hidden border border-border">
-                <ReceiptImg
-                  src={receiptSrc(effectiveReceiptImage)!}
-                  alt={t("tx.receipt_alt")}
-                  className="w-full object-cover max-h-64 cursor-pointer"
-                  onClick={() => setLightbox(true)}
-                  data-testid="img-receipt"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                  <Button size="sm" variant="secondary" onClick={() => setLightbox(true)} className="gap-1.5">
-                    <ZoomIn className="w-3.5 h-3.5" /> {t("tx.view_receipt")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteReceipt.mutate({ id: tx.id })}
-                    disabled={isOffline || deleteReceipt.isPending}
-                    data-testid="button-delete-receipt"
-                    className="gap-1.5 bg-destructive/10 text-destructive"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> {t("tx.remove_receipt")}
-                  </Button>
-                </div>
-                {(uploadReceipt.isPending || deleteReceipt.isPending) && (
-                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                    <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            {effectiveImages.length > 0 ? (
+              <div className={`grid gap-2 ${effectiveImages.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                {effectiveImages.map((img, idx) => (
+                  <div key={idx} className="relative group rounded-xl overflow-hidden border border-border">
+                    <ReceiptImg
+                      src={receiptSrc(img)!}
+                      alt={t("tx.receipt_alt")}
+                      className="w-full object-cover cursor-pointer"
+                      style={{ maxHeight: effectiveImages.length === 1 ? 240 : 140 }}
+                      onClick={() => setLightboxIdx(idx)}
+                      data-testid={`img-receipt-${idx}`}
+                    />
+                    <button
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive disabled:opacity-40"
+                      onClick={() => deleteReceipt.mutate({ id: tx.id, index: idx })}
+                      disabled={isOffline || isBusy}
+                      data-testid={`button-delete-receipt-${idx}`}
+                      title={t("tx.remove_receipt")}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
-                )}
+                ))}
               </div>
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
@@ -501,15 +498,25 @@ function ReceiptModal({
               </div>
             )}
 
+            {isBusy && (
+              <div className="flex justify-center">
+                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            )}
+
+            {effectiveImages.length > 0 && (
+              <p className="text-xs text-muted-foreground text-center">{t("tx.receipt_count", { count: effectiveImages.length })}</p>
+            )}
+
             <Button
               variant="outline"
               className="w-full gap-2"
               onClick={() => libraryRef.current?.click()}
-              disabled={isOffline || uploadReceipt.isPending}
+              disabled={isOffline || isBusy || !canAddMore}
               data-testid="button-add-receipt"
             >
               <Plus className="w-4 h-4" />
-              {effectiveReceiptImage ? t("tx.replace_receipt") : t("tx.add_receipt")}
+              {effectiveImages.length === 0 ? t("tx.add_receipt") : t("tx.add_another_receipt")}
             </Button>
 
             <Button variant="ghost" className="w-full" onClick={onClose}>{t("tx.done")}</Button>
@@ -518,23 +525,49 @@ function ReceiptModal({
       </Dialog>
 
       {/* Lightbox */}
-      {lightbox && effectiveReceiptImage && (
+      {lightboxIdx !== null && effectiveImages[lightboxIdx] && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightbox(false)}
+          onClick={() => setLightboxIdx(null)}
         >
           <button
             className="absolute top-4 right-4 text-white/80 hover:text-white"
-            onClick={() => setLightbox(false)}
+            onClick={() => setLightboxIdx(null)}
           >
             <X className="w-6 h-6" />
           </button>
+          {effectiveImages.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white disabled:opacity-30"
+                onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i > 0 ? i - 1 : i); }}
+                disabled={lightboxIdx === 0}
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white disabled:opacity-30"
+                onClick={e => { e.stopPropagation(); setLightboxIdx(i => i !== null && i < effectiveImages.length - 1 ? i + 1 : i); }}
+                disabled={lightboxIdx === effectiveImages.length - 1}
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </>
+          )}
           <ReceiptImg
-            src={receiptSrc(effectiveReceiptImage)!}
+            src={receiptSrc(effectiveImages[lightboxIdx])!}
             alt={t("tx.receipt_full_alt")}
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}
           />
+          {effectiveImages.length > 1 && (
+            <div className="absolute bottom-6 flex gap-2">
+              {effectiveImages.map((_, i) => (
+                <button key={i} onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
+                  className={`w-2 h-2 rounded-full transition-colors ${i === lightboxIdx ? "bg-white" : "bg-white/40"}`} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -912,7 +945,7 @@ export default function TransactionsPage() {
                               {t("larder.dedicated_badge")}
                             </span>
                           )}
-                          {tx.receiptImage && (
+                          {(tx.receiptImage || (Array.isArray(tx.receiptImages) && tx.receiptImages.length > 0)) && (
                             <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                               <Camera className="w-2.5 h-2.5" /> receipt
                             </span>

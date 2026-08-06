@@ -2049,15 +2049,17 @@ export const useUploadReceipt = <
 /**
  * @summary Remove a receipt image from a transaction
  */
-export const getDeleteReceiptUrl = (id: number) => {
-  return `/api/transactions/${id}/receipt`;
+export const getDeleteReceiptUrl = (id: number, params?: { index?: number }) => {
+  const query = params?.index !== undefined ? `?index=${params.index}` : "";
+  return `/api/transactions/${id}/receipt${query}`;
 };
 
 export const deleteReceipt = async (
   id: number,
+  params?: { index?: number },
   options?: RequestInit,
 ): Promise<Transaction> => {
-  return customFetch<Transaction>(getDeleteReceiptUrl(id), {
+  return customFetch<Transaction>(getDeleteReceiptUrl(id, params), {
     ...options,
     method: "DELETE",
   });
@@ -2070,14 +2072,14 @@ export const getDeleteReceiptMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteReceipt>>,
     TError,
-    { id: number },
+    { id: number; index?: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteReceipt>>,
   TError,
-  { id: number },
+  { id: number; index?: number },
   TContext
 > => {
   const mutationKey = ["deleteReceipt"];
@@ -2091,11 +2093,11 @@ export const getDeleteReceiptMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteReceipt>>,
-    { id: number }
+    { id: number; index?: number }
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, index } = props ?? {};
 
-    return deleteReceipt(id, requestOptions);
+    return deleteReceipt(id, index !== undefined ? { index } : undefined, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2117,14 +2119,14 @@ export const useDeleteReceipt = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteReceipt>>,
     TError,
-    { id: number },
+    { id: number; index?: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteReceipt>>,
   TError,
-  { id: number },
+  { id: number; index?: number },
   TContext
 > => {
   return useMutation(getDeleteReceiptMutationOptions(options));
