@@ -122,6 +122,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   // away — without waiting for the 30-second staleTime window to expire.
   useEffect(() => {
     const onUnauthorized = () => {
+      // Do not leave user-scoped data mounted while AuthGuard re-checks the
+      // session. This prevents a short-lived 401 from displaying another
+      // user's household or transactions from the React Query cache.
+      queryClient.removeQueries({
+        predicate: query => !query.queryKey.some(
+          key => typeof key === "string" && key === "/api/me",
+        ),
+      });
       queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
     };
     window.addEventListener("budger:unauthorized", onUnauthorized);

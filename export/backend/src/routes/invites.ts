@@ -3,7 +3,7 @@ import { db, invitesTable, householdsTable, usersTable, householdMembersTable, n
 import { eq, and, count } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcryptjs from "bcryptjs";
-import { pickNextColor } from "./households";
+import { MEMBER_COLORS } from "./households";
 import {
   CreateInviteBody,
   AcceptInviteParams,
@@ -293,22 +293,37 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.update(invitesTable).set({ status: "accepted" }).where(eq(invitesTable.id, invite.id));
+  await db.transaction(async (tx) => {
+    await tx.update(invitesTable)
+      .set({ status: "accepted" })
+      .where(eq(invitesTable.id, invite.id));
 
-  const existingMember = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, invite.householdId)));
+    const existingMember = await tx.select().from(householdMembersTable)
+      .where(and(
+        eq(householdMembersTable.userId, userId),
+        eq(householdMembersTable.householdId, invite.householdId),
+      ));
 
-  if (existingMember.length === 0) {
-    const color = await pickNextColor(invite.householdId);
-    await db.insert(householdMembersTable).values({
-      userId,
-      householdId: invite.householdId,
-      role: invite.role ?? "child",
-      memberColor: color,
-    });
-  }
+    if (existingMember.length === 0) {
+      const currentMembers = await tx.select({ memberColor: householdMembersTable.memberColor })
+        .from(householdMembersTable)
+        .where(eq(householdMembersTable.householdId, invite.householdId));
+      const usedColors = new Set(currentMembers.map(member => member.memberColor));
+      const color = MEMBER_COLORS.find(candidate => !usedColors.has(candidate))
+        ?? MEMBER_COLORS[currentMembers.length % MEMBER_COLORS.length];
 
-  await db.update(usersTable).set({ householdId: invite.householdId }).where(eq(usersTable.id, userId));
+      await tx.insert(householdMembersTable).values({
+        userId,
+        householdId: invite.householdId,
+        role: invite.role ?? "child",
+        memberColor: color,
+      });
+    }
+
+    await tx.update(usersTable)
+      .set({ householdId: invite.householdId })
+      .where(eq(usersTable.id, userId));
+  });
 
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, invite.householdId));
   if (!household) { res.status(404).json({ error: "Household not found" }); return; }

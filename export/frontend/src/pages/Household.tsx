@@ -576,7 +576,11 @@ export default function HouseholdPage() {
   const prefs = loadPrefs();
   const sym = currencySymbol(prefs.currency);
 
-  const { data: me } = useGetMe();
+  const {
+    data: me,
+    isLoading: meLoading,
+    isError: meLoadError,
+  } = useGetMe();
   const {
     data: household,
     isLoading: householdLoading,
@@ -584,7 +588,11 @@ export default function HouseholdPage() {
     error: householdError,
     refetch: refetchHousehold,
   } = useGetHousehold();
-  const { data: members } = useListHouseholdMembers();
+  const {
+    data: members,
+    isLoading: membersLoading,
+    isError: membersLoadError,
+  } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
   const { data: incomingInvites } = useListIncomingInvites();
   const { data: goals } = useListGoals();
@@ -1028,7 +1036,7 @@ export default function HouseholdPage() {
     return Math.min((spent / maxMemberSpent) * 100, 100);
   }
 
-  if (householdLoading) {
+  if (householdLoading || meLoading || membersLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -1041,7 +1049,10 @@ export default function HouseholdPage() {
   // destructive-looking "No household yet" state after another mutation
   // triggers a background refetch.
   const householdErrorStatus = (householdError as any)?.status as number | undefined;
-  const householdRequestFailed = householdLoadError && householdErrorStatus !== 404 && !household;
+  const householdRequestFailed =
+    (householdLoadError && householdErrorStatus !== 404 && !household) ||
+    meLoadError ||
+    membersLoadError;
   if (householdRequestFailed) {
     return (
       <div className="px-4 py-20 flex flex-col items-center text-center gap-4">

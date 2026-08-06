@@ -158,7 +158,13 @@ let swCsrfToken: string | null = null;
 async function swGetCsrfToken(): Promise<string> {
   if (swCsrfToken) return swCsrfToken;
   const resp = await fetch("/api/csrf-token", { credentials: "include" });
-  const data = (await resp.json()) as { token: string };
+  if (!resp.ok) {
+    throw new Error(`CSRF token request failed (${resp.status})`);
+  }
+  const data = (await resp.json()) as { token?: unknown };
+  if (typeof data.token !== "string" || data.token.length === 0) {
+    throw new Error("CSRF token response was invalid");
+  }
   swCsrfToken = data.token;
   return swCsrfToken;
 }

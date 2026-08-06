@@ -647,27 +647,40 @@ export default function TransactionsPage() {
     method: "DELETE",
     onSuccess: () => invalidateAll(queryClient),
   });
+  const update = useMutationWithQueue<{
+    id: number;
+    data: Record<string, unknown>;
+    mode?: "form" | "name";
+    autoPrompt?: { merchantName: string; oldCategoryName: string };
+  }>({
+    endpoint: vars => `${import.meta.env.BASE_URL}api/transactions/${vars.id}`,
+    method: "PATCH",
+    getPayload: vars => vars.data,
+    onSuccess: (data, vars) => {
+      if (data && typeof data === "object" && "id" in data) {
+        cacheTransactionUpdate(queryClient, data);
+      }
+      invalidateAll(queryClient, currentMonth);
+      if (vars.mode === "name") {
+        setNameEditTxId(null);
+      } else {
+        if (data && vars.autoPrompt) {
+          setAutoRulePrompt(vars.autoPrompt);
+        }
+        setEditTx((prev: any) => (prev?.id === vars.id ? null : prev));
+        setIsSaving(false);
+      }
+    },
+    onError: (error, vars) => {
+      if (vars.mode !== "name") setIsSaving(false);
+      toast.error(error.message || t("common.error_saving") || "Failed to save changes.");
+    },
+  });
 
   async function saveName(txId: number) {
     const trimmed = nameEditValue.trim();
     if (!trimmed) return;
-    try {
-      const res = await apiFetch(`/api/transactions/${txId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimmed }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? "Failed to save transaction name");
-      }
-      const updated = await res.json().catch(() => null);
-      cacheTransactionUpdate(queryClient, updated);
-      invalidateAll(queryClient, currentMonth);
-      setNameEditTxId(null);
-    } catch (err: any) {
-      toast.error(err?.message ?? t("common.error_saving") ?? "Failed to save changes.");
-    }
+    update.mutate({ id: txId, data: { description: trimmed }, mode: "name" });
   }
 
   const filtered = (transactions ?? []).filter(tx => {
@@ -698,7 +711,6 @@ export default function TransactionsPage() {
   }
 
   async function handleCreate(form: TxFormState) {
-    if (!isOnline) return;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
     const now = new Date();
     const month = /^\d{4}-\d{2}/.test(form.date)
@@ -755,67 +767,42 @@ export default function TransactionsPage() {
     const nowHasGoal = !!goalContribution;
     const nowHasLarder = larderAmount != null && larderAmount > 0;
     setIsSaving(true);
-    try {
-      let atomicGoalContribution: any = null;
-      if (goalContribution) {
-        const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
-        const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
-        let contribAmount = goalContribution.amount;
-        if (goalCurrency !== prefs.currency) {
-          try {
-            contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, await fetchRates());
-          } catch {
-            // Keep the account-currency amount if rates are temporarily unavailable.
-          }
+    let atomicGoalContribution: any = null;
+    if (goalContribution) {
+      const goal = (goals ?? []).find((g: any) => g.id === goalContribution.goalId);
+      const goalCurrency: string = (goal as any)?.currency ?? prefs.currency;
+      let contribAmount = goalContribution.amount;
+      if (goalCurrency !== prefs.currency) {
+        try {
+          contribAmount = convertAmount(goalContribution.amount, prefs.currency, goalCurrency, await fetchRates());
+        } catch {
+          // Keep the account-currency amount if rates are temporarily unavailable.
         }
-        atomicGoalContribution = {
-          goalId: goalContribution.goalId,
-          amount: contribAmount,
-          currency: goalCurrency,
-          month: /^\d{4}-\d{2}/.test(form.date) ? form.date.slice(0, 7) : currentMonth,
-        };
       }
-      // Step 1: Update the transaction
-      const patchRes = await apiFetch(`/api/transactions/${txId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: parseFloat(form.amount),
-          description: form.description,
-          categoryId,
-          date: form.date,
-          paymentMethod: form.paymentMethod,
-          goalContribution: atomicGoalContribution,
-          larderAmount: nowHasLarder ? larderAmount : null,
-          larderCurrency: nowHasLarder ? prefs.currency : null,
-        }),
-      });
-      if (!patchRes.ok) {
-        const body = await patchRes.json().catch(() => ({}));
-        throw new Error(body?.error ?? "Failed to save transaction");
-      }
-      // The PATCH response is authoritative. Patch every matching list cache
-      // before invalidating so a refetch that races with a rapid edit cannot
-      // briefly put the old category back on screen.
-      const updatedTx = await patchRes.json().catch(() => null);
-      if (!updatedTx?.id) throw new Error("The server returned an invalid transaction");
-      cacheTransactionUpdate(queryClient, updatedTx);
-
-      // Show popup if user overrode an auto-assigned category
-      if (wasAutoAssigned && overriddenMerchant && overriddenCategoryName) {
-        setAutoRulePrompt({ merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName });
-      }
-
-      invalidateAll(queryClient, currentMonth);
-      // Use functional update so a concurrent edit of a *different* tx is not
-      // accidentally cleared if this async chain outlived the original dialog.
-      setEditTx((prev: any) => (prev?.id === txId ? null : prev));
-    } catch (err: unknown) {
-      console.error("[handleUpdate] failed:", err);
-      toast.error(t("common.error_saving") || "Failed to save changes. Please try again.");
-    } finally {
-      setIsSaving(false);
+      atomicGoalContribution = {
+        goalId: goalContribution.goalId,
+        amount: contribAmount,
+        currency: goalCurrency,
+        month: /^\d{4}-\d{2}/.test(form.date) ? form.date.slice(0, 7) : currentMonth,
+      };
     }
+    update.mutate({
+      id: txId,
+      mode: "form",
+      autoPrompt: wasAutoAssigned && overriddenMerchant && overriddenCategoryName
+        ? { merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName }
+        : undefined,
+      data: {
+        amount: parseFloat(form.amount),
+        description: form.description,
+        categoryId,
+        date: form.date,
+        paymentMethod: form.paymentMethod,
+        goalContribution: atomicGoalContribution,
+        larderAmount: nowHasLarder ? larderAmount : null,
+        larderCurrency: nowHasLarder ? prefs.currency : null,
+      },
+    });
   }
 
   return (
@@ -826,7 +813,7 @@ export default function TransactionsPage() {
           <Button variant="outline" onClick={() => setScreenshotOpen(true)} data-testid="button-import-screenshot" className="gap-2" disabled={!isOnline}>
             <ScanLine className="w-4 h-4" /> {t("tx.import_screenshot")}
           </Button>
-          <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2" disabled={!isOnline}>
+          <Button onClick={() => setAddOpen(true)} data-testid="button-add-transaction" className="gap-2">
             <Plus className="w-4 h-4" /> {t("common.add")}
           </Button>
         </div>

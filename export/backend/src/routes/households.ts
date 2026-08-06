@@ -18,7 +18,7 @@ const router: IRouter = Router();
 // over-budget (red) and budget-stretch (orange) indicators in the donut chart.
 // Palette rotates through four contrast families: green → purple → blue → yellow.
 // Each successive slot uses a different shade so adjacent members are never similar.
-const MEMBER_COLORS = [
+export const MEMBER_COLORS = [
   "#4ade80", // 1  vivid green
   "#a78bfa", // 2  violet
   "#60a5fa", // 3  cornflower blue
@@ -32,6 +32,26 @@ const MEMBER_COLORS = [
   "#818cf8", // 11 indigo blue
   "#fde047", // 12 pale yellow
 ];
+
+/**
+ * The membership row is the durable source of truth for household identity.
+ * users.householdId is retained as a compatibility fallback for legacy rows
+ * created before household membership was introduced.
+ */
+async function getUserHouseholdId(userId: number, database = db): Promise<number | null> {
+  const [membership] = await database
+    .select({ householdId: householdMembersTable.householdId })
+    .from(householdMembersTable)
+    .where(eq(householdMembersTable.userId, userId))
+    .limit(1);
+  if (membership?.householdId != null) return membership.householdId;
+
+  const [user] = await database
+    .select({ householdId: usersTable.householdId })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  return user?.householdId ?? null;
+}
 
 function isHead(role: string) { return role === "head" || role === "owner"; }
 function isParent(role: string) { return role === "parent"; }
@@ -84,10 +104,10 @@ router.get("/households", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(404).json({ error: "No household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(404).json({ error: "No household" }); return; }
 
-  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, user.householdId));
+  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, householdId));
   if (!household) { res.status(404).json({ error: "Not found" }); return; }
 
   res.json(serializeHousehold(household));
@@ -100,23 +120,26 @@ router.post("/households", async (req, res): Promise<void> => {
   const parsed = CreateHouseholdBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  // Capture the creator's currency as the budget's reference currency
-  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  const [household] = await db.insert(householdsTable).values({
-    name: parsed.data.name,
-    ownerId: userId,
-    budget: parsed.data.budget != null ? String(parsed.data.budget) : null,
-    budgetCurrency: parsed.data.budget != null ? (creator?.currency ?? "USD") : null,
-  }).returning();
+  const household = await db.transaction(async (tx) => {
+    // Capture the creator's currency as the budget's reference currency.
+    const [creator] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [created] = await tx.insert(householdsTable).values({
+      name: parsed.data.name,
+      ownerId: userId,
+      budget: parsed.data.budget != null ? String(parsed.data.budget) : null,
+      budgetCurrency: parsed.data.budget != null ? (creator?.currency ?? "USD") : null,
+    }).returning();
+    if (!created) throw new Error("Household creation failed");
 
-  await db.insert(householdMembersTable).values({
-    userId,
-    householdId: household.id,
-    role: "head",
-    memberColor: MEMBER_COLORS[0],
+    await tx.insert(householdMembersTable).values({
+      userId,
+      householdId: created.id,
+      role: "head",
+      memberColor: MEMBER_COLORS[0],
+    });
+    await tx.update(usersTable).set({ householdId: created.id }).where(eq(usersTable.id, userId));
+    return created;
   });
-
-  await db.update(usersTable).set({ householdId: household.id }).where(eq(usersTable.id, userId));
 
   res.status(201).json(serializeHousehold(household));
 });
@@ -128,8 +151,8 @@ router.patch("/households", async (req, res): Promise<void> => {
   const parsed = UpdateHouseholdBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(404).json({ error: "No household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(404).json({ error: "No household" }); return; }
 
   const updateData: Record<string, any> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -147,7 +170,7 @@ router.patch("/households", async (req, res): Promise<void> => {
 
   const [household] = await db.update(householdsTable)
     .set(updateData)
-    .where(eq(householdsTable.id, user.householdId))
+    .where(eq(householdsTable.id, householdId))
     .returning();
 
   if (!household) { res.status(404).json({ error: "Not found" }); return; }
@@ -159,11 +182,11 @@ router.get("/households/members", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.json([]); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.json([]); return; }
 
   const members = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.householdId, user.householdId));
+    .where(eq(householdMembersTable.householdId, householdId));
 
   if (members.length === 0) { res.json([]); return; }
 
@@ -315,11 +338,11 @@ router.get("/households/members/household-spendings/spending", async (req, res):
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(403).json({ error: "Not in a household" }); return; }
 
   const memberships = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.householdId, user.householdId));
+    .where(eq(householdMembersTable.householdId, householdId));
   const headMembership = memberships.find(m => isHead(m.role));
   if (!headMembership) { res.json([]); return; }
 
@@ -384,14 +407,17 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
   // evaluated against the role-fallback path and could be blocked for themselves.
   const isSelf = Number(targetUserId) === Number(currentUserId);
 
-  // Fetch both users in parallel — they are independent queries.
-  const [[currentUser], [targetUser]] = await Promise.all([
+  // Fetch both users and the viewer's durable household identity in parallel.
+  const [[currentUser], [targetUser], currentHouseholdId] = await Promise.all([
     db.select().from(usersTable).where(eq(usersTable.id, Number(currentUserId))),
     db.select().from(usersTable).where(eq(usersTable.id, Number(targetUserId))),
+    getUserHouseholdId(Number(currentUserId)),
   ]);
 
-  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
-  if (!targetUser || targetUser.householdId !== currentUser.householdId) {
+  if (!currentHouseholdId) { res.status(403).json({ error: "Not in a household" }); return; }
+  const [targetMembership] = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.userId, Number(targetUserId)));
+  if (!targetUser || targetMembership?.householdId !== currentHouseholdId) {
     res.status(404).json({ error: "Member not found" }); return;
   }
 
@@ -400,9 +426,8 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     // Fetch both memberships in parallel — independent queries.
     // Look up by userId alone (not householdId) — see earlier comment about
     // drift between users.household_id and household_members rows.
-    const [[viewerMembership], [targetMembership]] = await Promise.all([
+    const [[viewerMembership]] = await Promise.all([
       db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(currentUserId))),
-      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(targetUserId))),
     ]);
     const viewerRole = viewerMembership?.role ?? "child";
     const targetRole = targetMembership?.role ?? "child";
@@ -597,11 +622,11 @@ router.patch("/households/members/:userId/role", async (req, res): Promise<void>
     res.status(400).json({ error: "role must be head, parent, or child" }); return;
   }
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
-  if (!currentUser?.householdId) { res.status(403).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(currentUserId);
+  if (!householdId) { res.status(403).json({ error: "Not in a household" }); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only the head of the household can change roles" }); return;
   }
@@ -611,12 +636,12 @@ router.patch("/households/members/:userId/role", async (req, res): Promise<void>
   }
 
   const [targetMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, householdId)));
   if (!targetMembership) { res.status(404).json({ error: "Member not found" }); return; }
 
   await db.update(householdMembersTable)
     .set({ role })
-    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, householdId)));
 
   const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, targetUserId));
 
@@ -630,26 +655,26 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
   const params = RemoveHouseholdMemberParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
-  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, currentUserId));
-  if (!currentUser?.householdId) { res.status(400).json({ error: "No household" }); return; }
+  const householdId = await getUserHouseholdId(currentUserId);
+  if (!householdId) { res.status(400).json({ error: "No household" }); return; }
 
   // Only head can remove members
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, currentUser.householdId)));
+    .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only the head of the household can remove members" }); return;
   }
 
   // Fetch household name to store in alert for the removed user
   const [[household], [removedUser]] = await Promise.all([
-    db.select().from(householdsTable).where(eq(householdsTable.id, currentUser.householdId)),
+    db.select().from(householdsTable).where(eq(householdsTable.id, householdId)),
     db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, params.data.userId)),
   ]);
 
   await db.delete(householdMembersTable).where(
     and(
       eq(householdMembersTable.userId, params.data.userId),
-      eq(householdMembersTable.householdId, currentUser.householdId)
+      eq(householdMembersTable.householdId, householdId)
     )
   );
   await db.update(usersTable)
@@ -660,7 +685,7 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
   // members forever, even though this member never intended to give them up.
   await db.update(categoriesTable)
     .set({ householdId: null })
-    .where(and(eq(categoriesTable.userId, params.data.userId), eq(categoriesTable.householdId, currentUser.householdId)));
+    .where(and(eq(categoriesTable.userId, params.data.userId), eq(categoriesTable.householdId, householdId)));
 
   // Cancel all invite records (any status) for the removed user's email in this
   // household so stale email links lead to the "revoked" screen rather than
@@ -670,7 +695,7 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
       .set({ status: "cancelled" })
       .where(and(
         eq(invitesTable.email, removedUser.email),
-        eq(invitesTable.householdId, currentUser.householdId),
+        eq(invitesTable.householdId, householdId),
       ));
   }
 
@@ -682,9 +707,10 @@ router.post("/households/leave", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!user || !householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
-  const leavingHouseholdId = user.householdId;
+  const leavingHouseholdId = householdId;
 
   // Gather head + household name before removing the member so we can notify.
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
@@ -744,16 +770,14 @@ router.delete("/households", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only the head of the household can delete it" }); return;
   }
-
-  const householdId = user.householdId;
 
   const members = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
   for (const m of members) {
@@ -775,16 +799,17 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!user || !householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || isHead(myMembership.role)) {
     res.status(400).json({ error: "Already head or not a member" }); return;
   }
 
   const members = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.householdId, user.householdId));
+    .where(eq(householdMembersTable.householdId, householdId));
   const headMember = members.find(m => isHead(m.role));
   if (!headMember) { res.status(400).json({ error: "No head found in household" }); return; }
 
@@ -822,11 +847,11 @@ router.get("/households/head-requests", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.json([]); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.json([]); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) { res.json([]); return; }
 
   const items = await db.select().from(notificationItemsTable)
@@ -860,11 +885,11 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
   const notifId = parseInt(req.params.notifId);
   if (isNaN(notifId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only head can approve" }); return;
   }
@@ -877,21 +902,21 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
   if (isNaN(requesterId)) { res.status(400).json({ error: "Invalid request data" }); return; }
 
   const [requesterMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, householdId)));
   if (!requesterMembership) { res.status(404).json({ error: "Requester not in household" }); return; }
 
   // Swap roles: requester becomes head, current head becomes member
   await db.update(householdMembersTable)
     .set({ role: "head" })
-    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, householdId)));
   await db.update(householdMembersTable)
     .set({ role: "parent" })
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
 
   // Transfer household ownership
   await db.update(householdsTable)
     .set({ ownerId: requesterId })
-    .where(eq(householdsTable.id, user.householdId));
+    .where(eq(householdsTable.id, householdId));
 
   // Hard-delete all pending head-requests addressed to the current head (they are now member)
   await db.delete(notificationItemsTable)
@@ -927,11 +952,11 @@ router.post("/households/head-requests/:notifId/decline", async (req, res): Prom
   const notifId = parseInt(req.params.notifId);
   if (isNaN(notifId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const householdId = await getUserHouseholdId(userId);
+  if (!householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
   const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
+    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only head can decline" }); return;
   }

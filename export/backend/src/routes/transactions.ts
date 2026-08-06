@@ -270,7 +270,7 @@ router.post("/transactions", async (req, res): Promise<void> => {
     }
   }
 
-  const { goalContribution, larderAmount, ...transactionInput } = parsed.data;
+  const { goalContribution, larderAmount, larderCurrency, ...transactionInput } = parsed.data;
   let tx: any;
   try {
     await db.transaction(async (dbTx) => {

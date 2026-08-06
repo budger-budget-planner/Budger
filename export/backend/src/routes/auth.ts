@@ -357,23 +357,47 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       const [invite] = await db.select().from(invitesTable)
         .where(eq(invitesTable.token, updated.pendingInviteToken));
       if (invite && invite.status === "pending" && invite.expiresAt > new Date()) {
-        // Join the household
-        const { pickNextColor } = await import("./households");
-        const color = await pickNextColor(invite.householdId);
-        await db.insert(householdMembersTable).values({
-          userId: updated.id,
-          householdId: invite.householdId,
-          role: invite.role ?? "child",
-          memberColor: color,
+        // Accept the invite, add the membership, and link the user as one
+        // atomic operation. The conditional invite update also makes a
+        // concurrent accept/retry harmless.
+        const accepted = await db.transaction(async (tx) => {
+          const [acceptedInvite] = await tx.update(invitesTable)
+            .set({ status: "accepted" })
+            .where(and(
+              eq(invitesTable.id, invite.id),
+              eq(invitesTable.status, "pending"),
+            ))
+            .returning();
+          if (!acceptedInvite) return false;
+
+          const [existingMembership] = await tx.select({ userId: householdMembersTable.userId })
+            .from(householdMembersTable)
+            .where(and(
+              eq(householdMembersTable.userId, updated.id),
+              eq(householdMembersTable.householdId, invite.householdId),
+            ));
+          if (!existingMembership) {
+            const { MEMBER_COLORS } = await import("./households");
+            const members = await tx.select({ memberColor: householdMembersTable.memberColor })
+              .from(householdMembersTable)
+              .where(eq(householdMembersTable.householdId, invite.householdId));
+            const usedColors = new Set(members.map(member => member.memberColor));
+            const color = MEMBER_COLORS.find(candidate => !usedColors.has(candidate))
+              ?? MEMBER_COLORS[members.length % MEMBER_COLORS.length];
+            await tx.insert(householdMembersTable).values({
+              userId: updated.id,
+              householdId: invite.householdId,
+              role: invite.role ?? "child",
+              memberColor: color,
+            });
+          }
+          await tx.update(usersTable)
+            .set({ householdId: invite.householdId })
+            .where(eq(usersTable.id, updated.id));
+          return true;
         });
-        await db.update(usersTable)
-          .set({ householdId: invite.householdId })
-          .where(eq(usersTable.id, updated.id));
-        await db.update(invitesTable)
-          .set({ status: "accepted" })
-          .where(eq(invitesTable.id, invite.id));
-        // Notify inviter
-        if (invite.inviterUserId) {
+
+        if (accepted && invite.inviterUserId) {
           const [household] = await db.select({ name: householdsTable.name })
             .from(householdsTable).where(eq(householdsTable.id, invite.householdId));
           await db.insert(notificationItemsTable).values({
