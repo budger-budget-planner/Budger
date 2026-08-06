@@ -33,10 +33,18 @@ Both fire NC notification to inviter (dedupKey `invite-accepted-TOKEN` / `invite
 ### POST /auth/register (PIN set — existing endpoint, extended)
 After setting the passwordHash, checks `user.pendingInviteToken`. If set:
 1. Looks up invite, verifies still valid
-2. Inserts into `household_members`, updates `users.householdId`
-3. Marks invite accepted, fires NC to inviter
+2. Atomically marks the invite accepted, inserts into `household_members`, and updates `users.householdId`
+3. Fires NC to inviter after the transaction succeeds
 4. Clears `pendingInviteToken`
-Dynamic import of `pickNextColor` from `./households` is used to avoid circular deps at module load time.
+
+Household identity reads should prefer the user's `household_members` row and only
+fall back to `users.householdId` for legacy records. This prevents stale legacy
+links from hiding a valid membership or exposing the wrong household.
+
+**Why:** Invite acceptance and household membership previously used separate writes,
+so a failed intermediate write could leave a user linked to only part of the
+household state; stale `users.householdId` values also caused false household
+membership states.
 
 ### Frontend routing
 - `/invite/:token` — Invite.tsx (registered accept/decline + unregistered redirect)
