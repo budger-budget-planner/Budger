@@ -125,7 +125,7 @@ function pollForTransform(
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function SplashScreen({ onDone }: { onDone: () => void }) {
+export default function SplashScreen({ onDone }: { onDone: (dest: "home" | "login" | "vanish") => void }) {
   // Intro + exit phase
   const [phase, setPhase] = useState<Phase>("bigText");
 
@@ -261,7 +261,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     if (urlMode === "vanish") {
       setPhase("vanishing");
       const t1 = setTimeout(() => setPhase("fading"), 320);
-      const t2 = setTimeout(onDone, 580);
+      const t2 = setTimeout(() => onDone("vanish"), 580);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
 
@@ -299,7 +299,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
       setPhase("moving");
       t1 = setTimeout(() => setPhase("fading"), 1050);
-      t2 = setTimeout(onDone,                   1400);
+      t2 = setTimeout(() => onDone(target),     1400);
     }
 
     // ── Startup delay before polling ─────────────────────────────────────────

@@ -336,6 +336,7 @@ function AppWithSplash() {
   // without a full page reload (which would empty React Query caches).
   const [appVersion,   setAppVersion]   = useState(0);
   const afterWinkRef = useRef<(() => void | Promise<void>) | undefined>(undefined);
+  const [, navigate]  = useLocation();
 
   const resetSplash  = useCallback(() => setSplashDone(false), []);
   // Remount routes so all t() calls and currency formatters pick up new values.
@@ -346,6 +347,17 @@ function AppWithSplash() {
     setWinkActive(true);
   }, []);
 
+  // Called by SplashScreen with the exit destination.
+  // When landing on login: navigate proactively BEFORE removing the overlay so
+  // LoginPage is already mounted the moment the splash fades out.  Without this,
+  // if the backend is slow (Render cold start / high latency), /api/me is still
+  // pending when the splash exits via the 5-second loadingTimedOut, and the user
+  // sees AuthGuard's black spinner instead of the login screen.
+  const handleSplashDone = useCallback((dest: "home" | "login" | "vanish") => {
+    if (dest === "login") navigate("/login");
+    setSplashDone(true);
+  }, [navigate]);
+
   return (
     <SplashResetContext.Provider value={resetSplash}>
       <WinkSplashContext.Provider value={showWinkSplash}>
@@ -354,7 +366,7 @@ function AppWithSplash() {
             {/* key=appVersion remounts routes after language/currency change */}
             <AppRoutes key={appVersion} />
             {/* Full 3-animation splash: only on app open or logout */}
-            {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+            {!splashDone && <SplashScreen onDone={handleSplashDone} />}
             {/* Wink-only splash: afterDone may be async — overlay stays (invisible,
                 non-blocking) until the promise resolves so callers can pre-warm
                 caches before the route tree becomes visible. */}
