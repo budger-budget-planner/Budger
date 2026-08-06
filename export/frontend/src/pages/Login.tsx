@@ -12,7 +12,7 @@ import BudgerWordmark from "@/components/BudgerWordmark";
 import PinKeyboard from "@/components/PinKeyboard";
 import { t, setLang } from "@/lib/i18n";
 import { LANGUAGES, loadPrefs, savePrefs, markSession, setPendingOnboarding, clearOnboardingDone, setActiveUserId, getActiveUserId, migratePreLoginPrefs } from "@/lib/prefs";
-import { useWinkSplash } from "@/lib/appReady";
+import { useWinkSplash, useAppReady } from "@/lib/appReady";
 
 type Screen =
   | "start"               // email + language, login default / sign-up link
@@ -32,6 +32,13 @@ export default function LoginPage() {
   const queryClient = useQueryClient();
   const search = useSearch();
   const showWinkSplash = useWinkSplash();
+  // When the full splash is still covering the screen (!appReady), suppress the
+  // login-enter entrance animation on the logo/wordmark markers.  The splash IS
+  // the entrance animation — running login-enter underneath it causes
+  // pollForTransform to measure the elements mid-translateY(18px) and the logo
+  // glides to the wrong screen position.  With the animation suppressed the
+  // markers sit at their final resting place so the poll gets accurate coords.
+  const appReady = useAppReady();
 
   const prefs = loadPrefs();
   const [lang, setLangState] = useState<string>(prefs.language ?? "en");
@@ -493,7 +500,10 @@ export default function LoginPage() {
             </div>
 
             {/* Logo + name */}
-            <div className={`login-enter login-enter-d2 flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
+            {/* login-enter suppressed while splash is active: measuring mid-animation
+                produces wrong coords and the logo glides to the wrong position.
+                The splash overlay IS the entrance; suppress the redundant CSS anim. */}
+            <div className={`${appReady ? "login-enter login-enter-d2 " : ""}flex flex-col items-center gap-3 overflow-hidden transition-all duration-300 ease-in-out ${keyboardOpen ? "max-h-0 opacity-0 pointer-events-none" : "max-h-48 opacity-100"}`}>
               <span data-splash-logo-login>
                 <BadgerLogo size={88} pauseIdleAnimations growPulse={false} />
               </span>

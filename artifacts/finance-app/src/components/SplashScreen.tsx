@@ -116,7 +116,7 @@ function pollForTransform(
       lastRect = rect;
       if (stable) { onReady(measure(el, srcEl)); return; }
     }
-    if (attempts >= 20) { onReady(el ? measure(el, srcEl) : null); return; }
+    if (attempts >= 60) { onReady(el ? measure(el, srcEl) : null); return; }
     requestAnimationFrame(tick);
   }
 
@@ -302,26 +302,35 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       t2 = setTimeout(onDone,                   1400);
     }
 
-    const cancelLogo = pollForTransform(
-      target === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]",
-      measureLogoTarget,
-      (t) => { logoT = t ?? fallbackTransform(target); onAllReady(); },
-      logoRef.current,
-    );
-
+    // ── Startup delay before polling ─────────────────────────────────────────
+    // Give the router one tick (80 ms) to commit the navigation and mount the
+    // destination page before we start measuring DOM markers.
+    let cancelLogo:     (() => void) | null = null;
     let cancelWordmark: (() => void) | null = null;
-    if (target === "login") {
-      cancelWordmark = pollForTransform(
-        "[data-splash-wordmark-login]",
-        measureWordmarkTarget,
-        (t) => { wordmarkT = t; onAllReady(); },
-        wordmarkRef.current,
+    const pollStartId = setTimeout(() => {
+      if (cancelled) return;
+
+      cancelLogo = pollForTransform(
+        target === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]",
+        measureLogoTarget,
+        (t) => { logoT = t ?? fallbackTransform(target); onAllReady(); },
+        logoRef.current,
       );
-    }
+
+      if (target === "login") {
+        cancelWordmark = pollForTransform(
+          "[data-splash-wordmark-login]",
+          measureWordmarkTarget,
+          (t) => { wordmarkT = t; onAllReady(); },
+          wordmarkRef.current,
+        );
+      }
+    }, 80);
 
     return () => {
       cancelled = true;
-      cancelLogo();
+      clearTimeout(pollStartId);
+      cancelLogo?.();
       cancelWordmark?.();
       clearTimeout(t1);
       clearTimeout(t2);
