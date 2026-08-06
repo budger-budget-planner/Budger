@@ -402,8 +402,11 @@ function ReceiptModal({
 
   // Reset the file-picker guard whenever the window regains focus
   // (covers both "file selected" and "picker cancelled" paths on iOS).
+  // Delay 500 ms so that the input's onChange fires before Radix's
+  // DismissableLayer can fire a second onOpenChange(false) after focus
+  // returns to the document outside the dialog's focus trap.
   useEffect(() => {
-    const onFocus = () => { filePickerActiveRef.current = false; };
+    const onFocus = () => { setTimeout(() => { filePickerActiveRef.current = false; }, 500); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -470,7 +473,11 @@ function ReceiptModal({
   return (
     <>
       <Dialog open={open && lightboxIdx === null} onOpenChange={(o) => { if (!o && !filePickerActiveRef.current) onClose(); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent
+          className="max-w-sm"
+          onInteractOutside={(e) => { if (filePickerActiveRef.current) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (filePickerActiveRef.current) e.preventDefault(); }}
+        >
           <DialogHeader>
             <DialogTitle>{t("tx.receipt_label", { desc: tx.description })}</DialogTitle>
           </DialogHeader>

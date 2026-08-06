@@ -380,10 +380,22 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   // undefined = no local override; string[] = optimistic list
   const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
+  // Guard: on iOS, opening the native file picker blurs the Dialog and triggers
+  // onOpenChange(false) → onClose() → component unmounts → input is gone when
+  // the picker returns, so onChange never fires.  Block dialog close while the
+  // picker is in flight; reset (with delay) on window focus so the input's
+  // onChange fires before Radix's DismissableLayer can issue a second close.
+  const filePickerActiveRef = useRef(false);
 
   useEffect(() => {
     if (!open) { setLocalImages(undefined); setLightboxIdx(null); }
   }, [open]);
+
+  useEffect(() => {
+    const onFocus = () => { setTimeout(() => { filePickerActiveRef.current = false; }, 500); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   function serverImages(): string[] {
     if (Array.isArray(tx.receiptImages) && tx.receiptImages.length > 0) return tx.receiptImages;
@@ -411,6 +423,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   }}});
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    filePickerActiveRef.current = false; // picker has closed
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
@@ -436,8 +449,12 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
 
   return (
     <>
-      <Dialog open={open && lightboxIdx === null} onOpenChange={onClose}>
-        <DialogContent className="max-w-sm">
+      <Dialog open={open && lightboxIdx === null} onOpenChange={(o) => { if (!o && !filePickerActiveRef.current) onClose(); }}>
+        <DialogContent
+          className="max-w-sm"
+          onInteractOutside={(e) => { if (filePickerActiveRef.current) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (filePickerActiveRef.current) e.preventDefault(); }}
+        >
           <DialogHeader><DialogTitle>{t("home.receipt", { desc: tx.description })}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
@@ -484,7 +501,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
             )}
 
             <Button variant="outline" className="w-full gap-2"
-              onClick={() => libraryRef.current?.click()} disabled={isBusy || !canAddMore}
+              onClick={() => { filePickerActiveRef.current = true; libraryRef.current?.click(); }} disabled={isBusy || !canAddMore}
               data-testid="button-add-receipt">
               <Plus className="w-4 h-4" />
               {effectiveImages.length === 0 ? t("tx.add_receipt") : t("tx.add_another_receipt")}
