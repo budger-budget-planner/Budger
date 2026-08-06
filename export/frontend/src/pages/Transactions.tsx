@@ -455,7 +455,7 @@ function ReceiptModal({
       <Dialog open={open && !lightbox} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Receipt — {tx.description}</DialogTitle>
+            <DialogTitle>{t("tx.receipt_label", { desc: tx.description })}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -468,14 +468,14 @@ function ReceiptModal({
               <div className="relative group rounded-xl overflow-hidden border border-border">
                 <ReceiptImg
                   src={receiptSrc(effectiveReceiptImage)!}
-                  alt="Receipt"
+                  alt={t("tx.receipt_alt")}
                   className="w-full object-cover max-h-64 cursor-pointer"
                   onClick={() => setLightbox(true)}
                   data-testid="img-receipt"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                   <Button size="sm" variant="secondary" onClick={() => setLightbox(true)} className="gap-1.5">
-                    <ZoomIn className="w-3.5 h-3.5" /> View
+                    <ZoomIn className="w-3.5 h-3.5" /> {t("tx.view_receipt")}
                   </Button>
                   <Button
                     size="sm"
@@ -485,7 +485,7 @@ function ReceiptModal({
                     data-testid="button-delete-receipt"
                     className="gap-1.5 bg-destructive/10 text-destructive"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                    <Trash2 className="w-3.5 h-3.5" /> {t("tx.remove_receipt")}
                   </Button>
                 </div>
                 {(uploadReceipt.isPending || deleteReceipt.isPending) && (
@@ -497,7 +497,7 @@ function ReceiptModal({
             ) : (
               <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageOff className="w-8 h-8 opacity-40" />
-                <p className="text-sm text-center">No receipt attached yet.</p>
+                <p className="text-sm text-center">{t("tx.no_receipt")}</p>
               </div>
             )}
 
@@ -509,10 +509,10 @@ function ReceiptModal({
               data-testid="button-add-receipt"
             >
               <Plus className="w-4 h-4" />
-              {effectiveReceiptImage ? "Replace" : "Add"}
+              {effectiveReceiptImage ? t("tx.replace_receipt") : t("tx.add_receipt")}
             </Button>
 
-            <Button variant="ghost" className="w-full" onClick={onClose}>Done</Button>
+            <Button variant="ghost" className="w-full" onClick={onClose}>{t("tx.done")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -531,7 +531,7 @@ function ReceiptModal({
           </button>
           <ReceiptImg
             src={receiptSrc(effectiveReceiptImage)!}
-            alt="Receipt full size"
+            alt={t("tx.receipt_full_alt")}
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}
           />

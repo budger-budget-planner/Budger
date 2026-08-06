@@ -1051,6 +1051,13 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.add_btn":           { en: "Add",                                                pl: "Dodaj"                                                },
   "tx.receipt_label":     { en: "Receipt — {desc}",                                   pl: "Paragon — {desc}"                                     },
   "tx.no_receipt":        { en: "No receipt attached yet.",                           pl: "Brak paragonu."                                       },
+  "tx.add_receipt":       { en: "Add receipt",                                        pl: "Dodaj paragon"                                       },
+  "tx.replace_receipt":   { en: "Replace receipt",                                    pl: "Zastąp paragon"                                      },
+  "tx.receipt_alt":       { en: "Receipt",                                             pl: "Paragon"                                              },
+  "tx.receipt_full_alt":  { en: "Receipt full size",                                  pl: "Paragon w pełnym rozmiarze"                           },
+  "tx.view_receipt":      { en: "View",                                                pl: "Podgląd"                                              },
+  "tx.remove_receipt":    { en: "Remove",                                              pl: "Usuń"                                                 },
+  "tx.done":              { en: "Done",                                                pl: "Gotowe"                                              },
 
   // ── Currency conversion sheet ──
   "currency.title":          { en: "Change currency",                                 pl: "Zmień walutę"                                         },
