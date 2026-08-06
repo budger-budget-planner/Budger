@@ -128,12 +128,17 @@ function pollForTransform(
 export default function SplashScreen({
   onDone,
   onNavigate,
+  onFading,
 }: {
   onDone: (dest: "home" | "login" | "vanish") => void;
   /** Called as soon as the exit destination is known, BEFORE polling for DOM
    *  markers.  Use this to mount the destination page proactively so the
    *  markers exist by the time the polls fire. */
   onNavigate?: (dest: "home" | "login") => void;
+  /** Called the instant the splash starts its opacity-fade (t=1050ms after
+   *  seqDone).  Use this to make destination-page content visible so it fades
+   *  in simultaneously with the splash fading out — a seamless crossfade. */
+  onFading?: () => void;
 }) {
   // Intro + exit phase
   const [phase, setPhase] = useState<Phase>("bigText");
@@ -315,8 +320,8 @@ export default function SplashScreen({
       }
 
       setPhase("moving");
-      t1 = setTimeout(() => setPhase("fading"), 1050);
-      t2 = setTimeout(() => onDone(target),     1400);
+      t1 = setTimeout(() => { setPhase("fading"); onFading?.(); }, 1050);
+      t2 = setTimeout(() => onDone(target),                       1400);
     }
 
     // ── Startup delay before polling ─────────────────────────────────────────
