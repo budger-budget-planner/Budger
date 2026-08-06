@@ -390,10 +390,23 @@ function ReceiptModal({
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   // undefined = no local override (use server data); string[] = optimistic list
   const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
+  // Guard: on iOS, opening the native file picker blurs the Dialog and triggers
+  // onOpenChange(false) → onClose() → component unmounts → input is gone when
+  // the picker returns, so onChange never fires.  Block dialog close while the
+  // picker is in flight; reset on window focus (picker closed, any outcome).
+  const filePickerActiveRef = useRef(false);
 
   useEffect(() => {
     if (!open) { setLocalImages(undefined); setLightboxIdx(null); }
   }, [open]);
+
+  // Reset the file-picker guard whenever the window regains focus
+  // (covers both "file selected" and "picker cancelled" paths on iOS).
+  useEffect(() => {
+    const onFocus = () => { filePickerActiveRef.current = false; };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   // Derive the canonical list from server data, with local optimistic override.
   function serverImages(): string[] {
@@ -430,6 +443,7 @@ function ReceiptModal({
   });
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    filePickerActiveRef.current = false; // picker has closed
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
@@ -455,7 +469,7 @@ function ReceiptModal({
 
   return (
     <>
-      <Dialog open={open && lightboxIdx === null} onOpenChange={onClose}>
+      <Dialog open={open && lightboxIdx === null} onOpenChange={(o) => { if (!o && !filePickerActiveRef.current) onClose(); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>{t("tx.receipt_label", { desc: tx.description })}</DialogTitle>
@@ -511,7 +525,7 @@ function ReceiptModal({
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => libraryRef.current?.click()}
+              onClick={() => { filePickerActiveRef.current = true; libraryRef.current?.click(); }}
               disabled={isOffline || isBusy || !canAddMore}
               data-testid="button-add-receipt"
             >
