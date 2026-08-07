@@ -64,9 +64,7 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
         </div>
         <div
           className={`relative z-10 ${
-            shufflePhase === "out"
-              ? "larder-stack-shuffle-out"
-              : ""
+            shufflePhase === "out" ? "larder-stack-shuffle-out" : ""
           }`}
         >
           {children}
@@ -169,34 +167,58 @@ export function SavingsBucketStack({
     shuffleTimers.current = [];
     setShufflePhase("out");
 
-    shuffleTimers.current.push(setTimeout(() => {
-      setVisibleBucket(nextBucket);
-      onBucketChange(nextBucket);
-      setShufflePhase("idle");
-    }, 300));
+    // Keep the outgoing surface mounted until it has fully slipped behind the
+    // rear preview. The preview already contains the next bucket's live face,
+    // so swapping the front state early would flash the same card through the
+    // outgoing animation.
+    shuffleTimers.current.push(
+      setTimeout(() => {
+        setVisibleBucket(nextBucket);
+        onBucketChange(nextBucket);
+        setShufflePhase("idle");
+      }, 390),
+    );
 
-    shuffleTimers.current.push(setTimeout(() => {
-      shuffleTimers.current = [];
-    }, 320));
+    shuffleTimers.current.push(
+      setTimeout(() => {
+        shuffleTimers.current = [];
+      }, 410),
+    );
   }
 
   return (
     <>
       <style>{`
         @keyframes larderStackShuffleOut {
-          0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
-           32% { opacity: .88; transform: translate3d(18px, 8px, 0) rotate(3deg) scale(.98); }
-           70% { opacity: .38; transform: translate3d(-22px, 26px, 0) rotate(-4deg) scale(.95); }
-           100% { opacity: 0; transform: translate3d(-34px, 38px, 0) rotate(-6deg) scale(.91); }
+           0% {
+             opacity: 1;
+             transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+           }
+           24% {
+             opacity: 1;
+             transform: translate3d(8px, 2px, 0) rotate(0.8deg) scale(.99);
+           }
+           55% {
+             opacity: .86;
+             transform: translate3d(18px, 15px, 0) rotate(2.2deg) scale(.965);
+           }
+           82% {
+             opacity: .36;
+             transform: translate3d(12px, 29px, 0) rotate(1.8deg) scale(.93);
+           }
+           100% {
+             opacity: 0;
+             transform: translate3d(4px, 35px, 0) rotate(1deg) scale(.91);
+           }
         }
         .larder-stack-shuffle-out {
-           transform-origin: 50% 50%;
+           transform-origin: 50% 0%;
           will-change: transform, opacity;
-           animation: larderStackShuffleOut 280ms cubic-bezier(.4, 0, .7, 1) both;
+           animation: larderStackShuffleOut 380ms cubic-bezier(.32, .02, .7, 1) both;
         }
         @media (prefers-reduced-motion: reduce) {
            .larder-stack-shuffle-out {
-            animation: none;
+             animation: larderStackShuffleOut 1ms linear both;
           }
         }
       `}</style>
