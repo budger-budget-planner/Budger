@@ -22,3 +22,4 @@
 - [Account-scoped privacy controls](account-scoped-privacy-controls.md) — user-specific consent keys and sensitive exports must bypass URL-only service-worker caching
 - [Splash→login black spinner fix](splash-login-spinner.md) — two confirmed splash bugs: (1) login-enter CSS anim shifts markers 18px during polling → wrong glide target; (2) slow backend causes spinner after splash — fix: navigate("/login") before setSplashDone
 - [Export GitHub push workflow](export-github-push.md) — production fixes ship from export/ via origin/main; fetch/rebase before retrying a non-fast-forward push
+- [Larder bucket waiting rooms](larder-bucket-waiting-room.md) — incoming personal and household deposits stay unassigned until explicit card allocation

@@ -19,6 +19,8 @@ import type {
 import type {
   AddLarderEntryBody,
   ApplyRecurringPaymentBody,
+  AssignGreatLarderFundsBody,
+  AssignLarderFundsBody,
   BudgetStretch,
   BudgetStretchInput,
   Category,
@@ -5872,6 +5874,92 @@ export const useAddLarderEntry = <
 };
 
 /**
+ * @summary Move funds from the personal Larder waiting room into a savings bucket
+ */
+export const getAssignLarderFundsUrl = () => {
+  return `/api/larder/assign`;
+};
+
+export const assignLarderFunds = async (
+  assignLarderFundsBody: AssignLarderFundsBody,
+  options?: RequestInit,
+): Promise<LarderEntry> => {
+  return customFetch<LarderEntry>(getAssignLarderFundsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignLarderFundsBody),
+  });
+};
+
+export const getAssignLarderFundsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignLarderFunds>>,
+    TError,
+    { data: BodyType<AssignLarderFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignLarderFunds>>,
+  TError,
+  { data: BodyType<AssignLarderFundsBody> },
+  TContext
+> => {
+  const mutationKey = ["assignLarderFunds"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignLarderFunds>>,
+    { data: BodyType<AssignLarderFundsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return assignLarderFunds(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignLarderFundsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignLarderFunds>>
+>;
+export type AssignLarderFundsMutationBody = BodyType<AssignLarderFundsBody>;
+export type AssignLarderFundsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Move funds from the personal Larder waiting room into a savings bucket
+ */
+export const useAssignLarderFunds = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignLarderFunds>>,
+    TError,
+    { data: BodyType<AssignLarderFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignLarderFunds>>,
+  TError,
+  { data: BodyType<AssignLarderFundsBody> },
+  TContext
+> => {
+  return useMutation(getAssignLarderFundsMutationOptions(options));
+};
+
+/**
  * @summary Delete one of the current user's own Larder entries
  */
 export const getDeleteLarderEntryUrl = (id: number) => {
@@ -6373,6 +6461,93 @@ export const useSendToGreatLarder = <
   TContext
 > => {
   return useMutation(getSendToGreatLarderMutationOptions(options));
+};
+
+/**
+ * @summary Head assigns approved Great Larder waiting-room funds to a savings bucket
+ */
+export const getAssignGreatLarderFundsUrl = () => {
+  return `/api/great-larder/assign`;
+};
+
+export const assignGreatLarderFunds = async (
+  assignGreatLarderFundsBody: AssignGreatLarderFundsBody,
+  options?: RequestInit,
+): Promise<GreatLarderEntry> => {
+  return customFetch<GreatLarderEntry>(getAssignGreatLarderFundsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignGreatLarderFundsBody),
+  });
+};
+
+export const getAssignGreatLarderFundsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignGreatLarderFunds>>,
+    TError,
+    { data: BodyType<AssignGreatLarderFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignGreatLarderFunds>>,
+  TError,
+  { data: BodyType<AssignGreatLarderFundsBody> },
+  TContext
+> => {
+  const mutationKey = ["assignGreatLarderFunds"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignGreatLarderFunds>>,
+    { data: BodyType<AssignGreatLarderFundsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return assignGreatLarderFunds(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignGreatLarderFundsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignGreatLarderFunds>>
+>;
+export type AssignGreatLarderFundsMutationBody =
+  BodyType<AssignGreatLarderFundsBody>;
+export type AssignGreatLarderFundsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Head assigns approved Great Larder waiting-room funds to a savings bucket
+ */
+export const useAssignGreatLarderFunds = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignGreatLarderFunds>>,
+    TError,
+    { data: BodyType<AssignGreatLarderFundsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignGreatLarderFunds>>,
+  TError,
+  { data: BodyType<AssignGreatLarderFundsBody> },
+  TContext
+> => {
+  return useMutation(getAssignGreatLarderFundsMutationOptions(options));
 };
 
 /**

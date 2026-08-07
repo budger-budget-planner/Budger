@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GreatLarderEntry } from "./greatLarderEntry";
+import type { GreatLarderSummaryBucketsItem } from "./greatLarderSummaryBucketsItem";
 import type { GreatLarderSummaryCurrencyBreakdownItem } from "./greatLarderSummaryCurrencyBreakdownItem";
+import type { GreatLarderSummaryUnassigned } from "./greatLarderSummaryUnassigned";
 
 export interface GreatLarderSummary {
   total: number;
@@ -14,4 +16,6 @@ export interface GreatLarderSummary {
   entries: GreatLarderEntry[];
   pendingCount: number;
   currencyBreakdown?: GreatLarderSummaryCurrencyBreakdownItem[];
+  buckets: GreatLarderSummaryBucketsItem[];
+  unassigned: GreatLarderSummaryUnassigned;
 }

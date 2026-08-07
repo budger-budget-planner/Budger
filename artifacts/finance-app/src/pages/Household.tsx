@@ -46,6 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
+import { SavingsBucketStack, type SavingsBucket } from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -666,13 +667,23 @@ export default function HouseholdPage() {
   const [glDedicateAmt,     setGlDedicateAmt]     = useState("");
   const [glDedicateAsset,   setGlDedicateAsset]   = useState("");
   const [glDedicateLoading, setGlDedicateLoading] = useState(false);
+  const [glActiveBucket,    setGlActiveBucket]    = useState<SavingsBucket>("soft_savings");
+  const [glAssignOpen,      setGlAssignOpen]      = useState(false);
+  const [glAssignBucket,    setGlAssignBucket]   = useState<SavingsBucket>("soft_savings");
+  const [glAssignAmount,    setGlAssignAmount]   = useState("");
+  const [glAssignCurrency,  setGlAssignCurrency] = useState("");
+  const [glAssignLoading,   setGlAssignLoading]  = useState(false);
 
   const greatLarderRef = useRef<HTMLDivElement>(null);
   const [glVisible, setGlVisible] = useState(false);
 
-  const glAssetOpts = assetOptions(greatLarder?.currencyBreakdown ?? []);
-  const glFundAssetBalance = glAssetOpts.find(a => a.currency === glFundAsset)?.rawTotal ?? (greatLarder?.total ?? 0);
-  const glDedicateAssetBalance = glAssetOpts.find(a => a.currency === glDedicateAsset)?.rawTotal ?? (greatLarder?.total ?? 0);
+  const glBucketSummaries = greatLarder?.buckets ?? [];
+  const glActiveSummary = glBucketSummaries.find((b: any) => b.bucket === glActiveBucket);
+  const glAssetOpts = assetOptions(glActiveSummary?.currencyBreakdown ?? []);
+  const glUnassignedAssetOpts = assetOptions(greatLarder?.unassigned?.currencyBreakdown ?? []);
+  const glFundAssetBalance = glAssetOpts.find(a => a.currency === glFundAsset)?.rawTotal ?? (glActiveSummary?.total ?? 0);
+  const glDedicateAssetBalance = glAssetOpts.find(a => a.currency === glDedicateAsset)?.rawTotal ?? (glActiveSummary?.total ?? 0);
+  const glAssignAssetBalance = glUnassignedAssetOpts.find(a => a.currency === glAssignCurrency)?.rawTotal ?? 0;
 
   useEffect(() => {
     if (glFundOpen && glAssetOpts.length > 0 && !glAssetOpts.some(a => a.currency === glFundAsset)) {
@@ -684,6 +695,11 @@ export default function HouseholdPage() {
       setGlDedicateAsset(glAssetOpts[0].currency);
     }
   }, [glDedicateOpen, glAssetOpts]);
+  useEffect(() => {
+    if (glAssignOpen && glUnassignedAssetOpts.length > 0 && !glUnassignedAssetOpts.some(a => a.currency === glAssignCurrency)) {
+      setGlAssignCurrency(glUnassignedAssetOpts[0].currency);
+    }
+  }, [glAssignOpen, glUnassignedAssetOpts]);
 
   async function handleGlFund(e: React.FormEvent) {
     e.preventDefault();
@@ -695,7 +711,7 @@ export default function HouseholdPage() {
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: glFundDesc.trim(), amount: amt, assetCurrency: glFundAsset || undefined }),
+        body: JSON.stringify({ description: glFundDesc.trim(), amount: amt, bucket: glActiveBucket, assetCurrency: glFundAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       setGlFundOpen(false); setGlFundDesc(""); setGlFundAmt("");
@@ -716,7 +732,7 @@ export default function HouseholdPage() {
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/dedicate-to-goal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt, assetCurrency: glDedicateAsset || undefined }),
+        body: JSON.stringify({ goalId: glDedicateGoalId, amount: amt, bucket: glActiveBucket, assetCurrency: glDedicateAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       setGlDedicateOpen(false); setGlDedicateGoalId(null); setGlDedicateAmt("");
@@ -744,6 +760,33 @@ export default function HouseholdPage() {
       });
       refetchGL();
     } finally { setGlApproving(null); }
+  }
+
+  async function handleGlAssign(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(glAssignAmount.replace(",", "."));
+    if (!iAmHead || isNaN(amount) || amount <= 0 || !glAssignCurrency) return;
+    if (amount > glAssignAssetBalance + 0.005) return;
+    setGlAssignLoading(true);
+    try {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency: glAssignCurrency, bucket: glAssignBucket }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d?.error ?? "Failed");
+      }
+      await refetchGL();
+      setGlAssignOpen(false);
+      setGlAssignAmount("");
+      setGlAssignCurrency("");
+    } catch (err: any) {
+      alert(err.message ?? t("common.error"));
+    } finally {
+      setGlAssignLoading(false);
+    }
   }
 
   async function handleRequestHead() {
@@ -1651,19 +1694,40 @@ export default function HouseholdPage() {
                   </div>
                 </div>
 
-                {/* Total */}
+                 {/* Three-card household savings stack */}
+                 <SavingsBucketStack
+                   summaries={glBucketSummaries}
+                   activeBucket={glActiveBucket}
+                   onBucketChange={setGlActiveBucket}
+                   currency={greatLarder?.currency ?? prefs.currency}
+                 />
+                 <button
+                   type="button"
+                   onClick={() => setGlAssignOpen(true)}
+                   disabled={!iAmHead || !greatLarder || (greatLarder.unassigned?.total ?? 0) <= 0}
+                   className="w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+                 >
+                   <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+                   <p className="text-[11px] text-white/35">
+                     {fmtAmt(greatLarder?.unassigned?.total ?? 0, greatLarder?.currency ?? prefs.currency)} ·{" "}
+                     {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
+                   </p>
+                 </button>
+
+                 {/* Active card balance */}
                 <div className="text-center py-2">
                   {greatLarder ? (
                     <>
-                      <p className="text-4xl font-bold tracking-tight text-white"
+                       <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{t("larder.available_in_card")}</p>
+                       <p className="text-4xl font-bold tracking-tight text-white"
                         style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
-                        <AmtHero amount={greatLarder.total} currency={greatLarder.currency} />
+                         <AmtHero amount={glActiveSummary?.total ?? 0} currency={greatLarder.currency} />
                       </p>
                       {/* Currency breakdown — shown when savings span multiple currencies */}
                       {(() => {
                         const prefs = loadPrefs();
-                        const breakdown: { currency: string; rawTotal: number }[] = greatLarder.currencyBreakdown ?? [];
-                        const ordered = orderedBreakdown(breakdown, greatLarder.currency, prefs.language);
+                         const breakdown: { currency: string; rawTotal: number }[] = glActiveSummary?.currencyBreakdown ?? [];
+                         const ordered = orderedBreakdown(breakdown, greatLarder.currency, prefs.language);
                         if (ordered.length === 0) return null;
                         if (ordered.length === 1) {
                           return (
@@ -1692,7 +1756,7 @@ export default function HouseholdPage() {
                 <div className={`grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
                   <button
                     onClick={() => setGlFundOpen(true)}
-                    disabled={!greatLarder || greatLarder.total <= 0}
+                     disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
                     className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
                   >
                     <PiggyBank className="w-4 h-4" />
@@ -1702,7 +1766,7 @@ export default function HouseholdPage() {
                   {iAmHead && (
                     <button
                       onClick={() => setGlDedicateOpen(true)}
-                      disabled={!greatLarder || greatLarder.total <= 0}
+                       disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
                       className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
                     >
                       <Users className="w-4 h-4" />
@@ -2011,6 +2075,63 @@ export default function HouseholdPage() {
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
           >
             {glLoading ? t("gl.submitting") : iAmHead ? t("gl.fund_btn") : t("gl.request_btn")}
+          </button>
+        </form>
+      </GlSheet>
+
+      {/* ── Great Larder: Head assigns waiting-room funds ── */}
+      <GlSheet
+        title={t("larder.assign_title")}
+        open={glAssignOpen}
+        onClose={() => { setGlAssignOpen(false); setGlAssignAmount(""); }}
+      >
+        <form onSubmit={handleGlAssign} className="space-y-4">
+          <div className="space-y-2">
+            <label className={glLabelCls}>{t("larder.assign_to")}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["soft_savings", "hard_savings", "investments"] as const).map(bucket => (
+                <button
+                  key={bucket}
+                  type="button"
+                  onClick={() => setGlAssignBucket(bucket)}
+                  className={`rounded-xl border px-2 py-2.5 text-[11px] font-medium transition ${
+                    glAssignBucket === bucket
+                      ? "border-white/40 bg-white/10 text-white"
+                      : "border-white/10 bg-white/3 text-white/45"
+                  }`}
+                >
+                  {t(`larder.bucket_${bucket}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <AssetSelect options={glUnassignedAssetOpts} value={glAssignCurrency} onChange={setGlAssignCurrency} />
+          <div className="space-y-1.5">
+            <label className={glLabelCls}>
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}:{" "}
+              {fmtAmt(glAssignAssetBalance, glAssignCurrency || (greatLarder?.currency ?? ""))}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="0.00"
+              value={glAssignAmount}
+              onChange={e => setGlAssignAmount(e.target.value)}
+              required
+              className={glInputCls}
+              autoFocus
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={glAssignLoading || !glAssignCurrency || (() => {
+              const amount = parseFloat(glAssignAmount.replace(",", "."));
+              return isNaN(amount) || amount <= 0 || amount > glAssignAssetBalance + 0.005;
+            })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {glAssignLoading ? "…" : t("larder.assign")}
           </button>
         </form>
       </GlSheet>

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@/lib/api-client";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
+import { SavingsBucketStack } from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -623,26 +624,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
           </div>
 
-          {/* Savings buckets — every action below applies to the selected card. */}
-          <div className="grid grid-cols-3 gap-2">
-            {BUCKETS.map(bucket => {
-              const summary = bucketSummaries.find(b => b.bucket === bucket);
-              const selected = activeBucket === bucket;
-              return (
-                <button
-                  key={bucket}
-                  type="button"
-                  onClick={() => setActiveBucket(bucket)}
-                  className={`rounded-2xl border px-2 py-3 text-left transition ${
-                    selected ? "border-white/45 bg-white/10" : "border-white/10 bg-white/3"
-                  }`}
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">{bucketLabel(bucket)}</p>
-                  <p className="mt-1 text-sm font-semibold tabular-nums text-white/85">{fmtAmt(summary?.total ?? 0, prefs.currency)}</p>
-                </button>
-              );
-            })}
-          </div>
+          {/* The active card controls which bucket the actions below use. */}
+          <SavingsBucketStack
+            summaries={bucketSummaries}
+            activeBucket={activeBucket}
+            onBucketChange={setActiveBucket}
+            currency={prefs.currency}
+          />
           <button
             type="button"
             onClick={() => setAssignOpen(true)}
@@ -655,7 +643,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
 
           {/* Balance */}
           <div className="text-center py-1">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{bucketLabel(activeBucket)}</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{t("larder.available_in_card")}</p>
             <p
               className="text-5xl font-bold tracking-tight text-white tabular-nums"
               style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}

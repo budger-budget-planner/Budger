@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { LarderEntryBucket } from "./larderEntryBucket";
 
 export interface LarderEntry {
   id: number;
@@ -19,4 +20,6 @@ export interface LarderEntry {
   /** @nullable */
   note: string | null;
   createdAt: string;
+  /** @nullable */
+  bucket: LarderEntryBucket;
 }

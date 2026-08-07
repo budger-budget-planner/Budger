@@ -1327,9 +1327,41 @@ paths:
                   type: ["integer", "null"]
                 note:
                   type: ["string", "null"]
+                bucket:
+                  type: ["string", "null"]
+                  enum: [soft_savings, hard_savings, investments, null]
       responses:
         "201":
           description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LarderEntry"
+
+  /larder/assign:
+    post:
+      operationId: assignLarderFunds
+      tags: [larder]
+      summary: Move funds from the personal Larder waiting room into a savings bucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, bucket]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+                currency:
+                  type: string
+                bucket:
+                  type: string
+                  enum: [soft_savings, hard_savings, investments]
+      responses:
+        "201":
+          description: Assigned Larder entry
           content:
             application/json:
               schema:
@@ -1405,6 +1437,9 @@ paths:
                 assetCurrency:
                   type: string
                   description: Which currency sub-balance ("Asset") in the Larder to debit. Optional if only one currency has a balance.
+                bucket:
+                  type: string
+                  enum: [soft_savings, hard_savings, investments]
       responses:
         "201":
           description: Contribution created
@@ -1497,9 +1532,41 @@ paths:
                 assetCurrency:
                   type: string
                   description: Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance.
+                bucket:
+                  type: string
+                  enum: [soft_savings, hard_savings, investments]
       responses:
         "201":
           description: Great Larder entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreatLarderEntry"
+
+  /great-larder/assign:
+    post:
+      operationId: assignGreatLarderFunds
+      tags: [greatLarder]
+      summary: Head assigns approved Great Larder waiting-room funds to a savings bucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, bucket]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+                currency:
+                  type: string
+                bucket:
+                  type: string
+                  enum: [soft_savings, hard_savings, investments]
+      responses:
+        "201":
+          description: Assigned Great Larder entry
           content:
             application/json:
               schema:
@@ -2900,7 +2967,10 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
-      required: [id, userId, amount, currency, sourceType, sourceId, goalId, note, createdAt]
+        bucket:
+          type: ["string", "null"]
+          enum: [soft_savings, hard_savings, investments, null]
+      required: [id, userId, amount, currency, sourceType, sourceId, goalId, note, createdAt, bucket]
 
     LarderSummary:
       type: object
@@ -2949,9 +3019,12 @@ components:
           type: ["integer", "null"]
         note:
           type: ["string", "null"]
+        bucket:
+          type: ["string", "null"]
+          enum: [soft_savings, hard_savings, investments, null]
         createdAt:
           type: string
-      required: [id, householdId, contributedByUserId, contributorName, amount, currency, sourceType, status, transactionId, note, createdAt]
+      required: [id, householdId, contributedByUserId, contributorName, amount, currency, sourceType, status, transactionId, note, createdAt, bucket]
 
     GreatLarderSummary:
       type: object
@@ -2976,7 +3049,44 @@ components:
               rawTotal:
                 type: number
             required: [currency, rawTotal]
-      required: [total, currency, entries, pendingCount]
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              bucket:
+                type: string
+                enum: [soft_savings, hard_savings, investments]
+              total:
+                type: number
+              currencyBreakdown:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    currency:
+                      type: string
+                    rawTotal:
+                      type: number
+                  required: [currency, rawTotal]
+            required: [bucket, total, currencyBreakdown]
+        unassigned:
+          type: object
+          properties:
+            total:
+              type: number
+            currencyBreakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  currency:
+                    type: string
+                  rawTotal:
+                    type: number
+                required: [currency, rawTotal]
+          required: [total, currencyBreakdown]
+      required: [total, currency, entries, pendingCount, buckets, unassigned]
 
     BudgetStretch:
       type: object

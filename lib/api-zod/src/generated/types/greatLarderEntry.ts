@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { GreatLarderEntryBucket } from "./greatLarderEntryBucket";
 import type { GreatLarderEntryStatus } from "./greatLarderEntryStatus";
 
 export interface GreatLarderEntry {
@@ -20,5 +21,7 @@ export interface GreatLarderEntry {
   transactionId: number | null;
   /** @nullable */
   note: string | null;
+  /** @nullable */
+  bucket: GreatLarderEntryBucket;
   createdAt: string;
 }

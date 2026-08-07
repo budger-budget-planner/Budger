@@ -668,6 +668,19 @@ export interface RecurringPaymentUpdate {
   addToLarder?: boolean;
 }
 
+/**
+ * @nullable
+ */
+export type LarderEntryBucket =
+  | (typeof LarderEntryBucket)[keyof typeof LarderEntryBucket]
+  | null;
+
+export const LarderEntryBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
 export interface LarderEntry {
   id: number;
   userId: number;
@@ -681,6 +694,8 @@ export interface LarderEntry {
   /** @nullable */
   note: string | null;
   createdAt: string;
+  /** @nullable */
+  bucket: LarderEntryBucket;
 }
 
 export type LarderSummaryCurrencyBreakdownItem = {
@@ -704,6 +719,19 @@ export const GreatLarderEntryStatus = {
   rejected: "rejected",
 } as const;
 
+/**
+ * @nullable
+ */
+export type GreatLarderEntryBucket =
+  | (typeof GreatLarderEntryBucket)[keyof typeof GreatLarderEntryBucket]
+  | null;
+
+export const GreatLarderEntryBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
 export interface GreatLarderEntry {
   id: number;
   householdId: number;
@@ -717,6 +745,8 @@ export interface GreatLarderEntry {
   transactionId: number | null;
   /** @nullable */
   note: string | null;
+  /** @nullable */
+  bucket: GreatLarderEntryBucket;
   createdAt: string;
 }
 
@@ -725,12 +755,44 @@ export type GreatLarderSummaryCurrencyBreakdownItem = {
   rawTotal: number;
 };
 
+export type GreatLarderSummaryBucketsItemBucket =
+  (typeof GreatLarderSummaryBucketsItemBucket)[keyof typeof GreatLarderSummaryBucketsItemBucket];
+
+export const GreatLarderSummaryBucketsItemBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
+export type GreatLarderSummaryBucketsItemCurrencyBreakdownItem = {
+  currency: string;
+  rawTotal: number;
+};
+
+export type GreatLarderSummaryBucketsItem = {
+  bucket: GreatLarderSummaryBucketsItemBucket;
+  total: number;
+  currencyBreakdown: GreatLarderSummaryBucketsItemCurrencyBreakdownItem[];
+};
+
+export type GreatLarderSummaryUnassignedCurrencyBreakdownItem = {
+  currency: string;
+  rawTotal: number;
+};
+
+export type GreatLarderSummaryUnassigned = {
+  total: number;
+  currencyBreakdown: GreatLarderSummaryUnassignedCurrencyBreakdownItem[];
+};
+
 export interface GreatLarderSummary {
   total: number;
   currency: string;
   entries: GreatLarderEntry[];
   pendingCount: number;
   currencyBreakdown?: GreatLarderSummaryCurrencyBreakdownItem[];
+  buckets: GreatLarderSummaryBucketsItem[];
+  unassigned: GreatLarderSummaryUnassigned;
 }
 
 export type BudgetStretchInputStretchType =
@@ -804,6 +866,19 @@ export type ApplyRecurringPaymentBody = {
   date?: string;
 };
 
+/**
+ * @nullable
+ */
+export type AddLarderEntryBodyBucket =
+  | (typeof AddLarderEntryBodyBucket)[keyof typeof AddLarderEntryBodyBucket]
+  | null;
+
+export const AddLarderEntryBodyBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
 export type AddLarderEntryBody = {
   /** @minimum 0.01 */
   amount: number;
@@ -815,6 +890,24 @@ export type AddLarderEntryBody = {
   goalId?: number | null;
   /** @nullable */
   note?: string | null;
+  /** @nullable */
+  bucket?: AddLarderEntryBodyBucket;
+};
+
+export type AssignLarderFundsBodyBucket =
+  (typeof AssignLarderFundsBodyBucket)[keyof typeof AssignLarderFundsBodyBucket];
+
+export const AssignLarderFundsBodyBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
+export type AssignLarderFundsBody = {
+  /** @minimum 0.01 */
+  amount: number;
+  currency: string;
+  bucket: AssignLarderFundsBodyBucket;
 };
 
 export type LarderSaveFromGoalBody = {
@@ -829,12 +922,22 @@ export type LarderSaveFromGoal201 = {
   newLarderTotal: number;
 };
 
+export type LarderDedicateToGoalBodyBucket =
+  (typeof LarderDedicateToGoalBodyBucket)[keyof typeof LarderDedicateToGoalBodyBucket];
+
+export const LarderDedicateToGoalBodyBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
 export type LarderDedicateToGoalBody = {
   goalId: number;
   /** @minimum 0.01 */
   amount: number;
   /** Which currency sub-balance ("Asset") in the Larder to debit. Optional if only one currency has a balance. */
   assetCurrency?: string;
+  bucket?: LarderDedicateToGoalBodyBucket;
 };
 
 export type LarderDedicateToGoal201 = {
@@ -860,6 +963,15 @@ export type LarderFund201 = {
   larderAmount: number;
 };
 
+export type SendToGreatLarderBodyBucket =
+  (typeof SendToGreatLarderBodyBucket)[keyof typeof SendToGreatLarderBodyBucket];
+
+export const SendToGreatLarderBodyBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
 export type SendToGreatLarderBody = {
   /** @minimum 0.01 */
   amount?: number;
@@ -870,6 +982,23 @@ export type SendToGreatLarderBody = {
   percent?: number;
   /** Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance. */
   assetCurrency?: string;
+  bucket?: SendToGreatLarderBodyBucket;
+};
+
+export type AssignGreatLarderFundsBodyBucket =
+  (typeof AssignGreatLarderFundsBodyBucket)[keyof typeof AssignGreatLarderFundsBodyBucket];
+
+export const AssignGreatLarderFundsBodyBucket = {
+  soft_savings: "soft_savings",
+  hard_savings: "hard_savings",
+  investments: "investments",
+} as const;
+
+export type AssignGreatLarderFundsBody = {
+  /** @minimum 0.01 */
+  amount: number;
+  currency: string;
+  bucket: AssignGreatLarderFundsBodyBucket;
 };
 
 export type FundGreatLarderBody = {

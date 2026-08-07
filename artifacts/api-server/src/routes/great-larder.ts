@@ -213,6 +213,8 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
+  // `bucket` identifies the personal Larder card to debit. The incoming Great
+  // Larder contribution intentionally has no bucket until the Head assigns it.
   const { amount: rawAmount, percent, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
@@ -273,6 +275,7 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
     currency: assetCurrency,
     sourceType: "member_transfer",
     status: "approved",
+    bucket: null,
     note: "From personal Larder",
   }).returning();
 

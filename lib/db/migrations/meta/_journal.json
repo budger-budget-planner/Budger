@@ -64,6 +64,13 @@
       "when": 1785186700000,
       "tag": "0008_budget_stretch_optional_tx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786093016830,
+      "tag": "0009_freezing_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }

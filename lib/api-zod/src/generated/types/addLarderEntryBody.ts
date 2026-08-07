@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddLarderEntryBodyBucket } from "./addLarderEntryBodyBucket";
 
 export type AddLarderEntryBody = {
   /** @minimum 0.01 */
@@ -17,4 +18,6 @@ export type AddLarderEntryBody = {
   goalId?: number | null;
   /** @nullable */
   note?: string | null;
+  /** @nullable */
+  bucket?: AddLarderEntryBodyBucket;
 };

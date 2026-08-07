@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { LarderDedicateToGoalBodyBucket } from "./larderDedicateToGoalBodyBucket";
 
 export type LarderDedicateToGoalBody = {
   goalId: number;
@@ -12,4 +13,5 @@ export type LarderDedicateToGoalBody = {
   amount: number;
   /** Which currency sub-balance ("Asset") in the Larder to debit. Optional if only one currency has a balance. */
   assetCurrency?: string;
+  bucket?: LarderDedicateToGoalBodyBucket;
 };

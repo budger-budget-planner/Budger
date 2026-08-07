@@ -5,6 +5,7 @@
  * Finance Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { SendToGreatLarderBodyBucket } from "./sendToGreatLarderBodyBucket";
 
 export type SendToGreatLarderBody = {
   /** @minimum 0.01 */
@@ -16,4 +17,5 @@ export type SendToGreatLarderBody = {
   percent?: number;
   /** Which currency sub-balance ("Asset") in the personal Larder to debit. Optional if only one currency has a balance. */
   assetCurrency?: string;
+  bucket?: SendToGreatLarderBodyBucket;
 };

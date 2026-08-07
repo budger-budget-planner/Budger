@@ -1846,6 +1846,14 @@ export const GetLarderResponse = zod.object({
       goalId: zod.number().nullable(),
       note: zod.string().nullable(),
       createdAt: zod.string(),
+      bucket: zod
+        .union([
+          zod.literal("soft_savings"),
+          zod.literal("hard_savings"),
+          zod.literal("investments"),
+          zod.literal(null),
+        ])
+        .nullable(),
     }),
   ),
   currencyBreakdown: zod
@@ -1870,6 +1878,25 @@ export const AddLarderEntryBody = zod.object({
   sourceId: zod.number().nullish(),
   goalId: zod.number().nullish(),
   note: zod.string().nullish(),
+  bucket: zod
+    .union([
+      zod.literal("soft_savings"),
+      zod.literal("hard_savings"),
+      zod.literal("investments"),
+      zod.literal(null),
+    ])
+    .nullish(),
+});
+
+/**
+ * @summary Move funds from the personal Larder waiting room into a savings bucket
+ */
+export const assignLarderFundsBodyAmountMin = 0.01;
+
+export const AssignLarderFundsBody = zod.object({
+  amount: zod.number().min(assignLarderFundsBodyAmountMin),
+  currency: zod.string(),
+  bucket: zod.enum(["soft_savings", "hard_savings", "investments"]),
 });
 
 /**
@@ -1903,6 +1930,7 @@ export const LarderDedicateToGoalBody = zod.object({
     .describe(
       'Which currency sub-balance (\"Asset\") in the Larder to debit. Optional if only one currency has a balance.',
     ),
+  bucket: zod.enum(["soft_savings", "hard_savings", "investments"]).optional(),
 });
 
 /**
@@ -1938,6 +1966,14 @@ export const GetGreatLarderResponse = zod.object({
       status: zod.enum(["pending", "approved", "rejected"]),
       transactionId: zod.number().nullable(),
       note: zod.string().nullable(),
+      bucket: zod
+        .union([
+          zod.literal("soft_savings"),
+          zod.literal("hard_savings"),
+          zod.literal("investments"),
+          zod.literal(null),
+        ])
+        .nullable(),
       createdAt: zod.string(),
     }),
   ),
@@ -1950,6 +1986,27 @@ export const GetGreatLarderResponse = zod.object({
       }),
     )
     .optional(),
+  buckets: zod.array(
+    zod.object({
+      bucket: zod.enum(["soft_savings", "hard_savings", "investments"]),
+      total: zod.number(),
+      currencyBreakdown: zod.array(
+        zod.object({
+          currency: zod.string(),
+          rawTotal: zod.number(),
+        }),
+      ),
+    }),
+  ),
+  unassigned: zod.object({
+    total: zod.number(),
+    currencyBreakdown: zod.array(
+      zod.object({
+        currency: zod.string(),
+        rawTotal: zod.number(),
+      }),
+    ),
+  }),
 });
 
 /**
@@ -1968,6 +2025,18 @@ export const SendToGreatLarderBody = zod.object({
     .describe(
       'Which currency sub-balance (\"Asset\") in the personal Larder to debit. Optional if only one currency has a balance.',
     ),
+  bucket: zod.enum(["soft_savings", "hard_savings", "investments"]).optional(),
+});
+
+/**
+ * @summary Head assigns approved Great Larder waiting-room funds to a savings bucket
+ */
+export const assignGreatLarderFundsBodyAmountMin = 0.01;
+
+export const AssignGreatLarderFundsBody = zod.object({
+  amount: zod.number().min(assignGreatLarderFundsBodyAmountMin),
+  currency: zod.string(),
+  bucket: zod.enum(["soft_savings", "hard_savings", "investments"]),
 });
 
 /**
@@ -2003,6 +2072,14 @@ export const ApproveGreatLarderEntryResponse = zod.object({
   status: zod.enum(["pending", "approved", "rejected"]),
   transactionId: zod.number().nullable(),
   note: zod.string().nullable(),
+  bucket: zod
+    .union([
+      zod.literal("soft_savings"),
+      zod.literal("hard_savings"),
+      zod.literal("investments"),
+      zod.literal(null),
+    ])
+    .nullable(),
   createdAt: zod.string(),
 });
 
@@ -2024,6 +2101,14 @@ export const RejectGreatLarderEntryResponse = zod.object({
   status: zod.enum(["pending", "approved", "rejected"]),
   transactionId: zod.number().nullable(),
   note: zod.string().nullable(),
+  bucket: zod
+    .union([
+      zod.literal("soft_savings"),
+      zod.literal("hard_savings"),
+      zod.literal("investments"),
+      zod.literal(null),
+    ])
+    .nullable(),
   createdAt: zod.string(),
 });
 
