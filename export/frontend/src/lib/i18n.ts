@@ -1051,6 +1051,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "tx.no_receipt":        { en: "No receipt attached yet.",                           pl: "Brak paragonu."                                       },
   "tx.add_receipt":       { en: "Add receipt",                                        pl: "Dodaj paragon"                                       },
   "tx.add_another_receipt": { en: "Add another receipt",                              pl: "Dodaj kolejny paragon"                               },
+  "tx.add_receipt_btn":   { en: "Add",                                                pl: "Dodaj"                                               },
   "tx.receipt_count":     { en: "{count} of 3 receipts",                              pl: "{count} z 3 paragonów"                               },
   "tx.receipt_limit":     { en: "A transaction can have up to 3 receipt photos.",       pl: "Transakcja może mieć maksymalnie 3 zdjęcia paragonu." },
   "tx.camera":            { en: "Camera",                                               pl: "Aparat"                                               },

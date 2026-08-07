@@ -103,7 +103,7 @@ export function ReceiptManager({
   title,
 }: ReceiptManagerProps) {
   const queryClient = useQueryClient();
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const receiptPickerRef = useRef<HTMLInputElement>(null);
   const pickerActiveRef = useRef(false);
   const processingRef = useRef(false);
   const touchStartX = useRef<number | null>(null);
@@ -123,7 +123,7 @@ export function ReceiptManager({
   useEffect(() => {
     const onFocus = () => {
       window.setTimeout(() => {
-        if (!processingRef.current && !cameraRef.current?.files?.length) {
+        if (!processingRef.current && !receiptPickerRef.current?.files?.length) {
           pickerActiveRef.current = false;
         }
       }, 1500);
@@ -362,11 +362,11 @@ export function ReceiptManager({
                 className="w-full gap-2"
                 onClick={() => {
                   pickerActiveRef.current = true;
-                  cameraRef.current?.click();
+                  receiptPickerRef.current?.click();
                 }}
                 disabled={isOffline || isBusy || receipts.length >= 3}
               >
-                <Plus className="w-4 h-4" /> {t("tx.add_btn")}
+                <Plus className="w-4 h-4" /> {t("tx.add_receipt_btn")}
               </Button>
             </div>
 
@@ -428,7 +428,7 @@ export function ReceiptManager({
         </div>
       )}
 
-      <input ref={cameraRef} {...inputProps} multiple={false} />
+      <input ref={receiptPickerRef} {...inputProps} multiple={false} />
     </>
   );
 }
