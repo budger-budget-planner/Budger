@@ -20,3 +20,7 @@ The two bucket states must share one positioned frame and identical full content
 During A→B, fade the complete B surface in from the beginning while the complete A surface tosses out, then commit B as the settled state after the animation.
 
 **Why:** The entire incoming card should replace A as one complete surface; there should be no intermediate partial-detail state.
+
+When bucket cards can have different heights, the incoming B surface must define the motion frame height immediately; position and vertically clip outgoing A to that frame while it tosses away.
+
+**Why:** Letting the larger outgoing surface remain in normal flow leaves a stale lower frame visible when flipping from a larger card to a smaller one.

@@ -66,19 +66,21 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
               boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
             }}
           />
-          <div className="relative z-10 grid">
-            <div
-              className={`col-start-1 row-start-1 ${
-                phase === "crossfade" ? "larder-stack-shuffle-out pointer-events-none" : ""
-              }`}
-            >
-              {children}
-            </div>
+          <div className={`relative z-10 ${phase === "crossfade" ? "larder-stack-motion-frame" : ""}`}>
+            {phase === "crossfade" ? (
+              <div className="larder-stack-outgoing-clip pointer-events-none">
+                <div className="larder-stack-outgoing-frame larder-stack-shuffle-out">
+                  {children}
+                </div>
+              </div>
+            ) : (
+              <div>{children}</div>
+            )}
             {phase === "crossfade" && (
               <LarderStackMotionContext.Provider value={{ ...motion, incomingSurface: true }}>
                 <div
                   aria-hidden="true"
-                  className="col-start-1 row-start-1 larder-stack-fade-in pointer-events-none"
+                  className="larder-stack-incoming-frame larder-stack-fade-in pointer-events-none"
                 >
                   {children}
                 </div>
@@ -252,6 +254,25 @@ export function SavingsBucketStack({
           transform-origin: 50% 50%;
           will-change: transform, opacity;
           animation: larderStackShuffleOut 400ms cubic-bezier(.22, .72, .34, 1) both;
+        }
+        .larder-stack-motion-frame {
+          display: grid;
+        }
+        .larder-stack-outgoing-clip {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 200%;
+          height: 100%;
+          z-index: 1;
+          overflow: hidden;
+        }
+        .larder-stack-outgoing-frame {
+          width: 50%;
+        }
+        .larder-stack-incoming-frame {
+          position: relative;
+          z-index: 2;
         }
         @keyframes larderStackFadeIn {
           0% { opacity: .16; }
