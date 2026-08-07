@@ -1,10 +1,10 @@
 ---
 name: Larder stack visual cue
-description: The Larder surface should visibly read as three stacked savings buckets without nested content cards
+description: Keep the savings stack as one clean Larder surface without nested or offset card layers
 ---
 
-The savings stack uses two restrained offset back layers behind the active Larder surface. The active bucket content remains on the outer surface; do not reintroduce a rounded active-card panel inside it.
+The savings stack is intentionally rendered as one clean Larder surface. Do not add nested cards, offset outlines, or back plates to suggest the three buckets.
 
-**Why:** The user wants the stack to be immediately recognizable, but found the previous nested card treatment visually confusing.
+**Why:** The user explicitly rejected both the original nested active-card treatment and the later offset back layers as visually confusing cards within cards.
 
-**How to apply:** Keep the three-layer silhouette subtle and shared between Personal Larder and Great Larder. Preserve click-to-switch behavior and keep the unassigned waiting room above the outer surface.
+**How to apply:** Preserve click-to-switch behavior and keep the unassigned waiting room above the outer surface. If a stack cue is revisited, it must not be another card-like surface.
