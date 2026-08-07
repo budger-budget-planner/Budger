@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { logger } from './logger';
 
 // File storage backend: Supabase Storage, accessed via the official JS SDK.
 // The bucket ('budger-media' by default) is public, so uploaded files get a
@@ -49,6 +50,10 @@ function extensionFromContentType(contentType: string): string {
   return subtype === 'jpeg' ? 'jpg' : subtype;
 }
 
+function bufferToDataUrl(buffer: Buffer, contentType: string): string {
+  return `data:${contentType};base64,${buffer.toString('base64')}`;
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -57,21 +62,33 @@ export class ObjectStorageService {
    * Returns the permanent public URL for the stored file.
    */
   async uploadObjectEntity(buffer: Buffer, contentType: string): Promise<string> {
-    const supabase = getSupabaseClient();
-    const bucket = getBucketName();
-    const ext = extensionFromContentType(contentType);
-    const objectName = `uploads/${randomUUID()}.${ext}`;
+    // Receipt persistence must not fail just because the optional external
+    // object store is unavailable. The database already supports the legacy
+    // data-URL representation, and the frontend can display it directly.
+    // Supabase remains the preferred path whenever its credentials work.
+    try {
+      const supabase = getSupabaseClient();
+      const bucket = getBucketName();
+      const ext = extensionFromContentType(contentType);
+      const objectName = `uploads/${randomUUID()}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(objectName, buffer, { contentType, upsert: false });
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(objectName, buffer, { contentType, upsert: false });
 
-    if (error) {
-      throw new Error(`Supabase upload failed: ${error.message}`);
+      if (error) {
+        throw new Error(`Supabase upload failed: ${error.message}`);
+      }
+
+      const { data } = supabase.storage.from(bucket).getPublicUrl(objectName);
+      return data.publicUrl;
+    } catch (error) {
+      logger.warn(
+        { err: error, contentType, bytes: buffer.length },
+        'Supabase receipt storage unavailable; persisting receipt as a data URL',
+      );
+      return bufferToDataUrl(buffer, contentType);
     }
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(objectName);
-    return data.publicUrl;
   }
 
   /**
