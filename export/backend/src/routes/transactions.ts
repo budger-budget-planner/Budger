@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import {
   db,
   transactionsTable,
@@ -9,8 +9,9 @@ import {
   larderEntriesTable,
   recurringPaymentLogsTable,
   recurringPaymentsTable,
+  transactionReceiptsTable,
 } from "../db";
-import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, inArray, sql } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
@@ -40,8 +41,29 @@ function getReceiptImages(tx: any): string[] {
   return typeof tx.receiptImage === "string" && tx.receiptImage.length > 0 ? [tx.receiptImage] : [];
 }
 
-function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
-  const receiptImages = getReceiptImages(tx);
+type ReceiptRow = typeof transactionReceiptsTable.$inferSelect;
+
+function receiptRowsToApi(rows: ReceiptRow[]) {
+  return rows
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map(row => ({
+      id: row.id,
+      url: row.storageUrl,
+      position: row.position,
+      mimeType: row.mimeType,
+      originalName: row.originalName,
+      createdAt: row.createdAt.toISOString(),
+    }));
+}
+
+async function enrichTransaction(tx: any, category: any, user: any, rp?: any | null, receiptRows?: ReceiptRow[]) {
+  const canonicalReceipts = receiptRows ?? await db.select()
+    .from(transactionReceiptsTable)
+    .where(eq(transactionReceiptsTable.transactionId, tx.id))
+    .orderBy(asc(transactionReceiptsTable.position));
+  const receipts = receiptRowsToApi(canonicalReceipts);
+  const receiptImages = receipts.length > 0 ? receipts.map(receipt => receipt.url) : getReceiptImages(tx);
   return {
     id: tx.id,
     amount: parseFloat(tx.amount),
@@ -55,6 +77,7 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     // Keep receiptImage as the first image for older clients.
     receiptImage: receiptImages[0] ?? null,
     receiptImages,
+    receipts,
     userId: tx.userId,
     householdId: tx.householdId,
     userName: user?.name ?? null,
@@ -75,6 +98,100 @@ function enrichTransaction(tx: any, category: any, user: any, rp?: any | null) {
     recurringPaymentScope: rp?.scope ?? null,
     isLarderFund: tx.isLarderFund ?? false,
   };
+}
+
+async function loadReceiptRows(transactionIds: number[]): Promise<ReceiptRow[]> {
+  if (transactionIds.length === 0) return [];
+  return db.select()
+    .from(transactionReceiptsTable)
+    .where(inArray(transactionReceiptsTable.transactionId, transactionIds))
+    .orderBy(asc(transactionReceiptsTable.position));
+}
+
+const RECEIPT_MAX_BYTES = 20 * 1024 * 1024;
+const RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
+
+type IncomingReceipt = {
+  buffer: Buffer;
+  mimeType: string;
+  originalName: string | null;
+};
+
+function normaliseReceiptType(value: string, name?: string | null): string {
+  const type = value.split(";", 1)[0].trim().toLowerCase();
+  if (type === "application/octet-stream") {
+    const extension = name?.split(".").pop()?.toLowerCase();
+    if (extension === "heic") return "image/heic";
+    if (extension === "heif") return "image/heif";
+  }
+  return type;
+}
+
+function parseReceiptDataUrl(value: string): IncomingReceipt {
+  const match = value.match(/^data:([^;]+);base64,(.+)$/s);
+  if (!match) throw new Error("Unrecognised image data");
+  const mimeType = normaliseReceiptType(match[1]);
+  if (!RECEIPT_TYPES.has(mimeType)) throw new Error("Receipts must be image files");
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.length === 0) throw new Error("Receipt image is empty");
+  if (buffer.length > RECEIPT_MAX_BYTES) throw new Error("Receipt image is too large");
+  return { buffer, mimeType, originalName: null };
+}
+
+async function readMultipartReceipts(req: Request): Promise<IncomingReceipt[]> {
+  const contentType = String(req.headers["content-type"] ?? "");
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  if (!boundaryMatch) throw new Error("Invalid multipart upload");
+  const boundary = Buffer.from(`--${boundaryMatch[1] ?? boundaryMatch[2]}`);
+  const chunks: Buffer[] = [];
+  let total = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    req.on("data", (chunk: Buffer | string) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += buffer.length;
+      if (total > 65 * 1024 * 1024) {
+        reject(new Error("Receipt upload is too large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(buffer);
+    });
+    req.on("end", resolve);
+    req.on("error", reject);
+    req.on("aborted", () => reject(new Error("Receipt upload was cancelled")));
+  });
+
+  const body = Buffer.concat(chunks);
+  const receipts: IncomingReceipt[] = [];
+  let cursor = 0;
+  while (cursor < body.length) {
+    const start = body.indexOf(boundary, cursor);
+    if (start === -1) break;
+    const partStart = start + boundary.length;
+    if (body.subarray(partStart, partStart + 2).toString() === "--") break;
+    const headerStart = partStart + 2;
+    const headerEnd = body.indexOf(Buffer.from("\r\n\r\n"), headerStart);
+    if (headerEnd === -1) break;
+    const headers = body.subarray(headerStart, headerEnd).toString("utf8");
+    const nextBoundary = body.indexOf(boundary, headerEnd + 4);
+    if (nextBoundary === -1) break;
+    const contentEnd = nextBoundary - 2;
+    const content = body.subarray(headerEnd + 4, contentEnd);
+    const disposition = headers.match(/content-disposition:\s*([^\r\n]+)/i)?.[1] ?? "";
+    const name = disposition.match(/name="([^"]+)"/i)?.[1];
+    const filename = disposition.match(/filename="([^"]*)"/i)?.[1] || null;
+    if (name === "files") {
+      const partType = headers.match(/content-type:\s*([^\r\n]+)/i)?.[1] ?? "application/octet-stream";
+      const mimeType = normaliseReceiptType(partType, filename);
+      if (!RECEIPT_TYPES.has(mimeType)) throw new Error("Receipts must be image files (PDF files are not supported)");
+      if (content.length === 0) throw new Error("Receipt image is empty");
+      if (content.length > RECEIPT_MAX_BYTES) throw new Error("Receipt image is too large");
+      receipts.push({ buffer: Buffer.from(content), mimeType, originalName: filename });
+    }
+    cursor = nextBoundary;
+  }
+  return receipts;
 }
 
 type AllocationInput = {
@@ -229,13 +346,21 @@ router.get("/transactions", async (req, res): Promise<void> => {
   const catMap = new Map(categories.map(c => [c.id, c]));
   const userMap = new Map(users.map(u => [u.id, u]));
   const rpMap = new Map(rps.map(r => [r.id, r]));
+  const receiptRows = await loadReceiptRows(txs.map(tx => tx.id));
+  const receiptMap = new Map<number, ReceiptRow[]>();
+  for (const row of receiptRows) {
+    const rows = receiptMap.get(row.transactionId) ?? [];
+    rows.push(row);
+    receiptMap.set(row.transactionId, rows);
+  }
 
-  const result = txs.map(tx => enrichTransaction(
+  const result = await Promise.all(txs.map(tx => enrichTransaction(
     tx,
     tx.categoryId ? catMap.get(tx.categoryId) : null,
     userMap.get(tx.userId),
     tx.recurringPaymentId ? rpMap.get(tx.recurringPaymentId) : null,
-  ));
+    receiptMap.get(tx.id),
+  )));
 
   res.json(result);
 });
@@ -332,7 +457,7 @@ router.post("/transactions", async (req, res): Promise<void> => {
 
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
 
-  res.status(201).json(enrichTransaction(tx, category, currentUser));
+  res.status(201).json(await enrichTransaction(tx, category, currentUser));
 });
 
 // ── POST /transactions/extract-screenshot — AI vision extraction, no DB write ──
@@ -550,7 +675,7 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
   const rp = await loadRPForTx(tx.recurringPaymentId);
 
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(await enrichTransaction(tx, category, user, rp));
 });
 
 router.patch("/transactions/:id", async (req, res): Promise<void> => {
@@ -643,7 +768,7 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
   const rp = await loadRPForTx(tx.recurringPaymentId);
 
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(await enrichTransaction(tx, category, user, rp));
 });
 
 router.delete("/transactions/:id", async (req, res): Promise<void> => {
@@ -700,7 +825,7 @@ router.post("/transactions/:id/convert-currency", async (req, res): Promise<void
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
   const rp = await loadRPForTx(tx.recurringPaymentId);
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(await enrichTransaction(tx, category, user, rp));
 });
 
 router.post("/transactions/:id/lock-currency", async (req, res): Promise<void> => {
@@ -721,151 +846,217 @@ router.post("/transactions/:id/lock-currency", async (req, res): Promise<void> =
   const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
   const rp = await loadRPForTx(tx.recurringPaymentId);
-  res.json(enrichTransaction(tx, category, user, rp));
+  res.json(await enrichTransaction(tx, category, user, rp));
+});
+
+class ReceiptRequestError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "ReceiptRequestError";
+    this.status = status;
+  }
+}
+
+async function persistReceipts(transactionId: number, userId: number, incoming: IncomingReceipt[]) {
+  if (incoming.length < 1 || incoming.length > MAX_RECEIPT_IMAGES) {
+    throw new ReceiptRequestError("Choose between one and three receipt photos");
+  }
+
+  const uploadedUrls: string[] = [];
+  try {
+    for (const receipt of incoming) {
+      uploadedUrls.push(await objectStorageService.uploadObjectEntity(receipt.buffer, receipt.mimeType));
+    }
+
+    return await db.transaction(async (database) => {
+      const locked = await database.execute(sql`
+        SELECT * FROM transactions
+        WHERE id = ${transactionId} AND user_id = ${userId}
+        FOR UPDATE
+      `);
+      const existing = (locked.rows[0] as any) ?? null;
+      if (!existing) throw new ReceiptRequestError("Not found", 404);
+
+      const rows = await database.select()
+        .from(transactionReceiptsTable)
+        .where(eq(transactionReceiptsTable.transactionId, transactionId))
+        .orderBy(asc(transactionReceiptsTable.position));
+      if (rows.length + incoming.length > MAX_RECEIPT_IMAGES) {
+        throw new ReceiptRequestError(`A transaction can have up to ${MAX_RECEIPT_IMAGES} receipt photos`);
+      }
+
+      const newRows = await database.insert(transactionReceiptsTable).values(
+        incoming.map((receipt, index) => ({
+          transactionId,
+          storageUrl: uploadedUrls[index],
+          position: rows.length + index,
+          mimeType: receipt.mimeType,
+          originalName: receipt.originalName,
+        })),
+      ).returning();
+      const allRows = [...rows, ...newRows].sort((a, b) => a.position - b.position);
+      const urls = allRows.map(row => row.storageUrl);
+      const [updated] = await database.update(transactionsTable)
+        .set({ receiptImage: urls[0] ?? null, receiptImages: urls })
+        .where(eq(transactionsTable.id, transactionId))
+        .returning();
+      return { tx: updated, rows: allRows };
+    });
+  } catch (error) {
+    await Promise.allSettled(uploadedUrls.map(url => objectStorageService.deleteObjectEntity(url)));
+    throw error;
+  }
+}
+
+async function readIncomingReceipts(req: Request): Promise<IncomingReceipt[]> {
+  const contentType = String(req.headers["content-type"] ?? "").toLowerCase();
+  if (contentType.startsWith("multipart/form-data")) return readMultipartReceipts(req);
+
+  let { imageData } = req.body as { imageData?: string };
+  if (typeof imageData !== "string") throw new ReceiptRequestError("Receipt photo is required");
+  if (imageData.startsWith("/objects/uploads/")) {
+    const uuid = imageData.slice("/objects/uploads/".length);
+    const resolved = popPendingUpload(uuid);
+    if (!resolved) throw new ReceiptRequestError("Upload not found or expired. Please try again.");
+    imageData = resolved;
+  }
+  try {
+    return [parseReceiptDataUrl(imageData)];
+  } catch (error: any) {
+    throw new ReceiptRequestError(error.message, /too large/i.test(error.message) ? 413 : 415);
+  }
+}
+
+async function sendReceiptResponse(res: any, tx: any, rows: ReceiptRow[]) {
+  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+  const rp = await loadRPForTx(tx.recurringPaymentId);
+  res.json(await enrichTransaction(tx, category, user, rp, rows));
+}
+
+router.post("/transactions/:id/receipts", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    const { tx, rows } = await persistReceipts(id, userId, await readIncomingReceipts(req));
+    await sendReceiptResponse(res, tx, rows);
+  } catch (error: any) {
+    const status = error instanceof ReceiptRequestError ? error.status : /too large/i.test(error?.message ?? "") ? 413 : 500;
+    if (status >= 500) logger.error({ err: error }, "Receipt batch upload failed");
+    res.status(status).json({ error: error?.message ?? "Failed to upload receipt photos" });
+  }
 });
 
 router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-
   const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
-
-  let { imageData } = req.body as { imageData?: string };
-  if (!imageData || typeof imageData !== "string") {
-    res.status(400).json({ error: "imageData is required" }); return;
-  }
-  if (imageData.length > 28 * 1024 * 1024) {
-    res.status(413).json({ error: "Receipt image is too large" }); return;
-  }
-
-  // Resolve a pending server-side upload (old client flow via request-url + PUT).
-  // objectPath format: "/objects/uploads/<uuid>"
-  if (imageData.startsWith("/objects/uploads/")) {
-    const uuid = imageData.slice("/objects/uploads/".length);
-    const resolved = popPendingUpload(uuid);
-    if (!resolved) {
-      res.status(400).json({ error: "Upload not found or expired. Please try again." });
-      return;
-    }
-    imageData = resolved;
-  }
-
-  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
-  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
-  const existingImages = getReceiptImages(existing);
-  if (existingImages.length >= MAX_RECEIPT_IMAGES) {
-    res.status(400).json({ error: "A transaction can have up to 3 receipt images" });
-    return;
-  }
-
-  // Upload directly to Supabase Storage rather than persisting the base64
-  // blob in Postgres; receiptImage stores the resulting permanent public URL.
-  if (imageData.startsWith("data:")) {
-    const match = imageData.match(/^data:([^;]+);base64,(.+)$/s);
-    if (!match) { res.status(400).json({ error: "Unrecognised image data" }); return; }
-    const [, contentType, b64] = match;
-    if (!contentType.toLowerCase().startsWith("image/")) {
-      res.status(415).json({ error: "Receipt must be an image" });
-      return;
-    }
-    if (!/^(image\/(?:jpeg|jpg|png|webp|gif|heic|heif))$/i.test(contentType)) {
-      res.status(415).json({ error: "Unsupported receipt image type" });
-      return;
-    }
-    const buffer = Buffer.from(b64, "base64");
-    if (buffer.length === 0) {
-      res.status(400).json({ error: "Receipt image is empty" });
-      return;
-    }
-    // Keep this below the JSON body limit and protect storage from malformed
-    // or unexpectedly large payloads sent by a client.
-    if (buffer.length > 20 * 1024 * 1024) {
-      res.status(413).json({ error: "Receipt image is too large" });
-      return;
-    }
-    try {
-      imageData = await objectStorageService.uploadObjectEntity(buffer, contentType);
-    } catch (err) {
-      logger.error({ err }, "Error uploading receipt to Supabase Storage");
-      res.status(500).json({ error: "Failed to upload receipt image" });
-      return;
-    }
-  }
-
-  const receiptImages = [...existingImages, imageData];
-  let tx: any;
   try {
-    [tx] = await db.update(transactionsTable)
-      .set({
-        // Keep the legacy field synchronized for older clients.
-        receiptImage: receiptImages[0] ?? null,
-        receiptImages,
-      })
-      .where(eq(transactionsTable.id, id))
-      .returning();
-  } catch (err) {
-    // If the object was uploaded but the DB write failed, remove the newly
-    // uploaded object so retrying cannot leak orphaned receipt files.
-    if (imageData.startsWith("http")) {
-      await objectStorageService.deleteObjectEntity(imageData).catch((deleteErr) => {
-        logger.warn({ err: deleteErr }, "Failed to clean up receipt after DB update failure");
-      });
-    }
-    throw err;
+    const { tx, rows } = await persistReceipts(id, userId, await readIncomingReceipts(req));
+    await sendReceiptResponse(res, tx, rows);
+  } catch (error: any) {
+    const status = error instanceof ReceiptRequestError ? error.status : 500;
+    if (status >= 500) logger.error({ err: error }, "Receipt upload failed");
+    res.status(status).json({ error: error?.message ?? "Failed to upload receipt photo" });
   }
+});
 
-  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+async function deleteReceipts(transactionId: number, userId: number, receiptId?: number) {
+  return db.transaction(async (database) => {
+    const locked = await database.execute(sql`
+      SELECT * FROM transactions
+      WHERE id = ${transactionId} AND user_id = ${userId}
+      FOR UPDATE
+    `);
+    if (!locked.rows[0]) throw new ReceiptRequestError("Not found", 404);
+    const rows = await database.select()
+      .from(transactionReceiptsTable)
+      .where(eq(transactionReceiptsTable.transactionId, transactionId))
+      .orderBy(asc(transactionReceiptsTable.position));
+    const targets = receiptId === undefined ? rows : rows.filter(row => row.id === receiptId);
+    if (receiptId !== undefined && targets.length === 0) throw new ReceiptRequestError("Receipt photo not found", 404);
+    if (targets.length > 0) {
+      await database.delete(transactionReceiptsTable)
+        .where(inArray(transactionReceiptsTable.id, targets.map(row => row.id)));
+    }
+    const remaining = await database.select()
+      .from(transactionReceiptsTable)
+      .where(eq(transactionReceiptsTable.transactionId, transactionId))
+      .orderBy(asc(transactionReceiptsTable.position));
+    if (remaining.length > 0) {
+      await database.execute(sql`UPDATE transaction_receipts SET position = position + 10 WHERE transaction_id = ${transactionId}`);
+      for (const [position, row] of remaining.entries()) {
+        await database.update(transactionReceiptsTable).set({ position }).where(eq(transactionReceiptsTable.id, row.id));
+      }
+    }
+    const compacted = remaining.map((row, position) => ({ ...row, position }));
+    const urls = compacted.map(row => row.storageUrl);
+    const [tx] = await database.update(transactionsTable)
+      .set({ receiptImage: urls[0] ?? null, receiptImages: urls })
+      .where(eq(transactionsTable.id, transactionId))
+      .returning();
+    return { tx, rows: compacted, deleted: targets };
+  });
+}
 
-  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
+async function sendDeleteResponse(res: any, result: { tx: any; rows: ReceiptRow[]; deleted: ReceiptRow[] }) {
+  await Promise.allSettled(result.deleted.map(row => objectStorageService.deleteObjectEntity(row.storageUrl)));
+  await sendReceiptResponse(res, result.tx, result.rows);
+}
 
-  const rp2 = await loadRPForTx(tx.recurringPaymentId);
-  res.json(enrichTransaction(tx, category, user, rp2));
+router.delete("/transactions/:id/receipts/:receiptId", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = Number(req.params.id);
+  const receiptId = Number(req.params.receiptId);
+  if (!Number.isSafeInteger(id) || !Number.isSafeInteger(receiptId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    await sendDeleteResponse(res, await deleteReceipts(id, userId, receiptId));
+  } catch (error: any) {
+    const status = error instanceof ReceiptRequestError ? error.status : 500;
+    if (status >= 500) logger.error({ err: error }, "Receipt deletion failed");
+    res.status(status).json({ error: error?.message ?? "Failed to delete receipt photo" });
+  }
+});
+
+router.delete("/transactions/:id/receipts", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    await sendDeleteResponse(res, await deleteReceipts(id, userId));
+  } catch (error: any) {
+    const status = error instanceof ReceiptRequestError ? error.status : 500;
+    if (status >= 500) logger.error({ err: error }, "Receipt deletion failed");
+    res.status(status).json({ error: error?.message ?? "Failed to delete receipt photos" });
+  }
 });
 
 router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
-
   const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
-
-  const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
-  if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
-
-  const existingImages = getReceiptImages(existing);
-  const requestedIndex = typeof req.query.index === "string" ? Number(req.query.index) : null;
-  if (requestedIndex !== null && (!Number.isInteger(requestedIndex) || requestedIndex < 0 || requestedIndex >= existingImages.length)) {
-    res.status(404).json({ error: "Receipt image not found" });
-    return;
+  const index = req.query.index === undefined ? undefined : Number(req.query.index);
+  try {
+    let receiptId: number | undefined;
+    if (index !== undefined) {
+      const rows = await db.select().from(transactionReceiptsTable)
+        .where(eq(transactionReceiptsTable.transactionId, id))
+        .orderBy(asc(transactionReceiptsTable.position));
+      receiptId = rows[index]?.id;
+      if (!Number.isInteger(index) || index < 0 || !receiptId) throw new ReceiptRequestError("Receipt photo not found", 404);
+    }
+    await sendDeleteResponse(res, await deleteReceipts(id, userId, receiptId));
+  } catch (error: any) {
+    const status = error instanceof ReceiptRequestError ? error.status : 500;
+    if (status >= 500) logger.error({ err: error }, "Legacy receipt deletion failed");
+    res.status(status).json({ error: error?.message ?? "Failed to delete receipt photos" });
   }
-  const requestedImage = requestedIndex === null ? null : existingImages[requestedIndex];
-  const imagesToDelete = requestedImage ? [requestedImage] : existingImages;
-  for (const image of imagesToDelete) {
-    objectStorageService.deleteObjectEntity(image).catch((err) => {
-      logger.warn({ err }, "Failed to delete receipt object");
-    });
-  }
-  const remainingImages = requestedIndex !== null
-    ? existingImages.filter((_, index) => index !== requestedIndex)
-    : [];
-
-  const [tx] = await db.update(transactionsTable)
-    .set({
-      receiptImage: remainingImages[0] ?? null,
-      receiptImages: remainingImages,
-    })
-    .where(eq(transactionsTable.id, id))
-    .returning();
-
-  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
-
-  const category = tx.categoryId ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, tx.categoryId)).then(r => r[0]) : null;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, tx.userId));
-  const rp = await loadRPForTx(tx.recurringPaymentId);
-
-  res.json(enrichTransaction(tx, category, user, rp));
 });
 
 export default router;
