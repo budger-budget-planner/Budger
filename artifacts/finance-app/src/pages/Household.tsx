@@ -1626,6 +1626,7 @@ export default function HouseholdPage() {
 
           {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
           {canSeeGreatLarder && (
+            <>
             <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
                 background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
@@ -1714,67 +1715,6 @@ export default function HouseholdPage() {
                    </p>
                  </button>
 
-                 {/* Active card balance */}
-                <div className="text-center py-2">
-                  {greatLarder ? (
-                    <>
-                       <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{t("larder.available_in_card")}</p>
-                       <p className="text-4xl font-bold tracking-tight text-white"
-                        style={{ textShadow: "0 0 24px rgba(255,255,255,0.25)" }}>
-                         <AmtHero amount={glActiveSummary?.total ?? 0} currency={greatLarder.currency} />
-                      </p>
-                      {/* Currency breakdown — shown when savings span multiple currencies */}
-                      {(() => {
-                        const prefs = loadPrefs();
-                         const breakdown: { currency: string; rawTotal: number }[] = glActiveSummary?.currencyBreakdown ?? [];
-                         const ordered = orderedBreakdown(breakdown, greatLarder.currency, prefs.language);
-                        if (ordered.length === 0) return null;
-                        if (ordered.length === 1) {
-                          return (
-                            <p className="mt-1.5 text-[11px] text-white/25 tabular-nums">
-                              {t("larder.all_in_currency", { code: ordered[0].currency })}
-                            </p>
-                          );
-                        }
-                        return (
-                          <div className="mt-2 flex flex-col items-center gap-0.5">
-                            {ordered.map((item: { currency: string; rawTotal: number }) => (
-                              <p key={item.currency} className="text-[11px] text-white/30 tabular-nums">
-                                {fmtAmtRound(item.rawTotal, item.currency)}
-                              </p>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </>
-                  ) : (
-                    <p className="text-4xl font-bold text-white/20">—</p>
-                  )}
-                </div>
-
-                {/* Action buttons — Fund for parents+head; Dedicate to HH goal for head only */}
-                <div className={`grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
-                  <button
-                    onClick={() => setGlFundOpen(true)}
-                     disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
-                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
-                  >
-                    <PiggyBank className="w-4 h-4" />
-                    {t("larder.fund")}
-                    {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· {t("larder.needs_approval")}</span>}
-                  </button>
-                  {iAmHead && (
-                    <button
-                      onClick={() => setGlDedicateOpen(true)}
-                       disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
-                      className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
-                    >
-                      <Users className="w-4 h-4" />
-                      {t("larder.support_btn")}
-                    </button>
-                  )}
-                </div>
-
                 {/* Pending fund approvals — head only */}
                 {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
                   <div className="space-y-2 pt-1">
@@ -1814,6 +1754,31 @@ export default function HouseholdPage() {
 
               </div>
             </div>
+            {/* Great Larder actions live below the card, matching the
+                personal Larder and keeping the card surface focused on the
+                savings stack and waiting room. */}
+            <div className={`mt-3 grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
+              <button
+                onClick={() => setGlFundOpen(true)}
+                disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
+                className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
+              >
+                <PiggyBank className="w-4 h-4" />
+                {t("larder.fund")}
+                {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· {t("larder.needs_approval")}</span>}
+              </button>
+              {iAmHead && (
+                <button
+                  onClick={() => setGlDedicateOpen(true)}
+                  disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
+                  className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
+                >
+                  <Users className="w-4 h-4" />
+                  {t("larder.support_btn")}
+                </button>
+              )}
+            </div>
+            </>
           )}
         </div>
       )}

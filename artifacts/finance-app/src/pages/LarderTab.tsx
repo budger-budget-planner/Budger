@@ -641,42 +641,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
           </button>
 
-          {/* Balance */}
-          <div className="text-center py-1">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{t("larder.available_in_card")}</p>
-            <p
-              className="text-5xl font-bold tracking-tight text-white tabular-nums"
-              style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
-            >
-              <AmtHero amount={activeTotal} currency={prefs.currency} />
-            </p>
-            {/* Currency breakdown — shown when savings span multiple currencies,
-                or a subtle label when all contributions share one currency */}
-            {(() => {
-              const breakdown = activeSummary?.currencyBreakdown ?? [];
-              const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
-              if (ordered.length === 0) return null;
-              if (ordered.length === 1) {
-                // Single currency — show a muted "all in X" label instead of a lone sub-sum
-                return (
-                  <p className="mt-2 text-[11px] text-white/25 tabular-nums">
-                    {t("larder.all_in_currency", { code: ordered[0].currency })}
-                  </p>
-                );
-              }
-              // Multiple currencies — show each raw sub-total
-              return (
-                <div className="mt-2.5 flex flex-col items-center gap-0.5">
-                  {ordered.map(item => (
-                    <p key={item.currency} className="text-[11px] text-white/30 tabular-nums">
-                      {fmtAmt(item.rawTotal, item.currency)}
-                    </p>
-                  ))}
-                </div>
-              );
-            })()}
+          {/* A transfer badge belongs to the Larder surface, but the action
+              controls themselves live below the card. */}
+          <div className="min-h-1 flex justify-center">
             {displayGLSent > 0 && (
-              <div className="mt-3 flex justify-center">
+              <div className="flex justify-center">
                 <button
                   type="button"
                   onClick={() => { if (!glWasLongPress.current) setGlBadgeCollapsed(c => !c); glWasLongPress.current = false; }}
@@ -756,44 +725,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
-            <button
-              onClick={() => setAddOpen(true)}
-              disabled={!isOnline}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.add_entry")}</span>
-            </button>
-            <button
-              onClick={() => setSpendOpen(true)}
-              disabled={!isOnline || activeTotal <= 0}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <PiggyBank className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.fund")}</span>
-            </button>
-            <button
-              onClick={() => setDedicateOpen(true)}
-              disabled={!isOnline || activeTotal <= 0}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <Target className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.support_btn")}</span>
-            </button>
-            {inHousehold && (
-              <button
-                onClick={() => setSendGlOpen(true)}
-                disabled={!isOnline || activeTotal <= 0}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-              >
-                <Users className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[11px] leading-tight text-center">{t("larder.send_gl_btn")}</span>
-              </button>
-            )}
-          </div>
-
           {/* Recent entries — collapsible */}
           {entries.length > 0 && (
             <div className="border-t border-white/6 pt-4 space-y-2">
@@ -841,6 +772,44 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
           )}
         </div>
+      </div>
+      {/* Actions sit below the original Larder card, not inside its savings
+          surface. The selected card still controls the spend/send actions. */}
+      <div className={`mt-3 grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
+        <button
+          onClick={() => setAddOpen(true)}
+          disabled={!isOnline}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <Plus className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.add_entry")}</span>
+        </button>
+        <button
+          onClick={() => setSpendOpen(true)}
+          disabled={!isOnline || activeTotal <= 0}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <PiggyBank className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.fund")}</span>
+        </button>
+        <button
+          onClick={() => setDedicateOpen(true)}
+          disabled={!isOnline || activeTotal <= 0}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <Target className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.support_btn")}</span>
+        </button>
+        {inHousehold && (
+          <button
+            onClick={() => setSendGlOpen(true)}
+            disabled={!isOnline || activeTotal <= 0}
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+          >
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[11px] leading-tight text-center">{t("larder.send_gl_btn")}</span>
+          </button>
+        )}
       </div>
 
       {/* ── Fund (spend from Larder into a transaction) sheet ── */}

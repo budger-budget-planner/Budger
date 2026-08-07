@@ -1,4 +1,4 @@
-import { ArrowRight, Layers3 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
 
@@ -25,8 +25,8 @@ function bucketLabel(bucket: SavingsBucket): string {
 
 /**
  * A compact, tappable deck of the three savings buckets.
- * The front card is the active source of funds for the actions below it.
- * Tapping the front card or the flip control advances through the deck.
+ * The surrounding Larder panel remains the primary surface; these are the
+ * three layered cards inside it, not a second padded panel.
  */
 export function SavingsBucketStack({
   summaries,
@@ -48,16 +48,16 @@ export function SavingsBucketStack({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="relative h-[142px] sm:h-[148px]">
+      <div className="relative h-[124px] sm:h-[130px]">
         {ordered.slice(2).map(bucket => (
           <div
             key={bucket}
             aria-hidden="true"
-            className="absolute inset-x-4 top-5 h-[116px] rounded-[26px] border border-white/10 bg-[#17151d]/90 shadow-xl"
-            style={{ transform: "translateY(9px) scale(.94)", opacity: 0.62, zIndex: 1 }}
+            className="absolute inset-x-5 top-4 h-[104px] rounded-[19px] border border-white/[0.08] bg-[#15141a]/90 shadow-[0_10px_24px_rgba(0,0,0,.22)]"
+            style={{ transform: "translateY(10px) rotate(-2deg) scale(.96)", opacity: 0.55, zIndex: 1 }}
           >
-            <div className="px-4 pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+            <div className="px-4 pt-3.5">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/30">
                 {bucketLabel(bucket)}
               </p>
             </div>
@@ -65,14 +65,14 @@ export function SavingsBucketStack({
         ))}
         <div
           aria-hidden="true"
-          className="absolute inset-x-2 top-2 h-[124px] rounded-[26px] border border-white/10 bg-[#121018]/95 shadow-xl"
-          style={{ transform: "translateY(7px) scale(.97)", opacity: 0.86, zIndex: 2 }}
+          className="absolute inset-x-2 top-2 h-[112px] rounded-[20px] border border-white/[0.11] bg-[#111016]/95 shadow-[0_13px_28px_rgba(0,0,0,.28)]"
+          style={{ transform: "translateY(7px) rotate(1.2deg) scale(.98)", opacity: 0.82, zIndex: 2 }}
         >
-          <div className="px-4 pt-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
+          <div className="px-4 pt-3.5">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/38">
               {bucketLabel(ordered[1])}
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-white/45">
+            <p className="mt-2 text-xl font-bold tabular-nums text-white/38">
               {fmtAmt(totalFor(ordered[1]), currency)}
             </p>
           </div>
@@ -81,33 +81,28 @@ export function SavingsBucketStack({
           type="button"
           onClick={flipToNext}
           aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
-          className="absolute inset-x-0 top-0 z-10 h-[132px] rounded-[26px] border border-white/25 bg-[linear-gradient(145deg,#25232e,#0b0a10_72%)] px-5 py-4 text-left shadow-[0_18px_40px_rgba(0,0,0,.42)] transition duration-300 active:scale-[.985]"
+          className="absolute inset-x-0 top-0 z-10 h-[118px] rounded-[20px] border border-white/25 bg-[linear-gradient(145deg,#292731,#0d0c12_76%)] px-4 py-3.5 text-left shadow-[0_16px_32px_rgba(0,0,0,.36)] transition duration-300 active:scale-[.985]"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                <Layers3 className="h-4 w-4 text-white/55" />
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                  {t("larder.active_card")}
-                </p>
-                <p className="mt-0.5 text-base font-semibold text-white/90">
-                  {bucketLabel(ordered[0])}
-                </p>
-              </div>
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                {t("larder.active_card")}
+              </p>
+              <p className="mt-0.5 text-[15px] font-semibold text-white/90">
+                {bucketLabel(ordered[0])}
+              </p>
             </div>
-            <span className="mt-1 flex items-center gap-1 text-[10px] font-medium text-white/40">
+            <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-white/40">
               {t("larder.flip_stack")}
               <ArrowRight className="h-3 w-3" />
             </span>
           </div>
-          <p className="mt-4 text-3xl font-bold tabular-nums text-white">
+          <p className="mt-3 text-[28px] font-bold tabular-nums text-white">
             {fmtAmt(totalFor(ordered[0]), currency)}
           </p>
         </button>
       </div>
-      <div className="mt-1 flex items-center justify-center gap-1.5" aria-hidden="true">
+      <div className="mt-0.5 flex items-center justify-center gap-1.5" aria-hidden="true">
         {BUCKETS.map(bucket => (
           <span
             key={bucket}
