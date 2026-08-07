@@ -36,6 +36,8 @@ export const greatLarderEntriesTable = pgTable("great_larder_entries", {
   /** For 'goal_dedication' entries: the goal that received the funds */
   goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
   note: text("note"),
+  /** Savings bucket; null means waiting room / Unassigned. */
+  bucket: text("bucket"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

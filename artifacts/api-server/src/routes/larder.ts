@@ -6,6 +6,33 @@ import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBa
 
 const router: IRouter = Router();
 
+export const LARDER_BUCKETS = ["soft_savings", "hard_savings", "investments"] as const;
+type LarderBucket = typeof LARDER_BUCKETS[number];
+
+function parseBucket(value: unknown): LarderBucket | null {
+  if (value == null || value === "") return null;
+  return typeof value === "string" && (LARDER_BUCKETS as readonly string[]).includes(value)
+    ? value as LarderBucket
+    : null;
+}
+
+function bucketFromBody(value: unknown): { bucket: LarderBucket | null; valid: boolean } {
+  if (value === undefined) return { bucket: null, valid: true };
+  const bucket = parseBucket(value);
+  return { bucket, valid: value == null || value === "" || bucket !== null };
+}
+
+function bucketCurrencyBreakdown(entries: (typeof larderEntriesTable.$inferSelect)[], accountCurrency: string) {
+  const byBucket = new Map<string | null, Map<string, number>>();
+  for (const entry of entries) {
+    const bucketMap = byBucket.get(entry.bucket ?? null) ?? new Map<string, number>();
+    const currency = entry.currency || accountCurrency;
+    bucketMap.set(currency, (bucketMap.get(currency) ?? 0) + parseFloat(entry.amount));
+    byBucket.set(entry.bucket ?? null, bucketMap);
+  }
+  return byBucket;
+}
+
 // ── GL standing-rule sync ────────────────────────────────────────────────────
 // If the user has a larderGlPercent rule set, compute how much MORE should go
 // to the Great Larder and auto-transfer the diff (positive increments only).
@@ -93,6 +120,7 @@ function fmtEntry(e: typeof larderEntriesTable.$inferSelect) {
     sourceType: e.sourceType,
     sourceId: e.sourceId ?? null,
     goalId: e.goalId ?? null,
+    bucket: e.bucket ?? null,
     note: e.note ?? null,
     createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
   };
@@ -136,6 +164,24 @@ router.get("/larder", async (req, res): Promise<void> => {
   // Only send visible (non-hidden) entries to the frontend for display;
   // balance is always computed from all entries regardless of visibility.
   const visibleEntries = entries.filter(e => !e.hidden);
+  const bucketMaps = bucketCurrencyBreakdown(entries, currency);
+  const buckets = await Promise.all(LARDER_BUCKETS.map(async bucket => {
+    const map = bucketMaps.get(bucket) ?? new Map<string, number>();
+    const bucketTotal = Array.from(map.entries()).reduce(
+      (sum, [curr, amt]) => sum + convertAmount(amt, curr, currency, rates), 0,
+    );
+    return {
+      bucket,
+      total: parseFloat(bucketTotal.toFixed(2)),
+      currencyBreakdown: Array.from(map.entries())
+        .filter(([, amt]) => Math.abs(amt) >= 0.005)
+        .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) })),
+    };
+  }));
+  const unassignedMap = bucketMaps.get(null) ?? new Map<string, number>();
+  const unassignedTotal = Array.from(unassignedMap.entries()).reduce(
+    (sum, [curr, amt]) => sum + convertAmount(amt, curr, currency, rates), 0,
+  );
 
   res.json({
     total: parseFloat(total.toFixed(2)),
@@ -144,7 +190,52 @@ router.get("/larder", async (req, res): Promise<void> => {
     glPercent,
     glRuleSynced,
     currencyBreakdown,
+    buckets,
+    unassigned: {
+      total: parseFloat(unassignedTotal.toFixed(2)),
+      currencyBreakdown: Array.from(unassignedMap.entries())
+        .filter(([, amt]) => Math.abs(amt) >= 0.005)
+        .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) })),
+    },
   });
+});
+
+// POST /larder/assign — move money from the Unassigned waiting room into a bucket.
+// The two ledger rows keep the allocation auditable without changing the original deposit.
+router.post("/larder/assign", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const { amount, currency, bucket: rawBucket } = req.body;
+  const { bucket, valid } = bucketFromBody(rawBucket);
+  if (!valid || !bucket) { res.status(400).json({ error: "A valid bucket is required" }); return; }
+  if (typeof amount !== "number" || amount <= 0 || !isFinite(amount)) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+  if (typeof currency !== "string" || !currency.trim()) {
+    res.status(400).json({ error: "currency is required" }); return;
+  }
+
+  const unassigned = await db.select().from(larderEntriesTable).where(and(
+    eq(larderEntriesTable.userId, userId),
+    sql`${larderEntriesTable.bucket} IS NULL`,
+  ));
+  const balances = currencyBalances(unassigned);
+  const nativeAmount = round2(amount);
+  try {
+    assertSufficientAssetBalance(balances, currency.trim(), nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Unassigned balance" }); return;
+  }
+
+  await db.insert(larderEntriesTable).values({
+    userId, amount: String(-nativeAmount), currency: currency.trim(),
+    sourceType: "bucket_assignment", note: `Assigned to ${bucket}`,
+  });
+  const [entry] = await db.insert(larderEntriesTable).values({
+    userId, amount: String(nativeAmount), currency: currency.trim(),
+    sourceType: "bucket_assignment", bucket, note: `Assigned to ${bucket}`,
+  }).returning();
+  res.status(201).json(fmtEntry(entry));
 });
 
 // POST /larder/entries — add a raw entry (used internally by recurring-payment auto-apply
@@ -280,7 +371,9 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { goalId, amount, assetCurrency: assetCurrencyInput } = req.body;
+  const { goalId, amount, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
+  const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
+  if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }
@@ -294,7 +387,9 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   // Verify user has enough in the selected Asset (currency sub-balance) —
   // entries may span multiple currencies when the account currency changed over time.
   const entries = await db.select().from(larderEntriesTable)
-    .where(eq(larderEntriesTable.userId, userId));
+    .where(and(eq(larderEntriesTable.userId, userId), bucket === null
+      ? sql`${larderEntriesTable.bucket} IS NULL`
+      : eq(larderEntriesTable.bucket, bucket)));
   const total = await convertedLarderTotal(entries, currency);
   const balances = currencyBalances(entries);
   let assetCurrency: string;
@@ -356,7 +451,9 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput } = req.body;
+  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
+  const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
+  if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }
@@ -369,7 +466,10 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
 
   // Verify balance in the selected Asset (currency sub-balance) — entries may
   // span multiple currencies when the account currency changed over time.
-  const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+  const entries = await db.select().from(larderEntriesTable).where(and(
+    eq(larderEntriesTable.userId, userId),
+    bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
+  ));
   const balance = await convertedLarderTotal(entries, currency);
   const balances = currencyBalances(entries);
   let assetCurrency: string;
@@ -407,6 +507,7 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
     sourceType: "larder_spend",
     sourceId: tx.id,
     note: description.trim(),
+    bucket,
   }).returning();
 
   res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, newBalance: balance - accountAmount });

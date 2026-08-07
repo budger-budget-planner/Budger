@@ -22,9 +22,13 @@ type LarderEntry = {
   sourceType: string;
   sourceId: number | null;
   goalId: number | null;
+  bucket: LarderBucket | null;
   note: string | null;
   createdAt: string;
 };
+
+type LarderBucket = "soft_savings" | "hard_savings" | "investments";
+type BucketSummary = { bucket: LarderBucket; total: number; currencyBreakdown: CurrencySubtotal[] };
 
 type CurrencySubtotal = {
   currency: string;
@@ -38,7 +42,12 @@ type LarderSummary = {
   glPercent: number | null;
   glRuleSynced: number;
   currencyBreakdown?: CurrencySubtotal[];
+  buckets?: BucketSummary[];
+  unassigned?: { total: number; currencyBreakdown: CurrencySubtotal[] };
 };
+
+const BUCKETS: LarderBucket[] = ["soft_savings", "hard_savings", "investments"];
+const bucketLabel = (bucket: LarderBucket) => t(`larder.bucket_${bucket}`);
 
 /** Order breakdown items: account currency first, then language-based order. */
 function orderedBreakdown(
@@ -266,12 +275,21 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [addAmt,     setAddAmt]     = useState("");
   const [addAsset,   setAddAsset]   = useState("");
   const [addLoading, setAddLoading] = useState(false);
+  const [activeBucket, setActiveBucket] = useState<LarderBucket>("soft_savings");
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignBucket, setAssignBucket] = useState<LarderBucket>("soft_savings");
+  const [assignAmount, setAssignAmount] = useState("");
+  const [assignCurrency, setAssignCurrency] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
 
   const { data: me } = useGetMe();
   const inHousehold = !!(me as any)?.householdId;
 
   const total   = larder?.total ?? 0;
   const entries = larder?.entries ?? [];
+  const bucketSummaries = larder?.buckets ?? [];
+  const activeSummary = bucketSummaries.find(b => b.bucket === activeBucket);
+  const activeTotal = activeSummary?.total ?? 0;
   const totalGLSent = entries
     .filter(e => e.sourceType === "great_larder_transfer")
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
@@ -303,7 +321,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     try { localStorage.setItem(`larder_gl_badge_dismissed_${meId}`, String(totalGLSent)); } catch { /* ignore */ }
   }, [totalGLSent, glDismissedAmount, meId, larder]);
 
-  const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
+  const assetOpts = assetOptions(activeSummary?.currencyBreakdown ?? []);
+  const unassignedAssetOpts = assetOptions(larder?.unassigned?.currencyBreakdown ?? []);
   // Add form shows all supported currencies regardless of current larder balance
   const addCurrencyOrder = prefs.language === "pl"
     ? ["PLN", "EUR", "USD", "GBP"]
@@ -312,9 +331,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     const existing = (larder?.currencyBreakdown ?? []).find(b => b.currency === currency);
     return { currency, rawTotal: existing?.rawTotal ?? 0 };
   });
-  const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
-  const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? total;
-  const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? total;
+  const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? activeTotal;
+  const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? activeTotal;
+  const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? activeTotal;
+  const assignAssetBalance = unassignedAssetOpts.find(a => a.currency === assignCurrency)?.rawTotal ?? 0;
 
   useEffect(() => {
     if (spendOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === spendAsset)) {
@@ -336,6 +356,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setAddAsset(addAssetOpts[0].currency);
     }
   }, [addOpen, addAssetOpts]);
+  useEffect(() => {
+    if (assignOpen && unassignedAssetOpts.length > 0 && !unassignedAssetOpts.some(a => a.currency === assignCurrency)) {
+      setAssignCurrency(unassignedAssetOpts[0].currency);
+    }
+  }, [assignOpen, unassignedAssetOpts]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
@@ -397,7 +422,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       void enqueue({
         endpoint: `${import.meta.env.BASE_URL}api/larder/spend`,
         method: "POST",
-        payload: { description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined },
+        payload: { description: spendDesc.trim(), amount, bucket: activeBucket, assetCurrency: spendAsset || undefined },
       }).then(() => requestBackgroundSync()).catch(console.error);
       setSpendOpen(false); setSpendDesc(""); setSpendAmt("");
       toast({ title: "Saved offline — will sync when back online" });
@@ -408,7 +433,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined }),
+        body: JSON.stringify({ description: spendDesc.trim(), amount, bucket: activeBucket, assetCurrency: spendAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
@@ -438,7 +463,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         void enqueue({
           endpoint: `${import.meta.env.BASE_URL}api/great-larder/send`,
           method: "POST",
-          payload: { amount, assetCurrency: sendGlAsset || undefined },
+          payload: { amount, bucket: activeBucket, assetCurrency: sendGlAsset || undefined },
         }).then(() => requestBackgroundSync()).catch(console.error);
         toast({ title: "Saved offline — will sync when back online" });
         setSendGlOpen(false); setSendGlAmt(""); setSendGlPct("");
@@ -448,7 +473,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, assetCurrency: sendGlAsset || undefined }),
+        body: JSON.stringify({ amount, bucket: activeBucket, assetCurrency: sendGlAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       toast({ title: t("larder.sent_to_gl_toast") });
@@ -470,7 +495,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       void enqueue({
         endpoint: `${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`,
         method: "POST",
-        payload: { goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined },
+          payload: { goalId: dedGoalId, amount: amt, bucket: activeBucket, assetCurrency: dedAsset || undefined },
       }).then(() => requestBackgroundSync()).catch(console.error);
       toast({ title: "Saved offline — will sync when back online" });
       setDedicateOpen(false); setDedGoalId(null); setDedAmount("");
@@ -481,7 +506,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined }),
+        body: JSON.stringify({ goalId: dedGoalId, amount: amt, bucket: activeBucket, assetCurrency: dedAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       const data = await r.json().catch(() => ({}));
@@ -494,6 +519,28 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     } catch (err: any) {
       toast({ title: err.message ?? "Failed" });
     } finally { setDedLoading(false); }
+  }
+
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(assignAmount.replace(",", "."));
+    if (isNaN(amount) || amount <= 0 || !assignCurrency) return;
+    if (amount > assignAssetBalance + 0.005) return;
+    setAssignLoading(true);
+    try {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency: assignCurrency, bucket: assignBucket }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      invalidate();
+      setAssignOpen(false);
+      setAssignAmount("");
+      toast({ title: t("larder.assign_success") });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Failed" });
+    } finally { setAssignLoading(false); }
   }
 
   const positiveEntries = entries.filter(e => e.amount >= 0);
@@ -576,18 +623,49 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
           </div>
 
+          {/* Savings buckets — every action below applies to the selected card. */}
+          <div className="grid grid-cols-3 gap-2">
+            {BUCKETS.map(bucket => {
+              const summary = bucketSummaries.find(b => b.bucket === bucket);
+              const selected = activeBucket === bucket;
+              return (
+                <button
+                  key={bucket}
+                  type="button"
+                  onClick={() => setActiveBucket(bucket)}
+                  className={`rounded-2xl border px-2 py-3 text-left transition ${
+                    selected ? "border-white/45 bg-white/10" : "border-white/10 bg-white/3"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">{bucketLabel(bucket)}</p>
+                  <p className="mt-1 text-sm font-semibold tabular-nums text-white/85">{fmtAmt(summary?.total ?? 0, prefs.currency)}</p>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setAssignOpen(true)}
+            disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
+            className="w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+          >
+            <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+            <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
+          </button>
+
           {/* Balance */}
           <div className="text-center py-1">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30">{bucketLabel(activeBucket)}</p>
             <p
               className="text-5xl font-bold tracking-tight text-white tabular-nums"
               style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
             >
-              <AmtHero amount={total} currency={prefs.currency} />
+              <AmtHero amount={activeTotal} currency={prefs.currency} />
             </p>
             {/* Currency breakdown — shown when savings span multiple currencies,
                 or a subtle label when all contributions share one currency */}
             {(() => {
-              const breakdown = larder?.currencyBreakdown ?? [];
+              const breakdown = activeSummary?.currencyBreakdown ?? [];
               const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
               if (ordered.length === 0) return null;
               if (ordered.length === 1) {
@@ -702,7 +780,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </button>
             <button
               onClick={() => setSpendOpen(true)}
-              disabled={!isOnline || total <= 0}
+              disabled={!isOnline || activeTotal <= 0}
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <PiggyBank className="w-4 h-4 flex-shrink-0" />
@@ -710,7 +788,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </button>
             <button
               onClick={() => setDedicateOpen(true)}
-              disabled={!isOnline || total <= 0}
+              disabled={!isOnline || activeTotal <= 0}
               className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
             >
               <Target className="w-4 h-4 flex-shrink-0" />
@@ -719,7 +797,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             {inHousehold && (
               <button
                 onClick={() => setSendGlOpen(true)}
-                disabled={!isOnline || total <= 0}
+                disabled={!isOnline || activeTotal <= 0}
                 className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
               >
                 <Users className="w-4 h-4 flex-shrink-0" />
@@ -762,6 +840,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-white/70 truncate">{e.note || sourceLabel(e.sourceType)}</p>
                           <p className="text-[10px] text-white/25">{dateStr}</p>
+                          <p className="text-[10px] text-white/20">{e.bucket ? bucketLabel(e.bucket) : t("larder.unassigned")}</p>
                         </div>
                         <p className={`text-xs font-semibold tabular-nums flex-shrink-0 ${positive ? "text-emerald-400" : "text-red-400"}`}>
                           {positive ? "+" : "−"}{fmtAmt(Math.abs(e.amount), prefs.currency)}
@@ -808,7 +887,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             return null;
           })()}
           <button type="submit"
-            disabled={spendLoading || total <= 0 || (() => { const a = parseFloat(spendAmt.replace(",", ".")); return !isNaN(a) && a > 0 && a > spendAssetBalance + 0.005; })()}
+            disabled={spendLoading || activeTotal <= 0 || (() => { const a = parseFloat(spendAmt.replace(",", ".")); return !isNaN(a) && a > 0 && a > spendAssetBalance + 0.005; })()}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {spendLoading ? "…" : t("larder.fund")}
           </button>
@@ -873,7 +952,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               return null;
             })()}
             <button type="submit"
-              disabled={sendGlLoading || total <= 0 || (() => { const a = sendGlMode === "amount" ? parseFloat(sendGlAmt.replace(",", ".")) : (sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100; return !isNaN(a) && a > 0 && a > sendGlAssetBalance + 0.005; })()}
+              disabled={sendGlLoading || activeTotal <= 0 || (() => { const a = sendGlMode === "amount" ? parseFloat(sendGlAmt.replace(",", ".")) : (sendGlAssetBalance * (parseFloat(sendGlPct) || 0)) / 100; return !isNaN(a) && a > 0 && a > sendGlAssetBalance + 0.005; })()}
               className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
               {sendGlLoading ? "…" : t("larder.send")}
             </button>
@@ -981,6 +1060,55 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0 || (() => { const a = parseFloat(dedAmount.replace(",", ".")); return !isNaN(a) && a > 0 && a > dedAssetBalance + 0.005; })()}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {dedLoading ? "…" : t("larder.dedicate")}
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet title={t("larder.assign_title")} open={assignOpen} onClose={() => { setAssignOpen(false); setAssignAmount(""); }}>
+        <form onSubmit={handleAssign} className="space-y-4">
+          <div className="space-y-2">
+            <label className={labelCls}>{t("larder.assign_to")}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {BUCKETS.map(bucket => (
+                <button
+                  key={bucket}
+                  type="button"
+                  onClick={() => setAssignBucket(bucket)}
+                  className={`rounded-xl border px-2 py-2.5 text-[11px] font-medium transition ${
+                    assignBucket === bucket ? "border-white/40 bg-white/10 text-white" : "border-white/10 bg-white/3 text-white/45"
+                  }`}
+                >
+                  {bucketLabel(bucket)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <AssetSelect options={unassignedAssetOpts} value={assignCurrency} onChange={setAssignCurrency} />
+          <div className="space-y-1.5">
+            <label className={labelCls}>
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(assignAssetBalance, assignCurrency || prefs.currency)}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              required
+              value={assignAmount}
+              onChange={e => setAssignAmount(e.target.value)}
+              placeholder="0.00"
+              className={inputCls}
+              autoFocus
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={assignLoading || !assignCurrency || (() => {
+              const amount = parseFloat(assignAmount.replace(",", "."));
+              return isNaN(amount) || amount <= 0 || amount > assignAssetBalance + 0.005;
+            })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {assignLoading ? "…" : t("larder.assign")}
           </button>
         </form>
       </Sheet>

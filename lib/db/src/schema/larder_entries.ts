@@ -34,6 +34,8 @@ export const larderEntriesTable = pgTable("larder_entries", {
   note: text("note"),
   /** Soft-hide from history display (balance is still included in totals) */
   hidden: boolean("hidden").notNull().default(false),
+  /** Savings bucket; null means waiting room / Unassigned. */
+  bucket: text("bucket"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, table => [
   index("larder_entries_user_id_idx").on(table.userId),
