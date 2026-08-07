@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { t, fmtMonthYear, fmtDayDate } from "@/lib/i18n";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
@@ -412,6 +413,9 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     setLocalImages(next);
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
+  }, onError: (error: any) => {
+    const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+    toast.error(message);
   }}});
   const deleteReceipt = useDeleteReceipt({ mutation: { onSuccess: (data: any) => {
     const next: string[] = Array.isArray(data?.receiptImages) ? data.receiptImages
@@ -420,6 +424,9 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     setLightboxIdx(null);
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
+  }, onError: (error: any) => {
+    const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+    toast.error(message);
   }}});
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -473,6 +480,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
                       style={{ maxHeight: effectiveImages.length === 1 ? 240 : 140 }}
                       onClick={() => setLightboxIdx(idx)} />
                     <button
+                      type="button"
                       className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive disabled:opacity-40"
                       onClick={() => deleteReceipt.mutate({ id: tx.id, index: idx })}
                       disabled={isBusy}
@@ -549,7 +557,12 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
       )}
 
       <input ref={libraryRef} type="file" accept="image/*"
-        className="hidden" onChange={handleFileChange} />
+        // iOS Safari may not dispatch a change event for a display:none input
+        // opened with HTMLElement.click(). Visually hide it without removing
+        // it from the document so both file selection and camera capture work.
+        className="absolute -z-10 h-px w-px opacity-0"
+        tabIndex={-1}
+        onChange={handleFileChange} />
     </>
   );
 }

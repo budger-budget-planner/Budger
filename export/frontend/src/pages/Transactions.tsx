@@ -430,6 +430,10 @@ function ReceiptModal({
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
+      onError: (error: any) => {
+        const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+        toast.error(message);
+      },
     },
   });
   const deleteReceipt = useDeleteReceipt({
@@ -441,6 +445,10 @@ function ReceiptModal({
         setLightboxIdx(null);
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
+      },
+      onError: (error: any) => {
+        const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+        toast.error(message);
       },
     },
   });
@@ -501,6 +509,7 @@ function ReceiptModal({
                       data-testid={`img-receipt-${idx}`}
                     />
                     <button
+                      type="button"
                       className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive disabled:opacity-40"
                       onClick={() => deleteReceipt.mutate({ id: tx.id, index: idx })}
                       disabled={isOffline || isBusy}
@@ -596,7 +605,12 @@ function ReceiptModal({
         ref={libraryRef}
         type="file"
         accept="image/*"
-        className="hidden"
+        // Do not use display:none here. iOS Safari can ignore a programmatic
+        // click on a display:none file input, which makes the picker appear to
+        // work while onChange never fires. Keep it in the document, visually
+        // hidden, and trigger it directly from the user's button tap.
+        className="absolute -z-10 h-px w-px opacity-0"
+        tabIndex={-1}
         onChange={handleFileChange}
         data-testid="input-receipt-library"
       />

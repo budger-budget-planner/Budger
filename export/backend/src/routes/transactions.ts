@@ -728,8 +728,8 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
 
   let { imageData } = req.body as { imageData?: string };
   if (!imageData || typeof imageData !== "string") {
@@ -762,7 +762,21 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
     const match = imageData.match(/^data:([^;]+);base64,(.+)$/s);
     if (!match) { res.status(400).json({ error: "Unrecognised image data" }); return; }
     const [, contentType, b64] = match;
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      res.status(415).json({ error: "Receipt must be an image" });
+      return;
+    }
     const buffer = Buffer.from(b64, "base64");
+    if (buffer.length === 0) {
+      res.status(400).json({ error: "Receipt image is empty" });
+      return;
+    }
+    // Keep this below the JSON body limit and protect storage from malformed
+    // or unexpectedly large payloads sent by a client.
+    if (buffer.length > 20 * 1024 * 1024) {
+      res.status(413).json({ error: "Receipt image is too large" });
+      return;
+    }
     try {
       imageData = await objectStorageService.uploadObjectEntity(buffer, contentType);
     } catch (err) {
@@ -773,14 +787,26 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   }
 
   const receiptImages = [...existingImages, imageData];
-  const [tx] = await db.update(transactionsTable)
-    .set({
-      // Keep the legacy field synchronized for older clients.
-      receiptImage: receiptImages[0] ?? null,
-      receiptImages,
-    })
-    .where(eq(transactionsTable.id, id))
-    .returning();
+  let tx: any;
+  try {
+    [tx] = await db.update(transactionsTable)
+      .set({
+        // Keep the legacy field synchronized for older clients.
+        receiptImage: receiptImages[0] ?? null,
+        receiptImages,
+      })
+      .where(eq(transactionsTable.id, id))
+      .returning();
+  } catch (err) {
+    // If the object was uploaded but the DB write failed, remove the newly
+    // uploaded object so retrying cannot leak orphaned receipt files.
+    if (imageData.startsWith("http")) {
+      await objectStorageService.deleteObjectEntity(imageData).catch((deleteErr) => {
+        logger.warn({ err: deleteErr }, "Failed to clean up receipt after DB update failure");
+      });
+    }
+    throw err;
+  }
 
   if (!tx) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -795,8 +821,8 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
   if (!existing || existing.userId !== userId) { res.status(404).json({ error: "Not found" }); return; }
@@ -814,8 +840,8 @@ router.delete("/transactions/:id/receipt", async (req, res): Promise<void> => {
       logger.warn({ err }, "Failed to delete receipt object");
     });
   }
-  const remainingImages = requestedImage
-    ? existingImages.filter(image => image !== requestedImage)
+  const remainingImages = requestedIndex !== null
+    ? existingImages.filter((_, index) => index !== requestedIndex)
     : [];
 
   const [tx] = await db.update(transactionsTable)
