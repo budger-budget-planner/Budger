@@ -910,8 +910,14 @@ async function persistReceipts(transactionId: number, userId: number, incoming: 
 }
 
 async function readIncomingReceipts(req: Request): Promise<IncomingReceipt[]> {
-  const contentType = String(req.headers["content-type"] ?? "").toLowerCase();
-  if (contentType.startsWith("multipart/form-data")) return readMultipartReceipts(req);
+  // Do not lowercase the complete header here. Multipart boundaries are
+  // case-sensitive and the browser's boundary in the body must match the
+  // boundary token from Content-Type byte-for-byte. Lowercasing the header
+  // makes otherwise valid uploads parse as an empty batch.
+  const contentType = String(req.headers["content-type"] ?? "");
+  if (/^multipart\/form-data(?:\s*;|$)/i.test(contentType)) {
+    return readMultipartReceipts(req);
+  }
 
   let { imageData } = req.body as { imageData?: string };
   if (typeof imageData !== "string") throw new ReceiptRequestError("Receipt photo is required");
