@@ -4,13 +4,29 @@ import {
   transactionsTable, usersTable, householdMembersTable,
   notificationItemsTable, goalsTable, goalContributionsTable,
 } from "../db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
 
 const router: IRouter = Router();
+
+export const GREAT_LARDER_BUCKETS = ["soft_savings", "hard_savings", "investments"] as const;
+type GreatLarderBucket = typeof GREAT_LARDER_BUCKETS[number];
+
+function parseBucket(value: unknown): GreatLarderBucket | null {
+  if (value == null || value === "") return null;
+  return typeof value === "string" && (GREAT_LARDER_BUCKETS as readonly string[]).includes(value)
+    ? value as GreatLarderBucket
+    : null;
+}
+
+function bucketFromBody(value: unknown): { bucket: GreatLarderBucket | null; valid: boolean } {
+  if (value === undefined) return { bucket: null, valid: true };
+  const bucket = parseBucket(value);
+  return { bucket, valid: value == null || value === "" || bucket !== null };
+}
 
 function isHead(role: string) { return role === "head" || role === "owner"; }
 function isParent(role: string) { return isHead(role) || role === "parent"; }
@@ -49,6 +65,7 @@ function fmtEntry(e: typeof greatLarderEntriesTable.$inferSelect, contributorNam
     status: e.status,
     transactionId: e.transactionId ?? null,
     goalId: e.goalId ?? null,
+    bucket: e.bucket ?? null,
     note: e.note ?? null,
     createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
   };
@@ -102,14 +119,104 @@ router.get("/great-larder", async (req, res): Promise<void> => {
     .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) }));
 
   const pendingCount = entries.filter(e => e.status === "pending").length;
+  const buckets = GREAT_LARDER_BUCKETS.map(bucket => {
+    const bucketEntries = approved.filter(e => e.bucket === bucket);
+    const map = new Map<string, number>();
+    for (const e of bucketEntries) {
+      const c = e.currency || currency;
+      map.set(c, (map.get(c) ?? 0) + parseFloat(e.amount));
+    }
+    const total = Array.from(map.entries()).reduce(
+      (sum, [curr, amount]) => sum + convertAmount(amount, curr, currency, rates), 0,
+    );
+    return {
+      bucket,
+      total: parseFloat(total.toFixed(2)),
+      currencyBreakdown: Array.from(map.entries())
+        .filter(([, amount]) => Math.abs(amount) >= 0.005)
+        .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) })),
+    };
+  });
+  const unassignedMap = new Map<string, number>();
+  for (const e of approved.filter(e => e.bucket == null)) {
+    const c = e.currency || currency;
+    unassignedMap.set(c, (unassignedMap.get(c) ?? 0) + parseFloat(e.amount));
+  }
+  const unassignedTotal = Array.from(unassignedMap.entries()).reduce(
+    (sum, [curr, amount]) => sum + convertAmount(amount, curr, currency, rates), 0,
+  );
 
   res.json({
     total: parseFloat(total.toFixed(2)),
     currency,
     pendingCount,
     currencyBreakdown,
+    buckets,
+    unassigned: {
+      total: parseFloat(unassignedTotal.toFixed(2)),
+      currencyBreakdown: Array.from(unassignedMap.entries())
+        .filter(([, amount]) => Math.abs(amount) >= 0.005)
+        .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) })),
+    },
     entries: entries.map(e => fmtEntry(e, nameMap.get(e.contributedByUserId) ?? "Unknown")),
   });
+});
+
+// POST /great-larder/assign — head-only, atomic assignment from the waiting room.
+router.post("/great-larder/assign", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const membership = await getMembership(userId, user.householdId);
+  if (!membership || !isHead(membership.role)) {
+    res.status(403).json({ error: "Only the head can assign Great Larder funds" }); return;
+  }
+
+  const { amount, currency, bucket: rawBucket } = req.body;
+  const { bucket, valid } = bucketFromBody(rawBucket);
+  if (!valid || !bucket) { res.status(400).json({ error: "A valid bucket is required" }); return; }
+  if (typeof amount !== "number" || amount <= 0 || !isFinite(amount)) {
+    res.status(400).json({ error: "amount must be a positive number" }); return;
+  }
+  if (typeof currency !== "string" || !currency.trim()) {
+    res.status(400).json({ error: "currency is required" }); return;
+  }
+
+  const approvedUnassigned = (await db.select().from(greatLarderEntriesTable).where(
+    eq(greatLarderEntriesTable.householdId, user.householdId),
+  )).filter(e => e.status === "approved" && e.bucket == null);
+  const balances = currencyBalances(approvedUnassigned);
+  const nativeAmount = round2(amount);
+  try {
+    assertSufficientAssetBalance(balances, currency.trim(), nativeAmount);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Unassigned balance" }); return;
+  }
+
+  const entry = await db.transaction(async tx => {
+    await tx.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId,
+      contributedByUserId: userId,
+      amount: String(-nativeAmount),
+      currency: currency.trim(),
+      sourceType: "bucket_assignment",
+      status: "approved",
+      note: `Assigned to ${bucket}`,
+    });
+    const [created] = await tx.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId,
+      contributedByUserId: userId,
+      amount: String(nativeAmount),
+      currency: currency.trim(),
+      sourceType: "bucket_assignment",
+      status: "approved",
+      bucket,
+      note: `Assigned to ${bucket}`,
+    }).returning();
+    return created;
+  });
+  res.status(201).json(fmtEntry(entry, user.name ?? "Unknown"));
 });
 
 // POST /great-larder/send — transfer from personal Larder to Great Larder
@@ -121,13 +228,17 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
-  const { amount: rawAmount, percent, assetCurrency: assetCurrencyInput } = req.body;
+  const { amount: rawAmount, percent, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
+  const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
+  if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
 
   // Resolve account currency early — needed for currency-aware defaults below.
   const currency = user.currency ?? "USD";
 
-  const personalEntries = await db.select().from(larderEntriesTable)
-    .where(eq(larderEntriesTable.userId, userId));
+  const personalEntries = await db.select().from(larderEntriesTable).where(and(
+    eq(larderEntriesTable.userId, userId),
+    bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
+  ));
   const rates = await fetchRates();
   const balances = currencyBalances(personalEntries);
 
@@ -165,6 +276,7 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
     amount: String(-nativeAmount),
     currency: assetCurrency,
     sourceType: "great_larder_transfer",
+    bucket,
   });
 
   // Credit Great Larder in the same currency (moves that Asset's value across
@@ -176,6 +288,7 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
     currency: assetCurrency,
     sourceType: "member_transfer",
     status: "approved",
+    bucket: null,
     note: "From personal Larder",
   }).returning();
 
@@ -386,7 +499,9 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Only parents and the head can spend from the Great Larder" }); return;
   }
 
-  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput } = req.body;
+  const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
+  const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
+  if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }
@@ -396,7 +511,7 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
 
   const allEntries = await db.select().from(greatLarderEntriesTable)
     .where(eq(greatLarderEntriesTable.householdId, user.householdId));
-  const approvedEntries = allEntries.filter(e => e.status === "approved");
+  const approvedEntries = allEntries.filter(e => e.status === "approved" && e.bucket === bucket);
   const balances = currencyBalances(approvedEntries);
   let assetCurrency: string;
   const nativeAmount = round2(amount);
@@ -435,6 +550,7 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
     status,
     transactionId: tx.id,
     note: description.trim(),
+    bucket,
   }).returning();
 
   if (status === "pending") {
@@ -480,7 +596,9 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
     res.status(403).json({ error: "Only the head can dedicate Great Larder funds to a goal" }); return;
   }
 
-  const { goalId, amount, assetCurrency: assetCurrencyInput } = req.body;
+  const { goalId, amount, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
+  const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
+  if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }
@@ -490,7 +608,7 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
 
   const allEntries = await db.select().from(greatLarderEntriesTable)
     .where(eq(greatLarderEntriesTable.householdId, user.householdId));
-  const approvedEntries = allEntries.filter(e => e.status === "approved");
+  const approvedEntries = allEntries.filter(e => e.status === "approved" && e.bucket === bucket);
   const balance = approvedEntries.reduce((s, e) => s + parseFloat(e.amount), 0);
   const balances = currencyBalances(approvedEntries);
   let assetCurrency: string;
@@ -522,6 +640,7 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
     status: "approved",
     goalId,
     note: `Dedicated to goal: ${goal.name}`,
+    bucket,
   });
 
   const [contrib] = await db.insert(goalContributionsTable).values({
