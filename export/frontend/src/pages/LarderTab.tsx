@@ -5,6 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@/lib/api-client";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
+import {
+  LarderStackSurface,
+  SavingsBucketStack,
+} from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -24,9 +28,13 @@ type LarderEntry = {
   sourceType: string;
   sourceId: number | null;
   goalId: number | null;
+  bucket: LarderBucket | null;
   note: string | null;
   createdAt: string;
 };
+
+type LarderBucket = "soft_savings" | "hard_savings" | "investments";
+type BucketSummary = { bucket: LarderBucket; total: number; currencyBreakdown: CurrencySubtotal[] };
 
 type CurrencySubtotal = {
   currency: string;
@@ -40,7 +48,12 @@ type LarderSummary = {
   glPercent: number | null;
   glRuleSynced: number;
   currencyBreakdown?: CurrencySubtotal[];
+  buckets?: BucketSummary[];
+  unassigned?: { total: number; currencyBreakdown: CurrencySubtotal[] };
 };
+
+const BUCKETS: LarderBucket[] = ["soft_savings", "hard_savings", "investments"];
+const bucketLabel = (bucket: LarderBucket) => t(`larder.bucket_${bucket}`);
 
 /** Order breakdown items: account currency first, then language-based order. */
 function orderedBreakdown(
@@ -270,12 +283,21 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [addAmt,     setAddAmt]     = useState("");
   const [addAsset,   setAddAsset]   = useState("");
   const [addLoading, setAddLoading] = useState(false);
+  const [activeBucket, setActiveBucket] = useState<LarderBucket>("soft_savings");
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignBucket, setAssignBucket] = useState<LarderBucket>("soft_savings");
+  const [assignAmount, setAssignAmount] = useState("");
+  const [assignCurrency, setAssignCurrency] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
 
   const { data: me } = useGetMe();
   const inHousehold = !!(me as any)?.householdId;
 
   const total   = larder?.total ?? 0;
   const entries = larder?.entries ?? [];
+  const bucketSummaries = larder?.buckets ?? [];
+  const activeSummary = bucketSummaries.find(b => b.bucket === activeBucket);
+  const activeTotal = activeSummary?.total ?? 0;
   const totalGLSent = entries
     .filter(e => e.sourceType === "great_larder_transfer")
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
@@ -307,7 +329,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     try { localStorage.setItem(`larder_gl_badge_dismissed_${meId}`, String(totalGLSent)); } catch { /* ignore */ }
   }, [totalGLSent, glDismissedAmount, meId, larder]);
 
-  const assetOpts = assetOptions(larder?.currencyBreakdown ?? []);
+  const assetOpts = assetOptions(activeSummary?.currencyBreakdown ?? []);
+  const unassignedAssetOpts = assetOptions(larder?.unassigned?.currencyBreakdown ?? []);
   // Add form shows all supported currencies regardless of current larder balance
   const addCurrencyOrder = prefs.language === "pl"
     ? ["PLN", "EUR", "USD", "GBP"]
@@ -316,9 +339,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     const existing = (larder?.currencyBreakdown ?? []).find(b => b.currency === currency);
     return { currency, rawTotal: existing?.rawTotal ?? 0 };
   });
-  const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? total;
-  const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? total;
-  const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? total;
+  const spendAssetBalance = assetOpts.find(a => a.currency === spendAsset)?.rawTotal ?? activeTotal;
+  const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? activeTotal;
+  const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? activeTotal;
+  const assignAssetBalance = unassignedAssetOpts.find(a => a.currency === assignCurrency)?.rawTotal ?? 0;
 
   useEffect(() => {
     if (spendOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === spendAsset)) {
@@ -340,6 +364,11 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       setAddAsset(addAssetOpts[0].currency);
     }
   }, [addOpen, addAssetOpts]);
+  useEffect(() => {
+    if (assignOpen && unassignedAssetOpts.length > 0 && !unassignedAssetOpts.some(a => a.currency === assignCurrency)) {
+      setAssignCurrency(unassignedAssetOpts[0].currency);
+    }
+  }, [assignOpen, unassignedAssetOpts]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["larder"] });
@@ -402,7 +431,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       void enqueue({
         endpoint: `${import.meta.env.BASE_URL}api/larder/spend`,
         method: "POST",
-        payload: { description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined },
+        payload: { description: spendDesc.trim(), amount, bucket: activeBucket, assetCurrency: spendAsset || undefined },
       }).then(() => requestBackgroundSync()).catch(console.error);
       setSpendOpen(false); setSpendDesc(""); setSpendAmt("");
       toast({ title: "Saved offline — will sync when back online" });
@@ -413,7 +442,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/spend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: spendDesc.trim(), amount, assetCurrency: spendAsset || undefined }),
+        body: JSON.stringify({ description: spendDesc.trim(), amount, bucket: activeBucket, assetCurrency: spendAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       invalidate();
@@ -443,7 +472,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         void enqueue({
           endpoint: `${import.meta.env.BASE_URL}api/great-larder/send`,
           method: "POST",
-          payload: { amount, assetCurrency: sendGlAsset || undefined },
+          payload: { amount, bucket: activeBucket, assetCurrency: sendGlAsset || undefined },
         }).then(() => requestBackgroundSync()).catch(console.error);
         toast({ title: "Saved offline — will sync when back online" });
         setSendGlOpen(false); setSendGlAmt(""); setSendGlPct("");
@@ -453,7 +482,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, assetCurrency: sendGlAsset || undefined }),
+        body: JSON.stringify({ amount, bucket: activeBucket, assetCurrency: sendGlAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       toast({ title: t("larder.sent_to_gl_toast") });
@@ -475,7 +504,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       void enqueue({
         endpoint: `${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`,
         method: "POST",
-        payload: { goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined },
+        payload: { goalId: dedGoalId, amount: amt, bucket: activeBucket, assetCurrency: dedAsset || undefined },
       }).then(() => requestBackgroundSync()).catch(console.error);
       toast({ title: "Saved offline — will sync when back online" });
       setDedicateOpen(false); setDedGoalId(null); setDedAmount("");
@@ -486,7 +515,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/dedicate-to-goal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalId: dedGoalId, amount: amt, assetCurrency: dedAsset || undefined }),
+        body: JSON.stringify({ goalId: dedGoalId, amount: amt, bucket: activeBucket, assetCurrency: dedAsset || undefined }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
       const data = await r.json().catch(() => ({}));
@@ -501,6 +530,27 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     } finally { setDedLoading(false); }
   }
 
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(assignAmount.replace(",", "."));
+    if (isNaN(amount) || amount <= 0 || !assignCurrency || amount > assignAssetBalance + 0.005) return;
+    setAssignLoading(true);
+    try {
+      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency: assignCurrency, bucket: assignBucket }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.error ?? "Failed"); }
+      invalidate();
+      setAssignOpen(false);
+      setAssignAmount("");
+      toast({ title: t("larder.assign_success") });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Failed" });
+    } finally { setAssignLoading(false); }
+  }
+
   const positiveEntries = entries.filter(e => e.amount >= 0);
   const negativeEntries = entries.filter(e => e.amount < 0);
 
@@ -513,8 +563,23 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.85} 85%{opacity:0.85} 100%{transform:translateX(-80px);opacity:0} }
         @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.45} 40%{opacity:0.95;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.45} }
       `}</style>
+      <button
+        type="button"
+        onClick={() => setAssignOpen(true)}
+        disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
+        className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+      >
+        <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+        <p className="text-[11px] text-white/35">
+          {orderedBreakdown(larder?.unassigned?.currencyBreakdown ?? [], prefs.currency, prefs.language)
+            .map(asset => fmtAmt(asset.rawTotal, asset.currency))
+            .join(" · ")}
+          {(larder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
+          ≈ {fmtAmt(Math.max(0, larder?.unassigned?.total ?? 0), prefs.currency)} · {t("larder.assign_hint")}
+        </p>
+      </button>
+      <LarderStackSurface ref={ref}>
       <div
-        ref={ref}
         className="relative overflow-hidden rounded-3xl touch-pan-y"
         style={{
           background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
@@ -581,14 +646,14 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
           </div>
 
-          {/* Balance */}
+          {/* Selected savings bucket */}
           <div className="text-center py-1">
-            <p
-              className="text-5xl font-bold tracking-tight text-white tabular-nums"
-              style={{ textShadow: "0 0 32px rgba(255,255,255,0.20), 0 0 64px rgba(255,255,255,0.08)" }}
-            >
-              <AmtHero amount={total} currency={prefs.currency} />
-            </p>
+            <SavingsBucketStack
+              summaries={bucketSummaries}
+              activeBucket={activeBucket}
+              onBucketChange={setActiveBucket}
+              currency={prefs.currency}
+            />
             {/* Currency breakdown — shown when savings span multiple currencies,
                 or a subtle label when all contributions share one currency */}
             {(() => {
@@ -780,6 +845,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           )}
         </div>
       </div>
+      </LarderStackSurface>
 
       {/* ── Fund (spend from Larder into a transaction) sheet ── */}
       <Sheet title={t("larder.spend_sheet_title")} open={spendOpen} onClose={() => setSpendOpen(false)}>
@@ -986,6 +1052,67 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             disabled={dedLoading || !dedGoalId || (goals ?? []).length === 0 || (() => { const a = parseFloat(dedAmount.replace(",", ".")); return !isNaN(a) && a > 0 && a > dedAssetBalance + 0.005; })()}
             className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50">
             {dedLoading ? "…" : t("larder.dedicate")}
+          </button>
+        </form>
+      </Sheet>
+      {/* ── Assign unassigned funds to a savings bucket ── */}
+      <Sheet
+        title={t("larder.assign_title")}
+        open={assignOpen}
+        onClose={() => { setAssignOpen(false); setAssignAmount(""); }}
+      >
+        <form onSubmit={handleAssign} className="space-y-4">
+          <div className="space-y-2">
+            <label className={labelCls}>{t("larder.assign_to")}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["soft_savings", "hard_savings", "investments"] as const).map(bucket => (
+                <button
+                  key={bucket}
+                  type="button"
+                  onClick={() => setAssignBucket(bucket)}
+                  className={`rounded-xl border px-2 py-2.5 text-[11px] font-medium transition ${
+                    assignBucket === bucket
+                      ? "border-white/40 bg-white/10 text-white"
+                      : "border-white/10 bg-white/3 text-white/45"
+                  }`}
+                >
+                  {t(`larder.bucket_${bucket}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <AssetSelect options={unassignedAssetOpts} value={assignCurrency} onChange={setAssignCurrency} />
+          <div className="space-y-1.5">
+            <label className={labelCls}>
+              {t("larder.amount_label")} · {t("larder.balance_lbl")}: {fmtAmt(assignAssetBalance, assignCurrency || prefs.currency)}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="0.00"
+              value={assignAmount}
+              onChange={e => setAssignAmount(e.target.value)}
+              required
+              className={inputCls}
+              autoFocus
+            />
+            <ConversionPreview
+              amount={parseFloat(assignAmount.replace(",", "."))}
+              from={assignCurrency}
+              to={prefs.currency}
+              rates={rates}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={assignLoading || !assignCurrency || (() => {
+              const amount = parseFloat(assignAmount.replace(",", "."));
+              return isNaN(amount) || amount <= 0 || amount > assignAssetBalance + 0.005;
+            })()}
+            className="w-full py-3.5 rounded-2xl bg-white text-black font-semibold text-sm transition active:scale-95 disabled:opacity-50"
+          >
+            {assignLoading ? "…" : t("larder.assign")}
           </button>
         </form>
       </Sheet>

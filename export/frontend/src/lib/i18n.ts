@@ -1219,6 +1219,16 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.all_in_currency":  { en: "All contributions in {code}",    pl: "Wszystkie wpłaty w {code}"          },
   "larder.asset_label":      { en: "Asset (source)",                 pl: "Aktywo (źródło)"                    },
   "larder.insufficient_asset": { en: "Insufficient balance in {code}", pl: "Niewystarczające saldo w {code}"  },
+  "larder.bucket_soft_savings": { en: "Soft Savings",                 pl: "Miękkie oszczędności"              },
+  "larder.bucket_hard_savings": { en: "Hard Savings",                 pl: "Twarde oszczędności"               },
+  "larder.bucket_investments": { en: "Investments",                   pl: "Inwestycje"                        },
+  "larder.flip_stack":        { en: "Flip stack",                     pl: "Przełącz stos"                     },
+  "larder.unassigned":        { en: "Unassigned",                     pl: "Nieprzypisane"                    },
+  "larder.assign_hint":       { en: "Tap to assign to a bucket",        pl: "Dotknij, aby przypisać do koszyka" },
+  "larder.assign_title":      { en: "Assign waiting funds",            pl: "Przypisz oczekujące środki"        },
+  "larder.assign_to":         { en: "Assign to",                       pl: "Przypisz do"                      },
+  "larder.assign":             { en: "Assign funds",                    pl: "Przypisz środki"                  },
+  "larder.assign_success":     { en: "Funds assigned",                  pl: "Środki przypisane"                },
 
   // ── Great Larder (Wielka Spiżarnia) ──
   "gl.title":                { en: "Great Larder",                    pl: "Wielka Spiżarnia"                   },
