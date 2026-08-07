@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
 import {
-  Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
-  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users, Plus,
+  Warehouse, PiggyBank, Target,
+  ArrowRightCircle, X, Users, Plus,
 } from "lucide-react";
 
 type LarderEntry = {
@@ -131,26 +131,6 @@ function ConversionPreview({
   );
 }
 
-function sourceLabel(sourceType: string): string {
-  if (sourceType === "recurring_payment") return t("larder.source_recurring");
-  if (sourceType === "larder_fund")       return t("larder.source_fund");
-  if (sourceType === "larder_spend")      return t("larder.source_fund");
-  if (sourceType === "goal_dedication")   return t("larder.source_dedication");
-  if (sourceType === "great_larder_transfer") return t("larder.source_transfer");
-  return t("larder.source_manual");
-}
-
-function EntryIcon({ sourceType, positive }: { sourceType: string; positive: boolean }) {
-  if (sourceType === "recurring_payment") return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (sourceType === "larder_fund")       return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (sourceType === "larder_spend")      return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-  if (sourceType === "goal_dedication")   return <Target className="w-3.5 h-3.5 text-white/40" />;
-  if (sourceType === "great_larder_transfer") return <ArrowRightCircle className="w-3.5 h-3.5 text-white/40" />;
-  return positive
-    ? <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-    : <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-}
-
 function Sheet({
   title, open, onClose, children,
 }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
@@ -199,7 +179,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const { data: rates } = useQuery({ queryKey: ["fx-rates"], queryFn: fetchRates, staleTime: 60 * 60 * 1000 });
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
-  const [historyOpen,  setHistoryOpen]  = useState(false);
   const [glBadgeCollapsed, setGlBadgeCollapsed] = useState(true);
 
   // ── GL badge dismiss (long-press to reset the counter) ───────────────────────
@@ -369,20 +348,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
   }
 
-  async function handleClearHistory() {
-    try {
-      const r = await apiFetch(`${import.meta.env.BASE_URL}api/larder/history`, {
-        method: "DELETE",
-      });
-      if (!r.ok) throw new Error("Failed");
-      invalidate();
-      setHistoryOpen(false);
-      toast({ title: t("larder.history_cleared") });
-    } catch {
-      toast({ title: t("larder.clear_failed") });
-    }
-  }
-
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     const amount = parseFloat(addAmt.replace(",", "."));
@@ -543,9 +508,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       toast({ title: err.message ?? "Failed" });
     } finally { setAssignLoading(false); }
   }
-
-  const positiveEntries = entries.filter(e => e.amount >= 0);
-  const negativeEntries = entries.filter(e => e.amount < 0);
 
   return (
     <>
@@ -724,52 +686,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             )}
           </div>
 
-          {/* Recent entries — collapsible */}
-          {entries.length > 0 && (
-            <div className="border-t border-white/6 pt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setHistoryOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-xs text-white/35 font-semibold uppercase tracking-widest"
-                >
-                  <span>{t("larder.history", { n: entries.length })}</span>
-                  {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={handleClearHistory}
-                  disabled={!isOnline}
-                  className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  {t("larder.clear")}
-                </button>
-              </div>
-              {historyOpen && (
-                <div className="space-y-1 pt-1">
-                  {entries.slice(0, 20).map(e => {
-                    const positive = e.amount >= 0;
-                    const d = new Date(e.createdAt);
-                    const dateStr = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
-                    return (
-                      <div key={e.id} className="flex items-center gap-2.5 py-1.5">
-                        <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                          <EntryIcon sourceType={e.sourceType} positive={positive} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white/70 truncate">{e.note || sourceLabel(e.sourceType)}</p>
-                          <p className="text-[10px] text-white/25">{dateStr}</p>
-                          <p className="text-[10px] text-white/20">{e.bucket ? bucketLabel(e.bucket) : t("larder.unassigned")}</p>
-                        </div>
-                        <p className={`text-xs font-semibold tabular-nums flex-shrink-0 ${positive ? "text-emerald-400" : "text-red-400"}`}>
-                          {positive ? "+" : "−"}{fmtAmt(Math.abs(e.amount), prefs.currency)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
       </LarderStackSurface>
