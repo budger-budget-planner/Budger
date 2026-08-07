@@ -21,8 +21,8 @@ type LarderStackSurfaceProps = {
 };
 
 type LarderStackMotionContextValue = {
-  phase: "idle" | "out";
-  setPhase: (phase: "idle" | "out") => void;
+  phase: "idle" | "out" | "in";
+  setPhase: (phase: "idle" | "out" | "in") => void;
 };
 
 const LarderStackMotionContext = createContext<LarderStackMotionContextValue | null>(null);
@@ -34,7 +34,7 @@ const LarderStackMotionContext = createContext<LarderStackMotionContextValue | n
  */
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
   function LarderStackSurface({ children, preview, previewTop = 72, className = "" }, ref) {
-  const [shufflePhase, setShufflePhase] = useState<"idle" | "out">("idle");
+  const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
 
     return (
       <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase }}>
@@ -71,7 +71,11 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
         </div>
         <div
           className={`relative z-10 ${
-            shufflePhase === "out" ? "larder-stack-shuffle-out" : ""
+            shufflePhase === "out"
+              ? "larder-stack-shuffle-out"
+              : shufflePhase === "in"
+                ? "larder-stack-shuffle-in"
+                : ""
           }`}
         >
           {children}
@@ -150,7 +154,7 @@ export function SavingsBucketStack({
 }: SavingsBucketStackProps) {
   const stackMotion = useContext(LarderStackMotionContext);
   const [visibleBucket, setVisibleBucket] = useState<SavingsBucket>(activeBucket);
-  const [localShufflePhase, setLocalShufflePhase] = useState<"idle" | "out">("idle");
+  const [localShufflePhase, setLocalShufflePhase] = useState<"idle" | "out" | "in">("idle");
   const shuffleTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const shufflePhase = stackMotion?.phase ?? localShufflePhase;
   const setShufflePhase = stackMotion?.setPhase ?? setLocalShufflePhase;
@@ -181,14 +185,15 @@ export function SavingsBucketStack({
       setTimeout(() => {
         setVisibleBucket(nextBucket);
         onBucketChange(nextBucket);
-        setShufflePhase("idle");
+        setShufflePhase("in");
       }, 275),
     );
 
     shuffleTimers.current.push(
       setTimeout(() => {
         shuffleTimers.current = [];
-      }, 295),
+        setShufflePhase("idle");
+      }, 500),
     );
   }
 
@@ -222,9 +227,26 @@ export function SavingsBucketStack({
           will-change: transform, opacity;
           animation: larderStackShuffleOut 265ms cubic-bezier(.22, .72, .34, 1) both;
         }
+        @keyframes larderStackShuffleIn {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 8px, 0);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+        .larder-stack-shuffle-in {
+          will-change: transform, opacity;
+          animation: larderStackShuffleIn 190ms cubic-bezier(.22, 1, .36, 1) both;
+        }
         @media (prefers-reduced-motion: reduce) {
           .larder-stack-shuffle-out {
             animation: larderStackShuffleOut 1ms linear both;
+          }
+          .larder-stack-shuffle-in {
+            animation: larderStackShuffleIn 1ms linear both;
           }
         }
       `}</style>

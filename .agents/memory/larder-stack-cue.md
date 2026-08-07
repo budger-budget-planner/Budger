@@ -16,3 +16,7 @@ For bucket handoffs, render the next bucket's live face in the nearer rear layer
 The rear face must use the same vertical content origin as the settled bucket face, not the top of the full Larder panel; the panel header creates a different offset on Personal Larder and Great Larder.
 
 **Why:** Positioning the preview from the panel edge makes its label and amount float above the location where the incoming card will settle, which is visibly wrong during the shuffle.
+
+After the outgoing toss, use a distinct short "in" phase for the newly fronted surface so the whole returning panel fades in together; do not reveal only the bucket text.
+
+**Why:** The card contains a header, bucket details, indicators, and actions. Fading only the bucket face makes the card feel assembled in pieces after the transition.
