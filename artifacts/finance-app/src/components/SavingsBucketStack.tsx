@@ -2,6 +2,7 @@ import { createContext, forwardRef, type ReactNode, useContext, useEffect, useRe
 import { ArrowRight } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
+import { AmtHero } from "@/components/AmtHero";
 
 export type SavingsBucket = "soft_savings" | "hard_savings" | "investments";
 
@@ -184,8 +185,8 @@ export function SavingsBucketStack({
               <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
                 {bucketLabel(visibleBucket)}
               </p>
-              <p className="mt-2 text-[28px] font-bold tabular-nums text-white">
-                {fmtAmt(totalFor(visibleBucket), currency)}
+              <p className="mt-2 text-3xl font-bold tabular-nums text-white">
+                <AmtHero amount={totalFor(visibleBucket)} currency={currency} />
               </p>
               {breakdownFor(visibleBucket)
                 .filter(asset => Math.abs(asset.rawTotal) >= 0.005)
