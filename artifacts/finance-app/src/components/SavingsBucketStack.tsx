@@ -25,8 +25,9 @@ function bucketLabel(bucket: SavingsBucket): string {
 
 /**
  * A bucket switcher that lives directly on the Larder surface.
- * The surrounding Larder panel is the card in the stack; this component
- * deliberately does not create another rounded card inside it.
+ * The surrounding Larder panel is the active card in the stack; the two
+ * offset outlines behind it make the three physical layers legible without
+ * introducing another content card inside the panel.
  */
 export function SavingsBucketStack({
   summaries,
@@ -47,12 +48,22 @@ export function SavingsBucketStack({
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative min-h-[140px] ${className}`}>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-4 top-5 h-[112px] rounded-[18px] border border-white/[0.09] bg-white/[0.012]"
+        style={{ transform: "translateY(11px) rotate(1.6deg)", zIndex: 1 }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-2 top-3 h-[116px] rounded-[19px] border border-white/[0.13] bg-white/[0.018]"
+        style={{ transform: "translateY(6px) rotate(-1deg)", zIndex: 2 }}
+      />
       <button
         type="button"
         onClick={flipToNext}
         aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
-        className="group w-full text-left transition duration-300 active:scale-[.99]"
+        className="group relative z-10 w-full text-left transition duration-300 active:scale-[.99]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -69,7 +80,7 @@ export function SavingsBucketStack({
           </span>
         </div>
       </button>
-      <div className="mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
+      <div className="relative z-10 mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
         {BUCKETS.map(bucket => (
           <span
             key={bucket}
