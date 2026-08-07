@@ -556,6 +556,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.85} 85%{opacity:0.85} 100%{transform:translateX(-80px);opacity:0} }
         @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.45} 40%{opacity:0.95;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.45} }
       `}</style>
+      <button
+        type="button"
+        onClick={() => setAssignOpen(true)}
+        disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
+        className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+      >
+        <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+        <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
+      </button>
       <div
         ref={ref}
         className="relative overflow-hidden rounded-3xl touch-pan-y"
@@ -624,23 +633,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             </div>
           </div>
 
-          {/* The active card controls which bucket the actions below use. */}
+          {/* The outer Larder surface is the active card in the stack. */}
           <SavingsBucketStack
             summaries={bucketSummaries}
             activeBucket={activeBucket}
             onBucketChange={setActiveBucket}
             currency={prefs.currency}
           />
-          <button
-            type="button"
-            onClick={() => setAssignOpen(true)}
-            disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
-            className="w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
-          >
-            <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
-            <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
-          </button>
-
           {/* A transfer badge belongs to the Larder surface, but the action
               controls themselves live below the card. */}
           <div className="min-h-1 flex justify-center">

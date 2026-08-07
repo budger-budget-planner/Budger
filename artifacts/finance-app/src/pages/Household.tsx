@@ -1627,6 +1627,18 @@ export default function HouseholdPage() {
           {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
           {canSeeGreatLarder && (
             <>
+            <button
+              type="button"
+              onClick={() => setGlAssignOpen(true)}
+              disabled={!iAmHead || !greatLarder || (greatLarder.unassigned?.total ?? 0) <= 0}
+              className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+            >
+              <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+              <p className="text-[11px] text-white/35">
+                {fmtAmt(greatLarder?.unassigned?.total ?? 0, greatLarder?.currency ?? prefs.currency)} ·{" "}
+                {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
+              </p>
+            </button>
             <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
                 background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
@@ -1695,26 +1707,13 @@ export default function HouseholdPage() {
                   </div>
                 </div>
 
-                 {/* Three-card household savings stack */}
+                 {/* The outer Great Larder surface is the active card in the stack. */}
                  <SavingsBucketStack
                    summaries={glBucketSummaries}
                    activeBucket={glActiveBucket}
                    onBucketChange={setGlActiveBucket}
                    currency={greatLarder?.currency ?? prefs.currency}
                  />
-                 <button
-                   type="button"
-                   onClick={() => setGlAssignOpen(true)}
-                   disabled={!iAmHead || !greatLarder || (greatLarder.unassigned?.total ?? 0) <= 0}
-                   className="w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
-                 >
-                   <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
-                   <p className="text-[11px] text-white/35">
-                     {fmtAmt(greatLarder?.unassigned?.total ?? 0, greatLarder?.currency ?? prefs.currency)} ·{" "}
-                     {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
-                   </p>
-                 </button>
-
                 {/* Pending fund approvals — head only */}
                 {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
                   <div className="space-y-2 pt-1">
