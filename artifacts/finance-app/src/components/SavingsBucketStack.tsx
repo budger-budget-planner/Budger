@@ -1,4 +1,4 @@
-import { createContext, forwardRef, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, forwardRef, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
@@ -24,6 +24,7 @@ type LarderStackMotionContextValue = {
   phase: "idle" | "out" | "in";
   setPhase: (phase: "idle" | "out" | "in") => void;
   setPreview: (preview: ReactNode) => void;
+  measurePreviewBounds: (element: HTMLElement | null) => void;
 };
 
 const LarderStackMotionContext = createContext<LarderStackMotionContextValue | null>(null);
@@ -37,12 +38,35 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
   function LarderStackSurface({ children, preview, previewTop = 72, className = "" }, ref) {
     const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
     const [stablePreview, setStablePreview] = useState(preview);
+    const [previewBounds, setPreviewBounds] = useState<{ top: number; height: number } | null>(null);
+    const surfaceRef = useRef<HTMLDivElement | null>(null);
 
     // The parent derives this node from its active bucket. Capture the
     // incoming face at the exact start of a handoff so a parent update cannot
     // replace B with C while B is being revealed.
     const setPreview = (nextPreview: ReactNode) => {
       setStablePreview(nextPreview);
+    };
+
+    // The switcher sits below the Larder header and its exact height can
+    // change with localized labels and currency breakdowns. Measure it
+    // instead of positioning the incoming surface from the outer panel.
+    const measurePreviewBounds = (element: HTMLElement | null) => {
+      const surface = surfaceRef.current;
+      if (!surface || !element) return;
+      const surfaceRect = surface.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const nextBounds = {
+        top: elementRect.top - surfaceRect.top,
+        height: elementRect.height,
+      };
+      setPreviewBounds(current =>
+        current &&
+        Math.abs(current.top - nextBounds.top) < 0.5 &&
+        Math.abs(current.height - nextBounds.height) < 0.5
+          ? current
+          : nextBounds,
+      );
     };
 
     useEffect(() => {
@@ -59,9 +83,15 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
           : "larder-stack-preview-hidden";
 
     return (
-      <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase, setPreview }}>
+      <LarderStackMotionContext.Provider
+        value={{ phase: shufflePhase, setPhase: setShufflePhase, setPreview, measurePreviewBounds }}
+      >
       <div
-        ref={ref}
+        ref={(node) => {
+          surfaceRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        }}
         className={`relative ${className}`}
       >
         <div
@@ -83,13 +113,21 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
             border: "1px solid rgba(255,255,255,0.20)",
             boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
           }}
+        />
+        {/* The incoming bucket is an aligned overlay, not content trapped
+            behind the outgoing card. It starts fading in with the toss, so
+            the whole B surface is visible while A moves away. */}
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 z-20 overflow-hidden rounded-3xl border border-white/20 ${previewRevealClass}`}
+          style={{
+            top: previewBounds?.top ?? previewTop,
+            height: previewBounds?.height ?? 112,
+            background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10)",
+          }}
         >
-          <div
-            className={`absolute inset-x-0 bottom-0 ${previewRevealClass}`}
-            style={{ top: previewTop + 7 }}
-          >
-            {stablePreview}
-          </div>
+          {stablePreview}
         </div>
         <div
           className={`relative z-10 ${
@@ -144,7 +182,7 @@ export function SavingsBucketFace({
   const breakdown = summary?.currencyBreakdown ?? [];
 
   return (
-    <div className={preview ? "absolute inset-0 overflow-hidden rounded-3xl px-5" : ""}>
+    <div className={preview ? "absolute inset-0 overflow-hidden rounded-3xl" : ""}>
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
         {bucketLabel(bucket)}
       </p>
@@ -158,6 +196,42 @@ export function SavingsBucketFace({
             {fmtAmt(asset.rawTotal, asset.currency)}
           </p>
         ))}
+    </div>
+  );
+}
+
+export function SavingsBucketPreview({
+  bucket,
+  summaries,
+  currency,
+}: {
+  bucket: SavingsBucket;
+  summaries: SavingsBucketSummary[];
+  currency: string;
+}) {
+  return (
+    <div className="h-full overflow-hidden rounded-3xl px-5">
+      <div className="flex items-start justify-between gap-3">
+        <SavingsBucketFace
+          bucket={bucket}
+          summaries={summaries}
+          currency={currency}
+        />
+        <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-white/40">
+          {t("larder.flip_stack")}
+          <ArrowRight className="h-3 w-3" />
+        </span>
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
+        {BUCKETS.map(item => (
+          <span
+            key={item}
+            className={`h-1.5 rounded-full ${
+              item === bucket ? "w-5 bg-white/75" : "w-1.5 bg-white/20"
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -181,6 +255,8 @@ export function SavingsBucketStack({
   const shufflePhase = stackMotion?.phase ?? localShufflePhase;
   const setShufflePhase = stackMotion?.setPhase ?? setLocalShufflePhase;
   const setPreview = stackMotion?.setPreview;
+  const measurePreviewBounds = stackMotion?.measurePreviewBounds;
+  const stackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (shufflePhase === "idle") setVisibleBucket(activeBucket);
@@ -189,6 +265,21 @@ export function SavingsBucketStack({
   useEffect(() => () => {
     shuffleTimers.current.forEach(clearTimeout);
   }, []);
+
+  useLayoutEffect(() => {
+    const element = stackRef.current;
+    if (!element || !measurePreviewBounds) return;
+
+    const measure = () => measurePreviewBounds(element);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [measurePreviewBounds]);
 
   const activeIndex = Math.max(0, BUCKETS.indexOf(visibleBucket));
   const ordered = BUCKETS.map((_, offset) => BUCKETS[(activeIndex + offset) % BUCKETS.length]);
@@ -202,31 +293,24 @@ export function SavingsBucketStack({
     // Freeze the exact B face before any state change can cause the parent to
     // derive the following C face.
     setPreview?.(
-      <SavingsBucketFace
+      <SavingsBucketPreview
         bucket={nextBucket}
         summaries={summaries}
         currency={currency}
-        preview
       />,
     );
     setShufflePhase("out");
 
-    // Keep the outgoing surface mounted until it has fully cleared the right
-    // edge. The rear preview already contains the next bucket's live face, so
-    // swapping the front state early would flash the same card through it.
+    // Let the incoming surface finish its reveal before the outgoing card
+    // finishes fading away. The swap happens only after A is completely gone,
+    // so the aligned overlay and the settled B surface are indistinguishable.
     shuffleTimers.current.push(
       setTimeout(() => {
         setVisibleBucket(nextBucket);
         onBucketChange(nextBucket);
-        setShufflePhase("in");
-      }, 275),
-    );
-
-    shuffleTimers.current.push(
-      setTimeout(() => {
         shuffleTimers.current = [];
         setShufflePhase("idle");
-      }, 500),
+      }, 405),
     );
   }
 
@@ -243,11 +327,15 @@ export function SavingsBucketStack({
             transform: translate3d(24px, -1px, 0) rotate(3deg) scale(.99);
           }
           48% {
-            opacity: .92;
+            opacity: 1;
             transform: translate3d(112px, -7px, 0) rotate(8deg) scale(.97);
           }
+          68% {
+            opacity: 1;
+            transform: translate3d(210px, -4px, 0) rotate(11deg) scale(.95);
+          }
           78% {
-            opacity: .46;
+            opacity: .86;
             transform: translate3d(250px, -1px, 0) rotate(12deg) scale(.94);
           }
           100% {
@@ -258,7 +346,7 @@ export function SavingsBucketStack({
         .larder-stack-shuffle-out {
           transform-origin: 50% 50%;
           will-change: transform, opacity;
-          animation: larderStackShuffleOut 265ms cubic-bezier(.22, .72, .34, 1) both;
+          animation: larderStackShuffleOut 400ms cubic-bezier(.22, .72, .34, 1) both;
         }
         @keyframes larderStackShuffleIn {
           0% {
@@ -305,7 +393,7 @@ export function SavingsBucketStack({
           }
         }
       `}</style>
-      <div className={`relative ${className}`}>
+      <div ref={stackRef} className={`relative ${className}`}>
         <button
           type="button"
           onClick={flipToNext}

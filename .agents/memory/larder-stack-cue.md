@@ -21,6 +21,6 @@ After the outgoing toss, use a distinct short "in" phase for the newly fronted s
 
 **Why:** The card contains a header, bucket details, indicators, and actions. Fading only the bucket face makes the card feel assembled in pieces after the transition.
 
-Freeze the rear preview React node for the full A→B handoff by capturing the complete B face before changing active state. Do not derive it live from the parent's updated active bucket while the front reveal is running; update it to C only after the reveal settles.
+During A→B, render the complete B surface as an opaque, aligned overlay above A from the first frame. Keep A fully readable while it moves, then fade A only near the end; swap to the settled B state after A is gone. Do not derive B live from the parent's updated active bucket.
 
-**Why:** The parent active bucket changes to B during the transition, which makes a live `next(activeBucket)` preview jump to C and creates the visible A→B→C flash.
+**Why:** A rear-layer preview reveals partial B content late and can expose C or misaligned text. The overlay must cover the old card's content before A disappears, while preserving B's exact final alignment.

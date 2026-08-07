@@ -7,7 +7,7 @@ import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import {
   LarderStackSurface,
-  SavingsBucketFace,
+  SavingsBucketPreview,
   SavingsBucketStack,
   nextSavingsBucket,
 } from "@/components/SavingsBucketStack";
@@ -542,11 +542,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         ref={ref}
         previewTop={76}
         preview={
-          <SavingsBucketFace
+          <SavingsBucketPreview
             bucket={nextSavingsBucket(activeBucket)}
             summaries={bucketSummaries}
             currency={prefs.currency}
-            preview
           />
         }
       >

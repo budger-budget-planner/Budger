@@ -48,7 +48,7 @@ import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import {
   LarderStackSurface,
-  SavingsBucketFace,
+  SavingsBucketPreview,
   SavingsBucketStack,
   nextSavingsBucket,
   type SavingsBucket,
@@ -1653,11 +1653,10 @@ export default function HouseholdPage() {
               ref={greatLarderRef}
               previewTop={72}
               preview={
-                <SavingsBucketFace
+                <SavingsBucketPreview
                   bucket={nextSavingsBucket(glActiveBucket)}
                   summaries={glBucketSummaries}
                   currency={greatLarder?.currency ?? prefs.currency}
-                  preview
                 />
               }
             >
