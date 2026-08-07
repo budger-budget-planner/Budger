@@ -46,7 +46,13 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
-import { LarderStackSurface, SavingsBucketStack, type SavingsBucket } from "@/components/SavingsBucketStack";
+import {
+  LarderStackSurface,
+  SavingsBucketFace,
+  SavingsBucketStack,
+  nextSavingsBucket,
+  type SavingsBucket,
+} from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -1643,7 +1649,17 @@ export default function HouseholdPage() {
                 {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
               </p>
             </button>
-            <LarderStackSurface ref={greatLarderRef}>
+            <LarderStackSurface
+              ref={greatLarderRef}
+              preview={
+                <SavingsBucketFace
+                  bucket={nextSavingsBucket(glActiveBucket)}
+                  summaries={glBucketSummaries}
+                  currency={greatLarder?.currency ?? prefs.currency}
+                  preview
+                />
+              }
+            >
             <div className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
                 background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",

@@ -5,7 +5,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@/lib/api-client";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
-import { LarderStackSurface, SavingsBucketStack } from "@/components/SavingsBucketStack";
+import {
+  LarderStackSurface,
+  SavingsBucketFace,
+  SavingsBucketStack,
+  nextSavingsBucket,
+} from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -533,7 +538,17 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           ≈ {fmtAmt(Math.max(0, larder?.unassigned?.total ?? 0), prefs.currency)} · {t("larder.assign_hint")}
         </p>
       </button>
-      <LarderStackSurface ref={ref}>
+      <LarderStackSurface
+        ref={ref}
+        preview={
+          <SavingsBucketFace
+            bucket={nextSavingsBucket(activeBucket)}
+            summaries={bucketSummaries}
+            currency={prefs.currency}
+            preview
+          />
+        }
+      >
       <div
         className="relative overflow-hidden rounded-3xl touch-pan-y"
         style={{
