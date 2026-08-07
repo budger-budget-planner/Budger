@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
+import { ReceiptManager } from "@/components/ReceiptManager";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
@@ -655,7 +656,7 @@ function ReceiptModal({
         className="absolute -z-10 h-px w-px opacity-0"
         tabIndex={-1}
         onChange={handleFileChange}
-        onInput={handleFileChange}
+        onInput={e => handleFileChange(e as unknown as React.ChangeEvent<HTMLInputElement>)}
         data-testid="input-receipt-library"
       />
     </>
@@ -1167,7 +1168,7 @@ export default function TransactionsPage() {
 
       {/* Receipt modal */}
       {receiptTx && (
-        <ReceiptModal
+        <ReceiptManager
           tx={receiptTx}
           open={!!receiptTx}
           onClose={() => setReceiptTx(null)}

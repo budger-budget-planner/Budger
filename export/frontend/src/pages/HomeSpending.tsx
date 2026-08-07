@@ -50,6 +50,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
+import { ReceiptManager } from "@/components/ReceiptManager";
 import { loadPrefs, savePrefs, currencySymbol, fmtAmt, fmtAmtRound, peekSwipeHintDue, markSwipeHintSeen } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import { useAppReady } from "@/lib/appReady";
@@ -607,7 +608,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
         className="absolute -z-10 h-px w-px opacity-0"
         tabIndex={-1}
         onChange={handleFileChange}
-        onInput={handleFileChange} />
+        onInput={e => handleFileChange(e as unknown as React.ChangeEvent<HTMLInputElement>)} />
     </>
   );
 }
@@ -2406,7 +2407,12 @@ export default function HomeSpending() {
 
       {/* ── Receipt modal ── */}
       {receiptTx && (
-        <ReceiptModal tx={receiptTx} open={!!receiptTx} onClose={() => setReceiptTx(null)} sym={sym} />
+        <ReceiptManager
+          tx={receiptTx}
+          open={!!receiptTx}
+          onClose={() => setReceiptTx(null)}
+          title={receiptTx ? t("home.receipt", { desc: receiptTx.description }) : undefined}
+        />
       )}
 
       {/* ── Set/edit total budget dialog ── */}
