@@ -428,7 +428,7 @@ export function ReceiptManager({
         </div>
       )}
 
-      <input ref={cameraRef} {...inputProps} capture="environment" multiple={false} />
+      <input ref={cameraRef} {...inputProps} multiple={false} />
     </>
   );
 }
