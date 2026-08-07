@@ -37,13 +37,7 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
       <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase }}>
       <div
         ref={ref}
-        className={`relative ${
-          shufflePhase === "out"
-            ? "larder-stack-shuffle-out"
-            : shufflePhase === "in"
-              ? "larder-stack-shuffle-in"
-              : ""
-        } ${className}`}
+        className={`relative ${className}`}
       >
         <div
           aria-hidden="true"
@@ -65,7 +59,17 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
             boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
           }}
         />
-        <div className="relative z-10">{children}</div>
+        <div
+          className={`relative z-10 ${
+            shufflePhase === "out"
+              ? "larder-stack-shuffle-out"
+              : shufflePhase === "in"
+                ? "larder-stack-shuffle-in"
+                : ""
+          }`}
+        >
+          {children}
+        </div>
       </div>
       </LarderStackMotionContext.Provider>
     );

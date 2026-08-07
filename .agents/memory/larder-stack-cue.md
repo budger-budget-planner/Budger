@@ -7,4 +7,4 @@ The stack is three cards total: the real Larder surface plus two close layers be
 
 **Why:** The colored squares were only a visual annotation, and an extra fourth layer made the stack incorrect.
 
-**How to apply:** Keep the stack wrapper outside the complete Larder panel, with only two subtle close layers behind it. Preserve click-to-switch behavior and use motion to make the active face shuffle away before the next bucket settles in. Keep the unassigned waiting room above the outer surface.
+**How to apply:** Keep the stack wrapper outside the complete Larder panel, with only two subtle close layers behind it. Preserve click-to-switch behavior and apply the shuffle transform only to the front/top surface, never to the wrapper that also contains the rear layers. Keep the unassigned waiting room above the outer surface.
