@@ -66,16 +66,18 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
               boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
             }}
           />
-          <div className={`relative z-10 ${phase === "crossfade" ? "larder-stack-motion-frame" : ""}`}>
-            {phase === "crossfade" ? (
-              <div className="larder-stack-outgoing-clip pointer-events-none">
-                <div className="larder-stack-outgoing-frame larder-stack-shuffle-out">
-                  {children}
-                </div>
+          <div className={`relative z-10 grid ${phase === "crossfade" ? "larder-stack-motion-frame" : ""}`}>
+            <div
+              className={`${
+                phase === "crossfade"
+                  ? "larder-stack-outgoing-clip pointer-events-none"
+                  : "larder-stack-primary-frame"
+              }`}
+            >
+              <div className={phase === "crossfade" ? "larder-stack-outgoing-frame larder-stack-shuffle-out" : ""}>
+                {children}
               </div>
-            ) : (
-              <div>{children}</div>
-            )}
+            </div>
             {phase === "crossfade" && (
               <LarderStackMotionContext.Provider value={{ ...motion, incomingSurface: true }}>
                 <div
@@ -185,8 +187,11 @@ export function SavingsBucketStack({
   const [localTransitionBucket, setLocalTransitionBucket] = useState<SavingsBucket | null>(null);
   const [localPhase, setLocalPhase] = useState<"idle" | "crossfade">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settledBucket = useRef<SavingsBucket>(activeBucket);
-  const pendingBucket = useRef<SavingsBucket | null>(null);
+  // Keep the bucket that the next flip should start from outside React state.
+  // The visible card intentionally stays on the old bucket during the
+  // animation, so deriving the next bucket from visibleBucket can otherwise
+  // make repeated flips reuse the same destination.
+  const currentBucket = useRef<SavingsBucket>(activeBucket);
   const phase = stackMotion?.phase ?? localPhase;
   const setPhase = stackMotion?.setPhase ?? setLocalPhase;
   const transitionBucket = stackMotion?.transitionBucket ?? localTransitionBucket;
@@ -195,12 +200,10 @@ export function SavingsBucketStack({
     stackMotion?.incomingSurface ? transitionBucket ?? activeBucket : visibleBucket;
 
   useEffect(() => {
-    if (activeBucket === settledBucket.current) {
-      if (pendingBucket.current === activeBucket) pendingBucket.current = null;
-      return;
-    }
-    if (phase === "idle" && pendingBucket.current !== settledBucket.current) {
-      settledBucket.current = activeBucket;
+    // The parent owns the selected bucket. This also keeps the component
+    // correct if the selection changes from outside the flip button.
+    if (phase === "idle" && activeBucket !== currentBucket.current) {
+      currentBucket.current = activeBucket;
       setVisibleBucket(activeBucket);
     }
   }, [activeBucket, phase]);
@@ -212,10 +215,11 @@ export function SavingsBucketStack({
   function flipToNext() {
     if (phase !== "idle") return;
 
-    const currentBucket = settledBucket.current;
-    const nextBucket = nextSavingsBucket(currentBucket);
-    settledBucket.current = nextBucket;
-    pendingBucket.current = nextBucket;
+    const nextBucket = nextSavingsBucket(currentBucket.current);
+    // Advance immediately in the ref. The rendered card catches up when the
+    // crossfade finishes, but the next user-initiated flip must continue from
+    // this destination rather than from the outgoing card.
+    currentBucket.current = nextBucket;
     if (timer.current) clearTimeout(timer.current);
     setTransitionBucket(nextBucket);
     setPhase("crossfade");
@@ -228,7 +232,7 @@ export function SavingsBucketStack({
     }, 540);
   }
 
-  const nextBucket = nextSavingsBucket(settledBucket.current);
+  const nextBucket = nextSavingsBucket(currentBucket.current);
   const bucketContent = (
     <BucketCardContent bucket={bucketForSurface} summaries={summaries} currency={currency} />
   );
@@ -268,7 +272,10 @@ export function SavingsBucketStack({
           animation: larderStackShuffleOut 400ms cubic-bezier(.22, .72, .34, 1) both;
         }
         .larder-stack-motion-frame {
-          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .larder-stack-primary-frame {
+          position: relative;
         }
         .larder-stack-outgoing-clip {
           position: absolute;
