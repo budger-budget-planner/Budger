@@ -1,3 +1,4 @@
+import { forwardRef, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
@@ -8,6 +9,41 @@ export type SavingsBucketSummary = {
   bucket: SavingsBucket;
   total: number;
 };
+
+type LarderStackSurfaceProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+/**
+ * Wraps the complete Larder panel in the three-card stack silhouette.
+ * The colored layers sit behind the whole panel, never around the bucket
+ * content, so they read as the physical stack rather than nested cards.
+ */
+export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
+  function LarderStackSurface({ children, className = "" }, ref) {
+    return (
+      <div ref={ref} className={`relative ${className}`}>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-4 right-[-8px] top-[-30px] rounded-3xl border-2 border-[#f2c94c] bg-[#f2c94c] shadow-[0_8px_18px_rgba(0,0,0,.18)]"
+          style={{ zIndex: 1 }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-2 right-[-4px] top-[-18px] rounded-3xl border-2 border-[#ff9f1c] bg-[#ff9f1c] shadow-[0_8px_18px_rgba(0,0,0,.2)]"
+          style={{ zIndex: 2 }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-1 right-[-1px] top-[-8px] rounded-3xl border-2 border-[#ef4b3e] bg-[#ef4b3e] shadow-[0_8px_18px_rgba(0,0,0,.22)]"
+          style={{ zIndex: 3 }}
+        />
+        <div className="relative z-10">{children}</div>
+      </div>
+    );
+  },
+);
 
 type SavingsBucketStackProps = {
   summaries: SavingsBucketSummary[];

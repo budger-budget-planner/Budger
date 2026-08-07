@@ -46,7 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { loadPrefs, fmtAmtRound, fmtAmt, currencySymbol } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
-import { SavingsBucketStack, type SavingsBucket } from "@/components/SavingsBucketStack";
+import { LarderStackSurface, SavingsBucketStack, type SavingsBucket } from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -1639,7 +1639,8 @@ export default function HouseholdPage() {
                 {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
               </p>
             </button>
-            <div ref={greatLarderRef} className="relative overflow-hidden rounded-3xl touch-pan-y"
+            <LarderStackSurface ref={greatLarderRef}>
+            <div className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
                 background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
                 border: glVisible ? "1px solid rgba(255,255,255,0.48)" : "1px solid rgba(255,255,255,0.12)",
@@ -1753,6 +1754,7 @@ export default function HouseholdPage() {
 
               </div>
             </div>
+            </LarderStackSurface>
             {/* Great Larder actions live below the card, matching the
                 personal Larder and keeping the card surface focused on the
                 savings stack and waiting room. */}

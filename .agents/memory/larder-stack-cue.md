@@ -1,10 +1,10 @@
 ---
 name: Larder stack visual cue
-description: Keep the savings stack as one clean Larder surface without nested or offset card layers
+description: The three-card cue belongs behind the complete Larder panel, never inside its content
 ---
 
-The savings stack is intentionally rendered as one clean Larder surface. Do not add nested cards, offset outlines, or back plates to suggest the three buckets.
+The three-card cue is implemented as full-panel layers behind the complete Larder surface. Only the colored top and right edges should peek out; the bucket content remains a single clean panel.
 
-**Why:** The user explicitly rejected both the original nested active-card treatment and the later offset back layers as visually confusing cards within cards.
+**Why:** The user clarified that the purple-marked whole field is the card that should sit in the stack; layers added inside the panel read as cards within cards.
 
-**How to apply:** Preserve click-to-switch behavior and keep the unassigned waiting room above the outer surface. If a stack cue is revisited, it must not be another card-like surface.
+**How to apply:** Keep the stack wrapper outside the complete Larder panel. Preserve click-to-switch behavior and keep the unassigned waiting room above the outer surface.

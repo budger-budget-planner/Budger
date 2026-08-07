@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useListGoals, useGetMe, useGetGoalsSummary, getListGoalsQueryKey, getGetGoalsSummaryQueryKey, getGetLarderQueryKey } from "@/lib/api-client";
 import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
-import { SavingsBucketStack } from "@/components/SavingsBucketStack";
+import { LarderStackSurface, SavingsBucketStack } from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -565,8 +565,8 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
         <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
       </button>
+      <LarderStackSurface ref={ref}>
       <div
-        ref={ref}
         className="relative overflow-hidden rounded-3xl touch-pan-y"
         style={{
           background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
@@ -772,6 +772,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           )}
         </div>
       </div>
+      </LarderStackSurface>
       {/* Actions sit below the original Larder card, not inside its savings
           surface. The selected card still controls the spend/send actions. */}
       <div className={`mt-3 grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
