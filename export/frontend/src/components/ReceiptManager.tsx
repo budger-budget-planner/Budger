@@ -103,7 +103,6 @@ export function ReceiptManager({
   title,
 }: ReceiptManagerProps) {
   const queryClient = useQueryClient();
-  const libraryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const pickerActiveRef = useRef(false);
   const processingRef = useRef(false);
@@ -124,7 +123,7 @@ export function ReceiptManager({
   useEffect(() => {
     const onFocus = () => {
       window.setTimeout(() => {
-        if (!processingRef.current && !libraryRef.current?.files?.length && !cameraRef.current?.files?.length) {
+        if (!processingRef.current && !cameraRef.current?.files?.length) {
           pickerActiveRef.current = false;
         }
       }, 1500);
@@ -357,28 +356,17 @@ export function ReceiptManager({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
+            <div>
               <Button
                 variant="outline"
-                className="gap-2"
+                className="w-full gap-2"
                 onClick={() => {
                   pickerActiveRef.current = true;
                   cameraRef.current?.click();
                 }}
                 disabled={isOffline || isBusy || receipts.length >= 3}
               >
-                <Plus className="w-4 h-4" /> {t("tx.camera")}
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => {
-                  pickerActiveRef.current = true;
-                  libraryRef.current?.click();
-                }}
-                disabled={isOffline || isBusy || receipts.length >= 3}
-              >
-                <Plus className="w-4 h-4" /> {t("tx.library")}
+                <Plus className="w-4 h-4" /> {t("tx.add_btn")}
               </Button>
             </div>
 
@@ -441,7 +429,6 @@ export function ReceiptManager({
       )}
 
       <input ref={cameraRef} {...inputProps} capture="environment" multiple={false} />
-      <input ref={libraryRef} {...inputProps} multiple data-testid="input-receipt-library" />
     </>
   );
 }
