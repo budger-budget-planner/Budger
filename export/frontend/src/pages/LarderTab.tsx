@@ -13,11 +13,9 @@ import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue, requestBackgroundSync } from "@/lib/mutation-queue";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Warehouse, PiggyBank, Target, TrendingUp, TrendingDown,
-  ArrowRightCircle, X, ChevronDown, ChevronUp, Trash2, Users, Plus,
+  ArrowRightCircle, X, Users, Plus,
 } from "lucide-react";
 
 type LarderEntry = {
@@ -204,9 +202,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const { data: rates } = useQuery({ queryKey: ["fx-rates"], queryFn: fetchRates, staleTime: 60 * 60 * 1000 });
 
   const [dedicateOpen, setDedicateOpen] = useState(false);
-  const [historyOpen,       setHistoryOpen]       = useState(false);
-  const [showClearConfirm,  setShowClearConfirm]  = useState(false);
-  const [clearIncludeTransfers, setClearIncludeTransfers] = useState(false);
   const [glBadgeCollapsed, setGlBadgeCollapsed] = useState(true);
 
   // ── GL badge dismiss (long-press to reset the counter) ───────────────────────
@@ -374,21 +369,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
     queryClient.invalidateQueries({ queryKey: ["larder"] });
     // Also invalidate the generated hook's cache key used by the Goals page for diamond display
     queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
-  }
-
-  async function handleClearHistory(includeTransfers: boolean) {
-    try {
-      const url = `${import.meta.env.BASE_URL}api/larder/history${includeTransfers ? "?includeTransfers=true" : ""}`;
-      const r = await apiFetch(url, { method: "DELETE" });
-      if (!r.ok) throw new Error("Failed");
-      invalidate();
-      setHistoryOpen(false);
-      setShowClearConfirm(false);
-      setClearIncludeTransfers(false);
-      toast({ title: t("larder.history_cleared") });
-    } catch {
-      toast({ title: t("larder.clear_failed") });
-    }
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -654,31 +634,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               onBucketChange={setActiveBucket}
               currency={prefs.currency}
             />
-            {/* Currency breakdown — shown when savings span multiple currencies,
-                or a subtle label when all contributions share one currency */}
-            {(() => {
-              const breakdown = larder?.currencyBreakdown ?? [];
-              const ordered = orderedBreakdown(breakdown, prefs.currency, prefs.language);
-              if (ordered.length === 0) return null;
-              if (ordered.length === 1) {
-                // Single currency — show a muted "all in X" label instead of a lone sub-sum
-                return (
-                  <p className="mt-2 text-[11px] text-white/25 tabular-nums">
-                    {t("larder.all_in_currency", { code: ordered[0].currency })}
-                  </p>
-                );
-              }
-              // Multiple currencies — show each raw sub-total
-              return (
-                <div className="mt-2.5 flex flex-col items-center gap-0.5">
-                  {ordered.map(item => (
-                    <p key={item.currency} className="text-[11px] text-white/30 tabular-nums">
-                      {fmtAmt(item.rawTotal, item.currency)}
-                    </p>
-                  ))}
-                </div>
-              );
-            })()}
             {displayGLSent > 0 && (
               <div className="mt-3 flex justify-center">
                 <button
@@ -760,92 +715,47 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className={`grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
-            <button
-              onClick={() => setAddOpen(true)}
-              disabled={!isOnline}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.add_entry")}</span>
-            </button>
-            <button
-              onClick={() => setSpendOpen(true)}
-              disabled={!isOnline || total <= 0}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <PiggyBank className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.fund")}</span>
-            </button>
-            <button
-              onClick={() => setDedicateOpen(true)}
-              disabled={!isOnline || total <= 0}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <Target className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[11px] leading-tight text-center">{t("larder.support_btn")}</span>
-            </button>
-            {inHousehold && (
-              <button
-                onClick={() => setSendGlOpen(true)}
-                disabled={!isOnline || total <= 0}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
-              >
-                <Users className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[11px] leading-tight text-center">{t("larder.send_gl_btn")}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Recent entries — collapsible */}
-          {entries.length > 0 && (
-            <div className="border-t border-white/6 pt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setHistoryOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-xs text-white/35 font-semibold uppercase tracking-widest"
-                >
-                  <span>{t("larder.history", { n: entries.length })}</span>
-                  {historyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => { setClearIncludeTransfers(false); setShowClearConfirm(true); }}
-                  disabled={!isOnline}
-                  className="flex items-center gap-1 text-[10px] text-white/25 active:text-red-400/70 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  {t("larder.clear")}
-                </button>
-              </div>
-              {historyOpen && (
-                <div className="space-y-1 pt-1">
-                  {entries.slice(0, 20).map(e => {
-                    const positive = e.amount >= 0;
-                    const d = new Date(e.createdAt);
-                    const dateStr = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
-                    return (
-                      <div key={e.id} className="flex items-center gap-2.5 py-1.5">
-                        <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                          <EntryIcon sourceType={e.sourceType} positive={positive} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white/70 truncate">{e.sourceType === "great_larder_transfer" ? sourceLabel(e.sourceType) : (e.note || sourceLabel(e.sourceType))}</p>
-                          <p className="text-[10px] text-white/25">{dateStr}</p>
-                        </div>
-                        <p className={`text-xs font-semibold tabular-nums flex-shrink-0 ${positive ? "text-emerald-400" : "text-red-400"}`}>
-                          {positive ? "+" : "−"}{fmtAmt(Math.abs(e.amount), prefs.currency)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
       </LarderStackSurface>
+
+      {/* Actions stay below the savings card; the card surface remains focused on balances. */}
+      <div className={`mt-3 grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
+        <button
+          onClick={() => setAddOpen(true)}
+          disabled={!isOnline}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <Plus className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.add_entry")}</span>
+        </button>
+        <button
+          onClick={() => setSpendOpen(true)}
+          disabled={!isOnline || total <= 0}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <PiggyBank className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.fund")}</span>
+        </button>
+        <button
+          onClick={() => setDedicateOpen(true)}
+          disabled={!isOnline || total <= 0}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+        >
+          <Target className="w-4 h-4 flex-shrink-0" />
+          <span className="text-[11px] leading-tight text-center">{t("larder.support_btn")}</span>
+        </button>
+        {inHousehold && (
+          <button
+            onClick={() => setSendGlOpen(true)}
+            disabled={!isOnline || total <= 0}
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-sm font-medium border border-white/10 bg-white/4 text-white/65 active:bg-white/10 transition-colors disabled:opacity-30"
+          >
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[11px] leading-tight text-center">{t("larder.send_gl_btn")}</span>
+          </button>
+        )}
+      </div>
 
       {/* ── Fund (spend from Larder into a transaction) sheet ── */}
       <Sheet title={t("larder.spend_sheet_title")} open={spendOpen} onClose={() => setSpendOpen(false)}>
@@ -1116,37 +1026,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
           </button>
         </form>
       </Sheet>
-      {/* Clear history confirmation dialog */}
-      <Dialog open={showClearConfirm} onOpenChange={open => { setShowClearConfirm(open); if (!open) setClearIncludeTransfers(false); }}>
-        <DialogContent className="bg-zinc-900 border-white/10 rounded-2xl max-w-xs mx-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white text-base">{t("larder.history_clear_confirm_title")}</DialogTitle>
-            <DialogDescription className="text-zinc-400 text-sm">{t("larder.history_clear_confirm_desc")}</DialogDescription>
-          </DialogHeader>
-          <label className="flex items-center gap-3 cursor-pointer py-1">
-            <Checkbox
-              checked={clearIncludeTransfers}
-              onCheckedChange={v => setClearIncludeTransfers(Boolean(v))}
-              className="border-white/20 data-[state=checked]:bg-white data-[state=checked]:border-white"
-            />
-            <span className="text-sm text-white/70">{t("larder.history_clear_also_transfers")}</span>
-          </label>
-          <DialogFooter className="flex-row gap-2 pt-1">
-            <button
-              onClick={() => { setShowClearConfirm(false); setClearIncludeTransfers(false); }}
-              className="flex-1 py-3 rounded-2xl border border-white/10 text-white/60 text-sm font-medium active:opacity-70 transition"
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              onClick={() => handleClearHistory(clearIncludeTransfers)}
-              className="flex-1 py-3 rounded-2xl bg-destructive/10 text-destructive text-sm font-semibold active:opacity-70 transition"
-            >
-              {t("larder.history_clear_confirm_action")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 });

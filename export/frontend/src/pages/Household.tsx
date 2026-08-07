@@ -1770,69 +1770,66 @@ export default function HouseholdPage() {
                   currency={greatLarder?.currency ?? prefs.currency}
                 />
 
-                {/* Action buttons — Fund for parents+head; Dedicate to HH goal for head only */}
-                <div className={`grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
-                  <button
-                    onClick={() => setGlFundOpen(true)}
-                    disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
-                    className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
-                  >
-                    <PiggyBank className="w-4 h-4" />
-                    {t("larder.fund")}
-                    {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· {t("larder.needs_approval")}</span>}
-                  </button>
-                  {iAmHead && (
-                    <button
-                      onClick={() => setGlDedicateOpen(true)}
-                      disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
-                      className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
-                    >
-                      <Users className="w-4 h-4" />
-                      {t("larder.support_btn")}
-                    </button>
-                  )}
-                </div>
-
-                {/* Pending fund approvals — head only */}
-                {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
-                      {t("gl.pending_approvals", { n: greatLarder.entries.filter((e: any) => e.status === "pending").length })}
-                    </p>
-                    <div className="space-y-1.5">
-                      {greatLarder.entries
-                        .filter((e: any) => e.status === "pending")
-                        .map((e: any) => (
-                          <div key={e.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 border border-white/8">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{e.note || t("gl.fund_request")}</p>
-                              <p className="text-xs text-white/40">{e.contributorName} · {fmtAmtRound(e.amount, e.currency)}</p>
-                            </div>
-                            <button
-                              onClick={() => handleGlApprove(e.id)}
-                              disabled={glApproving === e.id}
-                              className="p-1.5 text-green-400/70 hover:text-green-400 active:text-green-400 transition-colors"
-                              title="Approve"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleGlReject(e.id)}
-                              disabled={glApproving === e.id}
-                              className="p-1.5 text-red-400/50 hover:text-red-400 active:text-red-400 transition-colors"
-                              title="Reject"
-                            >
-                              <XCircle className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
               </div>
             </div>
             </LarderStackSurface>
+            {/* Actions and approvals stay below the Great Larder card. */}
+            <div className={`mt-3 grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
+              <button
+                onClick={() => setGlFundOpen(true)}
+                disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
+                className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
+              >
+                <PiggyBank className="w-4 h-4" />
+                {t("larder.fund")}
+                {!iAmHead && <span className="text-[10px] text-white/40 ml-1">· {t("larder.needs_approval")}</span>}
+              </button>
+              {iAmHead && (
+                <button
+                  onClick={() => setGlDedicateOpen(true)}
+                  disabled={!greatLarder || (glActiveSummary?.total ?? 0) <= 0}
+                  className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-white/10 bg-white/5 text-white/70 active:bg-white/10 transition-colors disabled:opacity-30"
+                >
+                  <Users className="w-4 h-4" />
+                  {t("larder.support_btn")}
+                </button>
+              )}
+            </div>
+            {iAmHead && greatLarder?.entries?.filter((e: any) => e.status === "pending").length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
+                  {t("gl.pending_approvals", { n: greatLarder.entries.filter((e: any) => e.status === "pending").length })}
+                </p>
+                <div className="space-y-1.5">
+                  {greatLarder.entries
+                    .filter((e: any) => e.status === "pending")
+                    .map((e: any) => (
+                      <div key={e.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 border border-white/8">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{e.note || t("gl.fund_request")}</p>
+                          <p className="text-xs text-white/40">{e.contributorName} · {fmtAmtRound(e.amount, e.currency)}</p>
+                        </div>
+                        <button
+                          onClick={() => handleGlApprove(e.id)}
+                          disabled={glApproving === e.id}
+                          className="p-1.5 text-green-400/70 hover:text-green-400 active:text-green-400 transition-colors"
+                          title="Approve"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleGlReject(e.id)}
+                          disabled={glApproving === e.id}
+                          className="p-1.5 text-red-400/50 hover:text-red-400 active:text-red-400 transition-colors"
+                          title="Reject"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
             </>
           )}
 
