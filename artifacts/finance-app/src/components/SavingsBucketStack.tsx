@@ -17,8 +17,8 @@ type LarderStackSurfaceProps = {
 
 /**
  * Wraps the complete Larder panel in the three-card stack silhouette.
- * The colored layers sit behind the whole panel, never around the bucket
- * content, so they read as the physical stack rather than nested cards.
+ * Two matching dark layers sit behind the whole panel, never around the
+ * bucket content, so the three total cards read as one physical stack.
  */
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
   function LarderStackSurface({ children, className = "" }, ref) {
@@ -26,18 +26,23 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
       <div ref={ref} className={`relative ${className}`}>
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-4 right-[-8px] top-[-30px] rounded-3xl border-2 border-[#f2c94c] bg-[#f2c94c] shadow-[0_8px_18px_rgba(0,0,0,.18)]"
-          style={{ zIndex: 1 }}
+          className="pointer-events-none absolute inset-y-0 left-3 right-[-5px] top-[-14px] rounded-3xl"
+          style={{
+            zIndex: 1,
+            background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            boxShadow: "0 0 40px 6px rgba(255,255,255,0.025), inset 0 1px 0 rgba(255,255,255,0.08)",
+          }}
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-2 right-[-4px] top-[-18px] rounded-3xl border-2 border-[#ff9f1c] bg-[#ff9f1c] shadow-[0_8px_18px_rgba(0,0,0,.2)]"
-          style={{ zIndex: 2 }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-1 right-[-1px] top-[-8px] rounded-3xl border-2 border-[#ef4b3e] bg-[#ef4b3e] shadow-[0_8px_18px_rgba(0,0,0,.22)]"
-          style={{ zIndex: 3 }}
+          className="pointer-events-none absolute inset-y-0 left-1 right-[-2px] top-[-7px] rounded-3xl"
+          style={{
+            zIndex: 2,
+            background: "linear-gradient(145deg, #030305 0%, #0c0b12 18%, #050408 35%, #0f0d18 52%, #040305 68%, #0a0910 82%, #030305 100%)",
+            border: "1px solid rgba(255,255,255,0.20)",
+            boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
+          }}
         />
         <div className="relative z-10">{children}</div>
       </div>
