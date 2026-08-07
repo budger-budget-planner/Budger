@@ -411,10 +411,16 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
       ? data.receiptImages
       : data?.receiptImage ? [data.receiptImage] : effectiveImages;
     setLocalImages(next);
+    queryClient.setQueriesData({ queryKey: getListTransactionsQueryKey() }, (current: unknown) => {
+      if (!Array.isArray(current)) return current;
+      return current.map((item: any) => item.id === tx.id
+        ? { ...item, receiptImage: next[0] ?? null, receiptImages: next }
+        : item);
+    });
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   }, onError: (error: any) => {
-    const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+    const message = error?.data?.error ?? error?.message?.replace(/^HTTP \d+ [^:]+:\s*/, "") ?? t("tx.image_error");
     toast.error(message);
   }}});
   const deleteReceipt = useDeleteReceipt({ mutation: { onSuccess: (data: any) => {
@@ -422,10 +428,16 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
       : data?.receiptImage ? [data.receiptImage] : [];
     setLocalImages(next);
     setLightboxIdx(null);
+    queryClient.setQueriesData({ queryKey: getListTransactionsQueryKey() }, (current: unknown) => {
+      if (!Array.isArray(current)) return current;
+      return current.map((item: any) => item.id === tx.id
+        ? { ...item, receiptImage: next[0] ?? null, receiptImages: next }
+        : item);
+    });
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
   }, onError: (error: any) => {
-    const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+    const message = error?.data?.error ?? error?.message?.replace(/^HTTP \d+ [^:]+:\s*/, "") ?? t("tx.image_error");
     toast.error(message);
   }}});
 
@@ -446,9 +458,9 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
           reader.readAsDataURL(file);
         });
       }
-      uploadReceipt.mutate({ id: tx.id, data: { imageData: dataUrl } });
+      await uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } });
     } catch {
-      alert(t("tx.image_error"));
+      // The mutation's onError toast already contains the server's reason.
     }
   }
 
@@ -1886,7 +1898,8 @@ export default function HomeSpending() {
                   const hasGoal             = !!contrib;
                   const hasLarderDedication = !!larderDedication;
                   const isRealizedGoal      = !!(tx as any).foundedWithRealizedGoal;
-                  const hasReceipt          = !!tx.receiptImage;
+                  const hasReceipt          = !!tx.receiptImage
+                    || (Array.isArray((tx as any).receiptImages) && (tx as any).receiptImages.length > 0);
                   const hasLocked           = !!(tx.currencyLocked && tx.transactionCurrency);
                   const hasUnavailable      = !!(tx as any).currencyUnavailable;
                   const hasForeign          = !!(tx.transactionCurrency && tx.transactionCurrency !== prefs.currency && !tx.currencyLocked && !hasUnavailable);

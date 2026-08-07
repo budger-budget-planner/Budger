@@ -427,11 +427,17 @@ function ReceiptModal({
           ? data.receiptImages
           : data?.receiptImage ? [data.receiptImage] : effectiveImages;
         setLocalImages(next);
+        queryClient.setQueriesData({ queryKey: getListTransactionsQueryKey() }, (current: unknown) => {
+          if (!Array.isArray(current)) return current;
+          return current.map((item: any) => item.id === tx.id
+            ? { ...item, receiptImage: next[0] ?? null, receiptImages: next }
+            : item);
+        });
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
       onError: (error: any) => {
-        const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+        const message = error?.data?.error ?? error?.message?.replace(/^HTTP \d+ [^:]+:\s*/, "") ?? t("tx.image_error");
         toast.error(message);
       },
     },
@@ -443,11 +449,17 @@ function ReceiptModal({
           : data?.receiptImage ? [data.receiptImage] : [];
         setLocalImages(next);
         setLightboxIdx(null);
+        queryClient.setQueriesData({ queryKey: getListTransactionsQueryKey() }, (current: unknown) => {
+          if (!Array.isArray(current)) return current;
+          return current.map((item: any) => item.id === tx.id
+            ? { ...item, receiptImage: next[0] ?? null, receiptImages: next }
+            : item);
+        });
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
       },
       onError: (error: any) => {
-        const message = error?.data?.error ?? error?.message ?? t("tx.image_error");
+        const message = error?.data?.error ?? error?.message?.replace(/^HTTP \d+ [^:]+:\s*/, "") ?? t("tx.image_error");
         toast.error(message);
       },
     },
@@ -470,9 +482,9 @@ function ReceiptModal({
           reader.readAsDataURL(file);
         });
       }
-      uploadReceipt.mutate({ id: tx.id, data: { imageData: dataUrl } });
+      await uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } });
     } catch {
-      alert(t("tx.image_error"));
+      // The mutation's onError toast already contains the server's reason.
     }
   }
 

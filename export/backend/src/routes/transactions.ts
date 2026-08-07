@@ -735,6 +735,9 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
   if (!imageData || typeof imageData !== "string") {
     res.status(400).json({ error: "imageData is required" }); return;
   }
+  if (imageData.length > 28 * 1024 * 1024) {
+    res.status(413).json({ error: "Receipt image is too large" }); return;
+  }
 
   // Resolve a pending server-side upload (old client flow via request-url + PUT).
   // objectPath format: "/objects/uploads/<uuid>"
@@ -764,6 +767,10 @@ router.post("/transactions/:id/receipt", async (req, res): Promise<void> => {
     const [, contentType, b64] = match;
     if (!contentType.toLowerCase().startsWith("image/")) {
       res.status(415).json({ error: "Receipt must be an image" });
+      return;
+    }
+    if (!/^(image\/(?:jpeg|jpg|png|webp|gif|heic|heif))$/i.test(contentType)) {
+      res.status(415).json({ error: "Unsupported receipt image type" });
       return;
     }
     const buffer = Buffer.from(b64, "base64");
