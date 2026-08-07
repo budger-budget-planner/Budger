@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
-import { receiptSrc, compressImage } from "@/lib/imageUtils";
+import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
@@ -390,6 +390,7 @@ function ReceiptModal({
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   // undefined = no local override (use server data); string[] = optimistic list
   const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
+  const [processingFile, setProcessingFile] = useState(false);
   // Guard: on iOS, opening the native file picker blurs the Dialog and triggers
   // onOpenChange(false) → onClose() → component unmounts → input is gone when
   // the picker returns, so onChange never fires.  Block dialog close while the
@@ -470,25 +471,29 @@ function ReceiptModal({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    setProcessingFile(true);
+    let uploadStarted = false;
     try {
       let dataUrl: string;
       try {
         dataUrl = await compressImage(file, 800, 0.65);
       } catch {
-        dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error("FileReader failed"));
-          reader.readAsDataURL(file);
-        });
+        // Safari cannot decode HEIC/HEIF for canvas conversion on some iOS
+        // versions. Send the original file instead; the API supports it.
+        dataUrl = await readImageFile(file);
       }
+      uploadStarted = true;
       await uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } });
-    } catch {
-      // The mutation's onError toast already contains the server's reason.
+    } catch (error: any) {
+      if (!uploadStarted) {
+        toast.error(error?.message ?? t("tx.image_error"));
+      }
+    } finally {
+      setProcessingFile(false);
     }
   }
 
-  const isBusy = uploadReceipt.isPending || deleteReceipt.isPending;
+  const isBusy = processingFile || uploadReceipt.isPending || deleteReceipt.isPending;
 
   return (
     <>
