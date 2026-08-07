@@ -227,14 +227,17 @@ router.post("/larder/assign", async (req, res): Promise<void> => {
     res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Unassigned balance" }); return;
   }
 
-  await db.insert(larderEntriesTable).values({
-    userId, amount: String(-nativeAmount), currency: currency.trim(),
-    sourceType: "bucket_assignment", note: `Assigned to ${bucket}`,
+  const entry = await db.transaction(async (tx) => {
+    await tx.insert(larderEntriesTable).values({
+      userId, amount: String(-nativeAmount), currency: currency.trim(),
+      sourceType: "bucket_assignment", note: `Assigned to ${bucket}`,
+    });
+    const [created] = await tx.insert(larderEntriesTable).values({
+      userId, amount: String(nativeAmount), currency: currency.trim(),
+      sourceType: "bucket_assignment", bucket, note: `Assigned to ${bucket}`,
+    }).returning();
+    return created;
   });
-  const [entry] = await db.insert(larderEntriesTable).values({
-    userId, amount: String(nativeAmount), currency: currency.trim(),
-    sourceType: "bucket_assignment", bucket, note: `Assigned to ${bucket}`,
-  }).returning();
   res.status(201).json(fmtEntry(entry));
 });
 

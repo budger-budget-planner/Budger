@@ -8,6 +8,7 @@ export type SavingsBucket = "soft_savings" | "hard_savings" | "investments";
 export type SavingsBucketSummary = {
   bucket: SavingsBucket;
   total: number;
+  currencyBreakdown?: { currency: string; rawTotal: number }[];
 };
 
 type LarderStackSurfaceProps = {
@@ -117,6 +118,8 @@ export function SavingsBucketStack({
 
   const totalFor = (bucket: SavingsBucket) =>
     summaries.find(summary => summary.bucket === bucket)?.total ?? 0;
+  const breakdownFor = (bucket: SavingsBucket) =>
+    summaries.find(summary => summary.bucket === bucket)?.currencyBreakdown ?? [];
 
   function flipToNext() {
     if (shufflePhase !== "idle") return;
@@ -184,6 +187,13 @@ export function SavingsBucketStack({
               <p className="mt-2 text-[28px] font-bold tabular-nums text-white">
                 {fmtAmt(totalFor(visibleBucket), currency)}
               </p>
+              {breakdownFor(visibleBucket)
+                .filter(asset => Math.abs(asset.rawTotal) >= 0.005)
+                .map(asset => (
+                  <p key={asset.currency} className="mt-1 text-xs tabular-nums text-white/45">
+                    {fmtAmt(asset.rawTotal, asset.currency)}
+                  </p>
+                ))}
             </div>
             <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-white/40 transition-colors group-hover:text-white/70">
               {t("larder.flip_stack")}

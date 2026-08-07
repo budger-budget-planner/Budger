@@ -1635,7 +1635,11 @@ export default function HouseholdPage() {
             >
               <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
               <p className="text-[11px] text-white/35">
-                {fmtAmt(greatLarder?.unassigned?.total ?? 0, greatLarder?.currency ?? prefs.currency)} ·{" "}
+                {orderedBreakdown(greatLarder?.unassigned?.currencyBreakdown ?? [], greatLarder?.currency ?? prefs.currency, prefs.language)
+                  .map(asset => fmtAmt(asset.rawTotal, asset.currency))
+                  .join(" · ")}
+                {(greatLarder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
+                ≈ {fmtAmt(Math.max(0, greatLarder?.unassigned?.total ?? 0), greatLarder?.currency ?? prefs.currency)} ·{" "}
                 {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
               </p>
             </button>
@@ -2088,6 +2092,12 @@ export default function HouseholdPage() {
               className={glInputCls}
               autoFocus
             />
+             <ConversionPreview
+               amount={parseFloat(glAssignAmount.replace(",", "."))}
+               from={glAssignCurrency}
+               to={greatLarder?.currency ?? prefs.currency}
+               rates={splitRates}
+             />
           </div>
           <button
             type="submit"

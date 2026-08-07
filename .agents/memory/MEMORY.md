@@ -26,3 +26,4 @@
 - [Conditional card siblings](conditional-card-siblings.md) — when controls move outside a conditional card, wrap the card and controls in one fragment
 - [Larder stack visual cue](larder-stack-cue.md) — show two subtle offset layers behind the outer surface; never restore the nested active-card panel
 - [Larder history visibility](larder-history-visibility.md) — keep history out of Larder card surfaces while preserving stored entries and balance logic
+- [Larder assignment atomicity](larder-assignment-atomicity.md) — debit and bucket-credit rows must commit together so a failed assignment cannot leave a partial balance

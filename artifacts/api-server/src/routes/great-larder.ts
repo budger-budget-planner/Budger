@@ -190,17 +190,20 @@ router.post("/great-larder/assign", async (req, res): Promise<void> => {
   } catch (err) {
     res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Unassigned balance" }); return;
   }
-  await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId, contributedByUserId: userId,
-    amount: String(-nativeAmount), currency: currency.trim(),
-    sourceType: "bucket_assignment", status: "approved", note: `Assigned to ${bucket}`,
+  const entry = await db.transaction(async (tx) => {
+    await tx.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId, contributedByUserId: userId,
+      amount: String(-nativeAmount), currency: currency.trim(),
+      sourceType: "bucket_assignment", status: "approved", note: `Assigned to ${bucket}`,
+    });
+    const [created] = await tx.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId, contributedByUserId: userId,
+      amount: String(nativeAmount), currency: currency.trim(),
+      sourceType: "bucket_assignment", status: "approved", bucket,
+      note: `Assigned to ${bucket}`,
+    }).returning();
+    return created;
   });
-  const [entry] = await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId, contributedByUserId: userId,
-    amount: String(nativeAmount), currency: currency.trim(),
-    sourceType: "bucket_assignment", status: "approved", bucket,
-    note: `Assigned to ${bucket}`,
-  }).returning();
   res.status(201).json(fmtEntry(entry, user.name ?? "Unknown"));
 });
 

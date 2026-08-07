@@ -525,7 +525,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
       >
         <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
-        <p className="text-[11px] text-white/35">{fmtAmt(larder?.unassigned?.total ?? 0, prefs.currency)} · {t("larder.assign_hint")}</p>
+        <p className="text-[11px] text-white/35">
+          {orderedBreakdown(larder?.unassigned?.currencyBreakdown ?? [], prefs.currency, prefs.language)
+            .map(asset => fmtAmt(asset.rawTotal, asset.currency))
+            .join(" · ")}
+          {(larder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
+          ≈ {fmtAmt(Math.max(0, larder?.unassigned?.total ?? 0), prefs.currency)} · {t("larder.assign_hint")}
+        </p>
       </button>
       <LarderStackSurface ref={ref}>
       <div
@@ -971,6 +977,12 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
               placeholder="0.00"
               className={inputCls}
               autoFocus
+            />
+            <ConversionPreview
+              amount={parseFloat(assignAmount.replace(",", "."))}
+              from={assignCurrency}
+              to={prefs.currency}
+              rates={rates}
             />
           </div>
           <button
