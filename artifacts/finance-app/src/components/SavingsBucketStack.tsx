@@ -20,6 +20,9 @@ type LarderStackSurfaceProps = {
 type LarderStackMotionContextValue = {
   phase: "idle" | "crossfade";
   setPhase: (phase: "idle" | "crossfade") => void;
+  transitionBucket: SavingsBucket | null;
+  setTransitionBucket: (bucket: SavingsBucket | null) => void;
+  incomingSurface: boolean;
 };
 
 const LarderStackMotionContext = createContext<LarderStackMotionContextValue | null>(null);
@@ -31,9 +34,17 @@ const LarderStackMotionContext = createContext<LarderStackMotionContextValue | n
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
   function LarderStackSurface({ children, className = "" }, ref) {
     const [phase, setPhase] = useState<"idle" | "crossfade">("idle");
+    const [transitionBucket, setTransitionBucket] = useState<SavingsBucket | null>(null);
+    const motion = {
+      phase,
+      setPhase,
+      transitionBucket,
+      setTransitionBucket,
+      incomingSurface: false,
+    };
 
     return (
-      <LarderStackMotionContext.Provider value={{ phase, setPhase }}>
+      <LarderStackMotionContext.Provider value={motion}>
         <div ref={ref} className={`relative ${className}`}>
           <div
             aria-hidden="true"
@@ -55,7 +66,25 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
               boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
             }}
           />
-          <div className="relative z-10">{children}</div>
+          <div className="relative z-10 grid">
+            <div
+              className={`col-start-1 row-start-1 ${
+                phase === "crossfade" ? "larder-stack-shuffle-out pointer-events-none" : ""
+              }`}
+            >
+              {children}
+            </div>
+            {phase === "crossfade" && (
+              <LarderStackMotionContext.Provider value={{ ...motion, incomingSurface: true }}>
+                <div
+                  aria-hidden="true"
+                  className="col-start-1 row-start-1 larder-stack-fade-in pointer-events-none"
+                >
+                  {children}
+                </div>
+              </LarderStackMotionContext.Provider>
+            )}
+          </div>
         </div>
       </LarderStackMotionContext.Provider>
     );
@@ -151,11 +180,15 @@ export function SavingsBucketStack({
 }: SavingsBucketStackProps) {
   const stackMotion = useContext(LarderStackMotionContext);
   const [visibleBucket, setVisibleBucket] = useState<SavingsBucket>(activeBucket);
-  const [transitionBucket, setTransitionBucket] = useState<SavingsBucket | null>(null);
+  const [localTransitionBucket, setLocalTransitionBucket] = useState<SavingsBucket | null>(null);
   const [localPhase, setLocalPhase] = useState<"idle" | "crossfade">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phase = stackMotion?.phase ?? localPhase;
   const setPhase = stackMotion?.setPhase ?? setLocalPhase;
+  const transitionBucket = stackMotion?.transitionBucket ?? localTransitionBucket;
+  const setTransitionBucket = stackMotion?.setTransitionBucket ?? setLocalTransitionBucket;
+  const bucketForSurface =
+    stackMotion?.incomingSurface ? transitionBucket ?? activeBucket : visibleBucket;
 
   useEffect(() => {
     if (phase === "idle") setVisibleBucket(activeBucket);
@@ -179,28 +212,75 @@ export function SavingsBucketStack({
       onBucketChange(nextBucket);
       setPhase("idle");
       timer.current = null;
-    }, 420);
+    }, 540);
   }
+
+  const bucketContent = (
+    <BucketCardContent bucket={bucketForSurface} summaries={summaries} currency={currency} />
+  );
 
   return (
     <div className={`relative grid ${className}`}>
       <style>{`
+        @keyframes larderStackShuffleOut {
+          0% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+          }
+          18% {
+            opacity: 1;
+            transform: translate3d(24px, -1px, 0) rotate(3deg) scale(.99);
+          }
+          48% {
+            opacity: .92;
+            transform: translate3d(112px, -7px, 0) rotate(8deg) scale(.97);
+          }
+          68% {
+            opacity: 1;
+            transform: translate3d(210px, -4px, 0) rotate(11deg) scale(.95);
+          }
+          78% {
+            opacity: .86;
+            transform: translate3d(250px, -1px, 0) rotate(12deg) scale(.94);
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(118%, -4px, 0) rotate(14deg) scale(.9);
+          }
+        }
+        .larder-stack-shuffle-out {
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+          animation: larderStackShuffleOut 400ms cubic-bezier(.22, .72, .34, 1) both;
+        }
+        @keyframes larderStackFadeIn {
+          0% { opacity: .16; }
+          100% { opacity: 1; }
+        }
+        .larder-stack-fade-in {
+          will-change: opacity;
+          animation: larderStackFadeIn 520ms ease-out both;
+        }
         @keyframes savingsBucketOutgoing {
           0% { opacity: 1; transform: translate3d(0, 0, 0); }
           72% { opacity: .9; transform: translate3d(72px, -2px, 0); }
           100% { opacity: 0; transform: translate3d(118%, -3px, 0); }
         }
         @keyframes savingsBucketIncoming {
-          0% { opacity: 0; }
+          0% { opacity: .16; }
           100% { opacity: 1; }
         }
         .savings-bucket-outgoing {
           animation: savingsBucketOutgoing 420ms cubic-bezier(.22, .72, .34, 1) both;
         }
         .savings-bucket-incoming {
-          animation: savingsBucketIncoming 420ms ease-out both;
+          animation: savingsBucketIncoming 520ms ease-out both;
         }
         @media (prefers-reduced-motion: reduce) {
+          .larder-stack-shuffle-out,
+          .larder-stack-fade-in {
+            animation-duration: 1ms;
+          }
           .savings-bucket-outgoing,
           .savings-bucket-incoming {
             animation-duration: 1ms;
@@ -213,19 +293,25 @@ export function SavingsBucketStack({
         aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
         className="group relative col-start-1 row-start-1 grid w-full text-left"
       >
-        {/* Both states occupy this one grid frame. There is deliberately no
-            invisible sizing layer or partial card state. */}
-        <div
-          className={`col-start-1 row-start-1 ${
-            transitionBucket ? "savings-bucket-outgoing pointer-events-none" : ""
-          }`}
-        >
-          <BucketCardContent bucket={visibleBucket} summaries={summaries} currency={currency} />
-        </div>
-        {transitionBucket && (
-          <div className="col-start-1 row-start-1 savings-bucket-incoming pointer-events-none">
-            <BucketCardContent bucket={transitionBucket} summaries={summaries} currency={currency} />
-          </div>
+        {/* The surrounding Larder surface owns the A toss and B fade. This
+            inner state only supplies the correct bucket to each full surface. */}
+        {stackMotion ? (
+          bucketContent
+        ) : (
+          <>
+            <div
+              className={`col-start-1 row-start-1 ${
+                transitionBucket ? "savings-bucket-outgoing pointer-events-none" : ""
+              }`}
+            >
+              <BucketCardContent bucket={visibleBucket} summaries={summaries} currency={currency} />
+            </div>
+            {transitionBucket && (
+              <div className="col-start-1 row-start-1 savings-bucket-incoming pointer-events-none">
+                <BucketCardContent bucket={transitionBucket} summaries={summaries} currency={currency} />
+              </div>
+            )}
+          </>
         )}
       </button>
     </div>

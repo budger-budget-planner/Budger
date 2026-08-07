@@ -9,14 +9,14 @@ The stack is three cards total: the real Larder surface plus two close layers be
 
 **How to apply:** Keep the stack wrapper outside the complete Larder panel, with only two subtle close layers behind it. Preserve click-to-switch behavior and apply the shuffle transform only to the front/top surface, never to the wrapper that also contains the rear layers. Keep the unassigned waiting room above the outer surface.
 
-For bucket handoffs, keep the Larder surface stationary and render the complete outgoing and incoming bucket states in the same exact frame; animate only those two states.
+For bucket handoffs, keep the rear stack layers stationary, but render complete outgoing and incoming Larder surface states in the same exact frame; toss A out and fade B in together.
 
-**Why:** The requested motion is a simple replacement: whole A moves/fades out while whole B fades in. Moving the outer Larder panel or using a partial rear preview makes the content jump or reveals incomplete details.
+**Why:** The requested motion is a complete-card replacement: whole A moves/fades out while whole B fades in. Animating only the bucket amount leaves the pink-marked header and lower controls behind.
 
 The two bucket states must share one positioned frame and identical full content structure. Do not add a rear-card preview, measured overlay, extra border, or separate reveal phase.
 
 **Why:** A partial or separately positioned overlay creates the exact text jump and incomplete-card sequence the user rejected.
 
-During A→B, fade the complete B state in from the beginning while A moves/fades out, then commit B as the settled state after the animation.
+During A→B, fade the complete B surface in from the beginning while the complete A surface tosses out, then commit B as the settled state after the animation.
 
 **Why:** The entire incoming card should replace A as one complete surface; there should be no intermediate partial-detail state.
