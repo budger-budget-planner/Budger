@@ -23,6 +23,7 @@ type LarderStackSurfaceProps = {
 type LarderStackMotionContextValue = {
   phase: "idle" | "out" | "in";
   setPhase: (phase: "idle" | "out" | "in") => void;
+  setPreview: (preview: ReactNode) => void;
 };
 
 const LarderStackMotionContext = createContext<LarderStackMotionContextValue | null>(null);
@@ -34,10 +35,31 @@ const LarderStackMotionContext = createContext<LarderStackMotionContextValue | n
  */
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
   function LarderStackSurface({ children, preview, previewTop = 72, className = "" }, ref) {
-  const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
+    const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
+    const [stablePreview, setStablePreview] = useState(preview);
+
+    // The parent derives this node from its active bucket. Capture the
+    // incoming face at the exact start of a handoff so a parent update cannot
+    // replace B with C while B is being revealed.
+    const setPreview = (nextPreview: ReactNode) => {
+      setStablePreview(nextPreview);
+    };
+
+    useEffect(() => {
+      if (shufflePhase === "idle") {
+        setStablePreview(preview);
+      }
+    }, [preview, shufflePhase]);
+
+    const previewRevealClass =
+      shufflePhase === "out"
+        ? "larder-stack-preview-reveal"
+        : shufflePhase === "in"
+          ? "larder-stack-preview-visible"
+          : "larder-stack-preview-hidden";
 
     return (
-      <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase }}>
+      <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase, setPreview }}>
       <div
         ref={ref}
         className={`relative ${className}`}
@@ -63,10 +85,10 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
           }}
         >
           <div
-            className="absolute inset-x-0 bottom-0"
+            className={`absolute inset-x-0 bottom-0 ${previewRevealClass}`}
             style={{ top: previewTop + 7 }}
           >
-            {preview}
+            {stablePreview}
           </div>
         </div>
         <div
@@ -158,6 +180,7 @@ export function SavingsBucketStack({
   const shuffleTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const shufflePhase = stackMotion?.phase ?? localShufflePhase;
   const setShufflePhase = stackMotion?.setPhase ?? setLocalShufflePhase;
+  const setPreview = stackMotion?.setPreview;
 
   useEffect(() => {
     if (shufflePhase === "idle") setVisibleBucket(activeBucket);
@@ -176,6 +199,16 @@ export function SavingsBucketStack({
 
     shuffleTimers.current.forEach(clearTimeout);
     shuffleTimers.current = [];
+    // Freeze the exact B face before any state change can cause the parent to
+    // derive the following C face.
+    setPreview?.(
+      <SavingsBucketFace
+        bucket={nextBucket}
+        summaries={summaries}
+        currency={currency}
+        preview
+      />,
+    );
     setShufflePhase("out");
 
     // Keep the outgoing surface mounted until it has fully cleared the right
@@ -245,12 +278,30 @@ export function SavingsBucketStack({
           will-change: transform, opacity;
           animation: larderStackShuffleIn 360ms cubic-bezier(.22, 1, .36, 1) both;
         }
+        @keyframes larderStackPreviewReveal {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        .larder-stack-preview-hidden {
+          opacity: 0;
+        }
+        .larder-stack-preview-reveal {
+          opacity: 0;
+          will-change: opacity;
+          animation: larderStackPreviewReveal 265ms ease-out both;
+        }
+        .larder-stack-preview-visible {
+          opacity: 1;
+        }
         @media (prefers-reduced-motion: reduce) {
           .larder-stack-shuffle-out {
             animation: larderStackShuffleOut 1ms linear both;
           }
           .larder-stack-shuffle-in {
             animation: larderStackShuffleIn 1ms linear both;
+          }
+          .larder-stack-preview-reveal {
+            animation: larderStackPreviewReveal 1ms linear both;
           }
         }
       `}</style>

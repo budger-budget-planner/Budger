@@ -20,3 +20,7 @@ The rear face must use the same vertical content origin as the settled bucket fa
 After the outgoing toss, use a distinct short "in" phase for the newly fronted surface so the whole returning panel fades in together; do not reveal only the bucket text.
 
 **Why:** The card contains a header, bucket details, indicators, and actions. Fading only the bucket face makes the card feel assembled in pieces after the transition.
+
+Freeze the rear preview React node for the full A→B handoff by capturing the complete B face before changing active state. Do not derive it live from the parent's updated active bucket while the front reveal is running; update it to C only after the reveal settles.
+
+**Why:** The parent active bucket changes to B during the transition, which makes a live `next(activeBucket)` preview jump to C and creates the visible A→B→C flash.
