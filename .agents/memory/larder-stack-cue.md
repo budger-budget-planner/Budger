@@ -24,3 +24,7 @@ During A→B, fade the complete B surface in from the beginning while the comple
 When bucket cards can have different heights, the incoming B surface must define the motion frame height immediately; position and vertically clip outgoing A to that frame while it tosses away.
 
 **Why:** Letting the larger outgoing surface remain in normal flow leaves a stale lower frame visible when flipping from a larger card to a smaller one.
+
+Repeated flips must advance from a local settled-bucket ref and hold a pending target until the parent’s active-bucket prop catches up.
+
+**Why:** The complete-card animation renders duplicate outgoing/incoming surfaces, so relying only on a render snapshot can leave the second tap using stale bucket state.

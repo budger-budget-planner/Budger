@@ -185,6 +185,8 @@ export function SavingsBucketStack({
   const [localTransitionBucket, setLocalTransitionBucket] = useState<SavingsBucket | null>(null);
   const [localPhase, setLocalPhase] = useState<"idle" | "crossfade">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settledBucket = useRef<SavingsBucket>(activeBucket);
+  const pendingBucket = useRef<SavingsBucket | null>(null);
   const phase = stackMotion?.phase ?? localPhase;
   const setPhase = stackMotion?.setPhase ?? setLocalPhase;
   const transitionBucket = stackMotion?.transitionBucket ?? localTransitionBucket;
@@ -193,18 +195,27 @@ export function SavingsBucketStack({
     stackMotion?.incomingSurface ? transitionBucket ?? activeBucket : visibleBucket;
 
   useEffect(() => {
-    if (phase === "idle") setVisibleBucket(activeBucket);
+    if (activeBucket === settledBucket.current) {
+      if (pendingBucket.current === activeBucket) pendingBucket.current = null;
+      return;
+    }
+    if (phase === "idle" && pendingBucket.current !== settledBucket.current) {
+      settledBucket.current = activeBucket;
+      setVisibleBucket(activeBucket);
+    }
   }, [activeBucket, phase]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  const nextBucket = nextSavingsBucket(visibleBucket);
-
   function flipToNext() {
     if (phase !== "idle") return;
 
+    const currentBucket = settledBucket.current;
+    const nextBucket = nextSavingsBucket(currentBucket);
+    settledBucket.current = nextBucket;
+    pendingBucket.current = nextBucket;
     if (timer.current) clearTimeout(timer.current);
     setTransitionBucket(nextBucket);
     setPhase("crossfade");
@@ -217,6 +228,7 @@ export function SavingsBucketStack({
     }, 540);
   }
 
+  const nextBucket = nextSavingsBucket(settledBucket.current);
   const bucketContent = (
     <BucketCardContent bucket={bucketForSurface} summaries={summaries} currency={currency} />
   );
