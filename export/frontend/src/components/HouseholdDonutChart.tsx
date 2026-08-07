@@ -439,14 +439,16 @@ type Props = {
   currency: string;
   rates: Record<string, number> | null;
   onMemberTap?: (member: HouseholdMemberInput) => void;
+  onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
+  onManageVisibility?: (visible: boolean) => void;
   iAmHead?: boolean;
   crossMonthStretchUserIds?: number[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
-  members, householdBudget, currency, rates, onMemberTap, iAmHead = false,
-  crossMonthStretchUserIds,
+  members, householdBudget, currency, rates, onMemberTap,
+  onDrilledMemberChange, onManageVisibility, iAmHead = false, crossMonthStretchUserIds,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
@@ -553,6 +555,7 @@ export default function HouseholdDonutChart({
     error: memberSpendErrorObj,
   } = useGetMemberSpending(realMemberId, {
     query: {
+      queryKey: getGetMemberSpendingQueryKey(realMemberId),
       enabled: drillPhase !== "idle" && !isVirtualDrill && realMemberId > 0,
       staleTime: 30_000,
       retry: 1,
@@ -580,6 +583,18 @@ export default function HouseholdDonutChart({
     () => members.find(m => m.userId === drilledMemberId) ?? null,
     [members, drilledMemberId],
   );
+
+  useEffect(() => {
+    const isDrilled = drillPhase !== "idle";
+    onDrilledMemberChange?.(isDrilled ? drilledMember : null, isDrilled && isVirtualDrill);
+    onManageVisibility?.(isDrilled && !!drilledMember && !isVirtualDrill);
+  }, [
+    drillPhase,
+    drilledMember,
+    isVirtualDrill,
+    onDrilledMemberChange,
+    onManageVisibility,
+  ]);
 
   // Convert member spending to viewer currency
   const personalSpending = useMemo<SpendingItem[]>(() => {

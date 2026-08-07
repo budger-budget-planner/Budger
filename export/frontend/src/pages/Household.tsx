@@ -29,6 +29,7 @@ import {
   getGetMeQueryKey,
   getListGoalsQueryKey,
   getGetGoalsSummaryQueryKey,
+  getGetMemberSpendingQueryKey,
   useListBudgetStretches,
 } from "@/lib/api-client";
 import { getCsrfToken } from "@/lib/api-client/custom-fetch";
@@ -326,7 +327,7 @@ function MemberSheet({
   // member uses a separate endpoint that returns applied household RP items.
   const { data: realData, isLoading: realLoading, isError: realError } = useGetMemberSpending(
     member.userId,
-    { query: { enabled: !isVirtual } },
+    { query: { enabled: !isVirtual, queryKey: getGetMemberSpendingQueryKey(member.userId) } },
   );
   const { data: virtualData, isLoading: virtualLoading } = useQuery<any[]>({
     queryKey: ["household-spendings-spending"],

@@ -36,8 +36,9 @@ export function usePullToRefresh(
   onRefreshRef.current = onRefresh;
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const currentElement = containerRef.current;
+    if (!currentElement) return;
+    const element: HTMLElement = currentElement;
 
     const MAX_TRAVEL = 88; // cap on how far the indicator visually travels
 
@@ -57,12 +58,12 @@ export function usePullToRefresh(
       if (!committed.current) {
         // Wait for a clear, mostly-vertical downward drag before claiming the
         // gesture — bails out cleanly for horizontal swipes (carousels, etc.).
-        if (dy <= 6 || Math.abs(dx) > dy || el.scrollTop > 0) return;
+        if (dy <= 6 || Math.abs(dx) > dy || element.scrollTop > 0) return;
         committed.current = true;
         setDragging(true);
       }
 
-      if (dy <= 0 || el.scrollTop > 0) { reset(); return; }
+      if (dy <= 0 || element.scrollTop > 0) { reset(); return; }
       if (e.cancelable) e.preventDefault();
 
       const threshold = window.innerHeight / 5; // ~1/5 of the screen
@@ -74,17 +75,17 @@ export function usePullToRefresh(
 
     function handleStart(e: TouchEvent) {
       if (disabledRef.current || refreshingRef.current) return;
-      if (el.scrollTop > 0) { startY.current = null; return; }
+      if (element.scrollTop > 0) { startY.current = null; return; }
       startY.current = e.touches[0].clientY;
       startX.current = e.touches[0].clientX;
       // Only add the non-passive listener when at the top — this lets the
       // browser use the fast compositor scroll path at all other positions.
-      el.addEventListener("touchmove", handleMove, { passive: false });
+      element.addEventListener("touchmove", handleMove, { passive: false });
     }
 
     async function handleEnd() {
       // Always clean up the dynamically-added move listener.
-      el.removeEventListener("touchmove", handleMove);
+      element.removeEventListener("touchmove", handleMove);
 
       if (!committed.current) { startY.current = null; return; }
       committed.current = false;
@@ -111,14 +112,14 @@ export function usePullToRefresh(
       }
     }
 
-    el.addEventListener("touchstart", handleStart, { passive: true });
-    el.addEventListener("touchend", handleEnd, { passive: true });
-    el.addEventListener("touchcancel", handleEnd, { passive: true });
+    element.addEventListener("touchstart", handleStart, { passive: true });
+    element.addEventListener("touchend", handleEnd, { passive: true });
+    element.addEventListener("touchcancel", handleEnd, { passive: true });
     return () => {
-      el.removeEventListener("touchstart", handleStart);
-      el.removeEventListener("touchmove", handleMove);
-      el.removeEventListener("touchend", handleEnd);
-      el.removeEventListener("touchcancel", handleEnd);
+      element.removeEventListener("touchstart", handleStart);
+      element.removeEventListener("touchmove", handleMove);
+      element.removeEventListener("touchend", handleEnd);
+      element.removeEventListener("touchcancel", handleEnd);
     };
     // Deliberately only re-binds if the container itself changes — disabled/
     // onRefresh are read via refs above so they stay fresh without tearing
