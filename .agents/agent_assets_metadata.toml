@@ -102,3 +102,10 @@ id = "t74tuk9oBpsNzjZrMIp7m"
 uri = "file://output/Budger_Stretch_Push_Plan.pdf"
 type = "pdf"
 title = "Budger Stretch Push Plan"
+
+[[outputs]]
+id = "mXEZnYn61IPfG_HHMAauz"
+uri = "file://output/Budger_Larder_Production_Plan.docx"
+type = "word_document"
+title = "Budger Larder Production Rollout Plan"
+description = "Read-only comparison of the working Larder implementation versus the shipping export, with a detailed corrected production rollout plan, verification gates, deployment order, and rollback steps."
