@@ -10,6 +10,6 @@ Receipts upload directly to a **public** Supabase Storage bucket (`budger-media`
 - Display: `receiptSrc(value)` in `imageUtils.ts` — `data:` legacy base64 as-is, `http`-prefixed Supabase public URLs as-is (loaded directly by the browser, no backend proxy).
 - No `GET /storage/objects/*` proxy exists anymore — was removed because the bucket is public, so there's nothing for a session-gated proxy to protect. If receipts ever need to become private again, that ownership-check pattern (join against `transactions.receiptImage` + `userId`) is the one to bring back, alongside switching the bucket to private + signed URLs.
 - One-time backfill: `artifacts/api-server/src/scripts/migrate-receipts.ts` converts any remaining base64 rows to real Supabase objects; safe to re-run (skips non-`data:` rows).
-- Production receipt uploads require `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to be configured in the deployed backend; without them, the UI can open the picker but persistence fails.
+- Production receipt uploads prefer Supabase Storage, but the receipt write falls back to a data URL if Supabase is unavailable; this keeps the user-visible save path functional while the storage configuration is repaired.
 
-**Why:** user explicitly requested files go straight into their own Supabase project via the official SDK, and confirmed the bucket is intentionally public — simplifying away the previous GCS proxy/ACL machinery entirely.
+**Why:** Supabase is still the preferred permanent store, but a storage outage or missing bucket must not make camera/gallery receipt writes disappear; legacy data URLs are already supported by the read/display path.
