@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode, useEffect, useRef, useState } from "react";
+import { createContext, forwardRef, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
@@ -15,6 +15,13 @@ type LarderStackSurfaceProps = {
   className?: string;
 };
 
+type LarderStackMotionContextValue = {
+  phase: "idle" | "out" | "in";
+  setPhase: (phase: "idle" | "out" | "in") => void;
+};
+
+const LarderStackMotionContext = createContext<LarderStackMotionContextValue | null>(null);
+
 /**
  * Wraps the complete Larder panel in the three-card stack silhouette.
  * Two matching dark layers sit behind the whole panel, never around the
@@ -22,8 +29,20 @@ type LarderStackSurfaceProps = {
  */
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
   function LarderStackSurface({ children, className = "" }, ref) {
+    const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
+
     return (
-      <div ref={ref} className={`relative ${className}`}>
+      <LarderStackMotionContext.Provider value={{ phase: shufflePhase, setPhase: setShufflePhase }}>
+      <div
+        ref={ref}
+        className={`relative ${
+          shufflePhase === "out"
+            ? "larder-stack-shuffle-out"
+            : shufflePhase === "in"
+              ? "larder-stack-shuffle-in"
+              : ""
+        } ${className}`}
+      >
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 left-3 right-[-5px] top-[-14px] rounded-3xl"
@@ -46,6 +65,7 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
         />
         <div className="relative z-10">{children}</div>
       </div>
+      </LarderStackMotionContext.Provider>
     );
   },
 );
@@ -76,9 +96,12 @@ export function SavingsBucketStack({
   currency,
   className = "",
 }: SavingsBucketStackProps) {
+  const stackMotion = useContext(LarderStackMotionContext);
   const [visibleBucket, setVisibleBucket] = useState<SavingsBucket>(activeBucket);
-  const [shufflePhase, setShufflePhase] = useState<"idle" | "out" | "in">("idle");
+  const [localShufflePhase, setLocalShufflePhase] = useState<"idle" | "out" | "in">("idle");
   const shuffleTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const shufflePhase = stackMotion?.phase ?? localShufflePhase;
+  const setShufflePhase = stackMotion?.setPhase ?? setLocalShufflePhase;
 
   useEffect(() => {
     if (shufflePhase === "idle") setVisibleBucket(activeBucket);
@@ -119,18 +142,24 @@ export function SavingsBucketStack({
       <style>{`
         @keyframes larderStackShuffleOut {
           0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
-          58% { opacity: .42; transform: translate3d(27px, -9px, 0) rotate(4deg) scale(.985); }
-          100% { opacity: 0; transform: translate3d(44px, -15px, 0) rotate(6deg) scale(.96); }
+          38% { opacity: .72; transform: translate3d(32px, -18px, 0) rotate(6deg) scale(.98); }
+          74% { opacity: .24; transform: translate3d(78px, -38px, 0) rotate(12deg) scale(.92); }
+          100% { opacity: 0; transform: translate3d(108px, -54px, 0) rotate(16deg) scale(.86); }
         }
         @keyframes larderStackShuffleIn {
-          0% { opacity: 0; transform: translate3d(-25px, 11px, 0) rotate(-3deg) scale(.97); }
-          58% { opacity: .72; transform: translate3d(5px, -2px, 0) rotate(.8deg) scale(.995); }
+          0% { opacity: 0; transform: translate3d(-96px, 46px, 0) rotate(-14deg) scale(.86); }
+          58% { opacity: .76; transform: translate3d(18px, -10px, 0) rotate(5deg) scale(.97); }
+          78% { opacity: .92; transform: translate3d(-5px, 4px, 0) rotate(-1.5deg) scale(1.01); }
           100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
         }
         .larder-stack-shuffle-out {
+          transform-origin: 50% 100%;
+          will-change: transform, opacity;
           animation: larderStackShuffleOut 180ms cubic-bezier(.4, 0, .7, 1) both;
         }
         .larder-stack-shuffle-in {
+          transform-origin: 50% 100%;
+          will-change: transform, opacity;
           animation: larderStackShuffleIn 260ms cubic-bezier(.2, .75, .25, 1) both;
         }
         @media (prefers-reduced-motion: reduce) {
@@ -141,43 +170,37 @@ export function SavingsBucketStack({
         }
       `}</style>
       <div className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={flipToNext}
-        aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
-        className={`group w-full text-left transition duration-300 active:scale-[.99] ${
-          shufflePhase === "out"
-            ? "larder-stack-shuffle-out"
-            : shufflePhase === "in"
-              ? "larder-stack-shuffle-in"
-              : ""
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
-              {bucketLabel(visibleBucket)}
-            </p>
-            <p className="mt-2 text-[28px] font-bold tabular-nums text-white">
-              {fmtAmt(totalFor(visibleBucket), currency)}
-            </p>
+        <button
+          type="button"
+          onClick={flipToNext}
+          aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
+          className="group w-full text-left transition duration-300 active:scale-[.99]"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                {bucketLabel(visibleBucket)}
+              </p>
+              <p className="mt-2 text-[28px] font-bold tabular-nums text-white">
+                {fmtAmt(totalFor(visibleBucket), currency)}
+              </p>
+            </div>
+            <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-white/40 transition-colors group-hover:text-white/70">
+              {t("larder.flip_stack")}
+              <ArrowRight className="h-3 w-3" />
+            </span>
           </div>
-          <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-white/40 transition-colors group-hover:text-white/70">
-            {t("larder.flip_stack")}
-            <ArrowRight className="h-3 w-3" />
-          </span>
+        </button>
+        <div className="mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
+          {BUCKETS.map(bucket => (
+            <span
+              key={bucket}
+              className={`h-1.5 rounded-full transition-all ${
+                bucket === visibleBucket ? "w-5 bg-white/75" : "w-1.5 bg-white/20"
+              }`}
+            />
+          ))}
         </div>
-      </button>
-      <div className="mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
-        {BUCKETS.map(bucket => (
-          <span
-            key={bucket}
-            className={`h-1.5 rounded-full transition-all ${
-              bucket === visibleBucket ? "w-5 bg-white/75" : "w-1.5 bg-white/20"
-            }`}
-          />
-        ))}
-      </div>
       </div>
     </>
   );
