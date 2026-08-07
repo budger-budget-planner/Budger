@@ -391,6 +391,7 @@ function ReceiptModal({
   // undefined = no local override (use server data); string[] = optimistic list
   const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
   const [processingFile, setProcessingFile] = useState(false);
+  const processingFileRef = useRef(false);
   // Guard: on iOS, opening the native file picker blurs the Dialog and triggers
   // onOpenChange(false) → onClose() → component unmounts → input is gone when
   // the picker returns, so onChange never fires.  Block dialog close while the
@@ -401,13 +402,21 @@ function ReceiptModal({
     if (!open) { setLocalImages(undefined); setLightboxIdx(null); }
   }, [open]);
 
-  // Reset the file-picker guard whenever the window regains focus
-  // (covers both "file selected" and "picker cancelled" paths on iOS).
-  // Delay 500 ms so that the input's onChange fires before Radix's
-  // DismissableLayer can fire a second onOpenChange(false) after focus
-  // returns to the document outside the dialog's focus trap.
+  // Reset the file-picker guard only for the cancelled-picker path. When a
+  // photo is selected, the guard stays active until the async read/upload is
+  // complete; clearing it at the start of onChange lets Radix unmount this
+  // dialog while iOS is still returning from "Use Photo".
   useEffect(() => {
-    const onFocus = () => { setTimeout(() => { filePickerActiveRef.current = false; }, 500); };
+    const onFocus = () => {
+      window.setTimeout(() => {
+        // If iOS has already populated the input, keep the dialog mounted
+        // until its change event arrives. If the picker was cancelled, there
+        // is no file and it is safe to unlock dismissal.
+        if (!processingFileRef.current && !libraryRef.current?.files?.length) {
+          filePickerActiveRef.current = false;
+        }
+      }, 1500);
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -467,10 +476,16 @@ function ReceiptModal({
   });
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    filePickerActiveRef.current = false; // picker has closed
+    // iOS may emit both `input` and `change` for one selection. Only the
+    // first event is allowed to start the read/upload pipeline.
+    if (processingFileRef.current) return;
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      filePickerActiveRef.current = false;
+      return;
+    }
     e.target.value = "";
+    processingFileRef.current = true;
     setProcessingFile(true);
     let uploadStarted = false;
     try {
@@ -483,12 +498,19 @@ function ReceiptModal({
         dataUrl = await readImageFile(file);
       }
       uploadStarted = true;
-      await uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } });
+      await Promise.race([
+        uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Receipt upload timed out. Please try again.")), 30000);
+        }),
+      ]);
     } catch (error: any) {
       if (!uploadStarted) {
         toast.error(error?.message ?? t("tx.image_error"));
       }
     } finally {
+      processingFileRef.current = false;
+      filePickerActiveRef.current = false;
       setProcessingFile(false);
     }
   }
@@ -558,7 +580,11 @@ function ReceiptModal({
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => { filePickerActiveRef.current = true; libraryRef.current?.click(); }}
+               onClick={() => {
+                 filePickerActiveRef.current = true;
+                 if (libraryRef.current) libraryRef.current.value = "";
+                 libraryRef.current?.click();
+               }}
               disabled={isOffline || isBusy || !canAddMore}
               data-testid="button-add-receipt"
             >
@@ -566,7 +592,7 @@ function ReceiptModal({
               {effectiveImages.length === 0 ? t("tx.add_receipt") : t("tx.add_another_receipt")}
             </Button>
 
-            <Button variant="ghost" className="w-full" onClick={onClose}>{t("tx.done")}</Button>
+             <Button variant="ghost" className="w-full" onClick={onClose} disabled={isBusy}>{t("tx.done")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -629,6 +655,7 @@ function ReceiptModal({
         className="absolute -z-10 h-px w-px opacity-0"
         tabIndex={-1}
         onChange={handleFileChange}
+        onInput={handleFileChange}
         data-testid="input-receipt-library"
       />
     </>

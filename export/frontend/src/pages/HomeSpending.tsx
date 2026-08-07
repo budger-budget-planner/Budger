@@ -382,6 +382,7 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   // undefined = no local override; string[] = optimistic list
   const [localImages, setLocalImages] = useState<string[] | undefined>(undefined);
   const [processingFile, setProcessingFile] = useState(false);
+  const processingFileRef = useRef(false);
   // Guard: on iOS, opening the native file picker blurs the Dialog and triggers
   // onOpenChange(false) → onClose() → component unmounts → input is gone when
   // the picker returns, so onChange never fires.  Block dialog close while the
@@ -393,8 +394,17 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
     if (!open) { setLocalImages(undefined); setLightboxIdx(null); }
   }, [open]);
 
+  // Keep the guard active while the selected photo is being read/uploaded.
+  // Clearing it at the start of onChange lets Radix unmount this dialog while
+  // iOS is still returning from "Use Photo".
   useEffect(() => {
-    const onFocus = () => { setTimeout(() => { filePickerActiveRef.current = false; }, 500); };
+    const onFocus = () => {
+      window.setTimeout(() => {
+        if (!processingFileRef.current && !libraryRef.current?.files?.length) {
+          filePickerActiveRef.current = false;
+        }
+      }, 1500);
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -443,10 +453,16 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
   }}});
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    filePickerActiveRef.current = false; // picker has closed
+    // iOS may emit both `input` and `change` for one selection. Only the
+    // first event is allowed to start the read/upload pipeline.
+    if (processingFileRef.current) return;
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      filePickerActiveRef.current = false;
+      return;
+    }
     e.target.value = "";
+    processingFileRef.current = true;
     setProcessingFile(true);
     let uploadStarted = false;
     try {
@@ -459,12 +475,19 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
         dataUrl = await readImageFile(file);
       }
       uploadStarted = true;
-      await uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } });
+      await Promise.race([
+        uploadReceipt.mutateAsync({ id: tx.id, data: { imageData: dataUrl } }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Receipt upload timed out. Please try again.")), 30000);
+        }),
+      ]);
     } catch (error: any) {
       if (!uploadStarted) {
         toast.error(error?.message ?? t("tx.image_error"));
       }
     } finally {
+      processingFileRef.current = false;
+      filePickerActiveRef.current = false;
       setProcessingFile(false);
     }
   }
@@ -526,12 +549,16 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
             )}
 
             <Button variant="outline" className="w-full gap-2"
-              onClick={() => { filePickerActiveRef.current = true; libraryRef.current?.click(); }} disabled={isBusy || !canAddMore}
+               onClick={() => {
+                 filePickerActiveRef.current = true;
+                 if (libraryRef.current) libraryRef.current.value = "";
+                 libraryRef.current?.click();
+               }} disabled={isBusy || !canAddMore}
               data-testid="button-add-receipt">
               <Plus className="w-4 h-4" />
               {effectiveImages.length === 0 ? t("tx.add_receipt") : t("tx.add_another_receipt")}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={onClose}>{t("tx.done")}</Button>
+             <Button variant="ghost" className="w-full" onClick={onClose} disabled={isBusy}>{t("tx.done")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -579,7 +606,8 @@ function ReceiptModal({ tx, open, onClose, sym }: { tx: any; open: boolean; onCl
         // it from the document so both file selection and camera capture work.
         className="absolute -z-10 h-px w-px opacity-0"
         tabIndex={-1}
-        onChange={handleFileChange} />
+        onChange={handleFileChange}
+        onInput={handleFileChange} />
     </>
   );
 }
