@@ -1,0 +1,180 @@
+What is broken in the current design
+
+Frontend
+
+Only the first selected file is ever read
+Both receipt modals use e.target.files?.[0].
+The input does not use multiple.
+“Add all three at once” is therefore not implemented.
+The two product surfaces contain duplicate receipt implementations
+Transactions.tsx and HomeSpending.tsx each have their own modal, upload logic, delete logic, picker guards, and optimistic state.
+Any fix can work in one surface and fail in the other.
+The native picker is coupled to the Radix dialog lifecycle
+The current filePickerActiveRef, focus timer, onInput, and onChange combination is a chain of workarounds.
+The input can still disappear or receive duplicate/late events depending on Safari’s picker behavior.
+I would remove this entire mechanism rather than add another timer.
+The UI does not implement the requested preview behavior
+It displays a grid of images.
+The lightbox has left/right buttons, but no swipe-based carousel.
+There is no guaranteed carousel model starting at item 1 with native horizontal swipe.
+There is no “delete all” control
+The backend supports deleting all when no index is provided.
+The UI only exposes per-image delete buttons.
+The local optimistic list can become stale
+localImages overrides server data until the modal closes.
+If another request, screen, or refetch changes the receipt list, the modal can continue rendering its old list.
+Backend
+
+The API is still fundamentally single-file
+POST /transactions/:id/receipt accepts one { imageData }.
+Adding three files requires three separate requests.
+There is no atomic batch operation.
+The JSON array is being used as a file table
+receiptImages stores only URLs.
+Deletion is by array index, which is unstable once items are removed or requests overlap.
+There are no stable receipt IDs, filenames, MIME types, or ordering records.
+Append is not concurrency-safe
+The route reads the current array, appends to it in memory, then writes it back.
+Two uploads can both read the same old array and overwrite each other.
+Two simultaneous requests can also both pass the “fewer than three” check.
+Storage and database updates are not one logical operation
+Supabase upload happens first.
+PostgreSQL update happens afterward.
+Cleanup exists for some failures, but the system can still produce orphaned storage files or partial batch behavior.
+The legacy receiptImage and new receiptImages fields are synchronized manually
+That creates two sources of truth.
+Every route, response mapper, split flow, summary mapper, and frontend fallback must keep them synchronized.
+Recommended redo
+
+I would replace the current receipt feature with one canonical receipt model and one shared frontend component.
+
+1. Backend data model
+
+Add a normalized table such as:
+
+transaction_receipts
+- id
+- transaction_id
+- storage_url or storage_path
+- position        // 0, 1, or 2
+- mime_type
+- original_name
+- created_at
+Constraints:
+
+Maximum three records per transaction.
+Stable receipt ID for deletion.
+Stable ordering for the carousel.
+Unique (transaction_id, position).
+The first receipt is always position 0.
+Keep the existing receiptImage and receiptImages fields temporarily for compatibility, but stop using them as the canonical source. Backfill existing data into the new table, including legacy single-image rows.
+
+2. Backend upload API
+
+Replace the single-image-only contract with a batch-capable endpoint:
+
+POST /api/transactions/:id/receipts
+Content-Type: multipart/form-data
+files: one to three image files
+Behavior:
+
+Accept one file or up to three files in one request.
+Also allow adding one file to an existing transaction.
+Reject the request if existing count plus incoming count exceeds three.
+Validate every file before writing anything.
+Support camera files and uploaded image files, including HEIC/HEIF where the server can store them.
+Upload all files to Supabase.
+Insert all receipt records in one database transaction.
+If database persistence fails, delete all newly uploaded Supabase objects.
+Return the complete canonical receipt list in the response.
+This gives the user the same reliable path whether they add one file, three at once, or one at a time.
+
+3. Backend deletion API
+
+Use stable IDs instead of array indexes:
+
+DELETE /api/transactions/:id/receipts/:receiptId
+DELETE /api/transactions/:id/receipts
+The first deletes one receipt. The second deletes all receipts.
+
+The response from either operation should return the complete remaining receipt list, so the frontend never has to reconstruct it locally.
+
+4. Shared frontend receipt manager
+
+Create one shared component used by both Transactions and Home:
+
+ReceiptManager or ReceiptModal
+One shared upload hook/state machine
+One shared carousel
+One shared delete flow
+Remove the duplicated receipt implementations from both pages.
+
+5. Separate camera and file selection paths
+
+Instead of depending on one iOS picker to offer every action, expose two explicit actions:
+
+Take photo
+Dedicated file input with capture="environment".
+Accepts one image.
+Choose files
+Dedicated file input with multiple.
+Accepts up to the remaining receipt slots.
+The actual file inputs should live outside the Radix dialog’s mount/unmount lifecycle, in a stable parent component. That removes the current focus timer and picker guard entirely.
+
+6. Deterministic upload flow
+
+When files are selected:
+
+Immediately snapshot Array.from(fileInput.files).
+Validate the number of files against the remaining capacity.
+Show local previews using object URLs.
+Upload the selected group through the batch endpoint.
+Replace previews with the persisted server URLs returned by the API.
+Revoke object URLs in cleanup.
+On failure, show which operation failed and leave the existing saved receipts untouched.
+Use an abortable request timeout rather than Promise.race, so a timed-out request cannot continue silently in the background and later update state unexpectedly.
+
+7. Carousel behavior
+
+Replace the grid/lightbox combination with a true receipt carousel:
+
+Always opens on receipt 1.
+Uses a horizontal scroll-snap track so iPhone swipe works natively.
+Shows one full-size preview at a time.
+Shows dots or a 1 / 3 counter.
+Supports tapping a preview for a larger view if desired.
+Keeps the current index valid after deleting an image.
+Works identically for one, two, or three receipts.
+8. Delete behavior
+
+Expose both:
+
+Delete button on each receipt.
+“Delete all” action with confirmation.
+After either operation, use the server response as the new list. Do not optimistically remove by array index and hope the next refetch reconciles it.
+
+Verification I would require before pushing
+
+Backend tests:
+
+Upload one receipt.
+Upload three receipts at once.
+Add one receipt three separate times.
+Add two when one already exists.
+Reject a fourth receipt.
+Delete the middle receipt and verify order remains correct.
+Delete all.
+Run concurrent uploads and verify the result never exceeds three and never loses a successful receipt.
+Simulate storage success/database failure and verify cleanup.
+Frontend tests/manual iPhone matrix:
+
+Take one photo.
+Take three photos one by one.
+Select three files at once.
+Mix camera and file uploads.
+Swipe from first to second to third.
+Delete the first, middle, and last receipt.
+Delete all.
+Close and reopen the modal after every operation.
+Verify both Transactions and Home show the same saved list.
+I would implement this as a deliberate replacement in export/, not another incremental patch to the current picker guards. Before implementation, one product detail affects the API validation and previews: when you say “files,” should the feature support image files only (JPG, PNG, HEIC/HEIF, WebP), or should it also support PDF receipts?
