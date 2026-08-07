@@ -1651,6 +1651,7 @@ export default function HouseholdPage() {
             </button>
             <LarderStackSurface
               ref={greatLarderRef}
+              previewTop={72}
               preview={
                 <SavingsBucketFace
                   bucket={nextSavingsBucket(glActiveBucket)}

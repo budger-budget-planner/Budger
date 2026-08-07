@@ -12,3 +12,7 @@ The stack is three cards total: the real Larder surface plus two close layers be
 For bucket handoffs, render the next bucket's live face in the nearer rear layer and keep the outgoing front state mounted until its slide-behind animation completes; swapping the active state early causes a visible flash or makes the rear preview appear stale.
 
 **Why:** The intended motion is a real card handoff: the incoming card is already underneath while the outgoing card leaves. Delaying the state swap preserves that illusion in both Personal and Great Larder.
+
+The rear face must use the same vertical content origin as the settled bucket face, not the top of the full Larder panel; the panel header creates a different offset on Personal Larder and Great Larder.
+
+**Why:** Positioning the preview from the panel edge makes its label and amount float above the location where the incoming card will settle, which is visibly wrong during the shuffle.

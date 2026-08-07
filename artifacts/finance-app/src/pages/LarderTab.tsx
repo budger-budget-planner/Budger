@@ -540,6 +540,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       </button>
       <LarderStackSurface
         ref={ref}
+        previewTop={76}
         preview={
           <SavingsBucketFace
             bucket={nextSavingsBucket(activeBucket)}

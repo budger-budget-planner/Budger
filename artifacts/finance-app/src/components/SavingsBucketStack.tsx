@@ -15,6 +15,8 @@ export type SavingsBucketSummary = {
 type LarderStackSurfaceProps = {
   children: ReactNode;
   preview?: ReactNode;
+  /** Y position of the bucket face's text baseline inside the outer card. */
+  previewTop?: number;
   className?: string;
 };
 
@@ -31,7 +33,7 @@ const LarderStackMotionContext = createContext<LarderStackMotionContextValue | n
  * bucket content, so the three total cards read as one physical stack.
  */
 export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceProps>(
-  function LarderStackSurface({ children, preview, className = "" }, ref) {
+  function LarderStackSurface({ children, preview, previewTop = 72, className = "" }, ref) {
   const [shufflePhase, setShufflePhase] = useState<"idle" | "out">("idle");
 
     return (
@@ -60,7 +62,12 @@ export const LarderStackSurface = forwardRef<HTMLDivElement, LarderStackSurfaceP
             boxShadow: "0 0 48px 8px rgba(255,255,255,0.035), inset 0 1px 0 rgba(255,255,255,0.10)",
           }}
         >
-          {preview}
+          <div
+            className="absolute inset-x-0 bottom-0"
+            style={{ top: previewTop + 7 }}
+          >
+            {preview}
+          </div>
         </div>
         <div
           className={`relative z-10 ${
@@ -111,7 +118,7 @@ export function SavingsBucketFace({
   const breakdown = summary?.currencyBreakdown ?? [];
 
   return (
-    <div className={preview ? "absolute inset-0 overflow-hidden rounded-3xl px-5 pt-5" : ""}>
+    <div className={preview ? "absolute inset-0 overflow-hidden rounded-3xl px-5" : ""}>
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">
         {bucketLabel(bucket)}
       </p>
@@ -167,22 +174,21 @@ export function SavingsBucketStack({
     shuffleTimers.current = [];
     setShufflePhase("out");
 
-    // Keep the outgoing surface mounted until it has fully slipped behind the
-    // rear preview. The preview already contains the next bucket's live face,
-    // so swapping the front state early would flash the same card through the
-    // outgoing animation.
+    // Keep the outgoing surface mounted until it has fully cleared the right
+    // edge. The rear preview already contains the next bucket's live face, so
+    // swapping the front state early would flash the same card through it.
     shuffleTimers.current.push(
       setTimeout(() => {
         setVisibleBucket(nextBucket);
         onBucketChange(nextBucket);
         setShufflePhase("idle");
-      }, 390),
+      }, 275),
     );
 
     shuffleTimers.current.push(
       setTimeout(() => {
         shuffleTimers.current = [];
-      }, 410),
+      }, 295),
     );
   }
 
@@ -190,35 +196,35 @@ export function SavingsBucketStack({
     <>
       <style>{`
         @keyframes larderStackShuffleOut {
-           0% {
-             opacity: 1;
-             transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-           }
-           24% {
-             opacity: 1;
-             transform: translate3d(8px, 2px, 0) rotate(0.8deg) scale(.99);
-           }
-           55% {
-             opacity: .86;
-             transform: translate3d(18px, 15px, 0) rotate(2.2deg) scale(.965);
-           }
-           82% {
-             opacity: .36;
-             transform: translate3d(12px, 29px, 0) rotate(1.8deg) scale(.93);
-           }
-           100% {
-             opacity: 0;
-             transform: translate3d(4px, 35px, 0) rotate(1deg) scale(.91);
-           }
+          0% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+          }
+          18% {
+            opacity: 1;
+            transform: translate3d(24px, -1px, 0) rotate(3deg) scale(.99);
+          }
+          48% {
+            opacity: .92;
+            transform: translate3d(112px, -7px, 0) rotate(8deg) scale(.97);
+          }
+          78% {
+            opacity: .46;
+            transform: translate3d(250px, -1px, 0) rotate(12deg) scale(.94);
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(118%, -4px, 0) rotate(14deg) scale(.9);
+          }
         }
         .larder-stack-shuffle-out {
-           transform-origin: 50% 0%;
+          transform-origin: 50% 50%;
           will-change: transform, opacity;
-           animation: larderStackShuffleOut 380ms cubic-bezier(.32, .02, .7, 1) both;
+          animation: larderStackShuffleOut 265ms cubic-bezier(.22, .72, .34, 1) both;
         }
         @media (prefers-reduced-motion: reduce) {
-           .larder-stack-shuffle-out {
-             animation: larderStackShuffleOut 1ms linear both;
+          .larder-stack-shuffle-out {
+            animation: larderStackShuffleOut 1ms linear both;
           }
         }
       `}</style>
