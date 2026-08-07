@@ -230,7 +230,11 @@ export function SavingsBucketStack({
         @keyframes larderStackShuffleIn {
           0% {
             opacity: 0;
-            transform: translate3d(0, 8px, 0);
+            transform: translate3d(0, 5px, 0);
+          }
+          58% {
+            opacity: .72;
+            transform: translate3d(0, 1px, 0);
           }
           100% {
             opacity: 1;
@@ -239,7 +243,7 @@ export function SavingsBucketStack({
         }
         .larder-stack-shuffle-in {
           will-change: transform, opacity;
-          animation: larderStackShuffleIn 190ms cubic-bezier(.22, 1, .36, 1) both;
+          animation: larderStackShuffleIn 360ms cubic-bezier(.22, 1, .36, 1) both;
         }
         @media (prefers-reduced-motion: reduce) {
           .larder-stack-shuffle-out {
