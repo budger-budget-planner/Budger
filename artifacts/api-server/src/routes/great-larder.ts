@@ -263,6 +263,7 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
     amount: String(-nativeAmount),
     currency: assetCurrency,
     sourceType: "great_larder_transfer",
+    bucket,
     note: "Sent to Great Larder",
   });
 
