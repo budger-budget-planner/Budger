@@ -7,9 +7,7 @@ import { loadPrefs, currencySymbol, fmtAmt, AppPrefs } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import {
   LarderStackSurface,
-  SavingsBucketPreview,
   SavingsBucketStack,
-  nextSavingsBucket,
 } from "@/components/SavingsBucketStack";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
@@ -540,14 +538,6 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
       </button>
       <LarderStackSurface
         ref={ref}
-        previewTop={76}
-        preview={
-          <SavingsBucketPreview
-            bucket={nextSavingsBucket(activeBucket)}
-            summaries={bucketSummaries}
-            currency={prefs.currency}
-          />
-        }
       >
       <div
         className="relative overflow-hidden rounded-3xl touch-pan-y"

@@ -9,18 +9,14 @@ The stack is three cards total: the real Larder surface plus two close layers be
 
 **How to apply:** Keep the stack wrapper outside the complete Larder panel, with only two subtle close layers behind it. Preserve click-to-switch behavior and apply the shuffle transform only to the front/top surface, never to the wrapper that also contains the rear layers. Keep the unassigned waiting room above the outer surface.
 
-For bucket handoffs, render the next bucket's live face in the nearer rear layer and keep the outgoing front state mounted until its slide-behind animation completes; swapping the active state early causes a visible flash or makes the rear preview appear stale.
+For bucket handoffs, keep the Larder surface stationary and render the complete outgoing and incoming bucket states in the same exact frame; animate only those two states.
 
-**Why:** The intended motion is a real card handoff: the incoming card is already underneath while the outgoing card leaves. Delaying the state swap preserves that illusion in both Personal and Great Larder.
+**Why:** The requested motion is a simple replacement: whole A moves/fades out while whole B fades in. Moving the outer Larder panel or using a partial rear preview makes the content jump or reveals incomplete details.
 
-The rear face must use the same vertical content origin as the settled bucket face, not the top of the full Larder panel; the panel header creates a different offset on Personal Larder and Great Larder.
+The two bucket states must share one positioned frame and identical full content structure. Do not add a rear-card preview, measured overlay, extra border, or separate reveal phase.
 
-**Why:** Positioning the preview from the panel edge makes its label and amount float above the location where the incoming card will settle, which is visibly wrong during the shuffle.
+**Why:** A partial or separately positioned overlay creates the exact text jump and incomplete-card sequence the user rejected.
 
-After the outgoing toss, use a distinct short "in" phase for the newly fronted surface so the whole returning panel fades in together; do not reveal only the bucket text.
+During A→B, fade the complete B state in from the beginning while A moves/fades out, then commit B as the settled state after the animation.
 
-**Why:** The card contains a header, bucket details, indicators, and actions. Fading only the bucket face makes the card feel assembled in pieces after the transition.
-
-During A→B, render the complete B surface as an opaque, aligned overlay above A from the first frame. Keep A fully readable while it moves, then fade A only near the end; swap to the settled B state after A is gone. Do not derive B live from the parent's updated active bucket.
-
-**Why:** A rear-layer preview reveals partial B content late and can expose C or misaligned text. The overlay must cover the old card's content before A disappears, while preserving B's exact final alignment.
+**Why:** The entire incoming card should replace A as one complete surface; there should be no intermediate partial-detail state.
