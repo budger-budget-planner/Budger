@@ -41,6 +41,16 @@ export function resetCsrf(): void {
 // ---------------------------------------------------------------------------
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+async function isCsrfRejection(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const data = (await response.clone().json()) as { error?: unknown };
+    return data.error === "Invalid or missing CSRF token";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Wrapper around fetch() that automatically attaches the x-csrf-token header
  * on state-changing requests (POST / PUT / PATCH / DELETE).
@@ -67,7 +77,7 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
   // session, or a server restart) surfaces as a 403. Self-heal by fetching
   // a fresh token and retrying once, transparently, instead of surfacing
   // the error to the user.
-  if (isMutating && response.status === 403) {
+  if (isMutating && await isCsrfRejection(response)) {
     resetCsrf();
     const retryHeaders = new Headers(init.headers);
     try {

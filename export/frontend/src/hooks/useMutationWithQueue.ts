@@ -68,6 +68,9 @@ export function useMutationWithQueue<TVars>(
   const isOnline    = useOnlineStatus();
   const [isPending, setIsPending] = useState(false);
   const [wasQueued, setWasQueued] = useState(false);
+  // Prevent duplicate taps from sending/enqueuing the same mutation before
+  // React has had a chance to re-render a disabled button.
+  const inFlightRef = useRef(false);
 
   // Keep opts + online state in refs so `mutate` never goes stale.
   const optsRef     = useRef(opts);
@@ -77,6 +80,9 @@ export function useMutationWithQueue<TVars>(
 
   const mutate = useCallback(
     (vars: TVars, overrides?: MutateOverrides<TVars>) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
       const o      = optsRef.current;
       const online = onlineRef.current;
       const method = (o.method ?? "POST").toUpperCase();
@@ -90,26 +96,30 @@ export function useMutationWithQueue<TVars>(
 
       // ── Offline path ────────────────────────────────────────────────────
       if (!online) {
+        setIsPending(true);
         // Run async work in a fire-and-forget but surface enqueue failures.
         void (async () => {
           try {
             await enqueue({ endpoint: ep, method, payload });
             await requestBackgroundSync();
+            o.optimisticUpdate?.(vars, queryClient);
+            setWasQueued(true);
+            toast("Saved offline", {
+              description: "Will sync automatically when back online.",
+              duration: 3000,
+            });
+            // Call opts.onSuccess so the UI can still close dialogs / update state.
+            // Per-call overrides.onSuccess is intentionally skipped — it may depend
+            // on server-returned data (e.g. a new resource id).
+            void o.onSuccess?.(undefined, vars);
           } catch (e) {
             toast.error("Failed to save offline. Please try again.");
             console.error("[MutationQueue] enqueue failed:", e);
             return; // Don't show success UX if enqueue failed.
+          } finally {
+            inFlightRef.current = false;
+            setIsPending(false);
           }
-          o.optimisticUpdate?.(vars, queryClient);
-          setWasQueued(true);
-          toast("Saved offline", {
-            description: "Will sync automatically when back online.",
-            duration: 3000,
-          });
-          // Call opts.onSuccess so the UI can still close dialogs / update state.
-          // Per-call overrides.onSuccess is intentionally skipped — it may depend
-          // on server-returned data (e.g. a new resource id).
-          void o.onSuccess?.(undefined, vars);
         })();
         return;
       }
@@ -155,7 +165,10 @@ export function useMutationWithQueue<TVars>(
             toast.error(err.message || "Request failed");
           }
         })
-        .finally(() => setIsPending(false));
+        .finally(() => {
+          inFlightRef.current = false;
+          setIsPending(false);
+        });
     },
     // queryClient is stable; all other values are read through refs.
     [queryClient],

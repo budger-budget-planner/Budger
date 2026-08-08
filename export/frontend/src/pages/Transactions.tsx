@@ -745,6 +745,7 @@ export default function TransactionsPage() {
   }
 
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const isOnline = useOnlineStatus();
   const { pendingTxIds, pendingTransactions } = useOfflinePendingOps();
@@ -781,11 +782,15 @@ export default function TransactionsPage() {
           setAutoRulePrompt(vars.autoPrompt);
         }
         setEditTx((prev: any) => (prev?.id === vars.id ? null : prev));
+        isSavingRef.current = false;
         setIsSaving(false);
       }
     },
     onError: (error, vars) => {
-      if (vars.mode !== "name") setIsSaving(false);
+      if (vars.mode !== "name") {
+        isSavingRef.current = false;
+        setIsSaving(false);
+      }
       toast.error(error.message || t("common.error_saving") || "Failed to save changes.");
     },
   });
@@ -868,7 +873,7 @@ export default function TransactionsPage() {
   }
 
   async function handleUpdate(form: TxFormState) {
-    if (!editTx || isSaving) return;
+    if (!editTx || isSaving || isSavingRef.current) return;
     const txId = editTx.id;
     const { categoryId, goalContribution, larderAmount } = resolveCategory(form);
 
@@ -879,6 +884,10 @@ export default function TransactionsPage() {
 
     const nowHasGoal = !!goalContribution;
     const nowHasLarder = larderAmount != null && larderAmount > 0;
+    // Set the synchronous ref before exchange-rate work. A second submit can
+    // arrive before the awaited rate request completes and before React
+    // re-renders the loading state.
+    isSavingRef.current = true;
     setIsSaving(true);
     let atomicGoalContribution: any = null;
     if (goalContribution) {

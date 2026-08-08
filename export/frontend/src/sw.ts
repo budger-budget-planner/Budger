@@ -250,7 +250,16 @@ async function swReplayQueueInner(db: IDBDatabase): Promise<void> {
         });
 
       let resp = await doFetch(needsCsrf ? await swGetCsrfToken() : undefined);
+      let csrfRejected = false;
       if (needsCsrf && resp.status === 403) {
+        try {
+          const data = (await resp.clone().json()) as { error?: unknown };
+          csrfRejected = data.error === "Invalid or missing CSRF token";
+        } catch {
+          csrfRejected = false;
+        }
+      }
+      if (csrfRejected) {
         // Stale/rotated token — refetch once and retry, same as the page-side apiFetch().
         swCsrfToken = null;
         resp = await doFetch(await swGetCsrfToken());

@@ -198,7 +198,16 @@ export async function replayQueue(
       });
 
       // Self-heal a stale/rotated CSRF token: retry once with a fresh one.
+      let csrfRejected = false;
       if (isMutating && resp.status === 403) {
+        try {
+          const data = (await resp.clone().json()) as { error?: unknown };
+          csrfRejected = data.error === "Invalid or missing CSRF token";
+        } catch {
+          csrfRejected = false;
+        }
+      }
+      if (csrfRejected) {
         resetCsrfToken();
         const retryHeaders = new Headers({
           "Content-Type": "application/json",

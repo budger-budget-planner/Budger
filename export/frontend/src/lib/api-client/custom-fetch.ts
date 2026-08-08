@@ -31,6 +31,7 @@ let _authTokenGetter: AuthTokenGetter | null = null;
 
 let _csrfToken: string | null = null;
 let _csrfInflight: Promise<string> | null = null;
+let _lastUnauthorizedAt = 0;
 
 function resolveCsrfUrl(): string {
   const base = _baseUrl ? _baseUrl.replace(/\/+$/, "") : "";
@@ -324,6 +325,22 @@ async function parseErrorBody(response: Response, method: string): Promise<unkno
   return raw;
 }
 
+/**
+ * A 403 is not automatically a CSRF failure. Permission checks also use 403
+ * (for example, a child trying to change a restricted setting), and replaying
+ * that request can repeat a real mutation or make a legitimate denial look
+ * like session churn. Only retry the server's explicit CSRF rejection.
+ */
+async function isCsrfRejection(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const data = (await response.clone().json()) as { error?: unknown };
+    return data.error === "Invalid or missing CSRF token";
+  } catch {
+    return false;
+  }
+}
+
 function inferResponseType(response: Response): "json" | "text" | "blob" {
   const mediaType = getMediaType(response.headers);
 
@@ -423,9 +440,9 @@ export async function customFetch<T = unknown>(
   // by fetching a fresh token and retrying once, transparently, instead of
   // surfacing the error to the caller.
   if (
-    response.status === 403 &&
     !_authTokenGetter &&
-    CSRF_METHODS.has(method)
+    CSRF_METHODS.has(method) &&
+    (await isCsrfRejection(response))
   ) {
     resetCsrfToken();
     try {
@@ -438,15 +455,22 @@ export async function customFetch<T = unknown>(
   }
 
   if (!response.ok) {
-    // Clear the CSRF token cache on 403 so the next attempt re-fetches a
-    // fresh token (guards against stale tokens after session rotation).
-    if (response.status === 403) resetCsrfToken();
+    // Clear the CSRF token cache only for the server's explicit CSRF
+    // rejection. Other 403 responses are legitimate permission denials.
+    if (await isCsrfRejection(response)) resetCsrfToken();
 
     // Broadcast a global signal on 401 so any part of the app (e.g. AuthGuard)
     // can immediately trigger a /api/me refetch and redirect to login — without
     // waiting for the 30-second staleTime window to expire.
     if (response.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("budger:unauthorized"));
+      // A burst of requests can all observe the same expired session. Emit
+      // one recovery signal per second so AuthGuard does not repeatedly clear
+      // caches and refetch /me while the first recovery is still in flight.
+      const now = Date.now();
+      if (now - _lastUnauthorizedAt >= 1000) {
+        _lastUnauthorizedAt = now;
+        window.dispatchEvent(new CustomEvent("budger:unauthorized"));
+      }
     }
 
     const errorData = await parseErrorBody(response, method);
