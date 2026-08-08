@@ -812,6 +812,14 @@ const translations: Record<string, Record<Lang, string>> = {
                                    pl: "Tylko podgląd prywatnych pulpitów. Może proponować cele."              },
   "hh.request_head_btn":        { en: "Request to become Head",   pl: "Poproś o rolę Głowy Rodziny"            },
   "hh.request_head_sent":       { en: "Request sent to Head ✓",  pl: "Prośba wysłana do Głowy ✓"              },
+  "hh.request_head_ineligible_title": {
+    en: "Head request unavailable",
+    pl: "Prośba o rolę Głowy jest niedostępna",
+  },
+  "hh.request_head_ineligible_desc": {
+    en: "Your monthly budget is not enough to cover the household's current spending. You cannot be appointed Head of Household until your budget is higher than the household spending.",
+    pl: "Twój miesięczny budżet nie wystarcza na pokrycie bieżących wydatków gospodarstwa. Nie możesz zostać Głową Rodziny, dopóki Twój budżet nie będzie wyższy niż wydatki gospodarstwa.",
+  },
   "hh.pending_head_requests":   { en: "Head role requests",      pl: "Prośby o rolę Głowy"                    },
   "hh.head_request_wants_head": { en: "{name} wants to become Head", pl: "{name} chce zostać Głową Rodziny"   },
   "hh.head_request_approve":    { en: "Appoint",                 pl: "Mianuj"                                 },

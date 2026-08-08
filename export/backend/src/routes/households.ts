@@ -11,6 +11,7 @@ import {
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
 import { transferHouseholdRecurringPayments } from "../lib/household-head-transfer";
+import { fetchRates, convertAmount } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -811,6 +812,53 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
     .where(eq(householdMembersTable.householdId, householdId));
   const headMember = members.find(m => isHead(m.role));
   if (!headMember) { res.status(400).json({ error: "No head found in household" }); return; }
+
+  // A prospective head must be able to cover the household's current monthly
+  // spending with their own monthly budget. Recalculate this server-side so a
+  // stale client cannot bypass the eligibility rule.
+  const memberIds = members.map(member => member.userId);
+  const memberUsers = await db
+    .select({
+      id: usersTable.id,
+      totalBudget: usersTable.totalBudget,
+      currency: usersTable.currency,
+    })
+    .from(usersTable)
+    .where(inArray(usersTable.id, memberIds));
+  const userCurrencyMap = new Map(memberUsers.map(member => [member.id, member.currency ?? "USD"]));
+  const monthPrefix = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  const spendingRows = await db
+    .select({
+      userId: transactionsTable.userId,
+      total: sql<string>`coalesce(sum(${transactionsTable.amount}), 0)`,
+    })
+    .from(transactionsTable)
+    .where(and(
+      inArray(transactionsTable.userId, memberIds),
+      sql`${transactionsTable.date} like ${monthPrefix + "%"}`,
+      eq(transactionsTable.currencyLocked, false),
+      eq(transactionsTable.foundedWithRealizedGoal, false),
+      eq(transactionsTable.isLarderFund, false),
+    ))
+    .groupBy(transactionsTable.userId);
+  const rates = await fetchRates();
+  const requesterCurrency = user.currency ?? "USD";
+  const householdSpending = spendingRows.reduce((sum, row) => (
+    sum + convertAmount(
+      parseFloat(row.total),
+      userCurrencyMap.get(row.userId) ?? "USD",
+      requesterCurrency,
+      rates,
+    )
+  ), 0);
+  const requesterBudget = user.totalBudget == null ? null : parseFloat(String(user.totalBudget));
+  if (requesterBudget == null || requesterBudget <= householdSpending + 0.005) {
+    res.status(403).json({
+      code: "HEAD_BUDGET_INSUFFICIENT",
+      error: "Monthly budget does not cover household spending",
+    });
+    return;
+  }
 
   const requesterName = user.name ?? "A member";
 

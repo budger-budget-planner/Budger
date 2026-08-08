@@ -839,10 +839,40 @@ export default function HouseholdPage() {
   }
 
   async function handleRequestHead() {
+    const myMember = members?.find(member => member.userId === me?.id);
+    const myBudgetInViewerCurrency = myMember?.totalBudget == null
+      ? null
+      : myMember.currency === prefs.currency || !splitRates
+        ? myMember.totalBudget
+        : convertAmount(myMember.totalBudget, myMember.currency, prefs.currency, splitRates);
+
+    const canCompareBudget = myBudgetInViewerCurrency != null &&
+      (myMember?.currency === prefs.currency || !!splitRates);
+    if (canCompareBudget && myBudgetInViewerCurrency! <= totalSpent + 0.005) {
+      toast({
+        title: t("hh.request_head_ineligible_title"),
+        description: t("hh.request_head_ineligible_desc"),
+      });
+      return;
+    }
+
     setHeadRequestLoading(true);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/households/request-head`, { method: "POST" });
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/households/request-head`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        if (body?.code === "HEAD_BUDGET_INSUFFICIENT") {
+          toast({
+            title: t("hh.request_head_ineligible_title"),
+            description: t("hh.request_head_ineligible_desc"),
+          });
+          return;
+        }
+        throw new Error(body?.error ?? "Request failed");
+      }
       setHeadRequestSent(true);
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again") });
     } finally { setHeadRequestLoading(false); }
   }
 
