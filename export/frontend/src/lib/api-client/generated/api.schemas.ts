@@ -330,7 +330,6 @@ export type InviteInputRole =
   (typeof InviteInputRole)[keyof typeof InviteInputRole];
 
 export const InviteInputRole = {
-  head: "head",
   parent: "parent",
   child: "child",
 } as const;
@@ -346,7 +345,6 @@ export type MemberRoleUpdateRole =
   (typeof MemberRoleUpdateRole)[keyof typeof MemberRoleUpdateRole];
 
 export const MemberRoleUpdateRole = {
-  head: "head",
   parent: "parent",
   child: "child",
 } as const;

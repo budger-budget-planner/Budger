@@ -15,6 +15,7 @@ export type NCNotifType =
   | "goal_created" | "goal_changed"
   | "goal_realized"
   | "head_request"
+  | "head_transfer_approved" | "head_transfer_declined"
   | "split_accepted" | "split_declined"
   | "member_left";
 

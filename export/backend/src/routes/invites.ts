@@ -315,7 +315,9 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
       await tx.insert(householdMembersTable).values({
         userId,
         householdId: invite.householdId,
-        role: invite.role ?? "child",
+        // Legacy invite rows may still contain the old head role. Headship
+        // must only change through an approved transfer request.
+        role: invite.role === "head" ? "parent" : (invite.role ?? "child"),
         memberColor: color,
       });
     }

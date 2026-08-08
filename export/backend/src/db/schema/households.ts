@@ -1,4 +1,5 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -22,6 +23,9 @@ export const householdMembersTable = pgTable("household_members", {
 }, table => [
   index("household_members_user_id_idx").on(table.userId),
   index("household_members_household_id_idx").on(table.householdId),
+  uniqueIndex("household_members_one_head_idx")
+    .on(table.householdId)
+    .where(sql`role IN ('head', 'owner')`),
 ]);
 
 export const insertHouseholdSchema = createInsertSchema(householdsTable).omit({ id: true, createdAt: true, updatedAt: true });

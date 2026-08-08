@@ -387,7 +387,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
             await tx.insert(householdMembersTable).values({
               userId: updated.id,
               householdId: invite.householdId,
-              role: invite.role ?? "child",
+              // Legacy invite rows may still contain the old head role.
+              // Never create a second head from an invite.
+              role: invite.role === "head" ? "parent" : (invite.role ?? "child"),
               memberColor: color,
             });
           }
@@ -640,19 +642,26 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
       const parents = otherMembers.filter(m => m.role === "parent");
       if (parents.length > 0) {
         const newHead = parents[Math.floor(Math.random() * parents.length)];
-        await Promise.all([
-          // Update the household owner record
-          db.update(householdsTable)
-            .set({ ownerId: newHead.userId })
-            .where(eq(householdsTable.id, householdId)),
-          // Promote the new head's member role
-          db.update(householdMembersTable)
+        // Keep the invariant valid while handing off ownership. The old head
+        // remains in the household during the deletion grace period, so they
+        // must be demoted before the replacement is promoted.
+        await db.transaction(async (tx) => {
+          await tx.update(householdMembersTable)
+            .set({ role: "parent" })
+            .where(and(
+              eq(householdMembersTable.householdId, householdId),
+              eq(householdMembersTable.userId, userId),
+            ));
+          await tx.update(householdMembersTable)
             .set({ role: "head" })
             .where(and(
               eq(householdMembersTable.householdId, householdId),
               eq(householdMembersTable.userId, newHead.userId),
-            )),
-        ]);
+            ));
+          await tx.update(householdsTable)
+            .set({ ownerId: newHead.userId })
+            .where(eq(householdsTable.id, householdId));
+        });
         req.log.info(
           { householdId, oldHead: userId, newHead: newHead.userId },
           "auth: household headship transferred on deletion request",

@@ -867,7 +867,7 @@ export const UpdateMemberRoleParams = zod.object({
 });
 
 export const UpdateMemberRoleBody = zod.object({
-  role: zod.enum(["head", "parent", "child"]),
+  role: zod.enum(["parent", "child"]),
 });
 
 export const UpdateMemberRoleResponse = zod.object({
@@ -890,7 +890,7 @@ export const UpdateMemberRoleResponse = zod.object({
 
 export const CreateInviteBody = zod.object({
   email: zod.string().min(1),
-  role: zod.enum(["head", "parent", "child"]).optional(),
+  role: zod.enum(["parent", "child"]).optional(),
   goalIds: zod.array(zod.number()).optional(),
 });
 

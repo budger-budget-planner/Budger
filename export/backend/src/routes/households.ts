@@ -618,8 +618,11 @@ router.patch("/households/members/:userId/role", async (req, res): Promise<void>
   if (isNaN(targetUserId)) { res.status(400).json({ error: "Invalid userId" }); return; }
 
   const { role } = req.body;
-  if (!role || !["head", "parent", "child"].includes(role)) {
-    res.status(400).json({ error: "role must be head, parent, or child" }); return;
+  // Headship can only change through the request/approval transfer flow.
+  // Keeping this endpoint limited to non-head roles also prevents a second
+  // head from being created by an older client or a direct API caller.
+  if (!role || !["parent", "child"].includes(role)) {
+    res.status(400).json({ error: "role must be parent or child; headship requires an approved transfer request" }); return;
   }
 
   const householdId = await getUserHouseholdId(currentUserId);
@@ -877,7 +880,7 @@ router.get("/households/head-requests", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-// POST /households/head-requests/:notifId/approve — head approves; roles swap
+// POST /households/head-requests/:notifId/approve — head approves; atomically transfers ownership
 router.post("/households/head-requests/:notifId/approve", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
@@ -888,49 +891,77 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
   const householdId = await getUserHouseholdId(userId);
   if (!householdId) { res.status(400).json({ error: "Not in a household" }); return; }
 
-  const [myMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
-  if (!myMembership || !isHead(myMembership.role)) {
-    res.status(403).json({ error: "Only head can approve" }); return;
-  }
+  const requesterId = await db.transaction(async (tx) => {
+    // Serialize concurrent approvals/transfers for this household.
+    await tx.execute(sql`SELECT id FROM ${householdsTable} WHERE id = ${householdId} FOR UPDATE`);
 
-  const [notif] = await db.select().from(notificationItemsTable)
-    .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
-  if (!notif) { res.status(404).json({ error: "Request not found" }); return; }
+    const [myMembership] = await tx.select().from(householdMembersTable)
+      .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
+    if (!myMembership || !isHead(myMembership.role)) {
+      throw new Error("ONLY_HEAD");
+    }
 
-  const requesterId = parseHeadRequesterId(notif.bodyEn);
-  if (isNaN(requesterId)) { res.status(400).json({ error: "Invalid request data" }); return; }
+    const [notif] = await tx.select().from(notificationItemsTable)
+      .where(and(
+        eq(notificationItemsTable.id, notifId),
+        eq(notificationItemsTable.userId, userId),
+        eq(notificationItemsTable.type, "head_request"),
+        eq(notificationItemsTable.dismissed, false),
+      ));
+    if (!notif) throw new Error("REQUEST_NOT_FOUND");
 
-  const [requesterMembership] = await db.select().from(householdMembersTable)
-    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, householdId)));
-  if (!requesterMembership) { res.status(404).json({ error: "Requester not in household" }); return; }
+    const parsedRequesterId = parseHeadRequesterId(notif.bodyEn);
+    if (isNaN(parsedRequesterId) || parsedRequesterId === userId) throw new Error("INVALID_REQUEST");
 
-  // Swap roles: requester becomes head, current head becomes member
-  await db.update(householdMembersTable)
-    .set({ role: "head" })
-    .where(and(eq(householdMembersTable.userId, requesterId), eq(householdMembersTable.householdId, householdId)));
-  await db.update(householdMembersTable)
-    .set({ role: "parent" })
-    .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
+    const [requesterMembership] = await tx.select().from(householdMembersTable)
+      .where(and(eq(householdMembersTable.userId, parsedRequesterId), eq(householdMembersTable.householdId, householdId)));
+    if (!requesterMembership) throw new Error("REQUESTER_NOT_FOUND");
 
-  // Transfer household ownership
-  await db.update(householdsTable)
-    .set({ ownerId: requesterId })
-    .where(eq(householdsTable.id, householdId));
+    // Demote first so the database invariant remains valid throughout the
+    // transfer, then promote the requester and update the owner in one commit.
+    await tx.update(householdMembersTable)
+      .set({ role: "parent" })
+      .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
+    await tx.update(householdMembersTable)
+      .set({ role: "head" })
+      .where(and(eq(householdMembersTable.userId, parsedRequesterId), eq(householdMembersTable.householdId, householdId)));
+    await tx.update(householdsTable)
+      .set({ ownerId: parsedRequesterId })
+      .where(eq(householdsTable.id, householdId));
 
-  // Hard-delete all pending head-requests addressed to the current head (they are now member)
-  await db.delete(notificationItemsTable)
-    .where(and(eq(notificationItemsTable.userId, userId), eq(notificationItemsTable.type, "head_request")));
+    // Remove all outstanding requests addressed to the former head.
+    await tx.delete(notificationItemsTable)
+      .where(and(eq(notificationItemsTable.userId, userId), eq(notificationItemsTable.type, "head_request")));
 
-  // Notify the requester that they have been promoted
-  await db.insert(notificationItemsTable).values({
-    userId: requesterId,
-    type: "share_approved",
-    titleEn: "You are now Head of Household",
-    titlePl: "Jesteś teraz Głową Rodziny",
-    bodyEn: "Your request to become Head was approved.",
-    bodyPl: "Twoja prośba o zostanie Głową Rodziny została zaakceptowana.",
+    await tx.insert(notificationItemsTable).values({
+      userId: parsedRequesterId,
+      type: "head_transfer_approved",
+      titleEn: "You are now Head of Household",
+      titlePl: "Jesteś teraz Głową Rodziny",
+      bodyEn: "Your request to become Head was approved.",
+      bodyPl: "Twoja prośba o zostanie Głową Rodziny została zaakceptowana.",
+    });
+    return parsedRequesterId;
+  }).catch((err: unknown) => {
+    if (err instanceof Error && err.message === "ONLY_HEAD") {
+      res.status(403).json({ error: "Only head can approve" });
+      return null;
+    }
+    if (err instanceof Error && err.message === "REQUEST_NOT_FOUND") {
+      res.status(404).json({ error: "Request not found" });
+      return null;
+    }
+    if (err instanceof Error && err.message === "INVALID_REQUEST") {
+      res.status(400).json({ error: "Invalid request data" });
+      return null;
+    }
+    if (err instanceof Error && err.message === "REQUESTER_NOT_FOUND") {
+      res.status(404).json({ error: "Requester not in household" });
+      return null;
+    }
+    throw err;
   });
+  if (requesterId == null) return;
 
   const promotedBadge = await getUnreadNotificationCount(requesterId);
   sendPushToUser(requesterId, {
@@ -961,9 +992,42 @@ router.post("/households/head-requests/:notifId/decline", async (req, res): Prom
     res.status(403).json({ error: "Only head can decline" }); return;
   }
 
-  // Hard-delete so the user can re-request later (soft-dismiss would block re-insertion via dedup)
-  await db.delete(notificationItemsTable)
-    .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
+  const requesterId = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM ${householdsTable} WHERE id = ${householdId} FOR UPDATE`);
+    const [notif] = await tx.select().from(notificationItemsTable)
+      .where(and(
+        eq(notificationItemsTable.id, notifId),
+        eq(notificationItemsTable.userId, userId),
+        eq(notificationItemsTable.type, "head_request"),
+        eq(notificationItemsTable.dismissed, false),
+      ));
+    if (!notif) return null;
+
+    const parsedRequesterId = parseHeadRequesterId(notif.bodyEn);
+    if (isNaN(parsedRequesterId)) return null;
+
+    await tx.delete(notificationItemsTable)
+      .where(and(eq(notificationItemsTable.id, notifId), eq(notificationItemsTable.userId, userId)));
+    await tx.insert(notificationItemsTable).values({
+      userId: parsedRequesterId,
+      type: "head_transfer_declined",
+      titleEn: "Head request declined",
+      titlePl: "Odrzucono prośbę o rolę Głowy",
+      bodyEn: "Your request to become Head of Household was declined.",
+      bodyPl: "Twoja prośba o zostanie Głową Rodziny została odrzucona.",
+    });
+    return parsedRequesterId;
+  });
+  if (requesterId == null) { res.status(404).json({ error: "Request not found" }); return; }
+
+  const declinedBadge = await getUnreadNotificationCount(requesterId);
+  sendPushToUser(requesterId, {
+    title: "Head request declined",
+    body: "Your request to become Head of Household was declined.",
+    url: "/?sheet=household",
+    tag: `head-declined-${requesterId}`,
+    badgeCount: declinedBadge,
+  }).catch(() => {});
 
   res.json({ success: true });
 });

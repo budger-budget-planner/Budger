@@ -372,7 +372,7 @@ function MemberSheet({
   }, [member.userId]);
 
   const isViewerHead = isHeadRole(viewerRole);
-  const canEditRole = isViewerHead && !isMe && !isVirtual;
+  const canEditRole = isViewerHead && !isMe && !isVirtual && !isHeadRole(member.role);
   const canRemove = isViewerHead && !isMe && !isHeadRole(member.role) && !isVirtual;
 
   // ── Fixed top positioning ────────────────────────────────────────────────
@@ -499,25 +499,23 @@ function MemberSheet({
           {canEditRole && (
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("hh.role_label")}</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(["head", "parent"] as const).map(r => (
+              <div className="grid grid-cols-1 gap-1.5">
+                {(["parent"] as const).map(r => (
                   <button
                     key={r}
                     onClick={() => setSelectedRole(r)}
                     className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 border transition-colors text-xs font-medium ${
                       selectedRole === r
-                        ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                          : "border-sky-400 bg-sky-400/10 text-sky-300"
+                        ? "border-sky-400 bg-sky-400/10 text-sky-300"
                         : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
                     }`}
                   >
-                    {r === "head" ? <Crown className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {r === "head" ? t("hh.role_head") : t("hh.role_parent")}
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {t("hh.role_parent")}
                   </button>
                 ))}
               </div>
               <div className="text-[11px] text-white/30 leading-relaxed">
-                {selectedRole === "head" && t("hh.role_head_desc_editor")}
                 {selectedRole === "parent" && t("hh.role_parent_desc_editor")}
                 {/* child/ward kept in code, hidden from UI */}
               </div>
@@ -876,7 +874,7 @@ export default function HouseholdPage() {
   const [editBudgetVal, setEditBudgetVal]   = useState("");
   const [budgetBreakdownOpen, setBudgetBreakdownOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"head" | "parent">("parent");
+  const [inviteRole, setInviteRole] = useState<"parent">("parent");
   const [headRequestSent, setHeadRequestSent] = useState(false);
   const [headRequestLoading, setHeadRequestLoading] = useState(false);
   const [headActionLoading, setHeadActionLoading] = useState<number | null>(null);
@@ -2008,26 +2006,24 @@ export default function HouseholdPage() {
 
               <div className="space-y-1.5">
                 <Label>{t("hh.role_invite_label")}</Label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(["head", "parent"] as const).map(r => (
+                <div className="grid grid-cols-1 gap-1.5">
+                  {(["parent"] as const).map(r => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => setInviteRole(r)}
                       className={`flex flex-col items-center gap-1 rounded-lg py-2.5 px-1 border transition-colors text-xs font-medium ${
                         inviteRole === r
-                          ? r === "head" ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                            : "border-sky-400 bg-sky-400/10 text-sky-300"
+                          ? "border-sky-400 bg-sky-400/10 text-sky-300"
                           : "border-white/10 bg-transparent text-white/40 hover:text-white/70"
                       }`}
                     >
-                      {r === "head" ? <Crown className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                      {r === "head" ? t("hh.role_head") : t("hh.role_parent")}
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      {t("hh.role_parent")}
                     </button>
                   ))}
                 </div>
                 <p className="text-[11px] text-white/30 leading-relaxed">
-                  {inviteRole === "head" && t("hh.invite_role_head_desc")}
                   {inviteRole === "parent" && t("hh.invite_role_parent_desc")}
                   {/* child/ward kept in code, hidden from UI */}
                 </p>

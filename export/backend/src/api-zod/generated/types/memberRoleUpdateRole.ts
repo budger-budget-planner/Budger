@@ -10,7 +10,6 @@ export type MemberRoleUpdateRole =
   (typeof MemberRoleUpdateRole)[keyof typeof MemberRoleUpdateRole];
 
 export const MemberRoleUpdateRole = {
-  head: "head",
   parent: "parent",
   child: "child",
 } as const;
