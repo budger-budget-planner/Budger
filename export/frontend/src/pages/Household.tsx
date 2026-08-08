@@ -584,6 +584,7 @@ export default function HouseholdPage() {
     data: me,
     isLoading: meLoading,
     isError: meLoadError,
+    refetch: refetchMe,
   } = useGetMe();
   const {
     data: household,
@@ -596,6 +597,7 @@ export default function HouseholdPage() {
     data: members,
     isLoading: membersLoading,
     isError: membersLoadError,
+    refetch: refetchMembers,
   } = useListHouseholdMembers();
   const { data: invites } = useListInvites();
   const { data: incomingInvites } = useListIncomingInvites();
@@ -1104,11 +1106,16 @@ export default function HouseholdPage() {
       <div className="px-4 py-20 flex flex-col items-center text-center gap-4">
         <AlertCircle className="w-8 h-8 text-amber-400" />
         <div>
-          <p className="font-semibold">{t("common.error")}</p>
-          <p className="text-sm text-white/50 mt-1">Could not load your household right now.</p>
+          <p className="font-semibold">{t("common.household_load_failed")}</p>
+          <p className="text-sm text-white/50 mt-1">{t("common.household_load_failed_desc")}</p>
         </div>
-        <Button variant="outline" onClick={() => refetchHousehold()}>
-          {t("common.try_again") || "Try again"}
+        <Button
+          variant="outline"
+          onClick={() => {
+            void Promise.all([refetchMe(), refetchHousehold(), refetchMembers()]);
+          }}
+        >
+          {t("common.try_again")}
         </Button>
       </div>
     );

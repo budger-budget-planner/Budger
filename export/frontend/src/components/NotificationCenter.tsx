@@ -1557,7 +1557,11 @@ function SwipeableNotifCard({
 
   const isUnread = !n.read;
   const title    = lang === "pl" ? n.titlePl : n.titleEn;
-  const body     = lang === "pl" ? n.bodyPl  : n.bodyEn;
+  // Head-request bodies retain a structured requester ID for the approval
+  // workflow. Never expose that internal payload in the notification feed.
+  const body     = n.type === "head_request"
+    ? t("nc.head_request_body")
+    : lang === "pl" ? n.bodyPl : n.bodyEn;
   // 0 → 1 as drag approaches THRESHOLD; clamp so it doesn't exceed 1
   const progress = Math.min(Math.abs(offset) / THRESHOLD, 1);
   // Swiping left-to-right (offset > 0) reveals the read/unread toggle hint;

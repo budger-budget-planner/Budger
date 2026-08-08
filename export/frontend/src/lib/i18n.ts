@@ -56,6 +56,16 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.name":        { en: "Name",       pl: "Nazwa"      },
   "common.email":       { en: "Email address", pl: "Adres e-mail"},
   "common.date":        { en: "Date",       pl: "Data"       },
+  "common.error":       { en: "Something went wrong", pl: "Wystąpił błąd" },
+  "common.try_again":   { en: "Try again",   pl: "Spróbuj ponownie" },
+  "common.household_load_failed": {
+    en: "We couldn't load your household",
+    pl: "Nie udało się wczytać gospodarstwa domowego",
+  },
+  "common.household_load_failed_desc": {
+    en: "Please try again. If the problem continues, check your connection and try again later.",
+    pl: "Spróbuj ponownie. Jeśli problem będzie się powtarzać, sprawdź połączenie i spróbuj ponownie później.",
+  },
 
   // ── Donut chart ──
   "donut.of_budget":        { en: "of budget",              pl: "budżetu"                  },
@@ -806,6 +816,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "hh.head_request_wants_head": { en: "{name} wants to become Head", pl: "{name} chce zostać Głową Rodziny"   },
   "hh.head_request_approve":    { en: "Appoint",                 pl: "Mianuj"                                 },
   "hh.head_request_decline":    { en: "Decline",                 pl: "Odrzuć"                                 },
+  "nc.head_request_body":       { en: "A household member has asked to become Head of Household.",
+                                  pl: "Członek gospodarstwa poprosił o nadanie roli Głowy Rodziny." },
   "hh.not_found":               { en: "Not found",                pl: "Nie znaleziono"                         },
   "hh.try_again":               { en: "Try again",                pl: "Spróbuj ponownie"                       },
   "hh.already_in_hh":           { en: "Already in a household",   pl: "Już w gospodarstwie"                    },
