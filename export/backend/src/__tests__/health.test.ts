@@ -11,6 +11,7 @@ import request from "supertest";
 
 // ── Mock ../db before any app imports ─────────────────────────────
 vi.mock("../db", () => ({
+  DATABASE_URL: undefined,
   pool: { query: vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] }) },
   db: {},
   // Commonly-imported table symbols — export as plain objects so destructuring works.

@@ -239,6 +239,22 @@ export interface TransactionUpdate {
   foundedWithRealizedGoal?: boolean;
 }
 
+export interface BreakdownTransactionRow {
+  description: string;
+  amount: number;
+  /** @nullable */
+  categoryId: number | null;
+}
+
+export interface BreakdownTransactionInput {
+  rows: BreakdownTransactionRow[];
+}
+
+export interface BreakdownTransactionResponse {
+  transactions: Transaction[];
+  receiptBehavior: "discarded";
+}
+
 export interface CurrencyConvertInput {
   /** Multiply the transaction amount by this rate to get the account-currency value */
   rate: number;
