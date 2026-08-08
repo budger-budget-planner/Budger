@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable, invitesTable } from "../db";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
-import { eq, and, count, isNull, isNotNull, lt, ne } from "drizzle-orm";
+import { eq, and, count, inArray, isNull, isNotNull, lt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger, maskEmail } from "../lib/logger";
 import {
@@ -24,6 +24,7 @@ import {
 } from "../api-zod";
 import { sendPinResetEmail } from "../lib/email-sender";
 import { getFrontendOrigin } from "../lib/frontend-origin";
+import { transferHouseholdRecurringPayments } from "../lib/household-head-transfer";
 
 // Verification links expire after 30 minutes.
 const VERIFICATION_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -596,7 +597,8 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
 // logs the user out. During the 24-hour grace period the email cannot be used to log in or
 // re-register. After 24 hours the account row is purged by the periodic sweep.
 // Also handles household side-effects immediately:
-//   - If user is the household head, transfers headship to a random parent.
+//   - If user is the household head, transfers headship to the remaining member
+//     with the highest monthly budget.
 //   - Notifies all remaining household members via the notification centre.
 router.post("/auth/request-deletion", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
@@ -637,11 +639,30 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
         ne(householdMembersTable.userId, userId),
       ));
 
-    // ── If head: transfer headship to a random parent ──────────────────────
+    // ── If head: transfer headship to the remaining highest-budget member ──
     if (isHead) {
-      const parents = otherMembers.filter(m => m.role === "parent");
-      if (parents.length > 0) {
-        const newHead = parents[Math.floor(Math.random() * parents.length)];
+      const otherUserIds = otherMembers.map(m => m.userId);
+      const otherUsers = otherUserIds.length > 0
+        ? await db.select({
+            id: usersTable.id,
+            totalBudget: usersTable.totalBudget,
+            deletionScheduledAt: usersTable.deletionScheduledAt,
+          })
+            .from(usersTable)
+            .where(inArray(usersTable.id, otherUserIds))
+        : [];
+      const otherUserMap = new Map(otherUsers.map(otherUser => [otherUser.id, otherUser]));
+      const replacementCandidates = otherMembers
+        .filter(member => otherUserMap.get(member.userId)?.deletionScheduledAt == null)
+        .sort((a, b) => {
+          const aBudget = parseFloat(otherUserMap.get(a.userId)?.totalBudget ?? "0");
+          const bBudget = parseFloat(otherUserMap.get(b.userId)?.totalBudget ?? "0");
+          // Use userId as a stable tie-breaker so the handoff is deterministic.
+          return bBudget - aBudget || a.userId - b.userId;
+        });
+      const newHead = replacementCandidates[0];
+
+      if (newHead) {
         // Keep the invariant valid while handing off ownership. The old head
         // remains in the household during the deletion grace period, so they
         // must be demoted before the replacement is promoted.
@@ -661,6 +682,7 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           await tx.update(householdsTable)
             .set({ ownerId: newHead.userId })
             .where(eq(householdsTable.id, householdId));
+          await transferHouseholdRecurringPayments(tx, userId, newHead.userId, householdId);
         });
         req.log.info(
           { householdId, oldHead: userId, newHead: newHead.userId },
@@ -697,15 +719,15 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           type: "household_you_are_now_head",
           titleEn: "You are now the household head",
           titlePl: "Zostałeś(-aś) liderem gospodarstwa",
-          bodyEn: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household and now have full management access.`,
-          bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) losowo wybrany(-a) na nowego lidera gospodarstwa i masz teraz pełny dostęp do zarządzania.`,
+          bodyEn: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget, and now have full management access.`,
+          bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) wybrany(-a) na nowego lidera gospodarstwa, ponieważ masz najwyższy miesięczny budżet, i masz teraz pełny dostęp do zarządzania.`,
         }).onConflictDoNothing();
 
         // Real system push for the newly-promoted head.
         const newHeadBadge = await getUnreadNotificationCount(newHead.userId);
         sendPushToUser(newHead.userId, {
           title: "You are now the household head",
-          body: `${displayName} has requested account deletion. You have been randomly selected as the new head of your household.`,
+          body: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget.`,
           url: "/?sheet=household",
           tag: `household-you-are-now-head-${householdId}`,
           badgeCount: newHeadBadge,
