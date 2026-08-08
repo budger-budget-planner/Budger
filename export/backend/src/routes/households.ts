@@ -10,6 +10,7 @@ import {
 } from "../api-zod";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
+import { transferHouseholdRecurringPayments } from "../lib/household-head-transfer";
 
 const router: IRouter = Router();
 
@@ -941,6 +942,7 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     await tx.update(householdsTable)
       .set({ ownerId: parsedRequesterId })
       .where(eq(householdsTable.id, householdId));
+    await transferHouseholdRecurringPayments(tx, userId, parsedRequesterId, householdId);
 
     // Remove all outstanding requests addressed to the former head.
     await tx.delete(notificationItemsTable)
