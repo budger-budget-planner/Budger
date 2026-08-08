@@ -72,8 +72,6 @@ setInterval(() => {
   purgeScheduledDeletions().catch(err => logger.warn({ err }, "auth: periodic purge (scheduled deletions) failed"));
 }, 60 * 1000);
 
-function isChild(role: string) { return role === "child" || role === "member"; }
-
 function serializeUser(user: typeof usersTable.$inferSelect) {
   // Strip server-only secrets that must never reach the client.
   const {
@@ -147,19 +145,6 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
-  }
-
-  // Children cannot set their dashboard to private
-  if (parsed.data.dashboardBlocked === true) {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (user?.householdId) {
-      const [membership] = await db.select().from(householdMembersTable)
-        .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, user.householdId)));
-      if (membership && isChild(membership.role)) {
-        res.status(403).json({ error: "Children cannot set their dashboard to private" });
-        return;
-      }
-    }
   }
 
   // Drizzle's numeric column expects string | null, not number

@@ -55,7 +55,6 @@ async function getUserHouseholdId(userId: number, database = db): Promise<number
 }
 
 function isHead(role: string) { return role === "head" || role === "owner"; }
-function isParent(role: string) { return role === "parent"; }
 
 /** Extracts the requesterId stored in a head_request notification body.
  *  New format: JSON `{"requesterId":123}` — robust and unambiguous.
@@ -422,31 +421,15 @@ router.get("/households/members/:userId/spending", async (req, res): Promise<voi
     res.status(404).json({ error: "Member not found" }); return;
   }
 
-  // Viewing own data is always allowed — skip the privacy block entirely.
-  if (!isSelf) {
-    // Fetch both memberships in parallel — independent queries.
-    // Look up by userId alone (not householdId) — see earlier comment about
-    // drift between users.household_id and household_members rows.
-    const [[viewerMembership]] = await Promise.all([
-      db.select().from(householdMembersTable).where(eq(householdMembersTable.userId, Number(currentUserId))),
-    ]);
-    const viewerRole = viewerMembership?.role ?? "child";
-    const targetRole = targetMembership?.role ?? "child";
-
-    if (targetUser.dashboardBlocked) {
-      // Head sees everyone
-      if (isHead(viewerRole)) {
-        // allowed
-      } else if (isParent(viewerRole)) {
-        // Parent cannot see head's private dashboard
-        if (isHead(targetRole)) {
-          res.status(403).json({ error: "blocked" }); return;
-        }
-        // Parent can see other parents' and children's dashboards even if blocked
-      } else {
-        // Child cannot see any private dashboard
-        res.status(403).json({ error: "blocked" }); return;
-      }
+  // Privacy is intentionally asymmetric:
+  // - the owner can always view their own dashboard;
+  // - the household head can always view every member's dashboard;
+  // - every other member is denied when the target has enabled privacy.
+  if (!isSelf && targetUser.dashboardBlocked) {
+    const [viewerMembership] = await db.select().from(householdMembersTable)
+      .where(eq(householdMembersTable.userId, Number(currentUserId)));
+    if (!isHead(viewerMembership?.role ?? "")) {
+      res.status(403).json({ error: "blocked" }); return;
     }
   }
 

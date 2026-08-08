@@ -1573,33 +1573,31 @@ export default function HouseholdPage() {
             </div>
           </div>
 
-          {/* ── Privacy toggle — hidden for children ── */}
-          {!iAmChild && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                  {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {me?.dashboardBlocked
-                      ? myRole === "parent"
-                        ? t("hh.privacy_parent_on")
-                        : t("hh.privacy_head_on")
-                      : myRole === "parent"
-                        ? t("hh.privacy_parent_off")
-                        : t("hh.visible")}
-                  </p>
-                </div>
-                <Switch
-                  checked={me?.dashboardBlocked ?? false}
-                  onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
-                  data-testid="switch-dashboard-blocked"
-                />
+          {/* ── Personal donut privacy — available to every role ── */}
+          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                {me?.dashboardBlocked ? <EyeOff className="w-4 h-4 text-white/60" /> : <Eye className="w-4 h-4 text-white/60" />}
               </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">{t("hh.private_dash_lbl")}</p>
+                <p className="text-xs text-white/40 mt-0.5">
+                  {me?.dashboardBlocked
+                    ? iAmHead
+                      ? t("hh.privacy_head_on")
+                      : t("hh.privacy_member_on")
+                    : iAmHead
+                      ? t("hh.visible")
+                      : t("hh.privacy_member_off")}
+                </p>
+              </div>
+              <Switch
+                checked={me?.dashboardBlocked ?? false}
+                onCheckedChange={val => updateMe.mutate({ data: { dashboardBlocked: val } })}
+                data-testid="switch-dashboard-blocked"
+              />
             </div>
-          )}
+          </div>
 
           {/* ── Pending invites — head only ── */}
           {iAmHead && invites && invites.length > 0 && (
