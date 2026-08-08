@@ -641,6 +641,9 @@ router.patch("/households/members/:userId/role", async (req, res): Promise<void>
   const [targetMembership] = await db.select().from(householdMembersTable)
     .where(and(eq(householdMembersTable.userId, targetUserId), eq(householdMembersTable.householdId, householdId)));
   if (!targetMembership) { res.status(404).json({ error: "Member not found" }); return; }
+  if (isHead(targetMembership.role)) {
+    res.status(400).json({ error: "Headship requires an approved transfer request" }); return;
+  }
 
   await db.update(householdMembersTable)
     .set({ role })
@@ -666,6 +669,10 @@ router.delete("/households/members/:userId", async (req, res): Promise<void> => 
     .where(and(eq(householdMembersTable.userId, currentUserId), eq(householdMembersTable.householdId, householdId)));
   if (!myMembership || !isHead(myMembership.role)) {
     res.status(403).json({ error: "Only the head of the household can remove members" }); return;
+  }
+  if (params.data.userId === currentUserId) {
+    res.status(400).json({ error: "The head must transfer headship before leaving or being removed" });
+    return;
   }
 
   // Fetch household name to store in alert for the removed user
@@ -718,6 +725,11 @@ router.post("/households/leave", async (req, res): Promise<void> => {
   // Gather head + household name before removing the member so we can notify.
   const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
   const allMembers = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, leavingHouseholdId));
+  const myMembership = allMembers.find(m => m.userId === userId);
+  if (myMembership && isHead(myMembership.role)) {
+    res.status(409).json({ error: "HEAD_TRANSFER_REQUIRED", message: "Transfer household headship before leaving." });
+    return;
+  }
   const headMember = allMembers.find(m => isHead(m.role) && m.userId !== userId);
 
   await db.delete(householdMembersTable).where(
@@ -916,6 +928,7 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     const [requesterMembership] = await tx.select().from(householdMembersTable)
       .where(and(eq(householdMembersTable.userId, parsedRequesterId), eq(householdMembersTable.householdId, householdId)));
     if (!requesterMembership) throw new Error("REQUESTER_NOT_FOUND");
+    if (isHead(requesterMembership.role)) throw new Error("REQUESTER_ALREADY_HEAD");
 
     // Demote first so the database invariant remains valid throughout the
     // transfer, then promote the requester and update the owner in one commit.
@@ -957,6 +970,10 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
     }
     if (err instanceof Error && err.message === "REQUESTER_NOT_FOUND") {
       res.status(404).json({ error: "Requester not in household" });
+      return null;
+    }
+    if (err instanceof Error && err.message === "REQUESTER_ALREADY_HEAD") {
+      res.status(409).json({ error: "Requester is already the household head" });
       return null;
     }
     throw err;

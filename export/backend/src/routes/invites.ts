@@ -18,6 +18,13 @@ const router: IRouter = Router();
 
 function isHead(role: string) { return role === "head" || role === "owner"; }
 
+function normalizeInviteRole(role: string | null | undefined): "parent" | "child" {
+  // Older invite rows could contain "head". Headship is now transferred only
+  // through the approval flow, so keep those invites as parent invites in all
+  // API responses and membership creation paths.
+  return role === "parent" || role === "head" ? "parent" : "child";
+}
+
 function enrichInvite(invite: any, household: any, isRegistered?: boolean) {
   return {
     id: invite.id,
@@ -25,7 +32,7 @@ function enrichInvite(invite: any, household: any, isRegistered?: boolean) {
     token: invite.token,
     householdId: invite.householdId,
     householdName: household?.name ?? null,
-    role: invite.role ?? "child",
+    role: normalizeInviteRole(invite.role),
     status: invite.status,
     expiresAt: invite.expiresAt.toISOString(),
     createdAt: invite.createdAt.toISOString(),
@@ -315,9 +322,7 @@ router.post("/invites/:token/accept", async (req, res): Promise<void> => {
       await tx.insert(householdMembersTable).values({
         userId,
         householdId: invite.householdId,
-        // Legacy invite rows may still contain the old head role. Headship
-        // must only change through an approved transfer request.
-        role: invite.role === "head" ? "parent" : (invite.role ?? "child"),
+        role: normalizeInviteRole(invite.role),
         memberColor: color,
       });
     }

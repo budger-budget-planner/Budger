@@ -389,7 +389,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
               householdId: invite.householdId,
               // Legacy invite rows may still contain the old head role.
               // Never create a second head from an invite.
-              role: invite.role === "head" ? "parent" : (invite.role ?? "child"),
+              role: invite.role === "parent" || invite.role === "head" ? "parent" : "child",
               memberColor: color,
             });
           }
@@ -711,31 +711,15 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           badgeCount: newHeadBadge,
         }).catch(() => {});
       } else {
-        // No parents to hand off to — notify remaining members anyway
-        if (otherMembers.length > 0) {
-          await db.insert(notificationItemsTable).values(
-            otherMembers.map(m => ({
-              userId: m.userId,
-              type: "household_member_deletion_request",
-              titleEn: "Member leaving household",
-              titlePl: "Członek opuszcza gospodarstwo",
-              bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
-              bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
-            }))
-          ).onConflictDoNothing();
-
-          // Real system push, mirroring the in-app NC rows just written.
-          Promise.all(otherMembers.map(async (m) => {
-            const badge = await getUnreadNotificationCount(m.userId);
-            return sendPushToUser(m.userId, {
-              title: "Member leaving household",
-              body: `${displayName} has requested account deletion and will be removed from your household.`,
-              url: "/?sheet=household",
-              tag: `household-member-deletion-${householdId}-${userId}`,
-              badgeCount: badge,
-            });
-          })).catch(() => {});
-        }
+        // The household owner is protected by a foreign key, so allowing the
+        // last head to schedule deletion would leave an undeletable household
+        // with no valid head. A child can request headship first, after which
+        // the current head can approve the normal transfer.
+        res.status(409).json({
+          error: "HEAD_TRANSFER_REQUIRED",
+          message: "Transfer household headship to another member before deleting this account.",
+        });
+        return;
       }
     } else {
       // ── Not head: just notify other members ─────────────────────────────
