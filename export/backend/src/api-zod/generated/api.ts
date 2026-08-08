@@ -342,22 +342,6 @@ export const CreateTransactionBody = zod.object({
 });
 
 /**
- * @summary Replace one ordinary transaction with an atomically allocated breakdown
- */
-export const BreakdownTransactionBody = zod.object({
-  rows: zod.array(zod.object({
-    description: zod.string(),
-    amount: zod.number(),
-    categoryId: zod.number().int().positive().nullable(),
-  })).min(2),
-});
-
-export const BreakdownTransactionResponse = zod.object({
-  transactions: zod.array(ListTransactionsResponseItem),
-  receiptBehavior: zod.literal("discarded"),
-});
-
-/**
  * @summary Get a transaction
  */
 export const GetTransactionParams = zod.object({
