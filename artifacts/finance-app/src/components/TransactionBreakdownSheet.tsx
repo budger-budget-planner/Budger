@@ -41,7 +41,7 @@ type Props = {
   open: boolean;
   isOnline: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (createdTransactions: Transaction[]) => void;
   onFailure?: () => void;
 };
 
@@ -141,9 +141,9 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
       })),
     };
     try {
-      await breakdown.mutateAsync({ id: tx.id, data });
+      const result = await breakdown.mutateAsync({ id: tx.id, data });
       toast.success(t("breakdown.success"));
-      onSuccess();
+      onSuccess(result.transactions);
     } catch (error) {
       onFailure?.();
       const code = errorCode(error);

@@ -40,7 +40,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera, Image, X, ZoomIn, ImageOff, ChevronLeft, ChevronRight, Target, Search, RefreshCw, Lock, Scissors, ListPlus, AlertTriangle, CheckCircle, Warehouse, Clock, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -822,6 +822,8 @@ function SwipeableTxRow({
   txId,
   canSplit,
   canBreakdown,
+  breakdownExit = false,
+  breakdownEnter = false,
   onReceipt,
   onEdit,
   onSplit,
@@ -834,6 +836,8 @@ function SwipeableTxRow({
   txId: number;
   canSplit: boolean;
   canBreakdown: boolean;
+  breakdownExit?: boolean;
+  breakdownEnter?: boolean;
   onReceipt: () => void;
   onEdit: () => void;
   onSplit: () => void;
@@ -1051,7 +1055,7 @@ function SwipeableTxRow({
   const editSectionW    = leftPanelWidth - receiptSectionW;
 
   return (
-    <div className="relative overflow-hidden" onClickCapture={onClickCapture}>
+    <div className={`relative overflow-hidden ${breakdownEnter ? "breakdown-row-enter" : ""}`} onClickCapture={onClickCapture}>
 
       {/* ── LEFT panel: only visible when swiping right ── */}
       {leftPanelWidth > 0 && (
@@ -1120,6 +1124,7 @@ function SwipeableTxRow({
         style={{
           transform: `translateX(${offset}px) scale(${hintHold ? 0.97 : 1})`,
           transition: animating ? "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+          opacity: breakdownExit ? 0 : 1,
           touchAction: "pan-y",
           WebkitUserSelect: "none",
           WebkitTouchCallout: "none",
@@ -1135,6 +1140,16 @@ function SwipeableTxRow({
       >
         {children}
       </div>
+
+      {breakdownExit && (
+        <div className="breakdown-exit-layer" aria-hidden="true">
+          <div className="breakdown-exit-half breakdown-exit-half-left">{children}</div>
+          <div className="breakdown-exit-half breakdown-exit-half-right">{children}</div>
+          <svg className="breakdown-crack" viewBox="0 0 24 100" preserveAspectRatio="none">
+            <path d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }
@@ -1158,6 +1173,8 @@ export default function HomeSpending() {
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
   const [splitTx, setSplitTx] = useState<any | null>(null);
   const [breakdownTx, setBreakdownTx] = useState<any | null>(null);
+  const [breakdownAnimation, setBreakdownAnimation] = useState<{ sourceId: number; created: any[] } | null>(null);
+  const [breakdownRevealIds, setBreakdownRevealIds] = useState<number[]>([]);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [renameTx,    setRenameTx]    = useState<any | null>(null);
@@ -1218,6 +1235,28 @@ export default function HomeSpending() {
     },
     enabled: isCurrentMonth && isHead && isInHousehold,
   });
+
+  useEffect(() => {
+    if (!breakdownAnimation) return;
+    let cancelled = false;
+    const revealTimer = setTimeout(async () => {
+      // Keep the original row on screen for the full crack-and-separate
+      // animation. Only refetch after it has completely left the list.
+      await queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+      if (cancelled) return;
+      invalidateAll(queryClient);
+      setBreakdownAnimation(null);
+      const ids = breakdownAnimation.created.map(tx => Number(tx.id)).filter(Number.isSafeInteger);
+      setBreakdownRevealIds(ids);
+      setTimeout(() => {
+        if (!cancelled) setBreakdownRevealIds([]);
+      }, 560);
+    }, 760);
+    return () => {
+      cancelled = true;
+      clearTimeout(revealTimer);
+    };
+  }, [breakdownAnimation, queryClient]);
   const applyRP = useMutationWithQueue({
     endpoint: (vars: { id: number; data: any; scope?: string }) =>
       vars.scope === "household"
@@ -1879,6 +1918,8 @@ export default function HomeSpending() {
                       txId={tx.id}
                       canSplit={canSwipeSplit}
                       canBreakdown={canBreakdown}
+                      breakdownExit={breakdownAnimation?.sourceId === tx.id}
+                      breakdownEnter={breakdownRevealIds.includes(tx.id)}
                       onReceipt={() => { setReceiptTx(tx); setActionTx(null); }}
                       onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
                       onSplit={() => { setSplitTx(tx); setActionTx(null); }}
@@ -2110,7 +2151,7 @@ export default function HomeSpending() {
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40"
                             >
-                              <Scissors className="w-3.5 h-3.5" /> {t("breakdown.submit")}
+                              <ListPlus className="w-3.5 h-3.5" /> {t("breakdown.submit")}
                             </button>
                           )}
                           <button
@@ -2465,8 +2506,8 @@ export default function HomeSpending() {
           open={!!breakdownTx}
           isOnline={isOnline}
           onClose={() => setBreakdownTx(null)}
-          onSuccess={() => {
-            invalidateAll(queryClient);
+          onSuccess={(created) => {
+            setBreakdownAnimation({ sourceId: breakdownTx.id, created });
             setBreakdownTx(null);
           }}
           onFailure={() => {
