@@ -1251,7 +1251,7 @@ export default function HomeSpending() {
       setTimeout(() => {
         if (!cancelled) setBreakdownRevealIds([]);
       }, 560);
-    }, 760);
+    }, 1500);
     return () => {
       cancelled = true;
       clearTimeout(revealTimer);

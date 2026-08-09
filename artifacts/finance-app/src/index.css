@@ -50,25 +50,25 @@ html.breakdown-open * {
 }
 
 @keyframes breakdown-half-left {
-  0%, 22% { transform: translateX(0) rotate(0deg); opacity: 1; }
-  32% { transform: translateX(-7px) rotate(-0.7deg); opacity: 1; }
-  62% { transform: translateX(-7px) rotate(-0.7deg); opacity: 1; }
+  0%, 36% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  48% { transform: translateX(-14px) rotate(-0.9deg); opacity: 1; }
+  68% { transform: translateX(-14px) rotate(-0.9deg); opacity: 1; }
   100% { transform: translateX(-130%) rotate(-6deg); opacity: 0; }
 }
 
 @keyframes breakdown-half-right {
-  0%, 22% { transform: translateX(0) rotate(0deg); opacity: 1; }
-  32% { transform: translateX(7px) rotate(0.7deg); opacity: 1; }
-  62% { transform: translateX(7px) rotate(0.7deg); opacity: 1; }
+  0%, 36% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  48% { transform: translateX(14px) rotate(0.9deg); opacity: 1; }
+  68% { transform: translateX(14px) rotate(0.9deg); opacity: 1; }
   100% { transform: translateX(130%) rotate(6deg); opacity: 0; }
 }
 
 @keyframes breakdown-crack {
   0% { opacity: 0; stroke-dashoffset: 1; }
-  5% { opacity: 1; }
-  28% { opacity: 1; stroke-dashoffset: 0; }
-  60% { opacity: 0.85; stroke-dashoffset: 0; }
-  76%, 100% { opacity: 0; stroke-dashoffset: 0; }
+  9% { opacity: 1; }
+  43% { opacity: 1; stroke-dashoffset: 0; }
+  68% { opacity: 0.85; stroke-dashoffset: 0; }
+  78%, 100% { opacity: 0; stroke-dashoffset: 0; }
 }
 
 @keyframes breakdown-row-enter {
@@ -101,12 +101,12 @@ html.breakdown-open * {
 
 .breakdown-exit-half-left {
   clip-path: inset(0 50% 0 0);
-  animation: breakdown-half-left 0.76s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: breakdown-half-left 1.45s ease-in-out forwards;
 }
 
 .breakdown-exit-half-right {
   clip-path: inset(0 0 0 50%);
-  animation: breakdown-half-right 0.76s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: breakdown-half-right 1.45s ease-in-out forwards;
 }
 
 .breakdown-crack {
@@ -123,7 +123,7 @@ html.breakdown-open * {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
-  animation: breakdown-crack 0.76s ease-out forwards;
+  animation: breakdown-crack 1.45s ease-in-out forwards;
 }
 
 .breakdown-row-enter {
