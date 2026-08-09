@@ -264,6 +264,30 @@ export interface TransactionUpdate {
   foundedWithRealizedGoal?: boolean;
 }
 
+export interface BreakdownTransactionRow {
+  description: string;
+  amount: number;
+  /** @nullable */
+  categoryId: number | null;
+}
+
+export interface BreakdownTransactionInput {
+  /** @minItems 2 */
+  rows: BreakdownTransactionRow[];
+}
+
+export type BreakdownTransactionResponseReceiptBehavior =
+  (typeof BreakdownTransactionResponseReceiptBehavior)[keyof typeof BreakdownTransactionResponseReceiptBehavior];
+
+export const BreakdownTransactionResponseReceiptBehavior = {
+  discarded: "discarded",
+} as const;
+
+export interface BreakdownTransactionResponse {
+  transactions: Transaction[];
+  receiptBehavior: BreakdownTransactionResponseReceiptBehavior;
+}
+
 export interface CurrencyConvertInput {
   /** Multiply the transaction amount by this rate to get the account-currency value */
   rate: number;

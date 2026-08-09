@@ -569,6 +569,27 @@ export const DeleteTransactionParams = zod.object({
 });
 
 /**
+ * @summary Atomically replace an ordinary transaction with allocated rows
+ */
+export const BreakdownTransactionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const breakdownTransactionBodyRowsMin = 2;
+
+export const BreakdownTransactionBody = zod.object({
+  rows: zod
+    .array(
+      zod.object({
+        description: zod.string(),
+        amount: zod.number(),
+        categoryId: zod.number().nullable(),
+      }),
+    )
+    .min(breakdownTransactionBodyRowsMin),
+});
+
+/**
  * @summary Convert a transaction amount to the account currency and clear its transactionCurrency
  */
 export const ConvertTransactionCurrencyParams = zod.object({

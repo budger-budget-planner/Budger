@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable, budgetStretchesTable } from "@workspace/db";
-import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
+import { db, transactionsTable, categoriesTable, usersTable, goalContributionsTable, recurringPaymentLogsTable, recurringPaymentsTable, budgetStretchesTable, larderEntriesTable } from "@workspace/db";
+import { eq, desc, and, gte, lte, inArray, sql } from "drizzle-orm";
 import { getAutoCategory, recordMerchantAssignment } from "../lib/merchantRules";
 import { getGenAI } from "../lib/geminiClient";
 import { logger } from "../lib/logger";
@@ -17,8 +17,33 @@ import {
   GetTransactionParams,
   ListTransactionsQueryParams,
   ExtractScreenshotTransactionsBody,
+  BreakdownTransactionBody,
 } from "@workspace/api-zod";
 const router: IRouter = Router();
+
+class BreakdownRequestError extends Error {
+  constructor(
+    readonly code:
+      | "breakdown_unauthenticated"
+      | "breakdown_invalid_source"
+      | "breakdown_invalid_rows"
+      | "breakdown_source_not_found"
+      | "breakdown_source_ineligible"
+      | "breakdown_total_mismatch"
+      | "breakdown_category_unavailable",
+    readonly status = 400,
+  ) {
+    super(code);
+  }
+}
+
+function decimalCents(value: unknown): number | null {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  const rounded = Math.round(numeric * 100);
+  if (!Number.isSafeInteger(rounded) || Math.abs(numeric - rounded / 100) > 1e-8) return null;
+  return rounded;
+}
 
 function formatStretch(s: typeof budgetStretchesTable.$inferSelect | null | undefined) {
   if (!s) return null;
@@ -430,6 +455,154 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   ]);
 
   res.json(enrichTransaction(tx, category, user, rp, stretch ?? null));
+});
+
+router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "breakdown_unauthenticated" });
+    return;
+  }
+
+  const sourceId = Number(req.params.id);
+  if (!Number.isSafeInteger(sourceId) || sourceId <= 0) {
+    res.status(400).json({ error: "breakdown_invalid_source" });
+    return;
+  }
+
+  const parsed = BreakdownTransactionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const descriptions = parsed.data.rows.map(row => row.description.trim());
+  if (descriptions.some(description => description.length === 0)) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const rowCents = parsed.data.rows.map(row => decimalCents(row.amount));
+  if (rowCents.some(amount => amount === null)) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const categoryIds = [...new Set(
+    parsed.data.rows
+      .map(row => row.categoryId)
+      .filter((id): id is number => id !== null),
+  )];
+
+  try {
+    const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!currentUser) throw new BreakdownRequestError("breakdown_unauthenticated", 401);
+
+    const created = await db.transaction(async (dbTx) => {
+      const locked = await dbTx.execute(sql`
+        SELECT * FROM transactions
+        WHERE id = ${sourceId} AND user_id = ${userId}
+        FOR UPDATE
+      `);
+      const source = (locked.rows[0] as any) ?? null;
+      if (!source) throw new BreakdownRequestError("breakdown_source_not_found", 404);
+
+      const sourceCents = decimalCents(source.amount);
+      if (sourceCents === null) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const ineligible = Boolean(
+        source.split_id ||
+        source.split_role ||
+        source.split_group_id ||
+        source.recurring_payment_id ||
+        source.is_larder_fund ||
+        source.founded_with_realized_goal ||
+        source.currency_unavailable,
+      );
+      if (ineligible) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const [larderDedication] = await dbTx.select({ id: larderEntriesTable.id })
+        .from(larderEntriesTable)
+        .where(and(
+          eq(larderEntriesTable.userId, userId),
+          eq(larderEntriesTable.sourceType, "transaction_dedication"),
+          eq(larderEntriesTable.sourceId, sourceId),
+        ))
+        .limit(1);
+      if (larderDedication) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const totalCents = (rowCents as number[]).reduce((sum, amount) => sum + amount, 0);
+      if (totalCents !== sourceCents) throw new BreakdownRequestError("breakdown_total_mismatch");
+
+      if (categoryIds.length > 0) {
+        const ownedCategories = await dbTx.select({ id: categoriesTable.id })
+          .from(categoriesTable)
+          .where(and(
+            eq(categoriesTable.userId, userId),
+            inArray(categoriesTable.id, categoryIds),
+          ));
+        if (ownedCategories.length !== categoryIds.length) {
+          throw new BreakdownRequestError("breakdown_category_unavailable");
+        }
+      }
+
+      const replacementValues = parsed.data.rows.map((row, index) => ({
+        amount: (rowCents[index]! / 100).toFixed(2),
+        description: descriptions[index]!,
+        categoryId: row.categoryId,
+        date: source.date,
+        paymentMethod: source.payment_method,
+        userId,
+        householdId: source.household_id ?? null,
+        transactionCurrency: source.transaction_currency ?? null,
+        currencyLocked: source.currency_locked ?? false,
+        categoryAutoAssigned: false,
+        receiptImage: null,
+      }));
+
+      const inserted = await dbTx.insert(transactionsTable)
+        .values(replacementValues)
+        .returning();
+
+      await dbTx.delete(goalContributionsTable)
+        .where(eq(goalContributionsTable.transactionId, sourceId));
+      await dbTx.delete(recurringPaymentLogsTable)
+        .where(eq(recurringPaymentLogsTable.transactionId, sourceId));
+      await dbTx.delete(transactionsTable)
+        .where(and(eq(transactionsTable.id, sourceId), eq(transactionsTable.userId, userId)));
+
+      return inserted;
+    });
+
+    const categoryIdsForCreated = [...new Set(
+      created.map(tx => tx.categoryId).filter((id): id is number => id !== null),
+    )];
+    const createdCategories = categoryIdsForCreated.length > 0
+      ? await db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIdsForCreated))
+      : [];
+    const categoryMap = new Map(createdCategories.map(category => [category.id, category]));
+    const enriched = created.map(tx =>
+      enrichTransaction(tx, tx.categoryId ? categoryMap.get(tx.categoryId) : null, currentUser),
+    );
+
+    for (const row of parsed.data.rows) {
+      if (row.categoryId !== null) {
+        try {
+          await recordMerchantAssignment(userId, row.description.trim(), row.categoryId);
+        } catch (err) {
+          logger.warn({ err, userId }, "Could not record breakdown merchant category assignment");
+        }
+      }
+    }
+
+    res.status(201).json({ transactions: enriched, receiptBehavior: "discarded" });
+  } catch (err) {
+    if (err instanceof BreakdownRequestError) {
+      res.status(err.status).json({ error: err.code });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.delete("/transactions/:id", async (req, res): Promise<void> => {

@@ -415,6 +415,39 @@ paths:
         "204":
           description: Deleted
 
+  /transactions/{id}/breakdown:
+    post:
+      operationId: breakdownTransaction
+      tags: [transactions]
+      summary: Atomically replace an ordinary transaction with allocated rows
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BreakdownTransactionInput"
+      responses:
+        "201":
+          description: Replacement transactions created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreakdownTransactionResponse"
+        "400":
+          description: Invalid rows, total, category, or ineligible source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Source transaction not found
+
   /transactions/{id}/convert-currency:
     post:
       operationId: convertTransactionCurrency
@@ -2232,6 +2265,39 @@ components:
           type: boolean
         foundedWithRealizedGoal:
           type: boolean
+
+    BreakdownTransactionInput:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/BreakdownTransactionRow"
+
+    BreakdownTransactionRow:
+      type: object
+      required: [description, amount, categoryId]
+      properties:
+        description:
+          type: string
+        amount:
+          type: number
+        categoryId:
+          type: ["integer", "null"]
+
+    BreakdownTransactionResponse:
+      type: object
+      required: [transactions, receiptBehavior]
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        receiptBehavior:
+          type: string
+          enum: [discarded]
 
     CurrencyConvertInput:
       type: object

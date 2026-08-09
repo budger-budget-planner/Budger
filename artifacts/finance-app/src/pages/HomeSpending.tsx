@@ -35,6 +35,7 @@ import {
   useGetGoalsSummary,
   useListBudgetStretches,
 } from "@workspace/api-client-react";
+import { TransactionBreakdownSheet } from "@/components/TransactionBreakdownSheet";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
@@ -820,9 +821,11 @@ async function syncGoalContribution(opts: {
 function SwipeableTxRow({
   txId,
   canSplit,
+  canBreakdown,
   onReceipt,
   onEdit,
   onSplit,
+  onBreakdown,
   onDelete,
   showHint,
   isOffline,
@@ -830,9 +833,11 @@ function SwipeableTxRow({
 }: {
   txId: number;
   canSplit: boolean;
+  canBreakdown: boolean;
   onReceipt: () => void;
   onEdit: () => void;
   onSplit: () => void;
+  onBreakdown: () => void;
   onDelete: () => void;
   showHint?: boolean;
   isOffline?: boolean;
@@ -840,6 +845,7 @@ function SwipeableTxRow({
 }) {
   const [offset, setOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [hintHold, setHintHold] = useState(false);
 
   useEffect(() => {
     if (!showHint) return;
@@ -858,8 +864,10 @@ function SwipeableTxRow({
     go(() => setOffset(0),    1520);         // back
     go(() => setOffset(19),   1630);         // right ×2 (full)
     go(() => setOffset(0),    1790);         // back
-    go(() => setAnimating(false), 1900);
-    return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setAnimating(false); };
+    go(() => setHintHold(true), 2050);       // brief hold cue
+    go(() => setHintHold(false), 2550);
+    go(() => setAnimating(false), 2600);
+    return () => { cancelled = true; timers.forEach(clearTimeout); setOffset(0); setHintHold(false); setAnimating(false); };
   }, [showHint]);
   const startX = useRef(0);
   const startY = useRef(0);
@@ -869,8 +877,19 @@ function SwipeableTxRow({
   const isScrolling = useRef<boolean | null>(null);
   const hasMoved = useRef(false);
   const swipeHandled = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
+
+  function cancelLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  useEffect(() => cancelLongPress, []);
 
   // Snap widths: how wide each panel is at rest after revealing
   const RIGHT_SNAP = canSplit ? 160 : 88;
@@ -903,7 +922,18 @@ function SwipeableTxRow({
     isDragging.current = true;
     isScrolling.current = null;
     hasMoved.current = false;
+    longPressTriggered.current = false;
     setAnimating(false);
+    if (canBreakdown && !isOffline) {
+      longPressTimer.current = setTimeout(() => {
+        if (!isDragging.current || isScrolling.current || hasMoved.current) return;
+        longPressTriggered.current = true;
+        swipeHandled.current = true;
+        resetRow();
+        window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: null } }));
+        onBreakdown();
+      }, 600);
+    }
   }
 
   function onTouchMove(e: React.TouchEvent) {
@@ -913,6 +943,9 @@ function SwipeableTxRow({
 
     if (isScrolling.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       isScrolling.current = Math.abs(dy) > Math.abs(dx);
+    }
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      cancelLongPress();
     }
     if (isScrolling.current === null || isScrolling.current) return;
 
@@ -932,6 +965,11 @@ function SwipeableTxRow({
   function onTouchEnd() {
     if (!isDragging.current) return;
     isDragging.current = false;
+    cancelLongPress();
+    if (longPressTriggered.current) {
+      setTimeout(() => { swipeHandled.current = false; }, 500);
+      return;
+    }
     if (!hasMoved.current || isScrolling.current) return;
 
     swipeHandled.current = true;
@@ -980,6 +1018,11 @@ function SwipeableTxRow({
       const onPanel = leftPanelRef.current?.contains(t) || rightPanelRef.current?.contains(t);
       if (!onPanel) { e.stopPropagation(); resetRow(); }
     }
+  }
+
+  function onTouchCancel() {
+    isDragging.current = false;
+    cancelLongPress();
   }
 
   // Panel widths track exactly how much is exposed
@@ -1075,7 +1118,7 @@ function SwipeableTxRow({
       <div
         className="relative z-10 bg-card"
         style={{
-          transform: `translateX(${offset}px)`,
+          transform: `translateX(${offset}px) scale(${hintHold ? 0.97 : 1})`,
           transition: animating ? "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
           touchAction: "pan-y",
           willChange: "transform",
@@ -1083,6 +1126,8 @@ function SwipeableTxRow({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
+        onMouseLeave={cancelLongPress}
       >
         {children}
       </div>
@@ -1108,6 +1153,7 @@ export default function HomeSpending() {
   const [searchQuery,  setSearchQuery] = useState("");
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
   const [splitTx, setSplitTx] = useState<any | null>(null);
+  const [breakdownTx, setBreakdownTx] = useState<any | null>(null);
   const [splitSent, setSplitSent] = useState(false);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [renameTx,    setRenameTx]    = useState<any | null>(null);
@@ -1812,6 +1858,15 @@ export default function HomeSpending() {
                     : tx.description;
 
                   const canSwipeSplit     = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
+                  const canBreakdown       =
+                    isOnline &&
+                    tx.userId === myUserId &&
+                    !hasUnavailable &&
+                    !hasSplit &&
+                    !isRP &&
+                    !hasFromLarder &&
+                    !hasLarderDedication &&
+                    !isRealizedGoal;
                   const isUnknownCaptured = tx.description === "Unknown, Captured Online";
 
                   return (
@@ -1819,9 +1874,11 @@ export default function HomeSpending() {
                       key={tx.id}
                       txId={tx.id}
                       canSplit={canSwipeSplit}
+                      canBreakdown={canBreakdown}
                       onReceipt={() => { setReceiptTx(tx); setActionTx(null); }}
                       onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
                       onSplit={() => { setSplitTx(tx); setActionTx(null); }}
+                      onBreakdown={() => { setBreakdownTx(tx); setActionTx(null); }}
                       onDelete={() => remove.mutate({ id: tx.id })}
                       showHint={tx.id === topTxId}
                       isOffline={!isOnline}
@@ -2040,6 +2097,16 @@ export default function HomeSpending() {
                               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
                                          bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                               <Scissors className="w-3.5 h-3.5" /> {t("split.btn")}
+                            </button>
+                          )}
+                          {canBreakdown && (
+                            <button
+                              onClick={() => { setBreakdownTx(tx); setActionTx(null); }}
+                              disabled={!isOnline}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40"
+                            >
+                              <Scissors className="w-3.5 h-3.5" /> {t("breakdown.submit")}
                             </button>
                           )}
                           <button
@@ -2382,6 +2449,23 @@ export default function HomeSpending() {
             setSplitTx(null);
             setSplitSent(true);
             setTimeout(() => setSplitSent(false), 3000);
+          }}
+        />
+      )}
+
+      {breakdownTx && (
+        <TransactionBreakdownSheet
+          tx={breakdownTx}
+          categories={categories ?? []}
+          open={!!breakdownTx}
+          isOnline={isOnline}
+          onClose={() => setBreakdownTx(null)}
+          onSuccess={() => {
+            invalidateAll(queryClient);
+            setBreakdownTx(null);
+          }}
+          onFailure={() => {
+            queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
           }}
         />
       )}

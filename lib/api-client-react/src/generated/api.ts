@@ -21,6 +21,8 @@ import type {
   ApplyRecurringPaymentBody,
   AssignGreatLarderFundsBody,
   AssignLarderFundsBody,
+  BreakdownTransactionInput,
+  BreakdownTransactionResponse,
   BudgetStretch,
   BudgetStretchInput,
   Category,
@@ -1786,6 +1788,97 @@ export const useDeleteTransaction = <
   TContext
 > => {
   return useMutation(getDeleteTransactionMutationOptions(options));
+};
+
+/**
+ * @summary Atomically replace an ordinary transaction with allocated rows
+ */
+export const getBreakdownTransactionUrl = (id: number) => {
+  return `/api/transactions/${id}/breakdown`;
+};
+
+export const breakdownTransaction = async (
+  id: number,
+  breakdownTransactionInput: BreakdownTransactionInput,
+  options?: RequestInit,
+): Promise<BreakdownTransactionResponse> => {
+  return customFetch<BreakdownTransactionResponse>(
+    getBreakdownTransactionUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(breakdownTransactionInput),
+    },
+  );
+};
+
+export const getBreakdownTransactionMutationOptions = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof breakdownTransaction>>,
+    TError,
+    { id: number; data: BodyType<BreakdownTransactionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof breakdownTransaction>>,
+  TError,
+  { id: number; data: BodyType<BreakdownTransactionInput> },
+  TContext
+> => {
+  const mutationKey = ["breakdownTransaction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof breakdownTransaction>>,
+    { id: number; data: BodyType<BreakdownTransactionInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return breakdownTransaction(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BreakdownTransactionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof breakdownTransaction>>
+>;
+export type BreakdownTransactionMutationBody =
+  BodyType<BreakdownTransactionInput>;
+export type BreakdownTransactionMutationError = ErrorType<ErrorEnvelope | void>;
+
+/**
+ * @summary Atomically replace an ordinary transaction with allocated rows
+ */
+export const useBreakdownTransaction = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof breakdownTransaction>>,
+    TError,
+    { id: number; data: BodyType<BreakdownTransactionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof breakdownTransaction>>,
+  TError,
+  { id: number; data: BodyType<BreakdownTransactionInput> },
+  TContext
+> => {
+  return useMutation(getBreakdownTransactionMutationOptions(options));
 };
 
 /**
