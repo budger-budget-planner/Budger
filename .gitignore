@@ -36,6 +36,7 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+/artifacts/api-server/.finance-tracker-data/
 
 # System Files
 .DS_Store

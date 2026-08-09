@@ -4,11 +4,24 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-// NEON_DATABASE_URL takes priority when set, so the app can point at an
-// externally-hosted Postgres (e.g. Neon) instead of Replit's built-in
-// database. DATABASE_URL is managed by the Replit platform itself, so we
-// don't overwrite it — we just prefer the external URL when present.
-export const DATABASE_URL = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+// Finance Tracker runs in an isolated local PostgreSQL cluster. In that mode,
+// never fall back to the workspace's shared DATABASE_URL/NEON_DATABASE_URL.
+// This guard is intentionally in the shared DB entry point so every server
+// route gets the same isolation guarantee, including session storage.
+const financeTrackerMode = process.env.FINANCE_TRACKER_MODE === "1";
+const financeTrackerDatabaseUrl = process.env.FINANCE_TRACKER_DATABASE_URL;
+
+if (financeTrackerMode && !financeTrackerDatabaseUrl) {
+  throw new Error(
+    "FINANCE_TRACKER_DATABASE_URL must be set when FINANCE_TRACKER_MODE=1; refusing to use the shared application database.",
+  );
+}
+
+// Outside Finance Tracker mode, preserve the existing application behavior:
+// NEON_DATABASE_URL takes priority over Replit's managed DATABASE_URL.
+export const DATABASE_URL = financeTrackerMode
+  ? financeTrackerDatabaseUrl
+  : process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   throw new Error(
