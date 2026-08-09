@@ -195,7 +195,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
                   <div className="grid grid-cols-[1fr_1.2fr] gap-2">
                     <div className="space-y-1.5">
                       <Label htmlFor={`${row.id}-amount`}>{t("common.amount")}</Label>
-                      <Input id={`${row.id}-amount`} value={row.amount} onChange={event => updateRow(row.id, { amount: event.target.value })} inputMode="decimal" placeholder="0.00" aria-invalid={!!error && (!!row.amount.trim() || !row.description.trim())} className={allocation.overCents > 0 ? "border-amber-500/70 focus-visible:ring-amber-500/50" : ""} />
+                      <Input id={`${row.id}-amount`} value={row.amount} onChange={event => updateRow(row.id, { amount: event.target.value })} inputMode="decimal" placeholder="0.00" aria-invalid={!!error && (!!row.amount.trim() || !row.description.trim())} className={allocation.overCents > 0 ? "border-red-500/70 focus-visible:ring-red-500/50" : ""} />
                       <p className="text-[11px] text-white/40">{t("breakdown.max_amount", { amount: centsLabel(maxCents, currency) })}</p>
                     </div>
                     <div className="space-y-1.5">
@@ -221,12 +221,12 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
           <button type="button" onClick={addRow} className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-2.5 text-sm text-white/65 hover:text-white hover:border-white/40 active:bg-white/10">
             <Plus className="w-4 h-4" />{t("breakdown.add_row")}
           </button>
-          <div className={`rounded-2xl border px-3 py-3 space-y-1 ${allocation.overCents > 0 ? "border-amber-500/60 bg-amber-500/10" : "border-white/10 bg-white/[0.03]"}`}>
+          <div className={`rounded-2xl border px-3 py-3 space-y-1 ${allocation.overCents > 0 ? "border-red-500/60 bg-red-500/10" : "border-white/10 bg-white/[0.03]"}`}>
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/55">{t("breakdown.allocated")}</span>
               <span className="font-semibold">{centsLabel(allocation.allocatedCents, currency)} / {centsLabel(sourceCents, currency)}</span>
             </div>
-            {allocation.overCents > 0 ? <p className="text-xs text-amber-300" role="alert">{t("breakdown.over", { amount: centsLabel(allocation.overCents, currency) })}</p>
+            {allocation.overCents > 0 ? <p className="text-xs text-red-300" role="alert">{t("breakdown.over", { amount: centsLabel(allocation.overCents, currency) })}</p>
               : allocation.remainingCents > 0 ? <p className="text-xs text-yellow-300" role="status">{t("breakdown.remaining", { amount: centsLabel(allocation.remainingCents, currency) })}</p> : null}
           </div>
           {!isOnline && <p className="text-xs text-amber-300" role="alert">{t("breakdown.offline")}</p>}
