@@ -32,12 +32,12 @@ type BreakdownRow = {
   description: string;
   amount: string;
   categoryId: string;
-  amountAutoFilled: boolean;
 };
 
 type Props = {
   tx: Transaction | any;
   categories: any[];
+  accountCurrency: string;
   open: boolean;
   isOnline: boolean;
   onClose: () => void;
@@ -45,8 +45,8 @@ type Props = {
   onFailure?: () => void;
 };
 
-function makeRow(index: number, description = "", amount = "", categoryId = "none", amountAutoFilled = false): BreakdownRow {
-  return { id: `breakdown-${Date.now()}-${index}`, description, amount, categoryId, amountAutoFilled };
+function makeRow(index: number, description = "", amount = "", categoryId = "none"): BreakdownRow {
+  return { id: `breakdown-${Date.now()}-${index}`, description, amount, categoryId };
 }
 
 function parseCents(value: string): number | null {
@@ -69,27 +69,25 @@ function errorCode(error: unknown): string | null {
     : null;
 }
 
-export function TransactionBreakdownSheet({ tx, categories, open, isOnline, onClose, onSuccess, onFailure }: Props) {
+export function TransactionBreakdownSheet({ tx, categories, accountCurrency, open, isOnline, onClose, onSuccess, onFailure }: Props) {
   const sourceCents = Math.round(Number(tx.amount) * 100);
-  const currency = tx.transactionCurrency ?? tx.accountCurrency ?? "EUR";
-  const firstHalf = Math.floor(sourceCents / 2);
+  const currency = accountCurrency;
   const [rows, setRows] = useState<BreakdownRow[]>(() => [
-    makeRow(0, "", formatAmount(firstHalf), tx.categoryId ? String(tx.categoryId) : "none"),
-    makeRow(1, "", formatAmount(sourceCents - firstHalf), "none", true),
+    makeRow(0),
+    makeRow(1),
   ]);
   const firstDescriptionRef = useRef<HTMLInputElement>(null);
   const breakdown = useBreakdownTransaction();
 
   useEffect(() => {
     if (!open) return;
-    const firstHalfNext = Math.floor(sourceCents / 2);
     setRows([
-      makeRow(0, "", formatAmount(firstHalfNext), tx.categoryId ? String(tx.categoryId) : "none"),
-      makeRow(1, "", formatAmount(sourceCents - firstHalfNext), "none", true),
+      makeRow(0),
+      makeRow(1),
     ]);
     const focusTimer = window.setTimeout(() => firstDescriptionRef.current?.focus(), 80);
     return () => window.clearTimeout(focusTimer);
-  }, [open, tx.id, sourceCents, tx.categoryId]);
+  }, [open, tx.id]);
 
   const allocation = useMemo(() => {
     const parsed = rows.map(row => parseCents(row.amount));
@@ -109,24 +107,12 @@ export function TransactionBreakdownSheet({ tx, categories, open, isOnline, onCl
   function updateRow(id: string, patch: Partial<BreakdownRow>) {
     setRows(current => {
       const next = current.map(row => row.id === id ? { ...row, ...patch } : row);
-      const changedIndex = next.findIndex(row => row.id === id);
-      const changedAmount = patch.amount !== undefined;
-      const isLast = changedIndex === next.length - 1;
-      if (changedAmount && isLast) next[changedIndex]!.amountAutoFilled = false;
-      const final = next[next.length - 1];
-      if (changedAmount && !isLast && final?.amountAutoFilled) {
-        const otherCents = next.slice(0, -1).reduce((sum, row) => sum + (parseCents(row.amount) ?? 0), 0);
-        final.amount = formatAmount(Math.max(0, sourceCents - otherCents));
-      }
       return next;
     });
   }
 
   function addRow() {
-    setRows(current => {
-      const allocatedCents = current.reduce((sum, row) => sum + (parseCents(row.amount) ?? 0), 0);
-      return [...current, makeRow(current.length, "", formatAmount(Math.max(0, sourceCents - allocatedCents)), "none", true)];
-    });
+    setRows(current => [...current, makeRow(current.length)]);
   }
 
   function removeRow(id: string) {
@@ -254,8 +240,4 @@ export function TransactionBreakdownSheet({ tx, categories, open, isOnline, onCl
       </DialogContent>
     </Dialog>
   );
-}
-
-function formatAmount(cents: number): string {
-  return (cents / 100).toFixed(2);
 }

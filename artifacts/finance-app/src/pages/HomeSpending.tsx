@@ -2457,6 +2457,7 @@ export default function HomeSpending() {
         <TransactionBreakdownSheet
           tx={breakdownTx}
           categories={categories ?? []}
+          accountCurrency={prefs.currency}
           open={!!breakdownTx}
           isOnline={isOnline}
           onClose={() => setBreakdownTx(null)}
