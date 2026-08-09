@@ -59,6 +59,17 @@ function decimalCents(value: unknown): number | null {
   return rounded;
 }
 
+async function deleteReceiptObjectsBestEffort(urls: string[]): Promise<void> {
+  const results = await Promise.allSettled(
+    [...new Set(urls)].map(url => objectStorageService.deleteObjectEntity(url)),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.warn({ err: result.reason }, "Failed to delete receipt object after transaction breakdown");
+    }
+  }
+}
+
 function getReceiptImages(tx: any): string[] {
   const images = Array.isArray(tx.receiptImages)
     ? tx.receiptImages.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
@@ -796,6 +807,14 @@ router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
       const receiptRows = await dbTx.select({ storageUrl: transactionReceiptsTable.storageUrl })
         .from(transactionReceiptsTable)
         .where(eq(transactionReceiptsTable.transactionId, params.data.id));
+      const legacyReceiptUrls = [
+        ...(Array.isArray(source.receipt_images)
+          ? source.receipt_images.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
+          : []),
+        ...(typeof source.receipt_image === "string" && source.receipt_image.length > 0
+          ? [source.receipt_image]
+          : []),
+      ];
 
       const replacementValues = parsed.data.rows.map((row, index) => ({
         amount: (rowCents[index]! / 100).toFixed(2),
@@ -817,13 +836,25 @@ router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
         .returning();
 
       await dbTx.delete(goalContributionsTable)
-        .where(eq(goalContributionsTable.transactionId, params.data.id));
+        .where(and(
+          eq(goalContributionsTable.transactionId, params.data.id),
+          eq(goalContributionsTable.userId, userId),
+        ));
       await dbTx.delete(recurringPaymentLogsTable)
-        .where(eq(recurringPaymentLogsTable.transactionId, params.data.id));
+        .where(and(
+          eq(recurringPaymentLogsTable.transactionId, params.data.id),
+          eq(recurringPaymentLogsTable.userId, userId),
+        ));
       await dbTx.delete(transactionsTable)
         .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)));
 
-      return { inserted, receiptUrls: receiptRows.map(row => row.storageUrl) };
+      return {
+        inserted,
+        receiptUrls: [
+          ...receiptRows.map(row => row.storageUrl),
+          ...legacyReceiptUrls,
+        ],
+      };
     });
 
     const categoryIdsForCreated = [...new Set(
@@ -837,7 +868,7 @@ router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
       enrichTransaction(tx, tx.categoryId ? categoryMap.get(tx.categoryId) : null, currentUser),
     );
 
-    await Promise.allSettled(result.receiptUrls.map(url => objectStorageService.deleteObjectEntity(url)));
+    await deleteReceiptObjectsBestEffort(result.receiptUrls);
 
     for (const row of parsed.data.rows) {
       if (row.categoryId !== null) {

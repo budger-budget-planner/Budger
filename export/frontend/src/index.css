@@ -338,14 +338,32 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
-/* Prevent accidental text selection while editing the transaction breakdown. */
+/* iOS Safari should keep the breakdown sheet from becoming a text-selection
+   or long-press callout target while the user edits allocation rows. */
 .breakdown-sheet-no-selection,
 .breakdown-sheet-no-selection * {
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 .breakdown-sheet-no-selection input,
 .breakdown-sheet-no-selection textarea {
+  -webkit-user-select: text;
   user-select: text;
+}
+
+html.breakdown-open,
+html.breakdown-open * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breakdown-sheet-no-selection,
+  .breakdown-sheet-no-selection * {
+    scroll-behavior: auto;
+  }
 }
 
 /* ── Global diamond-spark keyframes ── */
