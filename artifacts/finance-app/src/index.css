@@ -50,68 +50,68 @@ html.breakdown-open * {
 }
 
 @keyframes breakdown-half-left {
-  0%, 34% {
+  0%, 68% {
     transform: translateX(0) rotate(0deg);
-    clip-path: polygon(0 0, 50% 0, 50% 13%, 50% 25%, 50% 38%, 50% 49%, 50% 62%, 50% 76%, 50% 87%, 50% 100%, 0 100%);
     opacity: 1;
   }
-  45% {
-    transform: translateX(0) rotate(0deg);
-    clip-path: polygon(0 0, 50% 0, 46% 13%, 54% 25%, 44% 38%, 53% 49%, 45% 62%, 56% 76%, 48% 87%, 53% 100%, 0 100%);
-    opacity: 1;
-  }
-  54% {
-    transform: translateX(0) rotate(0deg);
-    clip-path: polygon(0 0, 50% 0, 37.5% 13%, 62.5% 25%, 33.3% 38%, 58.3% 49%, 37.5% 62%, 66.7% 76%, 45.8% 87%, 58.3% 100%, 0 100%);
-    opacity: 1;
-  }
-  66% {
+  74% {
     transform: translateX(-7px) rotate(-0.35deg);
-    clip-path: polygon(0 0, 50% 0, 37.5% 13%, 62.5% 25%, 33.3% 38%, 58.3% 49%, 37.5% 62%, 66.7% 76%, 45.8% 87%, 58.3% 100%, 0 100%);
     opacity: 1;
   }
-  76% {
+  82% {
     transform: translateX(-16px) rotate(-0.9deg);
-    clip-path: polygon(0 0, 50% 0, 37.5% 13%, 62.5% 25%, 33.3% 38%, 58.3% 49%, 37.5% 62%, 66.7% 76%, 45.8% 87%, 58.3% 100%, 0 100%);
     opacity: 1;
   }
   100% { transform: translateX(-130%) rotate(-6deg); opacity: 0; }
 }
 
 @keyframes breakdown-half-right {
-  0%, 34% {
+  0%, 68% {
     transform: translateX(0) rotate(0deg);
-    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%, 50% 87%, 50% 76%, 50% 62%, 50% 49%, 50% 38%, 50% 25%, 50% 13%);
     opacity: 1;
   }
-  45% {
-    transform: translateX(0) rotate(0deg);
-    clip-path: polygon(50% 0, 100% 0, 100% 100%, 53% 100%, 48% 87%, 56% 76%, 45% 62%, 55% 49%, 47% 38%, 54% 25%, 46% 13%);
-    opacity: 1;
-  }
-  54% {
-    transform: translateX(0) rotate(0deg);
-    clip-path: polygon(50% 0, 100% 0, 100% 100%, 58.3% 100%, 45.8% 87%, 66.7% 76%, 37.5% 62%, 58.3% 49%, 33.3% 38%, 62.5% 25%, 37.5% 13%);
-    opacity: 1;
-  }
-  66% {
+  74% {
     transform: translateX(7px) rotate(0.35deg);
-    clip-path: polygon(50% 0, 100% 0, 100% 100%, 58.3% 100%, 45.8% 87%, 66.7% 76%, 37.5% 62%, 58.3% 49%, 33.3% 38%, 62.5% 25%, 37.5% 13%);
     opacity: 1;
   }
-  76% {
+  82% {
     transform: translateX(16px) rotate(0.9deg);
-    clip-path: polygon(50% 0, 100% 0, 100% 100%, 58.3% 100%, 45.8% 87%, 66.7% 76%, 37.5% 62%, 58.3% 49%, 33.3% 38%, 62.5% 25%, 37.5% 13%);
     opacity: 1;
   }
   100% { transform: translateX(130%) rotate(6deg); opacity: 0; }
+}
+
+@keyframes breakdown-surface-left {
+  0%, 68% {
+    clip-path: polygon(0 0, 50% 0, 50% 13%, 50% 25%, 50% 38%, 50% 49%, 50% 62%, 50% 76%, 50% 87%, 50% 100%, 0 100%);
+  }
+  74% {
+    clip-path: polygon(0 0, 50% 0, 46% 13%, 54% 25%, 44% 38%, 53% 49%, 45% 62%, 56% 76%, 48% 87%, 53% 100%, 0 100%);
+  }
+  82%, 100% {
+    clip-path: polygon(0 0, 50% 0, 37.5% 13%, 62.5% 25%, 33.3% 38%, 58.3% 49%, 37.5% 62%, 66.7% 76%, 45.8% 87%, 58.3% 100%, 0 100%);
+  }
+}
+
+@keyframes breakdown-surface-right {
+  0%, 68% {
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%, 50% 87%, 50% 76%, 50% 62%, 50% 49%, 50% 38%, 50% 25%, 50% 13%);
+  }
+  74% {
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 53% 100%, 48% 87%, 56% 76%, 45% 62%, 55% 49%, 47% 38%, 54% 25%, 46% 13%);
+  }
+  82%, 100% {
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 58.3% 100%, 45.8% 87%, 66.7% 76%, 37.5% 62%, 58.3% 49%, 33.3% 38%, 62.5% 25%, 37.5% 13%);
+  }
 }
 
 @keyframes breakdown-crack {
   0%, 28% { opacity: 0; stroke-dashoffset: 1; }
   38% { opacity: 0.45; stroke-dashoffset: 0.72; }
   50% { opacity: 0.95; stroke-dashoffset: 0.18; }
-  58% { opacity: 0; stroke-dashoffset: 0; }
+  58%, 70% { opacity: 1; stroke-dashoffset: 0; }
+  86% { opacity: 0.92; stroke-dashoffset: 0; }
+  96% { opacity: 0; stroke-dashoffset: 0; }
   100% { opacity: 0; stroke-dashoffset: 0; }
 }
 
@@ -134,12 +134,9 @@ html.breakdown-open * {
   position: absolute;
   inset: 0;
   overflow: visible;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: inherit;
   box-sizing: border-box;
   backface-visibility: hidden;
-  will-change: transform, clip-path, opacity;
+  will-change: transform, opacity;
 }
 
 .breakdown-exit-half-left {
@@ -150,10 +147,29 @@ html.breakdown-open * {
   animation: breakdown-half-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.breakdown-split-edge {
+.breakdown-exit-half-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: inherit;
+  box-sizing: border-box;
+  will-change: clip-path;
+}
+
+.breakdown-exit-half-surface-left {
+  animation: breakdown-surface-left 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.breakdown-exit-half-surface-right {
+  animation: breakdown-surface-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.breakdown-crack {
   position: absolute;
   inset: 0 auto 0 calc(50% - 12px);
-  z-index: 3;
+  z-index: 5;
   width: 24px;
   height: 100%;
   overflow: visible;
@@ -164,75 +180,6 @@ html.breakdown-open * {
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  filter: drop-shadow(0 0 3px rgba(170, 170, 170, 0.22));
-}
-
-@keyframes breakdown-split-edge-left {
-  0%, 34% {
-    opacity: 0;
-    transform: translateX(0) rotate(0deg);
-  }
-  45% {
-    opacity: 0.45;
-    transform: translateX(-2px) rotate(-0.1deg);
-  }
-  58% {
-    opacity: 0.9;
-    transform: translateX(-8px) rotate(-0.4deg);
-  }
-  76% {
-    opacity: 1;
-    transform: translateX(-16px) rotate(-0.9deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-130%) rotate(-6deg);
-  }
-}
-
-@keyframes breakdown-split-edge-right {
-  0%, 34% {
-    opacity: 0;
-    transform: translateX(0) rotate(0deg);
-  }
-  45% {
-    opacity: 0.45;
-    transform: translateX(2px) rotate(0.1deg);
-  }
-  58% {
-    opacity: 0.9;
-    transform: translateX(8px) rotate(0.4deg);
-  }
-  76% {
-    opacity: 1;
-    transform: translateX(16px) rotate(0.9deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(130%) rotate(6deg);
-  }
-}
-
-.breakdown-split-edge-left {
-  animation: breakdown-split-edge-left 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.breakdown-split-edge-right {
-  animation: breakdown-split-edge-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.breakdown-crack {
-  position: absolute;
-  inset: 0 auto 0 calc(50% - 12px);
-  z-index: 4;
-  width: 24px;
-  height: 100%;
-  overflow: visible;
-  stroke: rgba(170, 170, 170, 0.92);
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   filter: drop-shadow(0 0 4px rgba(170, 170, 170, 0.28));
@@ -246,8 +193,8 @@ html.breakdown-open * {
 @media (prefers-reduced-motion: reduce) {
   .breakdown-exit-half-left,
   .breakdown-exit-half-right,
-  .breakdown-split-edge-left,
-  .breakdown-split-edge-right,
+  .breakdown-exit-half-surface-left,
+  .breakdown-exit-half-surface-right,
   .breakdown-crack,
   .breakdown-row-enter {
     animation-duration: 0.01ms;
