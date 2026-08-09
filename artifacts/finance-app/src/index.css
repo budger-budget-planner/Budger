@@ -140,7 +140,9 @@ html.breakdown-open * {
 }
 
 .breakdown-exit-half-right {
-  z-index: 1;
+  /* The right edge must remain visible while the two full-size half layers
+     still overlap during the first part of the pull-apart. */
+  z-index: 3;
   animation: breakdown-half-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
