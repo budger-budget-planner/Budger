@@ -131,8 +131,9 @@ html.breakdown-open * {
 
 .breakdown-split-edge {
   position: absolute;
-  inset: 0 auto 0 50%;
-  width: 18px;
+  inset: 0 auto 0 calc(50% - 12px);
+  z-index: 3;
+  width: 24px;
   height: 100%;
   overflow: visible;
   pointer-events: none;
@@ -143,18 +144,48 @@ html.breakdown-open * {
   fill: none;
   opacity: 0;
   filter: drop-shadow(0 0 3px rgba(170, 170, 170, 0.22));
-  animation: breakdown-split-edge 1.45s ease-in-out forwards;
 }
 
-@keyframes breakdown-split-edge {
+@keyframes breakdown-split-edge-left {
+  0%, 45% {
+    opacity: 0;
+    transform: translateX(0) rotate(0deg);
+  }
+  55%, 75% {
+    opacity: 1;
+    transform: translateX(-16px) rotate(-0.9deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-130%) rotate(-6deg);
+  }
+}
+
+@keyframes breakdown-split-edge-right {
   0%, 45% { opacity: 0; }
-  55%, 100% { opacity: 1; }
+  55%, 75% {
+    opacity: 1;
+    transform: translateX(16px) rotate(0.9deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(130%) rotate(6deg);
+  }
+}
+
+.breakdown-split-edge-left {
+  animation: breakdown-split-edge-left 1.45s ease-in-out forwards;
+}
+
+.breakdown-split-edge-right {
+  animation: breakdown-split-edge-right 1.45s ease-in-out forwards;
 }
 
 .breakdown-crack {
   position: absolute;
-  inset: 0 auto 0 50%;
-  width: 18px;
+  inset: 0 auto 0 calc(50% - 12px);
+  z-index: 4;
+  width: 24px;
   height: 100%;
   overflow: visible;
   stroke: rgba(170, 170, 170, 0.92);
