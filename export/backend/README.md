@@ -3,6 +3,7 @@
 This is Budger, split out of its original pnpm monorepo into two independent,
 deployable projects:
 
+
 - **`frontend/`** — React + Vite PWA. Deploy to Vercel.
 - **`backend/`** — Express API + Postgres (Neon) + Supabase Storage. Deploy
   to any Node host (Render, Railway, Fly.io, a VPS, …).
@@ -36,6 +37,7 @@ and no dependency on the other folder or on the original monorepo.
 - Nothing about the database or file storage logic changed — this package
   already talks to Neon Postgres and Supabase Storage directly, not to any
   Replit-managed service.
+
 
 
 

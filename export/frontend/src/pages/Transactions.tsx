@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
@@ -6,6 +6,7 @@ import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { ReceiptManager } from "@/components/ReceiptManager";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
+import { TransactionBreakdownSheet } from "@/components/TransactionBreakdownSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
   useListTransactions,
@@ -37,7 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ChevronLeft, ChevronRight, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -695,6 +696,14 @@ function getPaymentLabel(): Record<string, string> {
   };
 }
 
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_MOVE_TOLERANCE = 12;
+
+function isTransactionControl(target: EventTarget | null): boolean {
+  return target instanceof Element &&
+    !!target.closest("button, input, textarea, select, a, [role='button']");
+}
+
 export default function TransactionsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
@@ -704,6 +713,7 @@ export default function TransactionsPage() {
   const [editTx, setEditTx] = useState<any | null>(null);
   const [receiptTx, setReceiptTx] = useState<any | null>(null);
   const [convertTx, setConvertTx] = useState<any | null>(null);
+  const [breakdownTx, setBreakdownTx] = useState<any | null>(null);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -711,6 +721,13 @@ export default function TransactionsPage() {
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
   const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
   const [nameEditValue, setNameEditValue] = useState("");
+  const longPressRef = useRef<{
+    txId: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    timer: number;
+  } | null>(null);
   const updateMerchantRule = useUpdateMerchantCategoryRule();
 
   const now = new Date();
@@ -723,6 +740,42 @@ export default function TransactionsPage() {
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
   const { data: larderSummary } = useGetLarder();
+
+  function cancelTransactionLongPress() {
+    const pending = longPressRef.current;
+    if (pending) window.clearTimeout(pending.timer);
+    longPressRef.current = null;
+  }
+
+  function startTransactionLongPress(event: ReactPointerEvent<HTMLDivElement>, tx: any) {
+    if (!isOnline || event.pointerType === "mouse" || event.button !== 0 || isTransactionControl(event.target)) return;
+    cancelTransactionLongPress();
+    const pending = {
+      txId: tx.id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: 0,
+    };
+    pending.timer = window.setTimeout(() => {
+      const active = longPressRef.current;
+      if (!active || active.txId !== tx.id || active.pointerId !== event.pointerId) return;
+      longPressRef.current = null;
+      setBreakdownTx(tx);
+    }, LONG_PRESS_MS);
+    longPressRef.current = pending;
+  }
+
+  function moveTransactionLongPress(event: ReactPointerEvent<HTMLDivElement>) {
+    const pending = longPressRef.current;
+    if (!pending || pending.pointerId !== event.pointerId) return;
+    if (
+      Math.abs(event.clientX - pending.startX) > LONG_PRESS_MOVE_TOLERANCE ||
+      Math.abs(event.clientY - pending.startY) > LONG_PRESS_MOVE_TOLERANCE
+    ) {
+      cancelTransactionLongPress();
+    }
+  }
 
   // Map of transactionId → total larder amount for transactions whose amount was
   // dedicated to the Larder (e.g. user selected "Larder" category/goal on a transaction).
@@ -1000,7 +1053,19 @@ export default function TransactionsPage() {
               const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (${t("tx.goal")})` : isRP ? t("tx.recurring_payment") : t("common.uncategorized"));
               const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? tx.recurringPaymentColor ?? "#94a3b8";
               return (
-                <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
+                <div
+                  key={tx.id}
+                  data-testid={`row-transaction-${tx.id}`}
+                  className="transaction-row flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group"
+                  onPointerDown={event => startTransactionLongPress(event, tx)}
+                  onPointerMove={moveTransactionLongPress}
+                  onPointerUp={cancelTransactionLongPress}
+                  onPointerCancel={cancelTransactionLongPress}
+                  onPointerLeave={cancelTransactionLongPress}
+                  onContextMenu={event => {
+                    if (!isTransactionControl(event.target)) event.preventDefault();
+                  }}
+                >
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />
                   <div className="flex-1 min-w-0">
                     {nameEditTxId === tx.id ? (
@@ -1085,7 +1150,19 @@ export default function TransactionsPage() {
                     </span>
                   )}
 
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <div className="transaction-action-group flex gap-1 transition-opacity flex-shrink-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="w-7 h-7"
+                      title={t("breakdown.open")}
+                      aria-label={t("breakdown.open")}
+                      data-testid={`button-breakdown-transaction-${tx.id}`}
+                      onClick={() => setBreakdownTx(tx)}
+                      disabled={!isOnline}
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -1192,6 +1269,21 @@ export default function TransactionsPage() {
           accountCurrency={prefs.currency}
           onClose={() => setConvertTx(null)}
           onConverted={() => invalidateAll(queryClient, currentMonth)}
+        />
+      )}
+
+      {breakdownTx && (
+        <TransactionBreakdownSheet
+          tx={breakdownTx}
+          categories={categories ?? []}
+          accountCurrency={prefs.currency}
+          open={!!breakdownTx}
+          isOnline={isOnline}
+          onClose={() => setBreakdownTx(null)}
+          onSuccess={() => {
+            setBreakdownTx(null);
+            invalidateAll(queryClient, currentMonth);
+          }}
         />
       )}
 

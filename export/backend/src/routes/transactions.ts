@@ -28,10 +28,47 @@ import {
   GetTransactionParams,
   ListTransactionsQueryParams,
   ExtractScreenshotTransactionsBody,
+  BreakdownTransactionBody,
+  BreakdownTransactionParams,
 } from "../api-zod";
 const router: IRouter = Router();
 
 const MAX_RECEIPT_IMAGES = 3;
+
+class BreakdownRequestError extends Error {
+  constructor(
+    readonly code:
+      | "breakdown_unauthenticated"
+      | "breakdown_invalid_source"
+      | "breakdown_invalid_rows"
+      | "breakdown_source_not_found"
+      | "breakdown_source_ineligible"
+      | "breakdown_total_mismatch"
+      | "breakdown_category_unavailable",
+    readonly status = 400,
+  ) {
+    super(code);
+  }
+}
+
+function decimalCents(value: unknown): number | null {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  const rounded = Math.round(numeric * 100);
+  if (!Number.isSafeInteger(rounded) || Math.abs(numeric - rounded / 100) > 1e-8) return null;
+  return rounded;
+}
+
+async function deleteReceiptObjectsBestEffort(urls: string[]): Promise<void> {
+  const results = await Promise.allSettled(
+    [...new Set(urls)].map(url => objectStorageService.deleteObjectEntity(url)),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.warn({ err: result.reason }, "Failed to delete receipt object after transaction breakdown");
+    }
+  }
+}
 
 function getReceiptImages(tx: any): string[] {
   const images = Array.isArray(tx.receiptImages)
@@ -676,6 +713,181 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
   const rp = await loadRPForTx(tx.recurringPaymentId);
 
   res.json(await enrichTransaction(tx, category, user, rp));
+});
+
+router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "breakdown_unauthenticated" });
+    return;
+  }
+
+  const params = BreakdownTransactionParams.safeParse(req.params);
+  if (!params.success || !Number.isSafeInteger(params.data.id) || params.data.id <= 0) {
+    res.status(400).json({ error: "breakdown_invalid_source" });
+    return;
+  }
+
+  const parsed = BreakdownTransactionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const descriptions = parsed.data.rows.map(row => row.description.trim());
+  if (descriptions.some(description => description.length === 0)) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const rowCents = parsed.data.rows.map(row => decimalCents(row.amount));
+  if (rowCents.some(amount => amount === null)) {
+    res.status(400).json({ error: "breakdown_invalid_rows" });
+    return;
+  }
+
+  const categoryIds = [...new Set(
+    parsed.data.rows
+      .map(row => row.categoryId)
+      .filter((id): id is number => id !== null),
+  )];
+
+  try {
+    const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!currentUser) throw new BreakdownRequestError("breakdown_unauthenticated", 401);
+
+    const result = await db.transaction(async (dbTx) => {
+      const locked = await dbTx.execute(sql`
+        SELECT * FROM transactions
+        WHERE id = ${params.data.id} AND user_id = ${userId}
+        FOR UPDATE
+      `);
+      const source = (locked.rows[0] as any) ?? null;
+      if (!source) throw new BreakdownRequestError("breakdown_source_not_found", 404);
+
+      const sourceCents = decimalCents(source.amount);
+      if (sourceCents === null) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const ineligible = Boolean(
+        source.split_id ||
+        source.split_role ||
+        source.split_group_id ||
+        source.recurring_payment_id ||
+        source.is_larder_fund ||
+        source.founded_with_realized_goal ||
+        source.currency_unavailable,
+      );
+      if (ineligible) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const [larderDedication] = await dbTx.select({ id: larderEntriesTable.id })
+        .from(larderEntriesTable)
+        .where(and(
+          eq(larderEntriesTable.userId, userId),
+          eq(larderEntriesTable.sourceType, "transaction_dedication"),
+          eq(larderEntriesTable.sourceId, params.data.id),
+        ))
+        .limit(1);
+      if (larderDedication) throw new BreakdownRequestError("breakdown_source_ineligible");
+
+      const totalCents = (rowCents as number[]).reduce((sum, amount) => sum + amount, 0);
+      if (totalCents !== sourceCents) throw new BreakdownRequestError("breakdown_total_mismatch");
+
+      if (categoryIds.length > 0) {
+        const ownedCategories = await dbTx.select({ id: categoriesTable.id })
+          .from(categoriesTable)
+          .where(and(
+            eq(categoriesTable.userId, userId),
+            inArray(categoriesTable.id, categoryIds),
+          ));
+        if (ownedCategories.length !== categoryIds.length) {
+          throw new BreakdownRequestError("breakdown_category_unavailable");
+        }
+      }
+
+      const receiptRows = await dbTx.select({ storageUrl: transactionReceiptsTable.storageUrl })
+        .from(transactionReceiptsTable)
+        .where(eq(transactionReceiptsTable.transactionId, params.data.id));
+      const legacyReceiptUrls = [
+        ...(Array.isArray(source.receipt_images)
+          ? source.receipt_images.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
+          : []),
+        ...(typeof source.receipt_image === "string" && source.receipt_image.length > 0
+          ? [source.receipt_image]
+          : []),
+      ];
+
+      const replacementValues = parsed.data.rows.map((row, index) => ({
+        amount: (rowCents[index]! / 100).toFixed(2),
+        description: descriptions[index]!,
+        categoryId: row.categoryId,
+        date: source.date,
+        paymentMethod: source.payment_method,
+        userId,
+        householdId: source.household_id ?? null,
+        transactionCurrency: source.transaction_currency ?? null,
+        currencyLocked: source.currency_locked ?? false,
+        categoryAutoAssigned: false,
+        receiptImage: null,
+        receiptImages: [],
+      }));
+
+      const inserted = await dbTx.insert(transactionsTable)
+        .values(replacementValues)
+        .returning();
+
+      await dbTx.delete(goalContributionsTable)
+        .where(and(
+          eq(goalContributionsTable.transactionId, params.data.id),
+          eq(goalContributionsTable.userId, userId),
+        ));
+      await dbTx.delete(recurringPaymentLogsTable)
+        .where(and(
+          eq(recurringPaymentLogsTable.transactionId, params.data.id),
+          eq(recurringPaymentLogsTable.userId, userId),
+        ));
+      await dbTx.delete(transactionsTable)
+        .where(and(eq(transactionsTable.id, params.data.id), eq(transactionsTable.userId, userId)));
+
+      return {
+        inserted,
+        receiptUrls: [
+          ...receiptRows.map(row => row.storageUrl),
+          ...legacyReceiptUrls,
+        ],
+      };
+    });
+
+    const categoryIdsForCreated = [...new Set(
+      result.inserted.map(tx => tx.categoryId).filter((id): id is number => id !== null),
+    )];
+    const createdCategories = categoryIdsForCreated.length > 0
+      ? await db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIdsForCreated))
+      : [];
+    const categoryMap = new Map(createdCategories.map(category => [category.id, category]));
+    const enriched = result.inserted.map(tx =>
+      enrichTransaction(tx, tx.categoryId ? categoryMap.get(tx.categoryId) : null, currentUser),
+    );
+
+    await deleteReceiptObjectsBestEffort(result.receiptUrls);
+
+    for (const row of parsed.data.rows) {
+      if (row.categoryId !== null) {
+        try {
+          await recordMerchantAssignment(userId, row.description.trim(), row.categoryId);
+        } catch (err) {
+          logger.warn({ err, userId }, "Could not record breakdown merchant category assignment");
+        }
+      }
+    }
+
+    res.status(201).json({ transactions: enriched, receiptBehavior: "discarded" });
+  } catch (err) {
+    if (err instanceof BreakdownRequestError) {
+      res.status(err.status).json({ error: err.code });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.patch("/transactions/:id", async (req, res): Promise<void> => {

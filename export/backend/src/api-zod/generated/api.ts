@@ -401,6 +401,26 @@ export const GetTransactionResponse = zod.object({
 });
 
 /**
+ * @summary Atomically replace an ordinary transaction with allocated rows
+ */
+export const BreakdownTransactionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const BreakdownTransactionBody = zod.object({
+  rows: zod.array(zod.object({
+    description: zod.string(),
+    amount: zod.number(),
+    categoryId: zod.number().nullable(),
+  })).min(2),
+});
+
+export const BreakdownTransactionResponse = zod.object({
+  transactions: zod.array(GetTransactionResponse),
+  receiptBehavior: zod.literal("discarded"),
+});
+
+/**
  * @summary Update a transaction
  */
 export const UpdateTransactionParams = zod.object({

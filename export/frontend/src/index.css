@@ -338,6 +338,56 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
+/* iOS Safari should keep the breakdown sheet from becoming a text-selection
+   or long-press callout target while the user edits allocation rows. */
+.breakdown-sheet-no-selection,
+.breakdown-sheet-no-selection * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.breakdown-sheet-no-selection input,
+.breakdown-sheet-no-selection textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Transaction actions must be reachable on touch screens, where hover never
+   occurs. Keep the compact hover reveal only for devices that actually have
+   a precise hover pointer. */
+.transaction-action-group {
+  opacity: 1;
+}
+
+.transaction-row {
+  touch-action: pan-y;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .transaction-action-group {
+    opacity: 0;
+  }
+
+  .group:hover .transaction-action-group,
+  .group:focus-within .transaction-action-group {
+    opacity: 1;
+  }
+}
+
+html.breakdown-open,
+html.breakdown-open * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breakdown-sheet-no-selection,
+  .breakdown-sheet-no-selection * {
+    scroll-behavior: auto;
+  }
+}
+
 /* ── Global diamond-spark keyframes ── */
 @keyframes gemFlash {
   0%   { opacity: 0; transform: scale(0.15) rotate(0deg); }
