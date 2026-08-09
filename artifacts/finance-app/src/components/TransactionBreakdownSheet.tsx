@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Scissors, Trash2 } from "lucide-react";
+import { ListPlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
@@ -169,7 +169,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
       >
         <DialogHeader className="pr-7">
           <DialogTitle className="flex items-center gap-2">
-            <Scissors className="w-4 h-4 text-white/60" />
+            <ListPlus className="w-4 h-4 text-white/60" />
             {t("breakdown.title")}
           </DialogTitle>
           <DialogDescription>

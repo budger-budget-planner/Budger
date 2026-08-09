@@ -142,7 +142,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "breakdown.add_row":        { en: "Add another row",                     pl: "Dodaj kolejny wiersz"             },
   "breakdown.remove":         { en: "Remove",                              pl: "Usuń"                             },
   "breakdown.remove_row":     { en: "Remove breakdown row",                 pl: "Usuń wiersz podziału"             },
-  "breakdown.max_amount":     { en: "Max. {amount}",                       pl: "Maks. {amount}"                   },
+  "breakdown.max_amount":     { en: "{amount} left to allocate",            pl: "Pozostało do przydzielenia: {amount}" },
   "breakdown.allocated":      { en: "Allocated",                           pl: "Przydzielono"                     },
   "breakdown.remaining":      { en: "{amount} left. Allocate the entire sum to complete the breakdown.", pl: "Pozostało {amount}. Przydziel całą kwotę, aby zakończyć rozbijanie transakcji." },
   "breakdown.over":            { en: "Allocated amount is higher than the original by {amount}.", pl: "Przydzielona kwota przewyższa oryginał o {amount}." },
