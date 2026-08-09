@@ -27,3 +27,4 @@
 - [Larder stack visual cue](larder-stack-cue.md) — show two subtle offset layers behind the outer surface; never restore the nested active-card panel
 - [Larder history visibility](larder-history-visibility.md) — keep history out of Larder card surfaces while preserving stored entries and balance logic
 - [Larder assignment atomicity](larder-assignment-atomicity.md) — debit and bucket-credit rows must commit together so a failed assignment cannot leave a partial balance
+- [Finance Tracker local database](finance-tracker-local-db.md) — the live API uses an isolated local PostgreSQL cluster, separate from the workspace-managed database
