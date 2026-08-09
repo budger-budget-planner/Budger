@@ -352,6 +352,24 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   user-select: text;
 }
 
+/* Transaction actions must be reachable on touch screens, where hover never
+   occurs. Keep the compact hover reveal only for devices that actually have
+   a precise hover pointer. */
+.transaction-action-group {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .transaction-action-group {
+    opacity: 0;
+  }
+
+  .group:hover .transaction-action-group,
+  .group:focus-within .transaction-action-group {
+    opacity: 1;
+  }
+}
+
 html.breakdown-open,
 html.breakdown-open * {
   -webkit-user-select: none;
