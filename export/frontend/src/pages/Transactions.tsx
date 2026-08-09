@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
@@ -696,6 +696,14 @@ function getPaymentLabel(): Record<string, string> {
   };
 }
 
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_MOVE_TOLERANCE = 12;
+
+function isTransactionControl(target: EventTarget | null): boolean {
+  return target instanceof Element &&
+    !!target.closest("button, input, textarea, select, a, [role='button']");
+}
+
 export default function TransactionsPage() {
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
@@ -713,6 +721,13 @@ export default function TransactionsPage() {
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
   const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
   const [nameEditValue, setNameEditValue] = useState("");
+  const longPressRef = useRef<{
+    txId: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    timer: number;
+  } | null>(null);
   const updateMerchantRule = useUpdateMerchantCategoryRule();
 
   const now = new Date();
@@ -725,6 +740,42 @@ export default function TransactionsPage() {
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
   const { data: larderSummary } = useGetLarder();
+
+  function cancelTransactionLongPress() {
+    const pending = longPressRef.current;
+    if (pending) window.clearTimeout(pending.timer);
+    longPressRef.current = null;
+  }
+
+  function startTransactionLongPress(event: ReactPointerEvent<HTMLDivElement>, tx: any) {
+    if (!isOnline || event.pointerType === "mouse" || event.button !== 0 || isTransactionControl(event.target)) return;
+    cancelTransactionLongPress();
+    const pending = {
+      txId: tx.id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: 0,
+    };
+    pending.timer = window.setTimeout(() => {
+      const active = longPressRef.current;
+      if (!active || active.txId !== tx.id || active.pointerId !== event.pointerId) return;
+      longPressRef.current = null;
+      setBreakdownTx(tx);
+    }, LONG_PRESS_MS);
+    longPressRef.current = pending;
+  }
+
+  function moveTransactionLongPress(event: ReactPointerEvent<HTMLDivElement>) {
+    const pending = longPressRef.current;
+    if (!pending || pending.pointerId !== event.pointerId) return;
+    if (
+      Math.abs(event.clientX - pending.startX) > LONG_PRESS_MOVE_TOLERANCE ||
+      Math.abs(event.clientY - pending.startY) > LONG_PRESS_MOVE_TOLERANCE
+    ) {
+      cancelTransactionLongPress();
+    }
+  }
 
   // Map of transactionId → total larder amount for transactions whose amount was
   // dedicated to the Larder (e.g. user selected "Larder" category/goal on a transaction).
@@ -1002,7 +1053,19 @@ export default function TransactionsPage() {
               const displayName  = tx.categoryName ?? (goalContrib ? `${goalContrib.goalName} (${t("tx.goal")})` : isRP ? t("tx.recurring_payment") : t("common.uncategorized"));
               const displayColor = tx.categoryColor ?? goalContrib?.goalColor ?? tx.recurringPaymentColor ?? "#94a3b8";
               return (
-                <div key={tx.id} data-testid={`row-transaction-${tx.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
+                <div
+                  key={tx.id}
+                  data-testid={`row-transaction-${tx.id}`}
+                  className="transaction-row flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group"
+                  onPointerDown={event => startTransactionLongPress(event, tx)}
+                  onPointerMove={moveTransactionLongPress}
+                  onPointerUp={cancelTransactionLongPress}
+                  onPointerCancel={cancelTransactionLongPress}
+                  onPointerLeave={cancelTransactionLongPress}
+                  onContextMenu={event => {
+                    if (!isTransactionControl(event.target)) event.preventDefault();
+                  }}
+                >
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }} />
                   <div className="flex-1 min-w-0">
                     {nameEditTxId === tx.id ? (

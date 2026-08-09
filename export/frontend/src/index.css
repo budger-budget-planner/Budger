@@ -359,6 +359,10 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   opacity: 1;
 }
 
+.transaction-row {
+  touch-action: pan-y;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .transaction-action-group {
     opacity: 0;
