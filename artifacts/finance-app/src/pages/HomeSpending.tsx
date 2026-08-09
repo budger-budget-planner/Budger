@@ -1143,8 +1143,18 @@ function SwipeableTxRow({
 
       {breakdownExit && (
         <div className="breakdown-exit-layer" aria-hidden="true">
-          <div className="breakdown-exit-half breakdown-exit-half-left">{children}</div>
-          <div className="breakdown-exit-half breakdown-exit-half-right">{children}</div>
+          <div className="breakdown-exit-half breakdown-exit-half-left">
+            {children}
+            <svg className="breakdown-split-edge" viewBox="0 0 24 100" preserveAspectRatio="none">
+              <path d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+            </svg>
+          </div>
+          <div className="breakdown-exit-half breakdown-exit-half-right">
+            {children}
+            <svg className="breakdown-split-edge" viewBox="0 0 24 100" preserveAspectRatio="none">
+              <path d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+            </svg>
+          </div>
           <svg className="breakdown-crack" viewBox="0 0 24 100" preserveAspectRatio="none">
             <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
           </svg>
