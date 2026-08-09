@@ -203,7 +203,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
                     <div className="space-y-1.5">
                       <Label htmlFor={`${row.id}-amount`}>{t("common.amount")}</Label>
                       <Input id={`${row.id}-amount`} value={row.amount} onChange={event => updateRow(row.id, { amount: event.target.value })} inputMode="decimal" placeholder="0.00" aria-invalid={!!error && (!!row.amount.trim() || !row.description.trim())} className={allocation.overCents > 0 ? "border-red-500/70 focus-visible:ring-red-500/50" : ""} />
-                      <p className="text-[11px] text-white/40">{t("breakdown.max_amount", { amount: centsLabel(maxCents, currency) })}</p>
+                      <p className="text-[11px] text-white/40 whitespace-nowrap">{t("breakdown.max_amount", { amount: centsLabel(maxCents, currency) })}</p>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`${row.id}-category`}>{t("breakdown.category")}</Label>
