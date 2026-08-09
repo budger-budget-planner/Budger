@@ -150,7 +150,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "breakdown.name_required":   { en: "Enter a name.",                      pl: "Wpisz nazwę."                      },
   "breakdown.amount_required": { en: "Enter an amount.",                   pl: "Wpisz kwotę."                      },
   "breakdown.amount_invalid": { en: "Use a positive amount with up to two decimals.", pl: "Wpisz dodatnią kwotę z maksymalnie dwoma miejscami po przecinku." },
-  "breakdown.submit":          { en: "Break down",                         pl: "Rozbij Transakcje"                 },
+  "breakdown.submit":          { en: "Break",                              pl: "Rozbij"                            },
   "breakdown.submitting":      { en: "Breaking down…",                     pl: "Rozbijanie…"                      },
   "breakdown.success":         { en: "Transaction broken down successfully.", pl: "Transakcja została rozbita."    },
   "breakdown.failed":          { en: "Couldn't break down this transaction. Your original is unchanged.", pl: "Nie udało się rozbić transakcji. Oryginalna pozostała bez zmian." },

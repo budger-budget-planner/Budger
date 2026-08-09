@@ -196,7 +196,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor={`${row.id}-description`}>{t("breakdown.name")}</Label>
+                    <Label className="text-amber-300" htmlFor={`${row.id}-description`}>{t("breakdown.name")}</Label>
                     <Input id={`${row.id}-description`} value={row.description} onChange={event => updateRow(row.id, { description: event.target.value })} placeholder={t("breakdown.name_placeholder")} aria-invalid={!!error && !row.description.trim()} autoComplete="off" />
                   </div>
                   <div className="grid grid-cols-[1fr_1.2fr] gap-2">
