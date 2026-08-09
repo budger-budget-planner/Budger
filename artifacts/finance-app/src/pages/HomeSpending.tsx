@@ -1055,7 +1055,7 @@ function SwipeableTxRow({
   const editSectionW    = leftPanelWidth - receiptSectionW;
 
   return (
-    <div className={`relative overflow-hidden ${breakdownEnter ? "breakdown-row-enter" : ""}`} onClickCapture={onClickCapture}>
+    <div className={`relative ${breakdownExit ? "overflow-visible" : "overflow-hidden"} ${breakdownEnter ? "breakdown-row-enter" : ""}`} onClickCapture={onClickCapture}>
 
       {/* ── LEFT panel: only visible when swiping right ── */}
       {leftPanelWidth > 0 && (
@@ -1146,7 +1146,7 @@ function SwipeableTxRow({
           <div className="breakdown-exit-half breakdown-exit-half-left">{children}</div>
           <div className="breakdown-exit-half breakdown-exit-half-right">{children}</div>
           <svg className="breakdown-crack" viewBox="0 0 24 100" preserveAspectRatio="none">
-            <path d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+            <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
           </svg>
         </div>
       )}
@@ -1823,7 +1823,11 @@ export default function HomeSpending() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
                 {fmtDayDate(date)}
               </p>
-              <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+                <div className={`bg-card border border-border rounded-2xl divide-y divide-border ${
+                  breakdownAnimation?.sourceId != null && (grouped[date] ?? []).some(item => item.id === breakdownAnimation.sourceId)
+                    ? "overflow-visible"
+                    : "overflow-hidden"
+                }`}>
                 {/* Pending RP-apply rows — greyed out, non-interactive */}
                 {(pendingRpByDate[date] ?? []).map(prp => (
                   <div key={prp.id} className="flex items-start gap-3 px-4 py-3.5 opacity-40">
