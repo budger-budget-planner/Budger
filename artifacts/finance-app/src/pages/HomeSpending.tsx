@@ -1055,7 +1055,11 @@ function SwipeableTxRow({
   const editSectionW    = leftPanelWidth - receiptSectionW;
 
   return (
-    <div className={`relative ${breakdownExit ? "overflow-visible" : "overflow-hidden"} ${breakdownEnter ? "breakdown-row-enter" : ""}`} onClickCapture={onClickCapture}>
+    <div
+      data-transaction-id={txId}
+      className={`relative ${breakdownExit ? "overflow-visible" : "overflow-hidden"} ${breakdownEnter ? "breakdown-row-enter" : ""}`}
+      onClickCapture={onClickCapture}
+    >
 
       {/* ── LEFT panel: only visible when swiping right ── */}
       {leftPanelWidth > 0 && (
@@ -2525,8 +2529,21 @@ export default function HomeSpending() {
           isOnline={isOnline}
           onClose={() => setBreakdownTx(null)}
           onSuccess={(created) => {
-            setBreakdownAnimation({ sourceId: breakdownTx.id, created });
+            const sourceId = breakdownTx.id;
             setBreakdownTx(null);
+            // The breakdown is launched from Home, but the source row may be
+            // far above or below the current viewport. Center it before
+            // mounting the exit layer so the crack is visible at screen
+            // center for the full separation animation.
+            requestAnimationFrame(() => {
+              const sourceRow = document.querySelector<HTMLElement>(
+                `[data-transaction-id="${sourceId}"]`,
+              );
+              sourceRow?.scrollIntoView({ behavior: "auto", block: "center" });
+              requestAnimationFrame(() => {
+                setBreakdownAnimation({ sourceId, created });
+              });
+            });
           }}
           onFailure={() => {
             queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
