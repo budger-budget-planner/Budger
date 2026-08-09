@@ -33,6 +33,22 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 
 @custom-variant dark (&:is(.dark *));
 
+/* iOS long-press opens the breakdown sheet while the finger is still down.
+   Keep Safari from turning that gesture into a text-selection/magnifier action. */
+.breakdown-sheet-no-selection,
+.breakdown-sheet-no-selection * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.breakdown-open,
+html.breakdown-open * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

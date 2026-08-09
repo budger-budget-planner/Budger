@@ -1116,11 +1116,13 @@ function SwipeableTxRow({
 
       {/* ── Swipeable row content ── */}
       <div
-        className="relative z-10 bg-card"
+        className="relative z-10 bg-card select-none"
         style={{
           transform: `translateX(${offset}px) scale(${hintHold ? 0.97 : 1})`,
           transition: animating ? "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
           touchAction: "pan-y",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
           willChange: "transform",
         }}
         onTouchStart={onTouchStart}
@@ -1128,6 +1130,8 @@ function SwipeableTxRow({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
         onMouseLeave={cancelLongPress}
+        onSelectStart={event => event.preventDefault()}
+        onContextMenu={event => event.preventDefault()}
       >
         {children}
       </div>

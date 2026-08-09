@@ -80,10 +80,16 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
 
   useEffect(() => {
     if (!open) return;
+    document.documentElement.classList.add("breakdown-open");
+    window.getSelection()?.removeAllRanges();
     setRows([
       makeRow(0),
       makeRow(1),
     ]);
+    return () => {
+      document.documentElement.classList.remove("breakdown-open");
+      window.getSelection()?.removeAllRanges();
+    };
   }, [open, tx.id]);
 
   const allocation = useMemo(() => {
@@ -157,8 +163,9 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
   return (
     <Dialog open={open} onOpenChange={value => !value && onClose()}>
       <DialogContent
-        className="max-w-lg max-h-[92vh] overflow-y-auto"
+        className="breakdown-sheet-no-selection max-w-lg max-h-[92vh] overflow-y-auto"
         onOpenAutoFocus={event => event.preventDefault()}
+        onContextMenu={event => event.preventDefault()}
       >
         <DialogHeader className="pr-7">
           <DialogTitle className="flex items-center gap-2">
@@ -221,13 +228,19 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
           <button type="button" onClick={addRow} className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-2.5 text-sm text-white/65 hover:text-white hover:border-white/40 active:bg-white/10">
             <Plus className="w-4 h-4" />{t("breakdown.add_row")}
           </button>
-          <div className={`rounded-2xl border px-3 py-3 space-y-1 ${allocation.overCents > 0 ? "border-red-500/60 bg-red-500/10" : "border-white/10 bg-white/[0.03]"}`}>
+          <div className={`rounded-2xl border px-3 py-3 space-y-1 ${
+            allocation.overCents > 0
+              ? "border-red-500/60 bg-red-500/10"
+              : allocation.remainingCents > 0
+              ? "border-amber-500/60 bg-amber-500/10"
+              : "border-white/10 bg-white/[0.03]"
+          }`}>
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/55">{t("breakdown.allocated")}</span>
               <span className="font-semibold">{centsLabel(allocation.allocatedCents, currency)} / {centsLabel(sourceCents, currency)}</span>
             </div>
             {allocation.overCents > 0 ? <p className="text-xs text-red-300" role="alert">{t("breakdown.over", { amount: centsLabel(allocation.overCents, currency) })}</p>
-              : allocation.remainingCents > 0 ? <p className="text-xs text-yellow-300" role="status">{t("breakdown.remaining", { amount: centsLabel(allocation.remainingCents, currency) })}</p> : null}
+              : allocation.remainingCents > 0 ? <p className="text-xs text-amber-300" role="status">{t("breakdown.remaining", { amount: centsLabel(allocation.remainingCents, currency) })}</p> : null}
           </div>
           {!isOnline && <p className="text-xs text-amber-300" role="alert">{t("breakdown.offline")}</p>}
           <div className="flex gap-2 pt-1">
