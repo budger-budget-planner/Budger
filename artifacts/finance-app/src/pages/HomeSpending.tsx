@@ -1147,18 +1147,21 @@ function SwipeableTxRow({
             <div className="breakdown-exit-half-surface breakdown-exit-half-surface-left">
               {children}
             </div>
-            <svg className="breakdown-crack breakdown-crack-left" viewBox="0 0 24 100" preserveAspectRatio="none">
-              <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
-            </svg>
           </div>
           <div className="breakdown-exit-half breakdown-exit-half-right">
             <div className="breakdown-exit-half-surface breakdown-exit-half-surface-right">
               {children}
             </div>
-            <svg className="breakdown-crack breakdown-crack-right" viewBox="0 0 24 100" preserveAspectRatio="none">
-              <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
-            </svg>
           </div>
+          {/* Each interior edge is its own top-level overlay. The overlays
+              follow their corresponding half, so neither crack can be hidden
+              by the other half while the surfaces still overlap. */}
+          <svg className="breakdown-crack breakdown-crack-left" viewBox="0 0 24 100" preserveAspectRatio="none">
+            <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+          </svg>
+          <svg className="breakdown-crack breakdown-crack-right" viewBox="0 0 24 100" preserveAspectRatio="none">
+            <path pathLength="1" d="M12 0 L9 13 L15 25 L8 38 L14 49 L9 62 L16 76 L11 87 L14 100" />
+          </svg>
         </div>
       )}
     </div>

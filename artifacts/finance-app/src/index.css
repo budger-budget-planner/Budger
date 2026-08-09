@@ -140,9 +140,7 @@ html.breakdown-open * {
 }
 
 .breakdown-exit-half-right {
-  /* The right edge must remain visible while the two full-size half layers
-     still overlap during the first part of the pull-apart. */
-  z-index: 3;
+  z-index: 1;
   animation: breakdown-half-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -168,7 +166,7 @@ html.breakdown-open * {
 .breakdown-crack {
   position: absolute;
   inset: 0 auto 0 calc(50% - 12px);
-  z-index: 5;
+  z-index: 30;
   width: 24px;
   height: 100%;
   overflow: visible;
@@ -183,6 +181,51 @@ html.breakdown-open * {
   stroke-dashoffset: 1;
   filter: drop-shadow(0 0 3px rgba(170, 170, 170, 0.24));
   animation: breakdown-crack 1.7s linear forwards;
+}
+
+/* Keep the two edge strokes above both clipped surfaces, but give each one
+   the exact motion of its own half. These keyframes intentionally animate
+   only transform so they do not compete with the crack's draw/opacity timing. */
+@keyframes breakdown-edge-left {
+  0%, 68% {
+    transform: translateX(0) rotate(0deg);
+  }
+  74% {
+    transform: translateX(-7px) rotate(-0.35deg);
+  }
+  82% {
+    transform: translateX(-16px) rotate(-0.9deg);
+  }
+  100% {
+    transform: translateX(-130%) rotate(-6deg);
+  }
+}
+
+@keyframes breakdown-edge-right {
+  0%, 68% {
+    transform: translateX(0) rotate(0deg);
+  }
+  74% {
+    transform: translateX(7px) rotate(0.35deg);
+  }
+  82% {
+    transform: translateX(16px) rotate(0.9deg);
+  }
+  100% {
+    transform: translateX(130%) rotate(6deg);
+  }
+}
+
+.breakdown-crack-left {
+  animation:
+    breakdown-crack 1.7s linear forwards,
+    breakdown-edge-left 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.breakdown-crack-right {
+  animation:
+    breakdown-crack 1.7s linear forwards,
+    breakdown-edge-right 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .breakdown-row-enter {
