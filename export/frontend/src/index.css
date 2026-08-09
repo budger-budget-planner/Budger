@@ -338,6 +338,16 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
 .anim-delay-2 { animation-delay: 160ms; }
 .anim-delay-3 { animation-delay: 240ms; }
 
+/* Prevent accidental text selection while editing the transaction breakdown. */
+.breakdown-sheet-no-selection,
+.breakdown-sheet-no-selection * {
+  user-select: none;
+}
+.breakdown-sheet-no-selection input,
+.breakdown-sheet-no-selection textarea {
+  user-select: text;
+}
+
 /* ── Global diamond-spark keyframes ── */
 @keyframes gemFlash {
   0%   { opacity: 0; transform: scale(0.15) rotate(0deg); }

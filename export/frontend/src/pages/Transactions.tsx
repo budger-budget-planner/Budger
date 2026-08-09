@@ -6,6 +6,7 @@ import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
 import { ReceiptManager } from "@/components/ReceiptManager";
 import { CurrencyConvertSheet } from "@/components/CurrencyConvertSheet";
+import { TransactionBreakdownSheet } from "@/components/TransactionBreakdownSheet";
 import { ScreenshotImportDialog } from "@/components/ScreenshotImportDialog";
 import {
   useListTransactions,
@@ -37,7 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Camera, X, ZoomIn, ImageOff, Image, Target, RefreshCw, Lock, Clock, ScanLine, ChevronLeft, ChevronRight, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -704,6 +705,7 @@ export default function TransactionsPage() {
   const [editTx, setEditTx] = useState<any | null>(null);
   const [receiptTx, setReceiptTx] = useState<any | null>(null);
   const [convertTx, setConvertTx] = useState<any | null>(null);
+  const [breakdownTx, setBreakdownTx] = useState<any | null>(null);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -1090,6 +1092,18 @@ export default function TransactionsPage() {
                       size="icon"
                       variant="ghost"
                       className="w-7 h-7"
+                      title={t("breakdown.open")}
+                      aria-label={t("breakdown.open")}
+                      data-testid={`button-breakdown-transaction-${tx.id}`}
+                      onClick={() => setBreakdownTx(tx)}
+                      disabled={!isOnline}
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="w-7 h-7"
                       title="Receipt"
                       data-testid={`button-receipt-${tx.id}`}
                       onClick={() => setReceiptTx(tx)}
@@ -1192,6 +1206,21 @@ export default function TransactionsPage() {
           accountCurrency={prefs.currency}
           onClose={() => setConvertTx(null)}
           onConverted={() => invalidateAll(queryClient, currentMonth)}
+        />
+      )}
+
+      {breakdownTx && (
+        <TransactionBreakdownSheet
+          tx={breakdownTx}
+          categories={categories ?? []}
+          accountCurrency={prefs.currency}
+          open={!!breakdownTx}
+          isOnline={isOnline}
+          onClose={() => setBreakdownTx(null)}
+          onSuccess={() => {
+            setBreakdownTx(null);
+            invalidateAll(queryClient, currentMonth);
+          }}
         />
       )}
 
