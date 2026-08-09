@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Scissors, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
@@ -76,7 +76,6 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
     makeRow(0),
     makeRow(1),
   ]);
-  const firstDescriptionRef = useRef<HTMLInputElement>(null);
   const breakdown = useBreakdownTransaction();
 
   useEffect(() => {
@@ -85,8 +84,6 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
       makeRow(0),
       makeRow(1),
     ]);
-    const focusTimer = window.setTimeout(() => firstDescriptionRef.current?.focus(), 80);
-    return () => window.clearTimeout(focusTimer);
   }, [open, tx.id]);
 
   const allocation = useMemo(() => {
@@ -159,7 +156,10 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
 
   return (
     <Dialog open={open} onOpenChange={value => !value && onClose()}>
-      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-lg max-h-[92vh] overflow-y-auto"
+        onOpenAutoFocus={event => event.preventDefault()}
+      >
         <DialogHeader className="pr-7">
           <DialogTitle className="flex items-center gap-2">
             <Scissors className="w-4 h-4 text-white/60" />
@@ -190,7 +190,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor={`${row.id}-description`}>{t("breakdown.name")}</Label>
-                    <Input ref={index === 0 ? firstDescriptionRef : undefined} id={`${row.id}-description`} value={row.description} onChange={event => updateRow(row.id, { description: event.target.value })} placeholder={t("breakdown.name_placeholder")} aria-invalid={!!error && !row.description.trim()} autoComplete="off" />
+                    <Input id={`${row.id}-description`} value={row.description} onChange={event => updateRow(row.id, { description: event.target.value })} placeholder={t("breakdown.name_placeholder")} aria-invalid={!!error && !row.description.trim()} autoComplete="off" />
                   </div>
                   <div className="grid grid-cols-[1fr_1.2fr] gap-2">
                     <div className="space-y-1.5">
@@ -227,7 +227,7 @@ export function TransactionBreakdownSheet({ tx, categories, accountCurrency, ope
               <span className="font-semibold">{centsLabel(allocation.allocatedCents, currency)} / {centsLabel(sourceCents, currency)}</span>
             </div>
             {allocation.overCents > 0 ? <p className="text-xs text-amber-300" role="alert">{t("breakdown.over", { amount: centsLabel(allocation.overCents, currency) })}</p>
-              : allocation.remainingCents > 0 ? <p className="text-xs text-white/50">{t("breakdown.remaining", { amount: centsLabel(allocation.remainingCents, currency) })}</p> : null}
+              : allocation.remainingCents > 0 ? <p className="text-xs text-yellow-300" role="status">{t("breakdown.remaining", { amount: centsLabel(allocation.remainingCents, currency) })}</p> : null}
           </div>
           {!isOnline && <p className="text-xs text-amber-300" role="alert">{t("breakdown.offline")}</p>}
           <div className="flex gap-2 pt-1">
