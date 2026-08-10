@@ -915,8 +915,8 @@ export default function HouseholdPage() {
   const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
   const [selectedHouseholdMember, setSelectedHouseholdMember] = useState<MemberRow | null>(null);
+  const [drilledHouseholdMember, setDrilledHouseholdMember] = useState<MemberRow | null>(null);
   const [isDrilledVirtual, setIsDrilledVirtual] = useState(false);
-  const [manageVisible, setManageVisible] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -1557,7 +1557,8 @@ export default function HouseholdPage() {
 
           {/* ── Members — Household Donut ── */}
           <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-            {/* Header row: count + manage button when a member is drilled */}
+            {/* Header row: keep the single Manage action here for both
+                household selection and personal drill-down. */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <p className="text-sm font-semibold">
                 {t("hh.members")}{" "}
@@ -1565,7 +1566,7 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
-              {iAmHead && !isDrilledVirtual && !manageVisible && selectedHouseholdMember && (
+              {iAmHead && !isDrilledVirtual && (drilledHouseholdMember || selectedHouseholdMember) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1574,9 +1575,11 @@ export default function HouseholdPage() {
                     opacity: 1,
                   }}
                   onClick={() => {
+                    const memberToManage = drilledHouseholdMember ?? selectedHouseholdMember;
+                    if (!memberToManage) return;
                     setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                     setMemberSheetHideSpending(true);
-                    setSelectedMember(selectedHouseholdMember);
+                    setSelectedMember(memberToManage);
                   }}
                 >
                   {t("hh.manage")}
@@ -1602,10 +1605,10 @@ export default function HouseholdPage() {
                   setSelectedHouseholdMember(member as MemberRow | null);
                 }}
                 onDrilledMemberChange={(member, isVirtual) => {
+                  setDrilledHouseholdMember(member as MemberRow | null);
                   setSelectedHouseholdMember(null);
                   setIsDrilledVirtual(isVirtual);
                 }}
-                onManageVisibility={(visible) => setManageVisible(visible)}
               />
             </div>
           </div>

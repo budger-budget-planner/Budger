@@ -460,7 +460,6 @@ type Props = {
   onMemberTap?: (member: HouseholdMemberInput) => void;
   onHouseholdMemberSelect?: (member: HouseholdMemberInput | null) => void;
   onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
-  onManageVisibility?: (visible: boolean) => void;
   iAmHead?: boolean;
   crossMonthStretchUserIds?: number[];
 };
@@ -469,7 +468,7 @@ type Props = {
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap,
   onHouseholdMemberSelect,
-  onDrilledMemberChange, onManageVisibility, iAmHead = false, crossMonthStretchUserIds,
+  onDrilledMemberChange, iAmHead = false, crossMonthStretchUserIds,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `hhRedGlow-${uid}`;
@@ -608,13 +607,11 @@ export default function HouseholdDonutChart({
   useEffect(() => {
     const isDrilled = drillPhase !== "idle";
     onDrilledMemberChange?.(isDrilled ? drilledMember : null, isDrilled && isVirtualDrill);
-    onManageVisibility?.(isDrilled && !!drilledMember && !isVirtualDrill);
   }, [
     drillPhase,
     drilledMember,
     isVirtualDrill,
     onDrilledMemberChange,
-    onManageVisibility,
   ]);
 
   // Convert member spending to viewer currency
@@ -1371,14 +1368,6 @@ export default function HouseholdDonutChart({
               <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
               <span>{t("hh.drill_back_hint")}</span>
             </button>
-            {iAmHead && onMemberTap && drilledMember && !isVirtualDrill && (
-              <button
-                className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/15 transition-colors"
-                onClick={() => onMemberTap(drilledMember)}
-              >
-                {t("hh.manage")}
-              </button>
-            )}
           </div>
 
           {/* Personal donut or lock or spinner — flex-start matches household so
