@@ -179,11 +179,26 @@ function buildTransitionCatSegs(
 
   if (groups.length === 0) return [];
 
-  const drawDeg = 360 - CAT_GAP * groups.length;
+  // Keep transition geometry closed for the same under-filled budget cases as
+  // the final personal donut. Otherwise the snap animation can show a gap even
+  // though the settled chart is normalized.
+  const drawableGroups = groups.filter(g => g.parts.length > 0);
+  const rawTotal = drawableGroups.reduce(
+    (sum, g) => sum + g.parts.reduce((partSum, part) => partSum + part.fraction, 0),
+    0,
+  );
+  if (rawTotal > 0 && Math.abs(rawTotal - 1) > 0.000001) {
+    const scale = 1 / rawTotal;
+    for (const g of drawableGroups) {
+      for (const part of g.parts) part.fraction *= scale;
+    }
+  }
+
+  const drawDeg = 360 - CAT_GAP * drawableGroups.length;
   const result: Array<{ d: string; color: string }> = [];
   let cursor = 0;
 
-  for (const g of groups) {
+  for (const g of drawableGroups) {
     for (const p of g.parts) {
       const partDeg = p.fraction * drawDeg;
       if (partDeg > 0.01) {
@@ -380,19 +395,23 @@ function buildHouseholdChart(
 
   if (groups.length === 0) return { segs: [], groupBorders: [], legend: [], effectiveBudget, totalSpentV };
 
-  const rawTotal = groups.reduce((s, g) => s + g.parts.reduce((ps, p) => ps + p.fraction, 0), 0);
-  if (rawTotal > 1.0 + 0.001) {
+  // Close the ring even when a member has no budget and its spent amount
+  // occupies less than the household allocation. Without normalizing both
+  // under- and over-filled totals, the last segment stops before 360°.
+  const drawableGroups = groups.filter(g => g.parts.length > 0);
+  const rawTotal = drawableGroups.reduce((s, g) => s + g.parts.reduce((ps, p) => ps + p.fraction, 0), 0);
+  if (rawTotal > 0 && Math.abs(rawTotal - 1) > 0.000001) {
     const scale = 1.0 / rawTotal;
-    for (const g of groups) for (const p of g.parts) p.fraction *= scale;
+    for (const g of drawableGroups) for (const p of g.parts) p.fraction *= scale;
   }
 
-  const totalGapDeg = CAT_GAP * groups.length;
+  const totalGapDeg = CAT_GAP * drawableGroups.length;
   const drawDeg = 360 - totalGapDeg;
   const segs: Seg[] = [];
   const groupBorders: GroupBorder[] = [];
   let cursor = 0;
 
-  for (const g of groups) {
+  for (const g of drawableGroups) {
     const isSelected   = selectedId === g.groupId;
     const outerR       = isSelected ? RO + EXPAND : RO;
     const groupDeg     = g.parts.reduce((s, p) => s + p.fraction * drawDeg, 0);

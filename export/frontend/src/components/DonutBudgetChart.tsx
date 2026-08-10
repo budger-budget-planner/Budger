@@ -311,13 +311,28 @@ function buildChart(
     }
   }
 
-  const totalGapDeg = CAT_GAP * groups.length;
+  // Every drawable group must share the complete 360° budget of the ring.
+  // Small-part filtering and mixed budget/no-budget rows can otherwise leave
+  // the fractions below 1, which renders a visible unglued gap at the end.
+  const drawableGroups = groups.filter(g => g.parts.length > 0);
+  const rawTotal = drawableGroups.reduce(
+    (sum, g) => sum + g.parts.reduce((partSum, part) => partSum + part.fraction, 0),
+    0,
+  );
+  if (rawTotal > 0 && Math.abs(rawTotal - 1) > 0.000001) {
+    const scale = 1 / rawTotal;
+    for (const g of drawableGroups) {
+      for (const part of g.parts) part.fraction *= scale;
+    }
+  }
+
+  const totalGapDeg = CAT_GAP * drawableGroups.length;
   const drawDeg     = 360 - totalGapDeg;
   const segs: Seg[]               = [];
   const groupBorders: GroupBorder[] = [];
   let cursor = 0;
 
-  for (const g of groups) {
+  for (const g of drawableGroups) {
     const groupDeg     = g.parts.reduce((a, p) => a + p.fraction * drawDeg, 0);
     const isSelected   = selectedCat === g.catKey;
     const outerR       = isSelected ? RO + EXPAND : RO;
