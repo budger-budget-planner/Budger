@@ -152,7 +152,7 @@ function buildTransitionCatSegs(
 
   // Uncategorized bucket — mirrors DonutBudgetChart logic exactly, including
   // the special case where uncatBudget === 0 but uncatSpent > 0.
-  if (uncatBudget > 0 || uncatSpent > 0) {
+  if (uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0 && groups.length > 0) {
       // Ring is already 100% claimed by budgeted categories.
       // Reserve exactly 3.6° (1% of 360°) by scaling all existing groups down,

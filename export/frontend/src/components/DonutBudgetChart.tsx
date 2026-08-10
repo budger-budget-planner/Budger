@@ -262,7 +262,9 @@ function buildChart(
     }
   }
 
-  // Show uncategorised segment whenever there is spending.
+  // Show an uncategorised segment only when there is actual uncategorised
+  // spending. An unallocated remainder in the overall budget is not spending
+  // and must not appear as a misleading solid "uncategorized" wheel slice.
   //
   // Special case: when uncatBudget === 0 (sumBudgets >= totalBudget) but
   // uncatSpent > 0, the ring is already claimed 100% by budgeted categories.
@@ -270,7 +272,7 @@ function buildChart(
   // a fixed 1% visible slice out of the last budgeted group (by scaling its
   // parts down), then push uncat with that exact visible arc. The ring has
   // fixed gaps between groups, so use 3.6°: exactly 1% of the full donut.
-  if (uncatBudget > 0 || uncatSpent > 0) {
+  if (uncatSpent > 0) {
     if (uncatBudget === 0 && uncatSpent > 0 && groups.length > 0) {
       const UNCAT_VISIBLE_DEG = 3.6;
       const drawDegWithUncat = 360 - CAT_GAP * (groups.length + 1);
