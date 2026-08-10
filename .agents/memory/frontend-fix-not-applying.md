@@ -18,3 +18,5 @@ When a user says "you fixed this but the UI still shows the old thing," don't as
 **How to apply:** Before telling the user "should be fixed now," (a) run typecheck on the affected artifact, (b) check workflow logs for warnings after restart, (c) if the app has a service worker, verify it force-activates (`skipWaiting`/`clients.claim`) rather than relying on manual cache-busting tricks, (d) grep the whole src tree for the feature's UI strings to make sure you're not missing a duplicate implementation, (e) audit any `localOverride ?? serverValue` pattern for the null-vs-undefined ambiguity above.
 
 On iOS, HEIC/HEIF camera files may never reach `Image.onload` for canvas compression even though the picker reports a successful selection. Receipt upload flows should bound image conversion and fall back to reading the original file when the API accepts that MIME type.
+
+For native Camera / Photos pickers launched from Radix dialogs, keep the picker-dismissal guard active until the file event and async upload finish. A focus-based unlock can race with the mobile hand-off and unmount the dialog before the selected file is processed.
