@@ -383,9 +383,12 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
   const acceptedName = recipientUser?.name ?? "Someone";
   const acceptedAmountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
   const acceptedBadge = await getUnreadNotificationCount(split.issuerId);
+  const acceptedIsPolish = issuerUser?.language === "pl";
   sendPushToUser(split.issuerId, {
-    title: "Split request accepted",
-    body: `${acceptedName} accepted your request for ${acceptedAmountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
+    title: acceptedIsPolish ? "Prośba o podział zaakceptowana" : "Split request accepted",
+    body: acceptedIsPolish
+      ? `${acceptedName} zaakceptował(a) Twoją prośbę o ${acceptedAmountLabel}${origTx.description ? ` za "${origTx.description}"` : ""}.`
+      : `${acceptedName} accepted your request for ${acceptedAmountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
     url: "/",
     tag: `split-accepted-${split.id}`,
     badgeCount: acceptedBadge,
@@ -408,6 +411,7 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
   }
 
   const [origTx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, split.transactionId));
+  const [issuerUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.issuerId));
   const [recipientUser] = await db.select().from(usersTable).where(eq(usersTable.id, split.recipientId));
 
   const declined = await db.transaction(async (tx) => {
@@ -466,9 +470,12 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
   const declinedName = recipientUser?.name ?? "Someone";
   const declinedAmountLabel = `${parseFloat(split.splitAmount).toFixed(2)} ${split.issuerCurrency}`;
   const declinedBadge = await getUnreadNotificationCount(split.issuerId);
+  const declinedIsPolish = issuerUser?.language === "pl";
   sendPushToUser(split.issuerId, {
-    title: "Split request declined",
-    body: `${declinedName} declined your request for ${declinedAmountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
+    title: declinedIsPolish ? "Prośba o podział odrzucona" : "Split request declined",
+    body: declinedIsPolish
+      ? `${declinedName} odrzucił(a) Twoją prośbę o ${declinedAmountLabel}${origTx?.description ? ` za "${origTx.description}"` : ""}.`
+      : `${declinedName} declined your request for ${declinedAmountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
     url: "/",
     tag: `split-declined-${split.id}`,
     badgeCount: declinedBadge,
