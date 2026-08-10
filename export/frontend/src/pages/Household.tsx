@@ -914,7 +914,7 @@ export default function HouseholdPage() {
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [memberAnchorY, setMemberAnchorY] = useState(0);
   const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
-  const [drilledHouseholdMember, setDrilledHouseholdMember] = useState<MemberRow | null>(null);
+  const [selectedHouseholdMember, setSelectedHouseholdMember] = useState<MemberRow | null>(null);
   const [isDrilledVirtual, setIsDrilledVirtual] = useState(false);
   const [manageVisible, setManageVisible] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
@@ -1565,21 +1565,18 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
-              {iAmHead && !isDrilledVirtual && (
+              {iAmHead && !isDrilledVirtual && !manageVisible && selectedHouseholdMember && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
                   style={{
-                    opacity: manageVisible ? 1 : 0,
-                    pointerEvents: manageVisible ? "auto" : "none",
-                    transition: "opacity 0.3s ease",
+                    opacity: 1,
                   }}
                   onClick={() => {
-                    if (!drilledHouseholdMember) return;
                     setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                     setMemberSheetHideSpending(true);
-                    setSelectedMember(drilledHouseholdMember as MemberRow);
+                    setSelectedMember(selectedHouseholdMember);
                   }}
                 >
                   {t("hh.manage")}
@@ -1601,8 +1598,11 @@ export default function HouseholdPage() {
                   setMemberSheetHideSpending(true);
                   setSelectedMember(m as MemberRow);
                 }}
+                onHouseholdMemberSelect={(member) => {
+                  setSelectedHouseholdMember(member as MemberRow | null);
+                }}
                 onDrilledMemberChange={(member, isVirtual) => {
-                  setDrilledHouseholdMember(member as MemberRow | null);
+                  setSelectedHouseholdMember(null);
                   setIsDrilledVirtual(isVirtual);
                 }}
                 onManageVisibility={(visible) => setManageVisible(visible)}

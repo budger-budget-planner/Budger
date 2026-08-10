@@ -458,6 +458,7 @@ type Props = {
   currency: string;
   rates: Record<string, number> | null;
   onMemberTap?: (member: HouseholdMemberInput) => void;
+  onHouseholdMemberSelect?: (member: HouseholdMemberInput | null) => void;
   onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
   onManageVisibility?: (visible: boolean) => void;
   iAmHead?: boolean;
@@ -467,6 +468,7 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
   members, householdBudget, currency, rates, onMemberTap,
+  onHouseholdMemberSelect,
   onDrilledMemberChange, onManageVisibility, iAmHead = false, crossMonthStretchUserIds,
 }: Props) {
   const uid = useId().replace(/:/g, "");
@@ -814,6 +816,7 @@ export default function HouseholdDonutChart({
     // memberSpendError effect, even though setIsPrivate(false) was just called.
     queryClient.removeQueries({ queryKey: getGetMemberSpendingQueryKey(mid) });
     setSelectedId(null);
+    onHouseholdMemberSelect?.(null);
     setDrilledMemberId(mid);
     setIsPrivate(false);
     setMemberFetchError(false);
@@ -907,6 +910,7 @@ export default function HouseholdDonutChart({
     setMemberFetchError(false);
     setLockPhase(null);
     setSelectedId(null);
+    onHouseholdMemberSelect?.(null);
     setMemberTransColored(false);
     setMemberTransSegs([]);
 
@@ -982,9 +986,22 @@ export default function HouseholdDonutChart({
   }
 
   // ── Segment click (simple toggle; drill-down via tap-and-hold) ──────────────
+  function selectHouseholdMember(groupId: string) {
+    const nextSelectedId = selectedId === groupId ? null : groupId;
+    setSelectedId(nextSelectedId);
+
+    if (!nextSelectedId) {
+      onHouseholdMemberSelect?.(null);
+      return;
+    }
+
+    const member = members.find(m => `member-${m.userId}` === nextSelectedId);
+    onHouseholdMemberSelect?.(member ?? null);
+  }
+
   function handleSegmentClick(groupId: string) {
     if (drillPhase !== "idle") return;
-    setSelectedId(prev => prev === groupId ? null : groupId);
+    selectHouseholdMember(groupId);
   }
 
   // ── Centre tap ──────────────────────────────────────────────────────────────
