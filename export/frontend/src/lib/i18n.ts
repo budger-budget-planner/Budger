@@ -198,10 +198,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "breakdown.category_unavailable": { en: "One of the selected categories is no longer available.", pl: "Jedna z wybranych kategorii jest już niedostępna." },
   "breakdown.total_mismatch":     { en: "The allocation no longer matches the original transaction. Please review the amounts.", pl: "Podział nie zgadza się już z oryginalną transakcją. Sprawdź kwoty." },
   "breakdown.offline":            { en: "Breakdown needs a connection because the replacement is atomic.", pl: "Podział wymaga połączenia, ponieważ zamiana jest atomowa." },
-  "tx.founded_with_realized_goal":      { en: "Funded with realized goal", pl: "Sfinansowane ze zrealizowanego celu" },
+  "tx.founded_with_realized_goal":      { en: "Do not include in monthly spendings", pl: "Nie wliczaj do miesięcznych wydatków" },
   "home.realized_goal_excluded":        { en: "not counted", pl: "nie wliczone" },
   "tx.founded_with_realized_goal_hint": { en: "Paid from savings — excluded from this month's spending total", pl: "Opłacone z oszczędności — wykluczone z sumy wydatków tego miesiąca" },
-  "tx.realized_goal_badge":             { en: "Realized Goal",              pl: "Zrealizowany cel" },
+  "tx.realized_goal_badge":             { en: "Not Included",               pl: "Nie wliczone" },
   "goals.realized_moves_in":            { en: "Realized · moves to Past Goals in {hours}h", pl: "Zrealizowany · przeniesiony do Przeszłych Celów za {hours}h" },
   "goals.realized_moves_soon":          { en: "Realized · moving to Past Goals soon", pl: "Zrealizowany · przenoszenie do Przeszłych Celów wkrótce" },
   "goals.realized_fully_funded":        { en: "🎉 Goal fully funded!", pl: "🎉 Cel w pełni sfinansowany!" },
@@ -959,12 +959,12 @@ const translations: Record<string, Record<Lang, string>> = {
   },
 
   "badges.s5_title": {
-    en: "Realized Goal — already-completed savings",
-    pl: "Zrealizowany cel — ukończone oszczędności",
+    en: "Not Included — paid from realized savings",
+    pl: "Nie wliczone — opłacone ze zrealizowanych oszczędności",
   },
   "badges.s5_desc": {
-    en: "The teal checkmark badge marks expenses paid from a goal that was already realized. Since the money was set aside earlier, it's excluded from this month's spending total.",
-    pl: "Turkusowa odznaka z ptaszkiem oznacza wydatki opłacone ze zrealizowanego celu. Ponieważ pieniądze zostały odłożone wcześniej, nie liczą się do sumy wydatków w tym miesiącu.",
+    en: "The teal checkmark badge marks an expense that is not included in this month's spending total. It is used when the expense was paid from savings that had already been set aside through a realized goal.",
+    pl: "Turkusowa odznaka z ptaszkiem oznacza wydatek, który nie jest wliczany do sumy wydatków w tym miesiącu. Używa się jej, gdy wydatek został opłacony z oszczędności odłożonych wcześniej w ramach zrealizowanego celu.",
   },
 
   "badges.s6_title": {

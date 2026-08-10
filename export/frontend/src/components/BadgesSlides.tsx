@@ -250,7 +250,7 @@ function Mockup4() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SLIDE 5 — Realized Goal
+// SLIDE 5 — Not Included
 // ─────────────────────────────────────────────────────────────────────────────
 function Mockup5() {
   return (
@@ -258,7 +258,7 @@ function Mockup5() {
       <Header title="Spending" />
       <BadgeRow
         name="New Laptop" category="Electronics" amount="−$1,200.00" catColor="#0a84ff"
-        pill={{ width: 108, borderColor: "rgba(45,212,191,0.6)", bgColor: "rgba(45,212,191,0.1)", textColor: "#5eead4", label: "Realized Goal", icon: IconCheck }}
+        pill={{ width: 108, borderColor: "rgba(45,212,191,0.6)", bgColor: "rgba(45,212,191,0.1)", textColor: "#5eead4", label: "Not Included", icon: IconCheck }}
       />
       <text x="24" y="278" fontSize="9.5" fill="#48484d" fontFamily={FONT}>excluded from this month's total</text>
       <CollapsedEcho dotColor="#5eead4" label="teal dot" />
@@ -306,7 +306,7 @@ function Mockup8() {
     ["#fff",    "From Larder"],
     ["#ec4899", "Split"],
     ["#8b5cf6", "Goal / Larder"],
-    ["#5eead4", "Realized Goal"],
+    ["#5eead4", "Not Included"],
     ["#fff",    "Receipt"],
     ["#a1a1aa", "Locked currency"],
   ];
