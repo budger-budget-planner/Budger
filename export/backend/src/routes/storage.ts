@@ -67,7 +67,7 @@ router.put(
       return;
     }
 
-    const { uuid } = req.params;
+    const uuid = String(req.params.uuid);
     const contentType =
       (req.headers['content-type'] || 'image/jpeg').split(';')[0].trim();
     const body = req.body as Buffer;

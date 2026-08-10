@@ -120,13 +120,17 @@ export function ReceiptManager({
     }
   }, [open]);
 
+  // Mobile Safari can fire the input event before (or instead of) change when
+  // returning from Camera / Photos. Keep the dialog mounted long enough for
+  // either event to reach the handler. A short unlock can race with a slow
+  // camera hand-off and unmount the picker before the file is read.
   useEffect(() => {
     const onFocus = () => {
       window.setTimeout(() => {
         if (!processingRef.current && !receiptPickerRef.current?.files?.length) {
           pickerActiveRef.current = false;
         }
-      }, 1500);
+      }, 5000);
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -148,11 +152,16 @@ export function ReceiptManager({
     if (processingRef.current) return;
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    pickerActiveRef.current = false;
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      // The user cancelled the native picker. It is now safe for the dialog
+      // to dismiss normally.
+      pickerActiveRef.current = false;
+      return;
+    }
 
     const remaining = Math.max(0, 3 - receipts.length);
     if (remaining === 0) {
+      pickerActiveRef.current = false;
       toast.error(t("tx.receipt_limit"));
       return;
     }
