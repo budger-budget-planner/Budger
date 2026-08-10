@@ -935,28 +935,22 @@ async function syncGoalContribution(opts: {
 
 function SwipeableTxRow({
   txId,
-  canSplit,
-  canBreakdown,
+  canEdit,
   breakdownExit = false,
   breakdownEnter = false,
   onReceipt,
   onEdit,
-  onSplit,
-  onBreakdown,
   onDelete,
   showHint,
   isOffline,
   children,
 }: {
   txId: number;
-  canSplit: boolean;
-  canBreakdown: boolean;
+  canEdit: boolean;
   breakdownExit?: boolean;
   breakdownEnter?: boolean;
   onReceipt: () => void;
   onEdit: () => void;
-  onSplit: () => void;
-  onBreakdown: () => void;
   onDelete: () => void;
   showHint?: boolean;
   isOffline?: boolean;
@@ -1011,8 +1005,8 @@ function SwipeableTxRow({
   useEffect(() => cancelLongPress, []);
 
   // Snap widths: how wide each panel is at rest after revealing
-  const RIGHT_SNAP = canSplit ? 160 : 88;
-  const LEFT_SNAP  = 160;
+  const RIGHT_SNAP = 88;
+  const LEFT_SNAP  = 88;
   const ACTION_THRESHOLD = 230;
   const SNAP_THRESHOLD   = 44;
 
@@ -1043,14 +1037,14 @@ function SwipeableTxRow({
     hasMoved.current = false;
     longPressTriggered.current = false;
     setAnimating(false);
-    if (canBreakdown && !isOffline) {
+    if (canEdit && !isOffline) {
       longPressTimer.current = setTimeout(() => {
         if (!isDragging.current || isScrolling.current || hasMoved.current) return;
         longPressTriggered.current = true;
         swipeHandled.current = true;
         resetRow();
         window.dispatchEvent(new CustomEvent("tx-swipe-open", { detail: { id: null } }));
-        onBreakdown();
+        onEdit();
       }, 600);
     }
   }
@@ -1106,10 +1100,10 @@ function SwipeableTxRow({
       setOffset(-window.innerWidth);
       onDelete();
     } else if (off > ACTION_THRESHOLD) {
-      // Full right extend → edit
+      // Full right extend → receipt
       setAnimating(true);
       setOffset(window.innerWidth);
-      setTimeout(() => { onEdit(); snapTo(0, null); }, 300);
+      setTimeout(() => { onReceipt(); snapTo(0, null); }, 300);
     } else if (snappedRef.current === "left" && off > -(RIGHT_SNAP - SNAP_THRESHOLD)) {
       // Was showing right panel, user swiped back → close
       snapTo(0, null);
@@ -1148,27 +1142,6 @@ function SwipeableTxRow({
   const rightPanelWidth = Math.max(0, -offset);
   const leftPanelWidth  = Math.max(0,  offset);
 
-  // Extension ratios: 0 at snap, 1 at action threshold
-  const rightExtend = rightPanelWidth > RIGHT_SNAP
-    ? Math.min(1, (rightPanelWidth - RIGHT_SNAP) / Math.max(1, ACTION_THRESHOLD - RIGHT_SNAP))
-    : 0;
-  const leftExtend = leftPanelWidth > LEFT_SNAP
-    ? Math.min(1, (leftPanelWidth - LEFT_SNAP) / Math.max(1, ACTION_THRESHOLD - LEFT_SNAP))
-    : 0;
-
-  // RIGHT panel section widths
-  const splitSnapW  = canSplit ? RIGHT_SNAP / 2 : 0;
-  const deleteSnapW = canSplit ? RIGHT_SNAP / 2 : RIGHT_SNAP;
-  // Split section shrinks to 0 during extension; Delete section fills the rest
-  const splitSectionW  = splitSnapW  * (1 - rightExtend);
-  const deleteSectionW = rightPanelWidth - splitSectionW;
-
-  // LEFT panel section widths
-  const receiptSnapW  = LEFT_SNAP / 2;
-  // Receipt section shrinks to 0 during extension; Edit section fills the rest
-  const receiptSectionW = receiptSnapW * (1 - leftExtend);
-  const editSectionW    = leftPanelWidth - receiptSectionW;
-
   return (
     <div
       data-transaction-id={txId}
@@ -1183,25 +1156,13 @@ function SwipeableTxRow({
           className="absolute inset-y-0 left-0 flex bg-zinc-800 overflow-hidden"
           style={{ width: leftPanelWidth }}
         >
-          {/* Receipt section — shrinks and fades during extension */}
-          {receiptSectionW > 0 && (
-            <div
-              className="flex flex-col items-center justify-center gap-1.5 text-white overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
-              style={{ width: receiptSectionW, opacity: 1 - leftExtend }}
-              onClick={() => { if (!isOffline) { onReceipt(); resetRow(); } else resetRow(); }}
-            >
-              <Camera className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.receipt_btn")}</span>
-            </div>
-          )}
-          {/* Edit section — expands to fill during extension, icon stays centred */}
           <div
             className="flex flex-col items-center justify-center gap-1.5 text-white cursor-pointer active:brightness-75 overflow-hidden"
-            style={{ width: editSectionW, minWidth: deleteSnapW }}
-            onClick={() => { if (!isOffline) { onEdit(); resetRow(); } else resetRow(); }}
+            style={{ width: leftPanelWidth }}
+            onClick={() => { if (!isOffline) { onReceipt(); resetRow(); } else resetRow(); }}
           >
-            <Pencil className="w-4 h-4 flex-shrink-0" />
-            <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.edit_btn")}</span>
+            <Camera className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[10px] font-semibold whitespace-nowrap">{t("home.receipt_btn")}</span>
           </div>
         </div>
       )}
@@ -1213,21 +1174,9 @@ function SwipeableTxRow({
           className="absolute inset-y-0 right-0 flex overflow-hidden"
           style={{ width: rightPanelWidth }}
         >
-          {/* Split section — shrinks and fades during extension */}
-          {canSplit && splitSectionW > 0 && (
-            <div
-              className="flex flex-col items-center justify-center gap-1.5 text-white bg-zinc-800 overflow-hidden flex-shrink-0 cursor-pointer active:brightness-75"
-              style={{ width: splitSectionW, opacity: 1 - rightExtend }}
-              onClick={() => { if (!isOffline) { onSplit(); resetRow(); } else resetRow(); }}
-            >
-              <Scissors className="w-4 h-4 flex-shrink-0" />
-              <span className="text-[10px] font-semibold whitespace-nowrap">{t("split.btn")}</span>
-            </div>
-          )}
-          {/* Delete section — matches expanded-row delete button style exactly */}
           <div
             className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75 bg-card text-destructive"
-            style={{ width: deleteSectionW, minWidth: deleteSnapW }}
+            style={{ width: rightPanelWidth }}
             onClick={() => { if (!isOffline) { onDelete(); resetRow(); } else resetRow(); }}
           >
             <div className="absolute inset-0 bg-destructive/10 pointer-events-none" />
@@ -2058,21 +2007,18 @@ export default function HomeSpending() {
                     ? tx.description.slice(0, 30).trimEnd() + "…"
                     : tx.description;
 
-                  const canSwipeSplit     = !hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole;
+                  const canEdit           = !hasUnavailable;
                   const isUnknownCaptured = tx.description === "Unknown, Captured Online";
 
                   return (
                     <SwipeableTxRow
                       key={tx.id}
                       txId={tx.id}
-                      canSplit={canSwipeSplit}
-                      canBreakdown={canBreakdown}
+                      canEdit={canEdit}
                       breakdownExit={breakdownAnimation?.sourceId === tx.id}
                       breakdownEnter={breakdownRevealIds.includes(tx.id)}
                       onReceipt={() => { setReceiptTx(tx); setActionTx(null); }}
                       onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
-                      onSplit={() => { setSplitTx(tx); setActionTx(null); }}
-                      onBreakdown={() => { setBreakdownTx(tx); setActionTx(null); }}
                       onDelete={() => remove.mutate({ id: tx.id })}
                       showHint={tx.id === topTxId}
                       isOffline={!isOnline}
@@ -2271,20 +2217,6 @@ export default function HomeSpending() {
                       {/* ── Expanded action buttons ── */}
                       {isExpanded && (
                         <div className="flex gap-2 px-3 pb-3 flex-wrap">
-                          <button onClick={() => { setReceiptTx(tx); setActionTx(null); }}
-                            disabled={!isOnline}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                       bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
-                            <Camera className="w-3.5 h-3.5" /> {t("home.receipt_btn")}
-                          </button>
-                          {!hasUnavailable && (
-                            <button onClick={() => { setEditTx(tx); setActionTx(null); }}
-                              disabled={!isOnline}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                         bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
-                              <Pencil className="w-3.5 h-3.5" /> {t("home.edit_btn")}
-                            </button>
-                          )}
                           {!hasUnavailable && isInHousehold && tx.userId === myUserId && !(tx as any).splitRole && (
                             <button onClick={() => { setSplitTx(tx); setActionTx(null); }}
                               disabled={!isOnline}
@@ -2303,13 +2235,6 @@ export default function HomeSpending() {
                               <ListPlus className="w-3.5 h-3.5" /> {t("breakdown.submit")}
                             </button>
                           )}
-                          <button
-                            onClick={() => remove.mutate({ id: tx.id })}
-                            disabled={!isOnline || remove.isPending}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
-                                       bg-destructive/10 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
-                            <Trash2 className="w-3.5 h-3.5" /> {t("common.delete")}
-                          </button>
                         </div>
                       )}
                     </SwipeableTxRow>
