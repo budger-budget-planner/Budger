@@ -916,7 +916,6 @@ export default function HouseholdPage() {
   const [memberSheetHideSpending, setMemberSheetHideSpending] = useState(false);
   const [selectedHouseholdMember, setSelectedHouseholdMember] = useState<MemberRow | null>(null);
   const [drilledHouseholdMember, setDrilledHouseholdMember] = useState<MemberRow | null>(null);
-  const [isDrilledVirtual, setIsDrilledVirtual] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<number | null>(null);
 
   // My role in the household
@@ -925,6 +924,7 @@ export default function HouseholdPage() {
   const iAmHead = isHeadRole(myRole);
   const iAmChild = isChildRole(myRole);
   const canSeeGreatLarder = !iAmChild && !!household;
+  const memberToManage = drilledHouseholdMember ?? selectedHouseholdMember;
 
   useEffect(() => {
     if (!canSeeGreatLarder) return;
@@ -1566,17 +1566,17 @@ export default function HouseholdPage() {
                   ({members?.filter(m => m.userId !== -1).length ?? 0})
                 </span>
               </p>
-              {iAmHead && !isDrilledVirtual && (drilledHouseholdMember || selectedHouseholdMember) && (
+              {iAmHead && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
+                  disabled={!memberToManage || memberToManage.userId <= 0}
                   style={{
                     opacity: 1,
                   }}
                   onClick={() => {
-                    const memberToManage = drilledHouseholdMember ?? selectedHouseholdMember;
-                    if (!memberToManage) return;
+                    if (!memberToManage || memberToManage.userId <= 0) return;
                     setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                     setMemberSheetHideSpending(true);
                     setSelectedMember(memberToManage);
@@ -1596,18 +1596,12 @@ export default function HouseholdPage() {
                 rates={splitRates}
                 iAmHead={iAmHead}
                 crossMonthStretchUserIds={crossMonthStretchUserIds}
-                onMemberTap={(m) => {
-                  setMemberAnchorY(Math.round(window.innerHeight * 0.55));
-                  setMemberSheetHideSpending(true);
-                  setSelectedMember(m as MemberRow);
-                }}
                 onHouseholdMemberSelect={(member) => {
                   setSelectedHouseholdMember(member as MemberRow | null);
                 }}
                 onDrilledMemberChange={(member, isVirtual) => {
                   setDrilledHouseholdMember(member as MemberRow | null);
-                  setSelectedHouseholdMember(null);
-                  setIsDrilledVirtual(isVirtual);
+                  if (member) setSelectedHouseholdMember(null);
                 }}
               />
             </div>

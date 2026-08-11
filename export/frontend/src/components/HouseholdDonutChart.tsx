@@ -457,7 +457,6 @@ type Props = {
   householdBudget: number | null;
   currency: string;
   rates: Record<string, number> | null;
-  onMemberTap?: (member: HouseholdMemberInput) => void;
   onHouseholdMemberSelect?: (member: HouseholdMemberInput | null) => void;
   onDrilledMemberChange?: (member: HouseholdMemberInput | null, isVirtual: boolean) => void;
   iAmHead?: boolean;
@@ -466,7 +465,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function HouseholdDonutChart({
-  members, householdBudget, currency, rates, onMemberTap,
+  members, householdBudget, currency, rates,
   onHouseholdMemberSelect,
   onDrilledMemberChange, iAmHead = false, crossMonthStretchUserIds,
 }: Props) {
@@ -606,6 +605,11 @@ export default function HouseholdDonutChart({
 
   useEffect(() => {
     const isDrilled = drillPhase !== "idle";
+    // drilledMember is derived from the newly-set id. During the first render
+    // of a drill animation the phase can update one render before that
+    // derived value does; do not erase the already-published Manage target in
+    // that transient state.
+    if (isDrilled && !drilledMember) return;
     onDrilledMemberChange?.(isDrilled ? drilledMember : null, isDrilled && isVirtualDrill);
   }, [
     drillPhase,
@@ -807,13 +811,18 @@ export default function HouseholdDonutChart({
     if (!gb) return;
     drilledGroupRef.current = gb;
     const mid = parseInt(groupId.replace("member-", ""), 10);
+    const member = members.find(m => m.userId === mid) ?? null;
+    // Publish the target before the animation starts. The page-level Manage
+    // action lives outside this component; waiting for the drill-phase effect
+    // leaves it without a target during the animation and can suppress it.
+    onHouseholdMemberSelect?.(member);
+    onDrilledMemberChange?.(member, false);
     // Remove any cached error for this member's spending query before drilling
     // in. Without this, a stale 403 error from a previous drill stays in the
     // React Query cache and immediately re-triggers setIsPrivate(true) via the
     // memberSpendError effect, even though setIsPrivate(false) was just called.
     queryClient.removeQueries({ queryKey: getGetMemberSpendingQueryKey(mid) });
     setSelectedId(null);
-    onHouseholdMemberSelect?.(null);
     setDrilledMemberId(mid);
     setIsPrivate(false);
     setMemberFetchError(false);
@@ -902,6 +911,8 @@ export default function HouseholdDonutChart({
   //
   function startDrillBack() {
     if (drillPhase !== "personal") return;
+    onHouseholdMemberSelect?.(null);
+    onDrilledMemberChange?.(null, false);
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
     setIsPrivate(false);
     setMemberFetchError(false);
