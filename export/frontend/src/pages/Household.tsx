@@ -925,6 +925,9 @@ export default function HouseholdPage() {
   const iAmChild = isChildRole(myRole);
   const canSeeGreatLarder = !iAmChild && !!household;
   const memberToManage = drilledHouseholdMember ?? selectedHouseholdMember;
+  const canManageMember = !!memberToManage
+    && memberToManage.userId > 0
+    && !isHeadRole(memberToManage.role);
 
   useEffect(() => {
     if (!canSeeGreatLarder) return;
@@ -1571,12 +1574,15 @@ export default function HouseholdPage() {
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 h-7 text-xs text-white/60 hover:text-white"
-                  disabled={!memberToManage || memberToManage.userId <= 0}
+                  aria-hidden={!canManageMember}
+                  tabIndex={canManageMember ? 0 : -1}
                   style={{
-                    opacity: 1,
+                    opacity: canManageMember ? 1 : 0,
+                    pointerEvents: canManageMember ? "auto" : "none",
+                    transition: "opacity 0.28s ease",
                   }}
                   onClick={() => {
-                    if (!memberToManage || memberToManage.userId <= 0) return;
+                    if (!canManageMember || !memberToManage) return;
                     setMemberAnchorY(Math.round(window.innerHeight * 0.55));
                     setMemberSheetHideSpending(true);
                     setSelectedMember(memberToManage);
