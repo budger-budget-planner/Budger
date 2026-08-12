@@ -800,7 +800,6 @@ function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
   scope?: "personal" | "household"; isHead?: boolean;
 }) {
   const rpScope = scope ?? (rp as any).scope ?? "personal";
-  const isHouseholdRP = rpScope === "household";
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
   const [name, setName] = useState(rp.name);
@@ -939,10 +938,10 @@ function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
           >
             <div className="flex-1 text-left">
                 <p className="text-sm font-medium text-foreground">
-                  {t(isHouseholdRP ? "rp.send_to_great_larder" : "rp.add_to_larder")}
+                  {t(newScope === "household" ? "rp.send_to_great_larder" : "rp.add_to_larder")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {t(isHouseholdRP ? "rp.send_to_great_larder_desc" : "rp.add_to_larder_desc")}
+                  {t(newScope === "household" ? "rp.send_to_great_larder_desc" : "rp.add_to_larder_desc")}
                 </p>
             </div>
             <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${addToLarder ? "bg-foreground" : "bg-muted border border-border"}`}>

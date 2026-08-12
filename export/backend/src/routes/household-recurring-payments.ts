@@ -55,7 +55,38 @@ async function autoApplyScheduledHousehold(userId: number, monthKey: string): Pr
     if (existing) continue;
 
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(actualDay).padStart(2, "0")}`;
-    const [tx] = await db.insert(transactionsTable).values({
+    await applyHouseholdRecurringPayment(rp, userId, monthKey, dateStr);
+  }
+}
+
+async function requireHead(userId: number): Promise<boolean> {
+  const [membership] = await db.select().from(householdMembersTable)
+    .where(eq(householdMembersTable.userId, userId));
+  return membership?.role === "head" || membership?.role === "owner";
+}
+
+/**
+ * Apply one household recurring payment as one ledger operation.
+ *
+ * The recurring-payment transaction, its monthly log, and the optional Great
+ * Larder contribution must commit or roll back together. The unique monthly
+ * log also makes scheduled auto-apply safe when two requests arrive at once.
+ */
+async function applyHouseholdRecurringPayment(
+  rp: typeof recurringPaymentsTable.$inferSelect,
+  userId: number,
+  monthKey: string,
+  dateStr: string,
+): Promise<number | null> {
+  const [user] = await db.select({
+    currency: usersTable.currency,
+    householdId: usersTable.householdId,
+  }).from(usersTable).where(eq(usersTable.id, userId));
+  const householdId = rp.householdId ?? user?.householdId;
+  if (!householdId) throw new Error("Household recurring payment has no household");
+
+  return db.transaction(async (txdb) => {
+    const [tx] = await txdb.insert(transactionsTable).values({
       userId,
       amount: rp.amount,
       description: rp.name,
@@ -64,22 +95,22 @@ async function autoApplyScheduledHousehold(userId: number, monthKey: string): Pr
       recurringPaymentId: rp.id,
     }).returning();
 
-    await db.insert(recurringPaymentLogsTable).values({
+    const [log] = await txdb.insert(recurringPaymentLogsTable).values({
       recurringPaymentId: rp.id,
       userId,
       monthKey,
       transactionId: tx.id,
-    }).onConflictDoNothing();
+    }).onConflictDoNothing().returning();
+
+    // Another request won the monthly unique-index race. Remove the
+    // provisional transaction before leaving the transaction.
+    if (!log) {
+      await txdb.delete(transactionsTable).where(eq(transactionsTable.id, tx.id));
+      return null;
+    }
 
     if (rp.addToLarder) {
-      const [user] = await db.select({
-        currency: usersTable.currency,
-        householdId: usersTable.householdId,
-        name: usersTable.name,
-      }).from(usersTable).where(eq(usersTable.id, userId));
-      const householdId = rp.householdId ?? user?.householdId;
-      if (!householdId) throw new Error("Household recurring payment has no household");
-      await db.insert(greatLarderEntriesTable).values({
+      await txdb.insert(greatLarderEntriesTable).values({
         householdId,
         contributedByUserId: userId,
         amount: rp.amount,
@@ -88,15 +119,11 @@ async function autoApplyScheduledHousehold(userId: number, monthKey: string): Pr
         status: "approved",
         transactionId: tx.id,
         note: rp.name,
-      }).onConflictDoNothing();
+      });
     }
-  }
-}
 
-async function requireHead(userId: number): Promise<boolean> {
-  const [membership] = await db.select().from(householdMembersTable)
-    .where(eq(householdMembersTable.userId, userId));
-  return membership?.role === "head" || membership?.role === "owner";
+    return tx.id;
+  });
 }
 
 // GET /household-recurring-payments
@@ -291,42 +318,13 @@ router.post("/household-recurring-payments/:id/apply", async (req, res, next): P
     dateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
   }
 
-  const [tx] = await db.insert(transactionsTable).values({
-    userId,
-    amount: rp.amount,
-    description: rp.name,
-    date: dateStr,
-    paymentMethod: "card",
-    recurringPaymentId: rp.id,
-  }).returning();
-
-  await db.insert(recurringPaymentLogsTable).values({
-    recurringPaymentId: id,
-    userId,
-    monthKey,
-    transactionId: tx.id,
-  }).onConflictDoNothing();
-
-  if (rp.addToLarder) {
-    const [user] = await db.select({
-      currency: usersTable.currency,
-      householdId: usersTable.householdId,
-    }).from(usersTable).where(eq(usersTable.id, userId));
-    const householdId = rp.householdId ?? user?.householdId;
-    if (!householdId) { res.status(400).json({ error: "Household recurring payment has no household" }); return; }
-    await db.insert(greatLarderEntriesTable).values({
-      householdId,
-      contributedByUserId: userId,
-      amount: rp.amount,
-      currency: user?.currency ?? "USD",
-      sourceType: "recurring_payment",
-      status: "approved",
-      transactionId: tx.id,
-      note: rp.name,
-    }).onConflictDoNothing();
+  const transactionId = await applyHouseholdRecurringPayment(rp, userId, monthKey, dateStr);
+  if (transactionId === null) {
+    res.status(409).json({ error: "Already applied this month" });
+    return;
   }
 
-  res.json(formatRP(rp, true, tx.id));
+  res.json(formatRP(rp, true, transactionId));
 } catch (err) { next(err); } });
 
 export default router;
