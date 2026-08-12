@@ -20,6 +20,11 @@ All under `/api/recurring-payments`:
 - On `GET /recurring-payments`: for each scheduled payment, compute `actualDay = min(dayOfMonth, lastDayOfMonth)` for current month; if `today >= actualDay` and not yet logged, create transaction + log entry
 - Handles Feb, 30-day months by clamping to last valid day
 
+## Household destination rule
+- Personal recurring payments with `addToLarder` write to the user's personal Larder.
+- Household recurring payments with `addToLarder` write an approved `recurring_payment` entry to the household Great Larder instead.
+- The household transaction, monthly application log, and Great Larder entry commit atomically; a unique monthly log prevents duplicate scheduled applications.
+
 ## Frontend integration
 - **Categories.tsx**: type toggle (Category | Recurring Payment) in New dialog; separate cards section with RefreshCw icon; EditRPDialog for editing
 - **HomeSpending.tsx**: floating RefreshCw button at `bottom-36 right-5` (only on current month); opens bottom sheet with manual-only RPs; expand to apply; applied items greyed out
