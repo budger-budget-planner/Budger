@@ -800,6 +800,7 @@ function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
   scope?: "personal" | "household"; isHead?: boolean;
 }) {
   const rpScope = scope ?? (rp as any).scope ?? "personal";
+  const isHouseholdRP = rpScope === "household";
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
   const [name, setName] = useState(rp.name);
@@ -930,15 +931,19 @@ function EditRPDialog({ rp, open, onClose, sym, scope, isHead }: {
             </div>
           )}
 
-          {/* Add to Larder toggle */}
+          {/* Larder destination toggle */}
           <button
             type="button"
             onClick={() => setAddToLarder(v => !v)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
           >
             <div className="flex-1 text-left">
-              <p className="text-sm font-medium text-foreground">{t("rp.add_to_larder")}</p>
-              <p className="text-xs text-muted-foreground">{t("rp.add_to_larder_desc")}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {t(isHouseholdRP ? "rp.send_to_great_larder" : "rp.add_to_larder")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t(isHouseholdRP ? "rp.send_to_great_larder_desc" : "rp.add_to_larder_desc")}
+                </p>
             </div>
             <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${addToLarder ? "bg-foreground" : "bg-muted border border-border"}`}>
               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${addToLarder ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />
@@ -1641,15 +1646,19 @@ export default function CategoriesPage() {
                 </div>
               )}
 
-              {/* Add to Larder toggle */}
+               {/* Larder destination toggle */}
               <button
                 type="button"
                 onClick={() => setRpAddToLarder(v => !v)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/50 border border-border transition active:opacity-70"
               >
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-foreground">{t("rp.add_to_larder")}</p>
-                  <p className="text-xs text-muted-foreground">{t("rp.add_to_larder_desc")}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {t(rpScope === "household" ? "rp.send_to_great_larder" : "rp.add_to_larder")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(rpScope === "household" ? "rp.send_to_great_larder_desc" : "rp.add_to_larder_desc")}
+                  </p>
                 </div>
                 <div className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${rpAddToLarder ? "bg-foreground" : "bg-muted border border-border"}`}>
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-background shadow transition-all ${rpAddToLarder ? "left-[calc(100%-1.375rem)]" : "left-0.5"}`} />

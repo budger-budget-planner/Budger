@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, larderEntriesTable, householdMembersTable } from "../db";
+import { db, transactionsTable, usersTable, recurringPaymentsTable, recurringPaymentLogsTable, greatLarderEntriesTable, householdMembersTable } from "../db";
 import { eq, and } from "drizzle-orm";
 import { syncTotalBudgetFloor } from "../lib/budget-sync";
 import { monthKey as currentMonthKey, getLastDayOfMonth, actualDayForMonth, formatRP } from "../lib/recurring-helpers";
@@ -72,13 +72,21 @@ async function autoApplyScheduledHousehold(userId: number, monthKey: string): Pr
     }).onConflictDoNothing();
 
     if (rp.addToLarder) {
-      const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
-      await db.insert(larderEntriesTable).values({
-        userId,
+      const [user] = await db.select({
+        currency: usersTable.currency,
+        householdId: usersTable.householdId,
+        name: usersTable.name,
+      }).from(usersTable).where(eq(usersTable.id, userId));
+      const householdId = rp.householdId ?? user?.householdId;
+      if (!householdId) throw new Error("Household recurring payment has no household");
+      await db.insert(greatLarderEntriesTable).values({
+        householdId,
+        contributedByUserId: userId,
         amount: rp.amount,
         currency: user?.currency ?? "USD",
         sourceType: "recurring_payment",
-        sourceId: tx.id,
+        status: "approved",
+        transactionId: tx.id,
         note: rp.name,
       }).onConflictDoNothing();
     }
@@ -300,13 +308,20 @@ router.post("/household-recurring-payments/:id/apply", async (req, res, next): P
   }).onConflictDoNothing();
 
   if (rp.addToLarder) {
-    const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
-    await db.insert(larderEntriesTable).values({
-      userId,
+    const [user] = await db.select({
+      currency: usersTable.currency,
+      householdId: usersTable.householdId,
+    }).from(usersTable).where(eq(usersTable.id, userId));
+    const householdId = rp.householdId ?? user?.householdId;
+    if (!householdId) { res.status(400).json({ error: "Household recurring payment has no household" }); return; }
+    await db.insert(greatLarderEntriesTable).values({
+      householdId,
+      contributedByUserId: userId,
       amount: rp.amount,
       currency: user?.currency ?? "USD",
       sourceType: "recurring_payment",
-      sourceId: tx.id,
+      status: "approved",
+      transactionId: tx.id,
       note: rp.name,
     }).onConflictDoNothing();
   }

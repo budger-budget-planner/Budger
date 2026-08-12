@@ -275,6 +275,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "rp.dialog_title":       { en: "New",                                     pl: "Nowy"                                     },
   "rp.add_to_larder":      { en: "Add to Larder",                           pl: "Dodaj do Spiżarni"                        },
   "rp.add_to_larder_desc": { en: "Each time this payment is applied, the amount is saved to your Larder.", pl: "Za każdym razem gdy płatność zostanie zastosowana, kwota trafi do Twojej Spiżarni." },
+  "rp.send_to_great_larder":      { en: "Send to Great Larder",                           pl: "Przekaż do Wielkiej Spiżarni"                        },
+  "rp.send_to_great_larder_desc": { en: "Each time this payment is applied, the amount is saved to the household Great Larder.", pl: "Za każdym razem gdy płatność zostanie zastosowana, kwota trafi do Wielkiej Spiżarni." },
   "rp.no_items_yet":       { en: "No recurring payments yet.",              pl: "Brak płatności cyklicznych."              },
   "rp.create_first":       { en: "Create first recurring payment",          pl: "Utwórz pierwszą płatność cykliczną"       },
 
