@@ -236,6 +236,10 @@ router.post("/goals/proposals/:id/approve", async (req, res): Promise<void> => {
   sendPushToUser(proposal.proposerId, {
     title: "Goal Proposal Approved ✓",
     body: `"${gName}" has been approved and is now a household goal.`,
+    titleEn: "Goal Proposal Approved ✓",
+    titlePl: "Propozycja celu zaakceptowana ✓",
+    bodyEn: `"${gName}" has been approved and is now a household goal.`,
+    bodyPl: `Cel „${gName}” został zaakceptowany i jest teraz celem gospodarstwa.`,
     url: "/?sheet=goals",
     tag: `proposal-approved-${proposal.goalId}`,
   }).catch(() => {});
@@ -282,6 +286,10 @@ router.post("/goals/proposals/:id/decline", async (req, res): Promise<void> => {
   sendPushToUser(proposal.proposerId, {
     title: "Goal Proposal Declined",
     body: `"${dGName || "Your goal"}" proposal was not approved.`,
+    titleEn: "Goal Proposal Declined",
+    titlePl: "Propozycja celu odrzucona",
+    bodyEn: `"${dGName || "Your goal"}" proposal was not approved.`,
+    bodyPl: `Propozycja celu „${dGName || "Twojego celu"}” nie została zaakceptowana.`,
     url: "/?sheet=goals",
     tag: `proposal-declined-${proposal.goalId}`,
   }).catch(() => {});
@@ -429,6 +437,10 @@ router.post("/goals/edit-proposals/:id/approve", async (req, res): Promise<void>
   sendPushToUser(proposal.proposerId, {
     title: "Goal Edit Approved ✓",
     body: `Your changes to "${proposal.name}" have been approved.`,
+    titleEn: "Goal Edit Approved ✓",
+    titlePl: "Edycja celu zaakceptowana ✓",
+    bodyEn: `Your changes to "${proposal.name}" have been approved.`,
+    bodyPl: `Twoje zmiany celu „${proposal.name}” zostały zaakceptowane.`,
     url: "/?sheet=goals",
     tag: `edit-approved-${proposal.goalId}`,
   }).catch(() => {});
@@ -470,6 +482,10 @@ router.post("/goals/edit-proposals/:id/decline", async (req, res): Promise<void>
   sendPushToUser(proposal.proposerId, {
     title: "Goal Edit Declined",
     body: `Your proposed changes to "${proposal.name}" were not approved.`,
+    titleEn: "Goal Edit Declined",
+    titlePl: "Edycja celu odrzucona",
+    bodyEn: `Your proposed changes to "${proposal.name}" were not approved.`,
+    bodyPl: `Proponowane przez Ciebie zmiany celu „${proposal.name}” nie zostały zaakceptowane.`,
     url: "/?sheet=goals",
     tag: `edit-declined-${proposal.goalId}`,
   }).catch(() => {});
@@ -567,6 +583,10 @@ router.post("/goals/:id/propose", async (req, res): Promise<void> => {
   sendPushToUsers(headIds.filter(hid => hid !== userId), {
     title: "Budger — Goal Proposal",
     body: `${proposer?.name ?? "A member"} wants to share "${goal.name}" with the household.`,
+    titleEn: "Budger — Goal Proposal",
+    titlePl: "Budger — Propozycja celu",
+    bodyEn: `${proposer?.name ?? "A member"} wants to share "${goal.name}" with the household.`,
+    bodyPl: `${proposer?.name ?? "Członek"} chce udostępnić cel „${goal.name}” gospodarstwu.`,
     url: "/?sheet=goals",
     tag: `new-proposal-${goal.id}`,
   }).catch(() => {});
@@ -625,6 +645,10 @@ router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
   sendPushToUsers(editHeadIds.filter(hid => hid !== userId), {
     title: "Budger — Goal Edit Request",
     body: `${editProposer?.name ?? "A member"} proposed changes to "${goal.name}".`,
+    titleEn: "Budger — Goal Edit Request",
+    titlePl: "Budger — Prośba o edycję celu",
+    bodyEn: `${editProposer?.name ?? "A member"} proposed changes to "${goal.name}".`,
+    bodyPl: `${editProposer?.name ?? "Członek"} zaproponował(-a) zmiany celu „${goal.name}”.`,
     url: "/?sheet=goals",
     tag: `new-edit-proposal-${goal.id}`,
   }).catch(() => {});

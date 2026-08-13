@@ -757,6 +757,10 @@ router.post("/households/leave", async (req, res): Promise<void> => {
     sendPushToUser(headMember.userId, {
       title: `${leaverName} left ${hhName}`,
       body: "A member has left your household.",
+      titleEn: `${leaverName} left ${hhName}`,
+      titlePl: `${leaverName} opuścił(-a) ${hhName}`,
+      bodyEn: "A member has left your household.",
+      bodyPl: "Członek opuścił Twoje gospodarstwo.",
       url: "/?sheet=household",
       tag: `member-left-${userId}`,
       badgeCount: badge,
@@ -881,6 +885,10 @@ router.post("/households/request-head", async (req, res): Promise<void> => {
   sendPushToUser(headMember.userId, {
     title: `${requesterName} wants to become Head`,
     body: "Tap to review the request.",
+    titleEn: `${requesterName} wants to become Head`,
+    titlePl: `${requesterName} chce zostać Głową Rodziny`,
+    bodyEn: "Tap to review the request.",
+    bodyPl: "Dotknij, aby przejrzeć prośbę.",
     url: "/?sheet=household",
     tag: `head-request-${userId}`,
     badgeCount: headRequestBadge,
@@ -1017,6 +1025,10 @@ router.post("/households/head-requests/:notifId/approve", async (req, res): Prom
   sendPushToUser(requesterId, {
     title: "You are now Head of Household",
     body: "Your request to become Head was approved.",
+    titleEn: "You are now Head of Household",
+    titlePl: "Zostałeś(-aś) liderem gospodarstwa",
+    bodyEn: "Your request to become Head was approved.",
+    bodyPl: "Twoja prośba o zostanie liderem gospodarstwa została zaakceptowana.",
     url: "/?sheet=household",
     tag: `head-promoted-${requesterId}`,
     badgeCount: promotedBadge,
@@ -1074,6 +1086,10 @@ router.post("/households/head-requests/:notifId/decline", async (req, res): Prom
   sendPushToUser(requesterId, {
     title: "Head request declined",
     body: "Your request to become Head of Household was declined.",
+    titleEn: "Head request declined",
+    titlePl: "Prośba o przyznanie roli lidera odrzucona",
+    bodyEn: "Your request to become Head of Household was declined.",
+    bodyPl: "Twoja prośba o zostanie liderem gospodarstwa została odrzucona.",
     url: "/?sheet=household",
     tag: `head-declined-${requesterId}`,
     badgeCount: declinedBadge,

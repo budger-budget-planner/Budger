@@ -389,6 +389,10 @@ router.patch("/splits/:id/accept", async (req, res): Promise<void> => {
     body: acceptedIsPolish
       ? `${acceptedName} zaakceptował(a) Twoją prośbę o ${acceptedAmountLabel}${origTx.description ? ` za "${origTx.description}"` : ""}.`
       : `${acceptedName} accepted your request for ${acceptedAmountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
+    titleEn: "Split request accepted",
+    titlePl: "Prośba o podział zaakceptowana",
+    bodyEn: `${acceptedName} accepted your request for ${acceptedAmountLabel}${origTx.description ? ` on "${origTx.description}"` : ""}.`,
+    bodyPl: `${acceptedName} zaakceptował(a) Twoją prośbę o ${acceptedAmountLabel}${origTx.description ? ` za "${origTx.description}"` : ""}.`,
     url: "/",
     tag: `split-accepted-${split.id}`,
     badgeCount: acceptedBadge,
@@ -476,6 +480,10 @@ router.patch("/splits/:id/decline", async (req, res): Promise<void> => {
     body: declinedIsPolish
       ? `${declinedName} odrzucił(a) Twoją prośbę o ${declinedAmountLabel}${origTx?.description ? ` za "${origTx.description}"` : ""}.`
       : `${declinedName} declined your request for ${declinedAmountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
+    titleEn: "Split request declined",
+    titlePl: "Prośba o podział odrzucona",
+    bodyEn: `${declinedName} declined your request for ${declinedAmountLabel}${origTx?.description ? ` on "${origTx.description}"` : ""}.`,
+    bodyPl: `${declinedName} odrzucił(a) Twoją prośbę o ${declinedAmountLabel}${origTx?.description ? ` za "${origTx.description}"` : ""}.`,
     url: "/",
     tag: `split-declined-${split.id}`,
     badgeCount: declinedBadge,

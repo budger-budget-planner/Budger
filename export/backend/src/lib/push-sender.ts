@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { db, pushSubscriptionsTable } from "../db";
+import { db, pushSubscriptionsTable, usersTable } from "../db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -34,6 +34,12 @@ if (PUSH_CONFIGURED) {
 export type PushPayload = {
   title: string;
   body: string;
+  /** Optional account-language variants. The sender selects these using the
+   * recipient's persisted account language, never the sender's language. */
+  titleEn?: string;
+  titlePl?: string;
+  bodyEn?: string;
+  bodyPl?: string;
   url?: string;
   tag?: string;
   /** Recipient's total unread Notification Center count at send time — the
@@ -59,8 +65,22 @@ export async function sendPushToUser(userId: number, payload: PushPayload): Prom
 
   if (subs.length === 0) return;
 
+  let language = "en";
+  try {
+    const [user] = await db
+      .select({ language: usersTable.language })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    language = user?.language ?? "en";
+  } catch (err) {
+    logger.warn({ err, userId }, "push-sender: failed to fetch recipient language");
+  }
+
+  const isPolish = String(language).toLowerCase().startsWith("pl");
   const payloadStr = JSON.stringify({
     ...payload,
+    title: isPolish ? (payload.titlePl ?? payload.title) : (payload.titleEn ?? payload.title),
+    body: isPolish ? (payload.bodyPl ?? payload.body) : (payload.bodyEn ?? payload.body),
     icon: "/favicon.svg",
   });
 

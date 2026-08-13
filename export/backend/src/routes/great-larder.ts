@@ -372,6 +372,10 @@ router.post("/great-larder/fund", async (req, res): Promise<void> => {
       sendPushToUser(headId, {
         title: "Great Larder fund request",
         body: `${user.name} wants to add ${larderAmount} ${currency} to the Great Larder`,
+        titleEn: "Great Larder fund request",
+        titlePl: "Wniosek o zasilenie Wielkiej Spiżarni",
+        bodyEn: `${user.name} wants to add ${larderAmount} ${currency} to the Great Larder`,
+        bodyPl: `${user.name} chce dodać ${larderAmount} ${currency} do Wielkiej Spiżarni`,
         url: "/?sheet=great-larder",
         tag: dedupKey,
         badgeCount: fundBadge,
@@ -425,6 +429,10 @@ router.post("/great-larder/entries/:id/approve", async (req, res): Promise<void>
   sendPushToUser(entry.contributedByUserId, {
     title: "Great Larder fund approved",
     body: `Your fund of ${entry.amount} ${entry.currency} was approved and added to the Great Larder`,
+    titleEn: "Great Larder fund approved",
+    titlePl: "Wniosek zaakceptowany",
+    bodyEn: `Your fund of ${entry.amount} ${entry.currency} was approved and added to the Great Larder`,
+    bodyPl: `Twój wniosek o ${entry.amount} ${entry.currency} został zaakceptowany`,
     url: "/?sheet=great-larder",
     tag: `great-larder-fund-approved-${entryId}`,
     badgeCount: approvedBadge,
@@ -476,6 +484,10 @@ router.post("/great-larder/entries/:id/reject", async (req, res): Promise<void> 
   sendPushToUser(entry.contributedByUserId, {
     title: "Great Larder fund rejected",
     body: `Your fund request of ${entry.amount} ${entry.currency} was not approved`,
+    titleEn: "Great Larder fund rejected",
+    titlePl: "Wniosek odrzucony",
+    bodyEn: `Your fund request of ${entry.amount} ${entry.currency} was not approved`,
+    bodyPl: `Twój wniosek o ${entry.amount} ${entry.currency} nie został zaakceptowany`,
     url: "/?sheet=great-larder",
     tag: `great-larder-fund-rejected-${entryId}`,
     badgeCount: rejectedBadge,
@@ -571,6 +583,10 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
       sendPushToUser(headId, {
         title: "Great Larder spend request",
         body: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
+        titleEn: "Great Larder spend request",
+        titlePl: "Wniosek o wydatek z Wielkiej Spiżarni",
+        bodyEn: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
+        bodyPl: `${user.name} chce wydać ${nativeAmount} ${assetCurrency} z Wielkiej Spiżarni`,
         url: "/?sheet=great-larder",
         tag: `great-larder-spend-pending-${entry.id}`,
         badgeCount: spendBadge,

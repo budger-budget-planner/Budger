@@ -692,6 +692,10 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           return sendPushToUser(m.userId, {
             title: "Household leadership changed",
             body: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
+            titleEn: "Household leadership changed",
+            titlePl: "Zmiana lidera gospodarstwa",
+            bodyEn: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
+            bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zarządzanie gospodarstwem zostało przekazane nowemu liderowi.`,
             url: "/?sheet=household",
             tag: `household-head-transferred-${householdId}`,
             badgeCount: badge,
@@ -713,6 +717,10 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
         sendPushToUser(newHead.userId, {
           title: "You are now the household head",
           body: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget.`,
+          titleEn: "You are now the household head",
+          titlePl: "Zostałeś(-aś) liderem gospodarstwa",
+          bodyEn: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget.`,
+          bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) wybrany(-a) na nowego lidera gospodarstwa, ponieważ masz najwyższy miesięczny budżet.`,
           url: "/?sheet=household",
           tag: `household-you-are-now-head-${householdId}`,
           badgeCount: newHeadBadge,
@@ -748,6 +756,10 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           return sendPushToUser(m.userId, {
             title: "Member leaving household",
             body: `${displayName} has requested account deletion and will be removed from your household.`,
+            titleEn: "Member leaving household",
+            titlePl: "Członek opuszcza gospodarstwo",
+            bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
+            bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
             url: "/?sheet=household",
             tag: `household-member-deletion-${householdId}-${userId}`,
             badgeCount: badge,
