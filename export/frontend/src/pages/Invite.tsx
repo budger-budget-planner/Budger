@@ -84,20 +84,26 @@ export default function InvitePage() {
   const autoAccept = useCallback(async () => {
     if (!token) return;
     setState("accepting");
-    const csrf = await getCsrfToken().catch(() => "");
-    const r = await fetch(`${base}api/invites/${token}/accept`, {
-      method: "POST", credentials: "include",
-      headers: { "x-csrf-token": csrf },
-    });
-    if (r.ok) {
-      markSession();
-      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      setState("accepted");
-    } else {
-      const body = await r.json().catch(() => ({}));
-      // Fall back to registered_view so the user can read the error and retry
-      // the Accept button manually — avoids the misleading "not found" screen.
-      setErrorMsg(body.error ?? t("invite.accept_failed"));
+    setErrorMsg("");
+    try {
+      const csrf = await getCsrfToken().catch(() => "");
+      const r = await fetch(`${base}api/invites/${token}/accept`, {
+        method: "POST", credentials: "include",
+        headers: { "x-csrf-token": csrf },
+      });
+      if (r.ok) {
+        markSession();
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        setState("accepted");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        // Fall back to registered_view so the user can read the error and retry
+        // the Accept button manually — avoids the misleading "not found" screen.
+        setErrorMsg(body.error ?? t("invite.accept_failed"));
+        setState("registered_view");
+      }
+    } catch {
+      setErrorMsg(t("invite.accept_failed"));
       setState("registered_view");
     }
   }, [token, base, queryClient]);
@@ -128,7 +134,10 @@ export default function InvitePage() {
     if (action === "accept") {
       if (!autoAcceptFiredRef.current) {
         autoAcceptFiredRef.current = true;
-        autoAccept();
+        void autoAccept().catch(() => {
+          setErrorMsg(t("invite.accept_failed"));
+          setState("registered_view");
+        });
       }
       // else: autoAccept already ran (React Query refetch caused a re-run);
       // do nothing — let the user interact with the registered_view manually.
@@ -143,18 +152,24 @@ export default function InvitePage() {
   async function handleAccept() {
     if (!token) return;
     setState("accepting");
-    const csrf = await getCsrfToken().catch(() => "");
-    const r = await fetch(`${base}api/invites/${token}/accept`, {
-      method: "POST", credentials: "include",
-      headers: { "x-csrf-token": csrf },
-    });
-    if (r.ok) {
-      markSession();
-      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      setState("accepted");
-    } else {
-      const body = await r.json().catch(() => ({}));
-      setErrorMsg(body.error ?? t("common.error"));
+    setErrorMsg("");
+    try {
+      const csrf = await getCsrfToken().catch(() => "");
+      const r = await fetch(`${base}api/invites/${token}/accept`, {
+        method: "POST", credentials: "include",
+        headers: { "x-csrf-token": csrf },
+      });
+      if (r.ok) {
+        markSession();
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        setState("accepted");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        setErrorMsg(body.error ?? t("common.error"));
+        setState("registered_view");
+      }
+    } catch {
+      setErrorMsg(t("invite.accept_failed"));
       setState("registered_view");
     }
   }
@@ -162,16 +177,22 @@ export default function InvitePage() {
   async function handleDecline() {
     if (!token) return;
     setState("declining");
-    const csrf = await getCsrfToken().catch(() => "");
-    const r = await fetch(`${base}api/invites/${token}/decline`, {
-      method: "POST", credentials: "include",
-      headers: { "x-csrf-token": csrf },
-    });
-    if (r.ok) {
-      setState("declined");
-    } else {
-      const body = await r.json().catch(() => ({}));
-      setErrorMsg(body.error ?? t("common.error"));
+    setErrorMsg("");
+    try {
+      const csrf = await getCsrfToken().catch(() => "");
+      const r = await fetch(`${base}api/invites/${token}/decline`, {
+        method: "POST", credentials: "include",
+        headers: { "x-csrf-token": csrf },
+      });
+      if (r.ok) {
+        setState("declined");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        setErrorMsg(body.error ?? t("common.error"));
+        setState("registered_view");
+      }
+    } catch {
+      setErrorMsg(t("common.try_again"));
       setState("registered_view");
     }
   }

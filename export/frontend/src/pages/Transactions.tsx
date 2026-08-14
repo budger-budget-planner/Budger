@@ -719,6 +719,7 @@ export default function TransactionsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [autoRulePrompt, setAutoRulePrompt] = useState<{ merchantName: string; oldCategoryName: string } | null>(null);
+  const [autoRuleStopping, setAutoRuleStopping] = useState(false);
   const [nameEditTxId,  setNameEditTxId]  = useState<number | null>(null);
   const [nameEditValue, setNameEditValue] = useState("");
   const longPressRef = useRef<{
@@ -1304,13 +1305,23 @@ export default function TransactionsPage() {
               </button>
               <button
                 className="flex-1 py-2 rounded-xl bg-white text-sm text-black font-medium hover:bg-zinc-200 transition-colors"
+                disabled={autoRuleStopping || updateMerchantRule.isPending}
                 onClick={async () => {
-                  const rules = await listMerchantCategoryRules();
-                  const rule = rules.find(
-                    r => r.merchantName === autoRulePrompt.merchantName.trim().toLowerCase(),
-                  );
-                  if (rule) updateMerchantRule.mutate({ id: rule.id, data: { disabled: true } });
-                  setAutoRulePrompt(null);
+                  if (autoRuleStopping) return;
+                  setAutoRuleStopping(true);
+                  try {
+                    const rules = await listMerchantCategoryRules();
+                    const rule = rules.find(
+                      r => r.merchantName === autoRulePrompt.merchantName.trim().toLowerCase(),
+                    );
+                    if (!rule) throw new Error(t("common.try_again"));
+                    await updateMerchantRule.mutateAsync({ id: rule.id, data: { disabled: true } });
+                    setAutoRulePrompt(null);
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : t("common.try_again"));
+                  } finally {
+                    setAutoRuleStopping(false);
+                  }
                 }}
               >
                 {t("auto_cat.yes_stop")}

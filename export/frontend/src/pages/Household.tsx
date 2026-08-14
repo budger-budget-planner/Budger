@@ -342,7 +342,9 @@ function MemberSheet({
   const isLoading = isVirtual ? virtualLoading : realLoading;
   const isError = isVirtual ? false : realError;
   const [savingRole, setSavingRole] = useState(false);
+  const [roleSaveError, setRoleSaveError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>(member.role);
+  const { toast } = useToast();
 
   const viewerCurrency = loadPrefs().currency;
   /** Convert an amount from the member's own currency to the viewer's display currency. */
@@ -391,9 +393,14 @@ function MemberSheet({
   async function handleRoleSave() {
     if (selectedRole === member.role) { onClose(); return; }
     setSavingRole(true);
+    setRoleSaveError(null);
     try {
       await onRoleChange?.(selectedRole);
       onClose();
+    } catch {
+      const message = t("common.try_again");
+      setRoleSaveError(message);
+      toast({ title: t("common.error"), description: message, variant: "destructive" });
     } finally {
       setSavingRole(false);
     }
@@ -520,14 +527,19 @@ function MemberSheet({
                 {/* child/ward kept in code, hidden from UI */}
               </div>
               {selectedRole !== member.role && (
-                <Button
-                  size="sm"
-                  className="w-full h-8 text-xs"
-                  onClick={handleRoleSave}
-                  disabled={savingRole}
-                >
-                  {savingRole ? t("common.saving") : t("hh.set_as_role", { role: roleLabelShort(selectedRole) })}
-                </Button>
+                <>
+                  {roleSaveError && (
+                    <p className="text-xs text-red-300" role="alert">{roleSaveError}</p>
+                  )}
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-xs"
+                    onClick={handleRoleSave}
+                    disabled={savingRole}
+                  >
+                    {savingRole ? t("common.saving") : t("hh.set_as_role", { role: roleLabelShort(selectedRole) })}
+                  </Button>
+                </>
               )}
             </div>
           )}
@@ -1065,12 +1077,20 @@ export default function HouseholdPage() {
       const r = await apiFetch(`${import.meta.env.BASE_URL}api/households`, {
         method: "DELETE",
       });
-      if (r.ok) {
-        setDeleteHouseholdOpen(false);
-        // Wipe cache immediately so empty state shows without waiting for refetch.
-        queryClient.setQueryData(getGetHouseholdQueryKey(), null);
-        invalidateHousehold(queryClient);
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(typeof body?.error === "string" ? body.error : t("common.try_again"));
       }
+      setDeleteHouseholdOpen(false);
+      // Wipe cache immediately so empty state shows without waiting for refetch.
+      queryClient.setQueryData(getGetHouseholdQueryKey(), null);
+      invalidateHousehold(queryClient);
+    } catch (error) {
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.try_again"),
+        variant: "destructive",
+      });
     } finally {
       setDeletingHousehold(false);
     }
