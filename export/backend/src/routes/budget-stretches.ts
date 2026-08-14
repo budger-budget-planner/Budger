@@ -225,9 +225,15 @@ router.patch("/budget-stretches/:id", async (req, res): Promise<void> => {
   const [updated] = await db
     .update(budgetStretchesTable)
     .set({ amount: String(parsedAmount) })
-    .where(eq(budgetStretchesTable.id, id))
+    .where(and(
+      eq(budgetStretchesTable.id, id),
+      eq(budgetStretchesTable.userId, userId),
+    ))
     .returning();
 
+  if (!updated) {
+    res.status(404).json({ error: "Budget stretch not found" }); return;
+  }
   res.json(formatStretch(updated));
 });
 

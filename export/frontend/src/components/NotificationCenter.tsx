@@ -146,13 +146,19 @@ async function alarmFetch(path: string, method: string, body?: object) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (res.status === 204) return null;
-  return res.ok ? res.json() : null;
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.error ?? `Request failed (${res.status})`);
+  }
+  return res.json();
 }
 
 function AlarmPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
   const [alarms, setAlarms] = useState<ServerAlarm[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [permStatus, setPermStatus] = useState<NotificationPermission>("default");
   const reminderTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Per-alarm debounce timers for PATCH
@@ -234,20 +240,32 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
   }
 
   async function handleAdd() {
+    if (adding) return;
+    setAdding(true);
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const granted = await ensurePushPermission();
-    if (!granted && "Notification" in window && Notification.permission !== "granted") {
-      toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
-    }
-    const newAlarm: ServerAlarm | null = await alarmFetch("/api/notifications/alarms", "POST", {
-      reminderTime: "09:00",
-      days: ["mon","tue","wed","thu","fri"],
-      timezone: tz,
-      enabled: true,
-    });
-    if (newAlarm) {
-      setAlarms(prev => [...prev, newAlarm]);
-      if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+    try {
+      const granted = await ensurePushPermission();
+      if (!granted && "Notification" in window && Notification.permission !== "granted") {
+        toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
+      }
+      const newAlarm: ServerAlarm | null = await alarmFetch("/api/notifications/alarms", "POST", {
+        reminderTime: "09:00",
+        days: ["mon","tue","wed","thu","fri"],
+        timezone: tz,
+        enabled: true,
+      });
+      if (newAlarm) {
+        setAlarms(prev => [...prev, newAlarm]);
+        if (isPushSupported()) subscribeToPushNotifications().catch(() => {});
+      }
+    } catch (error) {
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.try_again"),
+        variant: "destructive",
+      });
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -277,8 +295,23 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
   }
 
   async function handleDelete(id: number) {
+    if (deletingId !== null) return;
+    const removed = alarms.find(alarm => alarm.id === id);
+    if (!removed) return;
+    setDeletingId(id);
     setAlarms(prev => prev.filter(a => a.id !== id));
-    await alarmFetch(`/api/notifications/alarms/${id}`, "DELETE");
+    try {
+      await alarmFetch(`/api/notifications/alarms/${id}`, "DELETE");
+    } catch (error) {
+      setAlarms(prev => prev.some(alarm => alarm.id === id) ? prev : [...prev, removed]);
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.try_again"),
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -311,8 +344,8 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
                 <span className="text-sm font-medium">{alarm.enabled ? t("notif.on") : t("notif.off")}</span>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => handleDelete(alarm.id)}
-                  className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70">
+                <button onClick={() => handleDelete(alarm.id)} disabled={deletingId === alarm.id}
+                  className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70 disabled:opacity-40">
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </button>
                 <Switch checked={alarm.enabled} onCheckedChange={v => handleToggle(alarm.id, v)} />
@@ -342,8 +375,8 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
           </div>
         ))}
 
-        <button onClick={handleAdd}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition active:opacity-70">
+        <button onClick={handleAdd} disabled={adding}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition active:opacity-70 disabled:opacity-40">
           <Plus className="w-4 h-4" />
           {t("nc.add_alarm")}
         </button>
@@ -494,6 +527,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [exportingData, setExportingData] = useState(false);
   // Offline sync status (shown in the Sync section above Smart alerts)
   const [syncExpanded, setSyncExpanded] = useState(false);
+  const [discardingOpId, setDiscardingOpId] = useState<string | null>(null);
   const { ops, pendingCount, failedCount, refresh: opsRefresh } = useOfflinePendingOps();
 
   // Mission / Legal / Delete state
@@ -627,8 +661,23 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     if (previewing) return;
     if (previewTimeout.current) clearTimeout(previewTimeout.current);
     setPreviewing(true);
-    await triggerBadgerNotification({ haptic: hapticEnabled && canHaptic() });
-    previewTimeout.current = setTimeout(() => setPreviewing(false), 2600);
+    let succeeded = false;
+    try {
+      await triggerBadgerNotification({ haptic: hapticEnabled && canHaptic() });
+      succeeded = true;
+    } catch {
+      toast({
+        title: t("common.error"),
+        description: t("common.try_again"),
+        variant: "destructive",
+      });
+    } finally {
+      if (previewTimeout.current) clearTimeout(previewTimeout.current);
+      previewTimeout.current = succeeded
+        ? setTimeout(() => setPreviewing(false), 2600)
+        : null;
+      if (!succeeded) setPreviewing(false);
+    }
   }
 
   function openDeleteFlow() {
@@ -729,14 +778,27 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
                         )}
                       </div>
                       <button
+                        disabled={discardingOpId === op.id}
                         onClick={async () => {
-                          await discardOp(op.id);
-                          opsRefresh();
-                          window.dispatchEvent(new CustomEvent("queue-updated"));
-                          // Also fire queue-drain so useQueueReplay retries remaining ops immediately
-                          window.dispatchEvent(new CustomEvent("queue-drain"));
+                          if (discardingOpId !== null) return;
+                          setDiscardingOpId(op.id);
+                          try {
+                            await discardOp(op.id);
+                            opsRefresh();
+                            window.dispatchEvent(new CustomEvent("queue-updated"));
+                            // Also fire queue-drain so useQueueReplay retries remaining ops immediately
+                            window.dispatchEvent(new CustomEvent("queue-drain"));
+                          } catch {
+                            toast({
+                              title: t("common.error"),
+                              description: t("common.try_again"),
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setDiscardingOpId(null);
+                          }
                         }}
-                        className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 transition active:scale-90"
+                        className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 transition active:scale-90 disabled:opacity-40"
                         title={lang === "pl" ? "Odrzuć" : "Discard"}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
