@@ -624,9 +624,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (showProfile && !rates) {
-      fetchRates().then(setRates);
+      fetchRates()
+        .then(setRates)
+        .catch(() => {
+          toast({ title: t("profile.rates_refresh_failed"), variant: "destructive" });
+        });
     }
-  }, [showProfile]);
+  }, [showProfile, rates, toast]);
 
   // Load persisted currency-switch state once the user id is known.
   useEffect(() => {

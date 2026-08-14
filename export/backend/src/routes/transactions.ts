@@ -864,9 +864,9 @@ router.post("/transactions/:id/breakdown", async (req, res): Promise<void> => {
       ? await db.select().from(categoriesTable).where(inArray(categoriesTable.id, categoryIdsForCreated))
       : [];
     const categoryMap = new Map(createdCategories.map(category => [category.id, category]));
-    const enriched = result.inserted.map(tx =>
+    const enriched = await Promise.all(result.inserted.map(tx =>
       enrichTransaction(tx, tx.categoryId ? categoryMap.get(tx.categoryId) : null, currentUser),
-    );
+    ));
 
     await deleteReceiptObjectsBestEffort(result.receiptUrls);
 

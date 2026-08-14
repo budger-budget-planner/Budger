@@ -511,7 +511,13 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
 
   async function handleSmartToggle(key: keyof SmartAlertPrefs, value: boolean) {
     if (value) {
-      const granted = await ensurePermission();
+      let granted = false;
+      try {
+        granted = await ensurePermission();
+      } catch {
+        toast({ title: t("notif.perm_denied"), description: t("notif.enable_notif"), variant: "destructive" });
+        return;
+      }
       if (!granted) {
         toast({ title: t("notif.perm_denied"), description: t("notif.enable_notif"), variant: "destructive" });
         return;
