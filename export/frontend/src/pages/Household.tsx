@@ -655,14 +655,17 @@ export default function HouseholdPage() {
       // Tell the server which currency the recipient's ledger entry should land in —
       // the server always computes the conversion itself using live rates (never
       // trusts a client-side amount), so this always matches what was requested.
-      await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/accept`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipientCurrency: prefs2.currency }),
       });
-      refetchIncoming();
-      queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
-      queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
+      if (!response.ok) throw new Error("Split acceptance failed");
+      await refetchIncoming();
+      await queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
+      await queryClient.invalidateQueries({ queryKey: ["splits-declined-badge"] });
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally {
       setSplitActionLoading(null);
     }
@@ -671,9 +674,12 @@ export default function HouseholdPage() {
   async function declineSplit(id: number) {
     setSplitActionLoading(id);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/decline`, { method: "PATCH" });
-      refetchIncoming();
-      queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/splits/${id}/decline`, { method: "PATCH" });
+      if (!response.ok) throw new Error("Split decline failed");
+      await refetchIncoming();
+      await queryClient.invalidateQueries({ queryKey: ["splits-incoming-badge"] });
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally {
       setSplitActionLoading(null);
     }
@@ -794,20 +800,26 @@ export default function HouseholdPage() {
   async function handleGlApprove(id: number) {
     setGlApproving(id);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/approve`, {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/approve`, {
         method: "POST",
       });
-      refetchGL();
+      if (!response.ok) throw new Error("Great Larder approval failed");
+      await refetchGL();
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally { setGlApproving(null); }
   }
 
   async function handleGlReject(id: number) {
     setGlApproving(id);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/reject`, {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/great-larder/entries/${id}/reject`, {
         method: "POST",
       });
-      refetchGL();
+      if (!response.ok) throw new Error("Great Larder rejection failed");
+      await refetchGL();
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally { setGlApproving(null); }
   }
 
@@ -879,17 +891,23 @@ export default function HouseholdPage() {
   async function handleApproveHeadRequest(notifId: number) {
     setHeadActionLoading(notifId);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/approve`, { method: "POST" });
-      refetchHeadRequests();
-      invalidateHousehold(queryClient);
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/approve`, { method: "POST" });
+      if (!response.ok) throw new Error("Head request approval failed");
+      await refetchHeadRequests();
+      await invalidateHousehold(queryClient);
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally { setHeadActionLoading(null); }
   }
 
   async function handleDeclineHeadRequest(notifId: number) {
     setHeadActionLoading(notifId);
     try {
-      await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/decline`, { method: "POST" });
-      refetchHeadRequests();
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/households/head-requests/${notifId}/decline`, { method: "POST" });
+      if (!response.ok) throw new Error("Head request decline failed");
+      await refetchHeadRequests();
+    } catch {
+      toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
     } finally { setHeadActionLoading(null); }
   }
 

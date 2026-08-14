@@ -42,16 +42,6 @@ function isHeadRole(role: string) { return role === "head" || role === "owner"; 
 function isParentRole(role: string) { return role === "parent"; }
 function canProposeShare(role: string) { return isHeadRole(role) || isParentRole(role); }
 
-async function apiFetch(path: string, init?: RequestInit) {
-  const r = await fetch(`${import.meta.env.BASE_URL}api${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!r.ok) throw new Error(await r.text().catch(() => "Request failed"));
-  return r.status === 204 ? null : r.json();
-}
-
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -564,7 +554,14 @@ function ShareCategoryDialog({ category, open, onClose }: {
 
   const propose = useMutation({
     mutationFn: (body: { targetUserId?: number; all?: boolean }) =>
-      apiFetch(`/categories/${category.id}/share`, { method: "POST", body: JSON.stringify(body) }),
+      apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/categories/${category.id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(async response => {
+        if (!response.ok) throw new Error(await response.text().catch(() => "Request failed"));
+        return response.status === 204 ? null : response.json();
+      }),
     onSuccess: () => setDone(true),
   });
 
@@ -982,13 +979,24 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
 
   const { data: proposals = [], isLoading } = useQuery<CategoryProposal[]>({
     queryKey: ["category-share-proposals"],
-    queryFn: () => apiFetch("/category-share-proposals"),
+    queryFn: async () => {
+      const response = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/category-share-proposals`);
+      if (!response.ok) throw new Error(await response.text().catch(() => "Request failed"));
+      return response.json();
+    },
     refetchInterval: 5_000,
   });
 
   const accept = useMutation({
-    mutationFn: (id: number) =>
-      apiFetch(`/category-share-proposals/${id}/accept`, { method: "POST", body: "{}" }),
+    mutationFn: async (id: number) => {
+      const response = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/category-share-proposals/${id}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error(await response.text().catch(() => "Request failed"));
+      return response.status === 204 ? null : response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["category-share-proposals"] });
       queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
@@ -997,8 +1005,15 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
   });
 
   const reject = useMutation({
-    mutationFn: (id: number) =>
-      apiFetch(`/category-share-proposals/${id}/reject`, { method: "POST", body: "{}" }),
+    mutationFn: async (id: number) => {
+      const response = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/category-share-proposals/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error(await response.text().catch(() => "Request failed"));
+      return response.status === 204 ? null : response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["category-share-proposals"] });
       onSettled();

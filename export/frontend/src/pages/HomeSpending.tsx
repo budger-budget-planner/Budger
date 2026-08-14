@@ -991,6 +991,7 @@ function SwipeableTxRow({
   const hasMoved = useRef(false);
   const swipeHandled = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
@@ -1002,7 +1003,15 @@ function SwipeableTxRow({
     }
   }
 
-  useEffect(() => cancelLongPress, []);
+  useEffect(() => {
+    return () => {
+      cancelLongPress();
+      if (snapTimer.current) {
+        clearTimeout(snapTimer.current);
+        snapTimer.current = null;
+      }
+    };
+  }, []);
 
   // Snap widths: how wide each panel is at rest after revealing
   const RIGHT_SNAP = 88;
@@ -1011,11 +1020,18 @@ function SwipeableTxRow({
   const SNAP_THRESHOLD   = 44;
 
   function snapTo(to: number, side: "left" | "right" | null) {
+    if (snapTimer.current) {
+      clearTimeout(snapTimer.current);
+      snapTimer.current = null;
+    }
     setAnimating(true);
     setOffset(to);
     snappedRef.current = side;
     currentOffset.current = to;
-    setTimeout(() => setAnimating(false), 340);
+    snapTimer.current = setTimeout(() => {
+      setAnimating(false);
+      snapTimer.current = null;
+    }, 340);
   }
 
   function resetRow() { snapTo(0, null); }
@@ -1127,6 +1143,13 @@ function SwipeableTxRow({
   function onTouchCancel() {
     isDragging.current = false;
     cancelLongPress();
+    isScrolling.current = null;
+    hasMoved.current = false;
+    longPressTriggered.current = false;
+    swipeHandled.current = false;
+    const side = snappedRef.current;
+    const restOffset = side === "left" ? -RIGHT_SNAP : side === "right" ? LEFT_SNAP : 0;
+    snapTo(restOffset, side);
   }
 
   function onClickCapture(e: React.MouseEvent) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 import LarderCard from "@/pages/LarderTab";
 import {
   useListGoals,
@@ -1102,6 +1103,7 @@ function SectionHeader({ icon: Icon, label, count }: { icon: any; label: string;
 
 export default function GoalsPage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const prefs = loadPrefs();
   const sym   = currencySymbol(prefs.currency);
   const { pendingGoalIds } = useOfflinePendingOps();
@@ -1288,11 +1290,14 @@ export default function GoalsPage() {
         if (newProposeToHousehold && created?.id) {
           setProposingAfterCreate(true);
           try {
-            await apiFetch(`${import.meta.env.BASE_URL}api/goals/${created.id}/propose`, {
+            const response = await apiFetch(`${import.meta.env.BASE_URL}api/goals/${created.id}/propose`, {
               method: "POST",
             });
+            if (!response.ok) throw new Error("Goal proposal failed");
             refetchMyShareProposals();
             queryClient.invalidateQueries({ queryKey: ["goal-my-share-proposals-badge"] });
+          } catch {
+            toast({ title: t("common.error"), description: t("common.try_again"), variant: "destructive" });
           } finally {
             setProposingAfterCreate(false);
           }
