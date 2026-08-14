@@ -114,5 +114,5 @@ description = "Read-only comparison of the working Larder implementation versus 
 id = "ePKKu2cyIlRuy8IOtBKoo"
 uri = "file://output/problem-tracker.docx"
 type = "word_document"
-title = "Problem Tracker — Updated"
-description = "Updated DOCX with four columns, including severity score, and the current 1–6 audit scope."
+title = "Problem Tracker — repaired"
+description = "The repaired Word document with the updated problem table."
