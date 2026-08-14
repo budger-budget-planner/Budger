@@ -157,7 +157,8 @@ let swCsrfToken: string | null = null;
 
 async function swGetCsrfToken(): Promise<string> {
   if (swCsrfToken) return swCsrfToken;
-  const resp = await fetch("/api/csrf-token", { credentials: "include" });
+  const csrfUrl = new URL("api/csrf-token", self.registration.scope).href;
+  const resp = await fetch(csrfUrl, { credentials: "include" });
   if (!resp.ok) {
     throw new Error(`CSRF token request failed (${resp.status})`);
   }

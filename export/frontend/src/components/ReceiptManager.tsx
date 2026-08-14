@@ -106,6 +106,9 @@ export function ReceiptManager({
   const receiptPickerRef = useRef<HTMLInputElement>(null);
   const pickerActiveRef = useRef(false);
   const processingRef = useRef(false);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const uploadTimedOutRef = useRef(false);
+  const uploadCancelledRef = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -134,6 +137,13 @@ export function ReceiptManager({
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      uploadCancelledRef.current = true;
+      uploadAbortRef.current?.abort();
+    };
   }, []);
 
   const receipts = localReceipts ?? receiptList(tx);
@@ -177,22 +187,36 @@ export function ReceiptManager({
         formData.append("files", upload.blob, upload.name);
       }
 
-      const response = await Promise.race([
-        apiFetch(`${import.meta.env.BASE_URL}api/transactions/${tx.id}/receipts`, {
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      uploadTimedOutRef.current = false;
+      uploadCancelledRef.current = false;
+      const timeoutId = window.setTimeout(() => {
+        uploadTimedOutRef.current = true;
+        controller.abort();
+      }, 60000);
+      let response: Response;
+      try {
+        response = await apiFetch(`${import.meta.env.BASE_URL}api/transactions/${tx.id}/receipts`, {
           method: "POST",
           body: formData,
-        }),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("Receipt upload timed out. Please try again.")), 60000);
-        }),
-      ]);
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (uploadAbortRef.current === controller) uploadAbortRef.current = null;
+      }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error ?? `HTTP ${response.status}`);
       }
       applyResponse(await response.json());
     } catch (error: any) {
-      toast.error(error?.message ?? t("tx.image_error"));
+      if (uploadTimedOutRef.current) {
+        toast.error("Receipt upload timed out. Please try again.");
+      } else if (!uploadCancelledRef.current) {
+        toast.error(error?.message ?? t("tx.image_error"));
+      }
     } finally {
       processingRef.current = false;
       pickerActiveRef.current = false;

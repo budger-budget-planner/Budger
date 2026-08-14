@@ -21,7 +21,7 @@ import {
 import DonutBudgetChart from "@/components/DonutBudgetChart";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
-import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound } from "@/lib/prefs";
+import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound, currencySymbol } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 import { t, localiseMonthStr, fmtMonthYear } from "@/lib/i18n";
 import { useLiveActivity } from "@/hooks/useLiveActivity";
@@ -246,7 +246,7 @@ export default function DashboardPage() {
   useLiveActivity(spending ? {
     totalSpent: totalSpending,
     totalBudget,
-    currencySymbol: prefs.currency,
+    currencySymbol: currencySymbol(prefs.currency),
     topCategoryName: topCategory?.categoryName ?? "Uncategorized",
     topCategoryColor: (topCategory as any)?.color ?? "#6366f1",
     transactionCount: txCount,

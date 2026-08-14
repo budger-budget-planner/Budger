@@ -65,7 +65,7 @@ class ErrorBoundary extends Component<
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <button
-            onClick={() => this.setState({ hasError: false, error: null })}
+            onClick={() => window.location.reload()}
             className="px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold transition active:scale-95"
           >
             Try again
