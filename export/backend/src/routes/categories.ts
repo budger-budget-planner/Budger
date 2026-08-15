@@ -115,16 +115,21 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
     updateData.budget = parsed.data.budget !== null ? String(parsed.data.budget) : null;
   }
 
-  const [category] = await db.update(categoriesTable)
-    .set(updateData)
-    .where(eq(categoriesTable.id, params.data.id))
-    .returning();
+  const category = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(categoriesTable)
+      .set(updateData)
+      .where(eq(categoriesTable.id, params.data.id))
+      .returning();
+
+    if (!updated) return null;
+
+    if (parsed.data.budget !== undefined) {
+      await syncTotalBudgetFloor(userId, tx);
+    }
+    return updated;
+  });
 
   if (!category) { res.status(404).json({ error: "Not found" }); return; }
-
-  if (parsed.data.budget !== undefined) {
-    await syncTotalBudgetFloor(userId);
-  }
 
   res.json(formatCategory(category));
 });

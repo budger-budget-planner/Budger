@@ -695,6 +695,7 @@ function EditGoalDialog({
   const [proposeState, setProposeState]     = useState<"idle" | "pending" | "sent" | "already">("idle");
   const [editProposeState, setEditProposeState] = useState<"idle" | "pending" | "sent">("idle");
   const [togglingHousehold, setTogglingHousehold] = useState(false);
+  const { toast } = useToast();
 
   const isHousehold = !!(goal as any).householdId;
 
@@ -713,9 +714,16 @@ function EditGoalDialog({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-        setTogglingHousehold(false);
         onClose();
       },
+      onError: (error) => {
+        toast({
+          title: t("common.error"),
+          description: error instanceof Error ? error.message : t("common.try_again"),
+          variant: "destructive",
+        });
+      },
+      onSettled: () => setTogglingHousehold(false),
     },
   });
 
@@ -1149,6 +1157,7 @@ export default function GoalsPage() {
   const [declineShareReason, setDeclineShareReason] = useState("");
   const [decliningEditId,   setDecliningEditId]   = useState<number | null>(null);
   const [declineEditReason,  setDeclineEditReason]  = useState("");
+  const [proposalAction, setProposalAction] = useState<string | null>(null);
   const [dismissedProposals, setDismissedProposals] = useState<Set<string>>(new Set());
 
   const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
@@ -1346,46 +1355,94 @@ export default function GoalsPage() {
     return !isCreator && goal.userId === me?.id && !!goal.householdId;
   }
 
-  async function handleApproveProposal(proposalId: number) {
-    if (!isOnline) return;
-    await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
-      method: "POST",
+  async function ensureProposalResponse(response: Response) {
+    if (response.ok) return;
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? `Request failed (${response.status})`);
+  }
+
+  function showProposalError(error: unknown) {
+    toast({
+      title: t("common.error"),
+      description: error instanceof Error ? error.message : t("common.try_again"),
+      variant: "destructive",
     });
-    queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-    refetchProposals();
+  }
+
+  async function handleApproveProposal(proposalId: number) {
+    if (!isOnline || proposalAction !== null) return;
+    setProposalAction(`share-approve-${proposalId}`);
+    try {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/approve`, {
+        method: "POST",
+      });
+      await ensureProposalResponse(response);
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+      await refetchProposals();
+    } catch (error) {
+      showProposalError(error);
+    } finally {
+      setProposalAction(null);
+    }
   }
 
   async function handleDeclineProposal(proposalId: number, reason: string) {
-    if (!isOnline) return;
-    await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason: reason.trim() || null }),
-    });
-    setDecliningShareId(null);
-    setDeclineShareReason("");
-    refetchProposals();
+    if (!isOnline || proposalAction !== null) return;
+    setProposalAction(`share-decline-${proposalId}`);
+    try {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/goals/proposals/${proposalId}/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || null }),
+      });
+      await ensureProposalResponse(response);
+      setDecliningShareId(null);
+      setDeclineShareReason("");
+      await refetchProposals();
+    } catch (error) {
+      showProposalError(error);
+    } finally {
+      setProposalAction(null);
+    }
   }
 
   async function handleApproveEditProposal(proposalId: number) {
-    await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/approve`, {
-      method: "POST",
-    });
-    queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-    refetchEditProposals();
+    if (!isOnline || proposalAction !== null) return;
+    setProposalAction(`edit-approve-${proposalId}`);
+    try {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/approve`, {
+        method: "POST",
+      });
+      await ensureProposalResponse(response);
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
+      await refetchEditProposals();
+    } catch (error) {
+      showProposalError(error);
+    } finally {
+      setProposalAction(null);
+    }
   }
 
   async function handleDeclineEditProposal(proposalId: number, reason: string) {
-    await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason: reason.trim() || null }),
-    });
-    setDecliningEditId(null);
-    setDeclineEditReason("");
-    refetchEditProposals();
+    if (!isOnline || proposalAction !== null) return;
+    setProposalAction(`edit-decline-${proposalId}`);
+    try {
+      const response = await apiFetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals/${proposalId}/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || null }),
+      });
+      await ensureProposalResponse(response);
+      setDecliningEditId(null);
+      setDeclineEditReason("");
+      await refetchEditProposals();
+    } catch (error) {
+      showProposalError(error);
+    } finally {
+      setProposalAction(null);
+    }
   }
 
   return (
@@ -1443,12 +1500,12 @@ export default function GoalsPage() {
                   <div className="flex gap-1.5 flex-shrink-0">
                     <button
                       onClick={() => { setDecliningShareId(p.id); setDeclineShareReason(""); }}
-                      disabled={!isOnline}
+                      disabled={!isOnline || proposalAction !== null}
                       className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                       {t("goals.decline")}
                     </button>
                     <button onClick={() => handleApproveProposal(p.id)}
-                      disabled={!isOnline}
+                      disabled={!isOnline || proposalAction !== null}
                       className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70 disabled:opacity-40">
                       {t("goals.approve")}
                     </button>
@@ -1469,7 +1526,7 @@ export default function GoalsPage() {
                         {t("common.cancel")}
                       </button>
                       <button onClick={() => handleDeclineProposal(p.id, declineShareReason)}
-                        disabled={!isOnline}
+                        disabled={!isOnline || proposalAction !== null}
                         className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                         {t("goals.confirm_decline")}
                       </button>
@@ -1560,12 +1617,12 @@ export default function GoalsPage() {
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button onClick={() => { setDecliningEditId(ep.id); setDeclineEditReason(""); }}
-                        disabled={!isOnline}
+                        disabled={!isOnline || proposalAction !== null}
                         className="px-2.5 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground transition active:opacity-70 disabled:opacity-40">
                         {t("goals.decline")}
                       </button>
                       <button onClick={() => handleApproveEditProposal(ep.id)}
-                        disabled={!isOnline}
+                        disabled={!isOnline || proposalAction !== null}
                         className="px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium transition active:opacity-70 disabled:opacity-40">
                         {t("goals.approve")}
                       </button>
@@ -1586,7 +1643,7 @@ export default function GoalsPage() {
                           {t("common.cancel")}
                         </button>
                         <button onClick={() => handleDeclineEditProposal(ep.id, declineEditReason)}
-                          disabled={!isOnline}
+                          disabled={!isOnline || proposalAction !== null}
                           className="flex-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-xs font-medium text-destructive transition active:opacity-70 disabled:opacity-40">
                           {t("goals.confirm_decline")}
                         </button>

@@ -1,6 +1,8 @@
 import { db, categoriesTable, recurringPaymentsTable, usersTable } from "../db";
 import { eq } from "drizzle-orm";
 
+type BudgetSyncExecutor = Pick<typeof db, "select" | "update">;
+
 /**
  * Keeps `users.total_budget` in permanent sync with the sum of a user's
  * category budgets + recurring payments, computed server-side.
@@ -16,11 +18,14 @@ import { eq } from "drizzle-orm";
  * is what makes the sync reliable regardless of client bugs, missed clicks,
  * or dropped network requests.
  */
-export async function syncTotalBudgetFloor(userId: number): Promise<number | null> {
+export async function syncTotalBudgetFloor(
+  userId: number,
+  executor: BudgetSyncExecutor = db,
+): Promise<number | null> {
   const [categories, recurringPayments, [user]] = await Promise.all([
-    db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
-    db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId)),
-    db.select().from(usersTable).where(eq(usersTable.id, userId)),
+    executor.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
+    executor.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId)),
+    executor.select().from(usersTable).where(eq(usersTable.id, userId)),
   ]);
 
   if (!user) return null;
@@ -33,7 +38,7 @@ export async function syncTotalBudgetFloor(userId: number): Promise<number | nul
   if (combined <= 0) return currentTotal;
   if (currentTotal != null && combined <= currentTotal) return currentTotal;
 
-  await db.update(usersTable)
+  await executor.update(usersTable)
     .set({ totalBudget: String(combined) })
     .where(eq(usersTable.id, userId));
 

@@ -159,6 +159,7 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const [permStatus, setPermStatus] = useState<NotificationPermission>("default");
   const reminderTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Per-alarm debounce timers for PATCH
@@ -222,11 +223,19 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
   }, [alarms, permStatus]);
 
   // Debounced PATCH for a single alarm's fields
-  function schedulePatch(id: number, changes: Partial<Pick<ServerAlarm, "enabled" | "reminderTime" | "days">>, delay = 0) {
+  function schedulePatch(
+    id: number,
+    changes: Partial<Pick<ServerAlarm, "enabled" | "reminderTime" | "days">>,
+    delay = 0,
+    onError?: (error: unknown) => void,
+    onSettled?: () => void,
+  ) {
     clearTimeout(patchTimers.current[id]);
     patchTimers.current[id] = setTimeout(() => {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      alarmFetch(`/api/notifications/alarms/${id}`, "PATCH", { ...changes, timezone: tz }).catch(() => {});
+      alarmFetch(`/api/notifications/alarms/${id}`, "PATCH", { ...changes, timezone: tz })
+        .catch(error => onError?.(error))
+        .finally(() => onSettled?.());
     }, delay);
   }
 
@@ -270,13 +279,38 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
   }
 
   function handleToggle(id: number, enabled: boolean) {
+    if (togglingId !== null) return;
+    const previous = alarms.find(alarm => alarm.id === id);
+    if (!previous || previous.enabled === enabled) return;
+    const rollback = () => {
+      setAlarms(prev => prev.map(alarm => alarm.id === id
+        ? { ...alarm, enabled: previous.enabled }
+        : alarm));
+      setTogglingId(null);
+    };
+    const showFailure = (error?: unknown) => {
+      rollback();
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.try_again"),
+        variant: "destructive",
+      });
+    };
+
+    setTogglingId(id);
     setAlarms(prev => prev.map(a => a.id === id ? { ...a, enabled } : a));
-    schedulePatch(id, { enabled });
     if (enabled && isPushSupported()) {
       ensurePushPermission().then(granted => {
-        if (granted) subscribeToPushNotifications().catch(() => {});
-        else toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
-      });
+        if (!granted) {
+          rollback();
+          toast({ title: t("notif.perm_denied"), description: t("notif.enable_settings"), variant: "destructive" });
+          return;
+        }
+        schedulePatch(id, { enabled }, 0, showFailure, () => setTogglingId(null));
+        subscribeToPushNotifications().catch(() => {});
+      }).catch(error => showFailure(error));
+    } else {
+      schedulePatch(id, { enabled }, 0, showFailure, () => setTogglingId(null));
     }
   }
 
@@ -348,7 +382,7 @@ function AlarmPanel({ onBack }: { onBack: () => void }) {
                   className="w-7 h-7 rounded-xl bg-destructive/10 flex items-center justify-center transition active:opacity-70 disabled:opacity-40">
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </button>
-                <Switch checked={alarm.enabled} onCheckedChange={v => handleToggle(alarm.id, v)} />
+                <Switch checked={alarm.enabled} disabled={togglingId === alarm.id} onCheckedChange={v => handleToggle(alarm.id, v)} />
               </div>
             </div>
             <div className="px-4 py-3 space-y-3">
