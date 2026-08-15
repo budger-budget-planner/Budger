@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   db, greatLarderEntriesTable, larderEntriesTable,
   transactionsTable, usersTable, householdMembersTable,
+  categoriesTable,
   notificationItemsTable, goalsTable, goalContributionsTable,
 } from "../db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -329,37 +330,55 @@ router.post("/great-larder/fund", async (req, res): Promise<void> => {
   if (typeof larderAmount !== "number" || larderAmount <= 0 || larderAmount > amount) {
     res.status(400).json({ error: "larderAmount must be between 0 and amount" }); return;
   }
+  if (categoryId !== undefined && categoryId !== null &&
+      (typeof categoryId !== "number" || !Number.isInteger(categoryId) || categoryId <= 0)) {
+    res.status(400).json({ error: "categoryId must be a positive integer" }); return;
+  }
+  if (categoryId !== undefined && categoryId !== null) {
+    const [category] = await db.select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(and(eq(categoriesTable.id, categoryId), eq(categoriesTable.userId, userId)));
+    if (!category) {
+      res.status(400).json({ error: "Category not found" }); return;
+    }
+  }
 
   const currency = user.currency ?? "USD";
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
-  // Create the transaction in the contributor's transaction list
-  const [tx] = await db.insert(transactionsTable).values({
-    userId,
-    householdId: user.householdId,
-    amount: String(amount),
-    description: description.trim(),
-    categoryId: categoryId ?? null,
-    date: dateStr,
-    paymentMethod: "card",
-    isLarderFund: true,
-    larderAmount: String(larderAmount),
-    transactionCurrency: currency,
-  }).returning();
-
   // Head auto-approves their own fund requests; parents need approval
   const status = isHead(membership.role) ? "approved" : "pending";
 
-  const [entry] = await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId,
-    contributedByUserId: userId,
-    amount: String(larderAmount),
-    currency,
-    sourceType: "fund",
-    status,
-    transactionId: tx.id,
-    note: description.trim(),
-  }).returning();
+  // The visible transaction and the Great Larder ledger entry are one logical
+  // operation. Keep them in one database transaction so a failed second write
+  // cannot leave a transaction without its corresponding ledger row.
+  const { transactionRecord, entry } = await db.transaction(async (txDb) => {
+    const [createdTransaction] = await txDb.insert(transactionsTable).values({
+      userId,
+      householdId: user.householdId,
+      amount: String(amount),
+      description: description.trim(),
+      categoryId: categoryId ?? null,
+      date: dateStr,
+      paymentMethod: "card",
+      isLarderFund: true,
+      larderAmount: String(larderAmount),
+      transactionCurrency: currency,
+    }).returning();
+
+    const [createdEntry] = await txDb.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId,
+      contributedByUserId: userId,
+      amount: String(larderAmount),
+      currency,
+      sourceType: "fund",
+      status,
+      transactionId: createdTransaction.id,
+      note: description.trim(),
+    }).returning();
+
+    return { transactionRecord: createdTransaction, entry: createdEntry };
+  });
 
   // If pending, notify all heads
   if (status === "pending") {
@@ -393,7 +412,11 @@ router.post("/great-larder/fund", async (req, res): Promise<void> => {
   }
 
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  res.status(201).json({ ...fmtEntry(entry, u?.name ?? "Unknown"), transactionId: tx.id, requiresApproval: status === "pending" });
+  res.status(201).json({
+    ...fmtEntry(entry, u?.name ?? "Unknown"),
+    transactionId: transactionRecord.id,
+    requiresApproval: status === "pending",
+  });
 });
 
 // POST /great-larder/entries/:id/approve — head approves a pending fund entry
@@ -529,50 +552,79 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
   if (typeof amount !== "number" || amount <= 0) {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
-
-  const allEntries = await db.select().from(greatLarderEntriesTable)
-    .where(eq(greatLarderEntriesTable.householdId, user.householdId));
-  const approvedEntries = allEntries.filter(e => e.status === "approved" && e.bucket === bucket);
-  const balances = currencyBalances(approvedEntries);
-  let assetCurrency: string;
-  const nativeAmount = round2(amount);
-  try {
-    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
-    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
-  } catch (err) {
-    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Great Larder balance" }); return;
+  if (categoryId !== undefined && categoryId !== null &&
+      (typeof categoryId !== "number" || !Number.isInteger(categoryId) || categoryId <= 0)) {
+    res.status(400).json({ error: "categoryId must be a positive integer" }); return;
+  }
+  if (categoryId !== undefined && categoryId !== null) {
+    const [category] = await db.select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(and(eq(categoriesTable.id, categoryId), eq(categoriesTable.userId, userId)));
+    if (!category) {
+      res.status(400).json({ error: "Category not found" }); return;
+    }
   }
 
   const currency = user.currency ?? "USD";
   const rates = await fetchRates();
-  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
-  const [tx] = await db.insert(transactionsTable).values({
-    userId,
-    amount: String(accountAmount),
-    description: description.trim(),
-    categoryId: categoryId ?? null,
-    date: dateStr,
-    paymentMethod: "card",
-    isLarderFund: true,
-    larderAmount: String(accountAmount),
-    transactionCurrency: currency,
-  }).returning();
-
   const status = isHead(membership.role) ? "approved" : "pending";
+  const nativeAmount = round2(amount);
 
-  const [entry] = await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId,
-    contributedByUserId: userId,
-    amount: String(-nativeAmount),
-    currency: assetCurrency,
-    sourceType: "spend",
-    status,
-    transactionId: tx.id,
-    note: description.trim(),
-    bucket,
-  }).returning();
+  let result: {
+    transactionRecord: typeof transactionsTable.$inferSelect;
+    entry: typeof greatLarderEntriesTable.$inferSelect;
+    assetCurrency: string;
+  };
+  try {
+    result = await db.transaction(async (txDb) => {
+      // Lock a stable household row while checking and debiting the selected
+      // bucket/currency. This serializes concurrent Great Larder spends even
+      // though the balance itself is represented by append-only ledger rows.
+      await txDb.execute(sql`SELECT id FROM households WHERE id = ${user.householdId} FOR UPDATE`);
+
+      const allEntries = await txDb.select().from(greatLarderEntriesTable)
+        .where(eq(greatLarderEntriesTable.householdId, user.householdId));
+      const approvedEntries = allEntries.filter(e => e.status === "approved" && e.bucket === bucket);
+      const balances = currencyBalances(approvedEntries);
+      const assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+      assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+      const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
+
+      const [createdTransaction] = await txDb.insert(transactionsTable).values({
+        userId,
+        householdId: user.householdId,
+        amount: String(accountAmount),
+        description: description.trim(),
+        categoryId: categoryId ?? null,
+        date: dateStr,
+        paymentMethod: "card",
+        isLarderFund: true,
+        larderAmount: String(accountAmount),
+        transactionCurrency: currency,
+      }).returning();
+
+      const [createdEntry] = await txDb.insert(greatLarderEntriesTable).values({
+        householdId: user.householdId,
+        contributedByUserId: userId,
+        amount: String(-nativeAmount),
+        currency: assetCurrency,
+        sourceType: "spend",
+        status,
+        transactionId: createdTransaction.id,
+        note: description.trim(),
+        bucket,
+      }).returning();
+
+      return { transactionRecord: createdTransaction, entry: createdEntry, assetCurrency };
+    });
+  } catch (err) {
+    if (err instanceof AssetSelectionError) {
+      res.status(400).json({ error: err.message }); return;
+    }
+    throw err;
+  }
 
   if (status === "pending") {
     const headIds = await getHeadIds(user.householdId);
@@ -582,29 +634,33 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
         type: "great_larder_fund_pending",
         titleEn: "Great Larder spend request",
         titlePl: "Wniosek o wydatek z Wielkiej Spiżarni",
-        bodyEn: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
-        bodyPl: `${user.name} chce wydać ${nativeAmount} ${assetCurrency} z Wielkiej Spiżarni`,
-        dedupKey: `great-larder-spend-pending-${entry.id}`,
+        bodyEn: `${user.name} wants to spend ${nativeAmount} ${result.assetCurrency} from the Great Larder`,
+        bodyPl: `${user.name} chce wydać ${nativeAmount} ${result.assetCurrency} z Wielkiej Spiżarni`,
+        dedupKey: `great-larder-spend-pending-${result.entry.id}`,
       }).onConflictDoNothing();
 
       // Real system push, mirroring the in-app NC row just written.
       const spendBadge = await getUnreadNotificationCount(headId);
       sendPushToUser(headId, {
         title: "Great Larder spend request",
-        body: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
+        body: `${user.name} wants to spend ${nativeAmount} ${result.assetCurrency} from the Great Larder`,
         titleEn: "Great Larder spend request",
         titlePl: "Wniosek o wydatek z Wielkiej Spiżarni",
-        bodyEn: `${user.name} wants to spend ${nativeAmount} ${assetCurrency} from the Great Larder`,
-        bodyPl: `${user.name} chce wydać ${nativeAmount} ${assetCurrency} z Wielkiej Spiżarni`,
+        bodyEn: `${user.name} wants to spend ${nativeAmount} ${result.assetCurrency} from the Great Larder`,
+        bodyPl: `${user.name} chce wydać ${nativeAmount} ${result.assetCurrency} z Wielkiej Spiżarni`,
         url: "/?sheet=great-larder",
-        tag: `great-larder-spend-pending-${entry.id}`,
+        tag: `great-larder-spend-pending-${result.entry.id}`,
         badgeCount: spendBadge,
       }).catch(() => {});
     }
   }
 
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  res.status(201).json({ ...fmtEntry(entry, u?.name ?? "Unknown"), transactionId: tx.id, requiresApproval: status === "pending" });
+  res.status(201).json({
+    ...fmtEntry(result.entry, u?.name ?? "Unknown"),
+    transactionId: result.transactionRecord.id,
+    requiresApproval: status === "pending",
+  });
 });
 
 // POST /great-larder/dedicate-to-goal — head moves Great Larder funds into a household goal contribution
