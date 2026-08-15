@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, householdsTable, usersTable, recurringPaymentsTable, larderEntriesTable, expenseSplitsTable } from "../db";
-import { eq, inArray } from "drizzle-orm";
-import { fetchRates, convertAmount } from "../lib/rates";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { fetchRates, convertAmount, SUPPORTED_CURRENCIES } from "../lib/rates";
 
 const router: IRouter = Router();
 
@@ -22,124 +22,168 @@ router.post("/convert-currency", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const { from, to, rate } = req.body;
-  if (!from || !to || typeof rate !== "number" || rate <= 0) {
+  const isSupportedCurrency = (value: unknown): value is typeof SUPPORTED_CURRENCIES[number] =>
+    typeof value === "string" && (SUPPORTED_CURRENCIES as readonly string[]).includes(value);
+  if (
+    !isSupportedCurrency(from) ||
+    !isSupportedCurrency(to) ||
+    typeof rate !== "number" ||
+    !Number.isFinite(rate) ||
+    rate <= 0
+  ) {
     res.status(400).json({ error: "Invalid body: requires from, to (strings) and rate (positive number)" });
     return;
   }
   if (from === to) { res.json({ converted: 0 }); return; }
 
-  let converted = 0;
-
-  const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
-
-  // Split-linked recipient transactions (splitId + splitRole "recipient") were
-  // created from a canonical source amount: expenseSplits.splitAmount, in
-  // expenseSplits.issuerCurrency. Their stored `amount` is just a converted
-  // snapshot taken at accept time. If we convert that snapshot the same way as
-  // a regular transaction — multiplying by whatever live rate this request
-  // happens to use — repeated currency switches drift away from the true split
-  // amount (e.g. a 100 zl request accepted as ~23 EUR would come back as
-  // ~98.75 zl instead of exactly 100 zl once the account currency returns to
-  // PLN, because the accept-time rate and the current live rate are never
-  // exactly reciprocal). Instead, re-derive these rows fresh from the
-  // canonical splitAmount/issuerCurrency on every conversion so they always
-  // land on the mathematically correct value for the target currency,
-  // regardless of how many times the account currency has changed since.
-  const splitIds = [...new Set(txs.filter(t => t.splitId != null && t.splitRole === "recipient").map(t => t.splitId as number))];
-  const splitsById = new Map<number, { splitAmount: string; issuerCurrency: string }>();
-  if (splitIds.length > 0) {
-    const splitRows = await db.select().from(expenseSplitsTable).where(inArray(expenseSplitsTable.id, splitIds));
-    for (const s of splitRows) splitsById.set(s.id, { splitAmount: s.splitAmount, issuerCurrency: s.issuerCurrency });
+  // Resolve every rate needed by the conversion before opening the write
+  // transaction. fetchRates has its own stale-cache/fallback policy, so a
+  // provider outage cannot leave us halfway through a conversion.
+  const liveRates = await fetchRates();
+  if (!Number.isFinite(liveRates[from]) || liveRates[from] <= 0 ||
+      !Number.isFinite(liveRates[to]) || liveRates[to] <= 0) {
+    res.status(503).json({ error: "Currency rates are unavailable; please retry" });
+    return;
   }
-  const liveRates = splitIds.length > 0 ? await fetchRates() : null;
 
-  for (const tx of txs) {
-    // Skip rows permanently locked in their original currency
-    if (tx.currencyLocked) continue;
-
-    // Larder fund/spend transactions created before a previous bug-fix may
-    // have transactionCurrency mistakenly set to the account currency.
-    // Treat them as account-currency rows: convert + clear the flag.
-    const isMistakenLarderLock = tx.isLarderFund && tx.transactionCurrency != null;
-
-    // Skip genuine foreign-currency rows (not a larder mistake)
-    if (tx.transactionCurrency && !isMistakenLarderLock) continue;
-
-    const canonicalSplit = tx.splitId != null && tx.splitRole === "recipient" ? splitsById.get(tx.splitId) : undefined;
-    const newAmt = canonicalSplit && liveRates
-      ? roundMoney(convertAmount(parseFloat(canonicalSplit.splitAmount), canonicalSplit.issuerCurrency, to, liveRates))
-      : roundMoney(parseFloat(tx.amount) * rate);
-    const updates: Record<string, unknown> = { amount: newAmt };
-
-    // Keep the pre-split snapshot in the same currency as amount
-    if (tx.preSplitAmount != null) {
-      updates.preSplitAmount = roundMoney(parseFloat(tx.preSplitAmount) * rate);
+  const result = await db.transaction(async (txdb) => {
+    // This row lock is also the conversion idempotency key. Retrying a lost
+    // response after the first conversion sees `to` and returns success
+    // without multiplying any stored amount a second time.
+    await txdb.execute(sql`SELECT id FROM ${usersTable} WHERE id = ${userId} FOR UPDATE`);
+    const [user] = await txdb.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) return { kind: "missing" as const };
+    if (user.currency === to) {
+      return {
+        kind: "already-converted" as const,
+        converted: 0,
+        totalBudget: user.totalBudget != null ? parseFloat(user.totalBudget) : null,
+      };
     }
-    // Scale larderAmount so it stays proportional to amount after conversion
-    if (tx.larderAmount != null) {
-      updates.larderAmount = roundMoney(parseFloat(tx.larderAmount) * rate);
-    }
-    // Clear the mistaken currency lock so future conversions include this row
-    if (isMistakenLarderLock) {
-      updates.transactionCurrency = null;
+    if (user.currency !== from) {
+      return { kind: "conflict" as const, currentCurrency: user.currency };
     }
 
-    await db.update(transactionsTable)
-      .set(updates as any)
-      .where(eq(transactionsTable.id, tx.id));
-    converted++;
-  }
+    let converted = 0;
+    const txs = await txdb.select().from(transactionsTable)
+      .where(eq(transactionsTable.userId, userId));
 
-  // Larder entries intentionally NOT converted here — they retain their original
-  // currency so the breakdown display can show per-currency sub-totals. The GET
-  // /larder endpoint uses fetchRates() to convert each entry's currency on the fly.
-
-  const cats = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
-  for (const cat of cats) {
-    if (cat.budget != null) {
-      const newBudget = roundMoney(parseFloat(cat.budget) * rate);
-      await db.update(categoriesTable)
-        .set({ budget: newBudget })
-        .where(eq(categoriesTable.id, cat.id));
+    // Split-linked recipient transactions are re-derived from their canonical
+    // split amount on every conversion, avoiding drift from accept-time rates.
+    const splitIds = [...new Set(txs
+      .filter(t => t.splitId != null && t.splitRole === "recipient")
+      .map(t => t.splitId as number))];
+    const splitsById = new Map<number, { splitAmount: string; issuerCurrency: string }>();
+    if (splitIds.length > 0) {
+      const splitRows = await txdb.select().from(expenseSplitsTable)
+        .where(inArray(expenseSplitsTable.id, splitIds));
+      for (const s of splitRows) {
+        splitsById.set(s.id, { splitAmount: s.splitAmount, issuerCurrency: s.issuerCurrency });
+      }
     }
-  }
 
-  const rps = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
-  for (const rp of rps) {
-    const newAmount = roundMoney(parseFloat(rp.amount) * rate);
-    await db.update(recurringPaymentsTable)
-      .set({ amount: newAmount })
-      .where(eq(recurringPaymentsTable.id, rp.id));
-  }
+    for (const tx of txs) {
+      if (tx.currencyLocked) continue;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+      // Legacy Larder fund/spend rows may have a mistaken account-currency
+      // transactionCurrency flag. Include them and clear the stale flag.
+      const isMistakenLarderLock = tx.isLarderFund && tx.transactionCurrency != null;
+      if (tx.transactionCurrency && !isMistakenLarderLock) continue;
 
-  // Convert the user's total monthly budget stored in users.totalBudget.
-  // Re-read it fresh right here (not from a client-supplied/cached value) so this
-  // always converts whatever is currently persisted, even if the user just
-  // changed their budget moments earlier on another page/tab.
-  let newTotalBudget: string | null = user?.totalBudget ?? null;
-  if (user?.totalBudget != null) {
-    newTotalBudget = roundMoney(parseFloat(user.totalBudget) * rate);
-    await db.update(usersTable)
-      .set({ totalBudget: newTotalBudget })
-      .where(eq(usersTable.id, userId));
-  }
+      const canonicalSplit = tx.splitId != null && tx.splitRole === "recipient"
+        ? splitsById.get(tx.splitId)
+        : undefined;
+      const newAmt = canonicalSplit
+        ? roundMoney(convertAmount(
+          parseFloat(canonicalSplit.splitAmount),
+          canonicalSplit.issuerCurrency,
+          to,
+          liveRates,
+        ))
+        : roundMoney(parseFloat(tx.amount) * rate);
+      if (!Number.isFinite(parseFloat(newAmt))) {
+        throw new Error("Invalid converted transaction amount");
+      }
 
-  if (user?.householdId) {
-    const [household] = await db.select().from(householdsTable)
-      .where(eq(householdsTable.id, user.householdId));
-    if (household && household.ownerId === userId && household.budget != null) {
-      const newHhBudget = roundMoney(parseFloat(household.budget) * rate);
-      await db.update(householdsTable)
-        .set({ budget: newHhBudget })
-        .where(eq(householdsTable.id, household.id));
+      const updates: Record<string, unknown> = { amount: newAmt };
+      if (tx.preSplitAmount != null) {
+        updates.preSplitAmount = roundMoney(parseFloat(tx.preSplitAmount) * rate);
+      }
+      if (tx.larderAmount != null) {
+        updates.larderAmount = roundMoney(parseFloat(tx.larderAmount) * rate);
+      }
+      if (isMistakenLarderLock) updates.transactionCurrency = null;
+
+      await txdb.update(transactionsTable)
+        .set(updates as any)
+        .where(eq(transactionsTable.id, tx.id));
+      converted++;
     }
-  }
 
+    const cats = await txdb.select().from(categoriesTable)
+      .where(eq(categoriesTable.userId, userId));
+    for (const cat of cats) {
+      if (cat.budget != null) {
+        await txdb.update(categoriesTable)
+          .set({ budget: roundMoney(parseFloat(cat.budget) * rate) })
+          .where(eq(categoriesTable.id, cat.id));
+      }
+    }
+
+    const rps = await txdb.select().from(recurringPaymentsTable)
+      .where(eq(recurringPaymentsTable.userId, userId));
+    for (const rp of rps) {
+      await txdb.update(recurringPaymentsTable)
+        .set({ amount: roundMoney(parseFloat(rp.amount) * rate) })
+        .where(eq(recurringPaymentsTable.id, rp.id));
+    }
+
+    // Larder entries intentionally retain their original currency; the Larder
+    // endpoint converts each entry for display rather than rewriting history.
+    let newTotalBudget: string | null = user.totalBudget ?? null;
+    if (user.totalBudget != null) {
+      newTotalBudget = roundMoney(parseFloat(user.totalBudget) * rate);
+    }
+
+    if (user.householdId) {
+      const [household] = await txdb.select().from(householdsTable)
+        .where(eq(householdsTable.id, user.householdId));
+      if (household && household.ownerId === userId && household.budget != null) {
+        await txdb.update(householdsTable)
+          .set({
+            budget: roundMoney(parseFloat(household.budget) * rate),
+            budgetCurrency: to,
+          })
+          .where(eq(householdsTable.id, household.id));
+      }
+    }
+
+    await txdb.update(usersTable)
+      .set({ currency: to, totalBudget: newTotalBudget })
+      .where(and(eq(usersTable.id, userId), eq(usersTable.currency, from)));
+
+    return {
+      kind: "converted" as const,
+      converted,
+      totalBudget: newTotalBudget != null ? parseFloat(newTotalBudget) : null,
+    };
+  });
+
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (result.kind === "conflict") {
+    res.status(409).json({
+      error: `Currency changed from ${from} before this conversion completed`,
+      currentCurrency: result.currentCurrency,
+    });
+    return;
+  }
   res.json({
-    converted,
-    totalBudget: newTotalBudget != null ? parseFloat(newTotalBudget) : null,
+    converted: result.converted,
+    totalBudget: result.totalBudget,
+    alreadyConverted: result.kind === "already-converted",
   });
 });
 

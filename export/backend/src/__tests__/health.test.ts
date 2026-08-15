@@ -13,6 +13,7 @@ import request from "supertest";
 vi.mock("../db", () => ({
   pool: { query: vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] }) },
   db: {},
+  DATABASE_URL: undefined,
   // Commonly-imported table symbols — export as plain objects so destructuring works.
   usersTable: {},
   householdsTable: {},
