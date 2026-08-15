@@ -97,17 +97,24 @@ router.post("/notifications/alarms", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const count = await db.select({ id: userAlarmsTable.id }).from(userAlarmsTable)
-    .where(eq(userAlarmsTable.userId, userId));
-  if (count.length >= MAX_ALARMS_PER_USER) {
+  const { reminderTime = "09:00", days = ["mon","tue","wed","thu","fri"], timezone = "UTC", enabled = true } = req.body ?? {};
+  const alarm = await db.transaction(async (tx) => {
+    // Serialise alarm creation for this user. Without a row lock, concurrent
+    // requests can both observe a count below the cap and insert past it.
+    await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
+    const count = await tx.select({ id: userAlarmsTable.id }).from(userAlarmsTable)
+      .where(eq(userAlarmsTable.userId, userId));
+    if (count.length >= MAX_ALARMS_PER_USER) return null;
+
+    const [created] = await tx.insert(userAlarmsTable)
+      .values({ userId, reminderTime, days, timezone, enabled })
+      .returning();
+    return created;
+  });
+  if (!alarm) {
     res.status(400).json({ error: `Maximum ${MAX_ALARMS_PER_USER} alarms allowed` });
     return;
   }
-
-  const { reminderTime = "09:00", days = ["mon","tue","wed","thu","fri"], timezone = "UTC", enabled = true } = req.body ?? {};
-  const [alarm] = await db.insert(userAlarmsTable)
-    .values({ userId, reminderTime, days, timezone, enabled })
-    .returning();
   res.status(201).json(formatAlarm(alarm));
 });
 
@@ -300,29 +307,31 @@ router.post("/notifications/push-subscribe", async (req, res): Promise<void> => 
 
   const { endpoint, p256dh, auth } = parsed.data;
 
-  // Replace strategy: delete every OTHER subscription for this user first, then
-  // upsert the incoming one. This prevents stale endpoints from accumulating
-  // when the browser rotates the push subscription (new endpoint after expiry or
-  // re-subscribe). Without this, the scheduler sends to all live rows and the
-  // device receives duplicate APNs messages that can't be deduplicated at the
-  // SW level because they are distinct OS-level pushes.
+  // Replace strategy: upsert the incoming subscription before deleting every
+  // other endpoint. Both writes are locked and committed together so a failed
+  // replacement keeps the previously working subscription intact.
   //
   // Multi-device note: "last subscription wins" — whichever device subscribes
   // most recently is the one that receives push reminders. This is acceptable
   // for a personal finance app where daily reminders are per-user not per-device.
-  await db.delete(pushSubscriptionsTable)
-    .where(and(
-      eq(pushSubscriptionsTable.userId, userId),
-      sql`${pushSubscriptionsTable.endpoint} <> ${endpoint}`
-    ));
+  await db.transaction(async (tx) => {
+    // Serialise "last subscription wins" replacements for this user so two
+    // devices cannot delete each other's newly-upserted endpoint mid-flight.
+    await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
 
-  // Upsert the current endpoint (insert or update keys if it already exists).
-  await db.insert(pushSubscriptionsTable)
-    .values({ userId, endpoint, p256dh, auth })
-    .onConflictDoUpdate({
-      target: pushSubscriptionsTable.endpoint,
-      set: { userId, p256dh, auth },
-    });
+    await tx.insert(pushSubscriptionsTable)
+      .values({ userId, endpoint, p256dh, auth })
+      .onConflictDoUpdate({
+        target: pushSubscriptionsTable.endpoint,
+        set: { userId, p256dh, auth },
+      });
+
+    await tx.delete(pushSubscriptionsTable)
+      .where(and(
+        eq(pushSubscriptionsTable.userId, userId),
+        sql`${pushSubscriptionsTable.endpoint} <> ${endpoint}`
+      ));
+  });
 
   res.json({ ok: true });
 });

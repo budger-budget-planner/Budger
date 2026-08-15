@@ -173,15 +173,32 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   }
 
   // ── Insert ───────────────────────────────────────────────────────────────
-  const [stretch] = await db.insert(budgetStretchesTable).values({
-    userId,
-    transactionId: parsedTransactionId,
-    month,
-    toCategoryId: parsedToCategoryId,
-    fromCategoryId: parsedFromCategoryId,
-    amount: String(parsedAmount),
-    stretchType,
-  }).returning();
+  let stretch: typeof budgetStretchesTable.$inferSelect;
+  try {
+    [stretch] = await db.insert(budgetStretchesTable).values({
+      userId,
+      transactionId: parsedTransactionId,
+      month,
+      toCategoryId: parsedToCategoryId,
+      fromCategoryId: parsedFromCategoryId,
+      amount: String(parsedAmount),
+      stretchType,
+    }).returning();
+  } catch (err) {
+    // The pre-insert checks above provide friendly errors in the common case,
+    // while the unique constraints are the final arbiter for concurrent POSTs.
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {
+      const constraint = "constraint" in err ? err.constraint : undefined;
+      if (constraint === "budget_stretches_transaction_id_unique") {
+        res.status(409).json({ error: "This transaction already has a budget stretch attached" }); return;
+      }
+      if (constraint === "budget_stretches_user_category_month_idx") {
+        res.status(409).json({ error: "This category already has a stretch for this month. Edit the existing one instead." }); return;
+      }
+      res.status(409).json({ error: "A conflicting budget stretch already exists" }); return;
+    }
+    throw err;
+  }
 
   res.status(201).json(formatStretch(stretch));
 });

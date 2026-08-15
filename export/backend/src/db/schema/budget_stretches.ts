@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, unique, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -25,6 +25,8 @@ export const budgetStretchesTable = pgTable("budget_stretches", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, table => [
   unique("budget_stretches_transaction_id_unique").on(table.transactionId),
+   uniqueIndex("budget_stretches_user_category_month_idx")
+     .on(table.userId, table.toCategoryId, table.month),
   index("budget_stretches_user_id_month_idx").on(table.userId, table.month),
   index("budget_stretches_to_category_id_month_idx").on(table.toCategoryId, table.month),
 ]);
