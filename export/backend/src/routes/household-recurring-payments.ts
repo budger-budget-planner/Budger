@@ -86,6 +86,17 @@ async function applyHouseholdRecurringPayment(
   if (!householdId) throw new Error("Household recurring payment has no household");
 
   return db.transaction(async (txdb) => {
+    // Claim the unique monthly slot before creating any ledger records. A
+    // concurrent caller waits for this insert, then gets no row and exits
+    // without creating a transaction of its own.
+    const [log] = await txdb.insert(recurringPaymentLogsTable).values({
+      recurringPaymentId: rp.id,
+      userId,
+      monthKey,
+      transactionId: null,
+    }).onConflictDoNothing().returning({ id: recurringPaymentLogsTable.id });
+    if (!log) return null;
+
     const [tx] = await txdb.insert(transactionsTable).values({
       userId,
       amount: rp.amount,
@@ -93,21 +104,11 @@ async function applyHouseholdRecurringPayment(
       date: dateStr,
       paymentMethod: "card",
       recurringPaymentId: rp.id,
-    }).returning();
+    }).returning({ id: transactionsTable.id });
 
-    const [log] = await txdb.insert(recurringPaymentLogsTable).values({
-      recurringPaymentId: rp.id,
-      userId,
-      monthKey,
-      transactionId: tx.id,
-    }).onConflictDoNothing().returning();
-
-    // Another request won the monthly unique-index race. Remove the
-    // provisional transaction before leaving the transaction.
-    if (!log) {
-      await txdb.delete(transactionsTable).where(eq(transactionsTable.id, tx.id));
-      return null;
-    }
+    await txdb.update(recurringPaymentLogsTable)
+      .set({ transactionId: tx.id })
+      .where(eq(recurringPaymentLogsTable.id, log.id));
 
     if (rp.addToLarder) {
       await txdb.insert(greatLarderEntriesTable).values({

@@ -31,6 +31,66 @@ async function getAppliedMap(userId: number, monthKey: string): Promise<Map<numb
   return map;
 }
 
+/**
+ * Apply one personal recurring payment as one ledger operation.
+ *
+ * The transaction, monthly application log, and optional personal Larder
+ * credit must commit or roll back together. The unique monthly log is claimed
+ * inside this transaction, so concurrent manual or scheduled callers cannot
+ * leave an extra transaction behind when they lose the race.
+ */
+async function applyPersonalRecurringPayment(
+  rp: typeof recurringPaymentsTable.$inferSelect,
+  userId: number,
+  monthKey: string,
+  dateStr: string,
+): Promise<number | null> {
+  return db.transaction(async (txdb) => {
+    // Claim the unique monthly slot before creating any ledger records. A
+    // concurrent caller waits for this insert, then gets no row and exits
+    // without creating a transaction of its own.
+    const [log] = await txdb.insert(recurringPaymentLogsTable).values({
+      recurringPaymentId: rp.id,
+      userId,
+      monthKey,
+      transactionId: null,
+    }).onConflictDoNothing().returning({ id: recurringPaymentLogsTable.id });
+    if (!log) return null;
+
+    const [tx] = await txdb.insert(transactionsTable).values({
+      userId,
+      amount: rp.amount,
+      description: rp.name,
+      date: dateStr,
+      paymentMethod: "card",
+      recurringPaymentId: rp.id,
+      // NOTE: isLarderFund is intentionally NOT set here. Recurring payments
+      // remain real spending events; the Larder badge is derived from the
+      // recurring_payment ledger entry.
+    }).returning({ id: transactionsTable.id });
+
+    await txdb.update(recurringPaymentLogsTable)
+      .set({ transactionId: tx.id })
+      .where(eq(recurringPaymentLogsTable.id, log.id));
+
+    if (rp.addToLarder) {
+      const [user] = await txdb.select({ currency: usersTable.currency })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
+      await txdb.insert(larderEntriesTable).values({
+        userId,
+        amount: rp.amount,
+        currency: user?.currency ?? "USD",
+        sourceType: "recurring_payment",
+        sourceId: tx.id,
+        note: rp.name,
+      }).onConflictDoNothing();
+    }
+
+    return tx.id;
+  });
+}
+
 async function autoApplyScheduled(userId: number, monthKey: string): Promise<void> {
   const now = new Date();
   const year = now.getFullYear();
@@ -59,41 +119,9 @@ async function autoApplyScheduled(userId: number, monthKey: string): Promise<voi
 
     if (existing) continue; // already applied
 
-    // Create the transaction
+    // The transaction, log claim, and optional Larder credit are atomic.
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(actualDay).padStart(2, "0")}`;
-    const [tx] = await db.insert(transactionsTable).values({
-      userId,
-      amount: rp.amount,
-      description: rp.name,
-      date: dateStr,
-      paymentMethod: "card",
-      recurringPaymentId: rp.id,
-      // NOTE: isLarderFund is intentionally NOT set here. Recurring payments that
-      // contribute to Larder are real spending events and must not be excluded from
-      // spending totals. The Larder badge for these transactions is derived on the
-      // frontend by cross-referencing larder_entries (sourceType: "recurring_payment").
-    }).returning();
-
-    // Log the application — onConflictDoNothing guards against concurrent duplicate inserts
-    await db.insert(recurringPaymentLogsTable).values({
-      recurringPaymentId: rp.id,
-      userId,
-      monthKey,
-      transactionId: tx.id,
-    }).onConflictDoNothing();
-
-    // If addToLarder is set, credit the user's personal Larder with the full payment amount
-    if (rp.addToLarder) {
-      const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
-      await db.insert(larderEntriesTable).values({
-        userId,
-        amount: rp.amount,
-        currency: user?.currency ?? "USD",
-        sourceType: "recurring_payment",
-        sourceId: tx.id,
-        note: rp.name,
-      }).onConflictDoNothing();
-    }
+    await applyPersonalRecurringPayment(rp, userId, monthKey, dateStr);
   }
 }
 
@@ -313,39 +341,13 @@ router.post("/recurring-payments/:id/apply", async (req, res, next): Promise<voi
     dateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
   }
 
-  const [tx] = await db.insert(transactionsTable).values({
-    userId,
-    amount: rp.amount,
-    description: rp.name,
-    date: dateStr,
-    paymentMethod: "card",
-    recurringPaymentId: rp.id,
-    // NOTE: isLarderFund is intentionally NOT set here — same reason as auto-apply.
-    // The Larder badge is derived from larder_entries on the frontend.
-  }).returning();
-
-  // onConflictDoNothing guards against race-condition duplicate inserts
-  await db.insert(recurringPaymentLogsTable).values({
-    recurringPaymentId: id,
-    userId,
-    monthKey,
-    transactionId: tx.id,
-  }).onConflictDoNothing();
-
-  // If addToLarder is set, credit the user's personal Larder with the full payment amount
-  if (rp.addToLarder) {
-    const [user] = await db.select({ currency: usersTable.currency }).from(usersTable).where(eq(usersTable.id, userId));
-    await db.insert(larderEntriesTable).values({
-      userId,
-      amount: rp.amount,
-      currency: user?.currency ?? "USD",
-      sourceType: "recurring_payment",
-      sourceId: tx.id,
-      note: rp.name,
-    }).onConflictDoNothing();
+  const transactionId = await applyPersonalRecurringPayment(rp, userId, monthKey, dateStr);
+  if (transactionId === null) {
+    res.status(409).json({ error: "Already applied this month" });
+    return;
   }
 
-  res.json(formatRP(rp, true, tx.id));
+  res.json(formatRP(rp, true, transactionId));
 } catch (err) { next(err); } });
 
 export default router;
