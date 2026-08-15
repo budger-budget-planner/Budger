@@ -500,53 +500,70 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
-  // Verify balance in the selected Asset (currency sub-balance) — entries may
-  // span multiple currencies when the account currency changed over time.
-  const entries = await db.select().from(larderEntriesTable).where(and(
-    eq(larderEntriesTable.userId, userId),
-    bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
-  ));
-  const balance = await convertedLarderTotal(entries, currency);
-  const balances = currencyBalances(entries);
-  let assetCurrency: string;
   const nativeAmount = round2(amount);
-  try {
-    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
-    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
-  } catch (err) {
-    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Larder balance" }); return;
-  }
-
   const rates = await fetchRates();
-  const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
-
   const dateStr = (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : todayStr();
 
-  // Create transaction — isLarderFund marks it as "From Larder" in the UI.
-  // No transactionCurrency so bulk currency conversion includes this row.
-  const [tx] = await db.insert(transactionsTable).values({
-    userId,
-    amount: String(accountAmount),
-    description: description.trim(),
-    categoryId: categoryId ?? null,
-    date: dateStr,
-    paymentMethod: "card",
-    isLarderFund: true,
-    larderAmount: String(accountAmount),
-  }).returning();
+  try {
+    const result = await db.transaction(async (tx) => {
+      // Read and validate the selected asset in the same transaction as both
+      // writes. This keeps the balance check and the ledger/transaction pair
+      // on one atomic database boundary; concurrency locking is handled by
+      // the follow-up spend-concurrency finding.
+      const entries = await tx.select().from(larderEntriesTable).where(and(
+        eq(larderEntriesTable.userId, userId),
+        bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
+      ));
+      const balance = currencyBalances(entries).reduce(
+        (sum, item) => sum + convertAmount(item.amount, item.currency, currency, rates),
+        0,
+      );
+      const balances = currencyBalances(entries);
+      const assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+      assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+      const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));
 
-  // Deduct from Larder — from the specific Asset (currency) the user picked
-  const [entry] = await db.insert(larderEntriesTable).values({
-    userId,
-    amount: String(-nativeAmount),
-    currency: assetCurrency,
-    sourceType: "larder_spend",
-    sourceId: tx.id,
-    note: description.trim(),
-    bucket,
-  }).returning();
+      // Create transaction — isLarderFund marks it as "From Larder" in the UI.
+      // No transactionCurrency so bulk currency conversion includes this row.
+      const [createdTransaction] = await tx.insert(transactionsTable).values({
+        userId,
+        amount: String(accountAmount),
+        description: description.trim(),
+        categoryId: categoryId ?? null,
+        date: dateStr,
+        paymentMethod: "card",
+        isLarderFund: true,
+        larderAmount: String(accountAmount),
+      }).returning();
+      if (!createdTransaction) throw new Error("Larder spend transaction was not created");
 
-  res.status(201).json({ transactionId: tx.id, larderEntryId: entry.id, newBalance: balance - accountAmount });
+      // Deduct from Larder — from the specific Asset (currency) the user picked.
+      const [createdEntry] = await tx.insert(larderEntriesTable).values({
+        userId,
+        amount: String(-nativeAmount),
+        currency: assetCurrency,
+        sourceType: "larder_spend",
+        sourceId: createdTransaction.id,
+        note: description.trim(),
+        bucket,
+      }).returning();
+      if (!createdEntry) throw new Error("Larder spend entry was not created");
+
+      return { transaction: createdTransaction, entry: createdEntry, newBalance: balance - accountAmount };
+    });
+
+    res.status(201).json({
+      transactionId: result.transaction.id,
+      larderEntryId: result.entry.id,
+      newBalance: result.newBalance,
+    });
+  } catch (err) {
+    if (err instanceof AssetSelectionError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 // POST /larder/fund — create a "fund" transaction and credit the Larder with larderAmount
