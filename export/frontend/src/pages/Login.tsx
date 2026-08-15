@@ -98,6 +98,34 @@ export default function LoginPage() {
   // Show the submit button 5 seconds after the PIN screen appears,
   // so the digit count doesn't reveal how long the PIN is.
   const [showPinSubmit, setShowPinSubmit] = useState(false);
+  const screenRef = useRef<Screen>("start");
+  const loginEmailRef = useRef("");
+  const loginPinRef = useRef("");
+  const signupPinRef = useRef("");
+  const confirmPinRef = useRef("");
+  const loginPendingRef = useRef(false);
+  const registerPendingRef = useRef(false);
+  const loginAutoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmAutoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearAutoSubmitTimers() {
+    if (loginAutoSubmitTimer.current) {
+      clearTimeout(loginAutoSubmitTimer.current);
+      loginAutoSubmitTimer.current = null;
+    }
+    if (confirmAutoSubmitTimer.current) {
+      clearTimeout(confirmAutoSubmitTimer.current);
+      confirmAutoSubmitTimer.current = null;
+    }
+  }
+
+  useEffect(() => {
+    screenRef.current = screen;
+    clearAutoSubmitTimers();
+  }, [screen]);
+
+  useEffect(() => clearAutoSubmitTimers, []);
+
   useEffect(() => {
     if (screen !== "login-pin") { setShowPinSubmit(false); return; }
     const id = setTimeout(() => setShowPinSubmit(true), 5000);
@@ -356,12 +384,19 @@ export default function LoginPage() {
     },
   });
 
+  useEffect(() => {
+    loginPendingRef.current = login.isPending;
+    registerPendingRef.current = register.isPending;
+  }, [login.isPending, register.isPending]);
+
   // ── Login flow ──────────────────────────────────────────────────────────────
 
   async function handleLoginContinue(e: React.FormEvent) {
     e.preventDefault();
     if (!loginEmail.trim()) return;
+    loginEmailRef.current = loginEmail.trim();
     setLoginError("");
+    loginPinRef.current = "";
     setLoginPin("");
     setLoginChecking(true);
     try {
@@ -393,18 +428,34 @@ export default function LoginPage() {
   }
 
   function handleLoginPinChange(pin: string) {
+    if (loginAutoSubmitTimer.current) {
+      clearTimeout(loginAutoSubmitTimer.current);
+      loginAutoSubmitTimer.current = null;
+    }
+    loginPinRef.current = pin;
     setLoginPin(pin);
     setLoginError("");
     // Auto-submit only when we know the exact PIN length and the user has typed exactly that many digits
     if (loginPinLength !== null && pin.length === loginPinLength && !login.isPending) {
-      const email = loginEmail.trim();
-      setTimeout(() => {
+      const email = loginEmailRef.current || loginEmail.trim();
+      loginAutoSubmitTimer.current = setTimeout(() => {
+        loginAutoSubmitTimer.current = null;
+        if (
+          screenRef.current !== "login-pin" ||
+          loginPinRef.current !== pin ||
+          loginEmailRef.current !== email ||
+          loginPendingRef.current
+        ) return;
         login.mutate({ data: { email, password: pin } });
       }, 120); // brief pause so the last dot renders before submitting
     }
   }
 
   function handleLoginSubmit() {
+    if (loginAutoSubmitTimer.current) {
+      clearTimeout(loginAutoSubmitTimer.current);
+      loginAutoSubmitTimer.current = null;
+    }
     if (loginPin.length < 4 || login.isPending) return;
     login.mutate({ data: { email: loginEmail.trim(), password: loginPin } });
   }
@@ -426,21 +477,40 @@ export default function LoginPage() {
   }
 
   function handleSignupPin(pin: string) {
+    if (confirmAutoSubmitTimer.current) {
+      clearTimeout(confirmAutoSubmitTimer.current);
+      confirmAutoSubmitTimer.current = null;
+    }
+    signupPinRef.current = pin;
     setSignupPin(pin);
   }
 
   function handleSignupPinDone() {
     if (signupPin.length < 4) return;
+    confirmPinRef.current = "";
     setConfirmPin("");
     setScreen("signup-confirm");
   }
 
   function handleConfirmPin(pin: string) {
+    if (confirmAutoSubmitTimer.current) {
+      clearTimeout(confirmAutoSubmitTimer.current);
+      confirmAutoSubmitTimer.current = null;
+    }
+    confirmPinRef.current = pin;
     setConfirmPin(pin);
-    if (pin.length >= signupPin.length) {
+    const expectedPin = signupPinRef.current;
+    if (pin.length >= expectedPin.length) {
       // Auto-submit when same length
-      setTimeout(() => {
-        if (pin === signupPin) {
+      confirmAutoSubmitTimer.current = setTimeout(() => {
+        confirmAutoSubmitTimer.current = null;
+        if (
+          screenRef.current !== "signup-confirm" ||
+          confirmPinRef.current !== pin ||
+          signupPinRef.current !== expectedPin ||
+          registerPendingRef.current
+        ) return;
+        if (pin === expectedPin) {
           register.mutate({
             data: {
               email: signupEmail.trim(),
@@ -529,7 +599,10 @@ export default function LoginPage() {
                   type="email"
                   placeholder="alex@example.com"
                   value={loginEmail}
-                  onChange={e => setLoginEmail(e.target.value)}
+                  onChange={e => {
+                    loginEmailRef.current = e.target.value.trim();
+                    setLoginEmail(e.target.value);
+                  }}
                   autoComplete="email"
                   required
                   className="h-14 rounded-2xl bg-muted border-border text-base px-4"

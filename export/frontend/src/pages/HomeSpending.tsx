@@ -953,7 +953,7 @@ function SwipeableTxRow({
   breakdownEnter?: boolean;
   onReceipt: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete: (onFailure: () => void) => void;
   showHint?: boolean;
   isOffline?: boolean;
   children: React.ReactNode;
@@ -961,6 +961,7 @@ function SwipeableTxRow({
   const [offset, setOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [hintHold, setHintHold] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!showHint) return;
@@ -994,6 +995,7 @@ function SwipeableTxRow({
   const swipeHandled = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
@@ -1011,6 +1013,10 @@ function SwipeableTxRow({
       if (snapTimer.current) {
         clearTimeout(snapTimer.current);
         snapTimer.current = null;
+      }
+      if (deleteTimer.current) {
+        clearTimeout(deleteTimer.current);
+        deleteTimer.current = null;
       }
     };
   }, []);
@@ -1037,6 +1043,41 @@ function SwipeableTxRow({
   }
 
   function resetRow() { snapTo(0, null); }
+
+  function restoreAfterDeleteFailure(timedOut = false) {
+    if (deleteTimer.current) {
+      clearTimeout(deleteTimer.current);
+      deleteTimer.current = null;
+    }
+    setIsDeleting(false);
+    isDragging.current = false;
+    isScrolling.current = null;
+    hasMoved.current = false;
+    longPressTriggered.current = false;
+    swipeHandled.current = false;
+    snapTo(0, null);
+    if (timedOut) {
+      toast.error("Delete timed out. Please try again.");
+    }
+  }
+
+  function beginDelete() {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    cancelLongPress();
+    swipeHandled.current = true;
+    snappedRef.current = null;
+    currentOffset.current = -window.innerWidth;
+    setAnimating(true);
+    setOffset(-window.innerWidth);
+
+    deleteTimer.current = setTimeout(() => {
+      deleteTimer.current = null;
+      restoreAfterDeleteFailure(true);
+    }, 10000);
+
+    onDelete(() => restoreAfterDeleteFailure(false));
+  }
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1111,12 +1152,9 @@ function SwipeableTxRow({
     if (isOffline) { snapTo(0, null); return; }
 
     if (off < -ACTION_THRESHOLD) {
-      // Full left extend → delete: animate off-screen immediately and fire onDelete
-      // right away. No snapTo — the row stays hidden until the parent unmounts it,
-      // so there is no visible snap-back before the list item disappears.
-      setAnimating(true);
-      setOffset(-window.innerWidth);
-      onDelete();
+      // Full left extend → delete. Keep the row hidden while the request is
+      // pending, but restore it if the request fails or never resolves.
+      beginDelete();
     } else if (off > ACTION_THRESHOLD) {
       // Full right extend → receipt
       setAnimating(true);
@@ -1202,7 +1240,7 @@ function SwipeableTxRow({
           <div
             className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden cursor-pointer active:brightness-75 bg-card text-destructive"
             style={{ width: rightPanelWidth }}
-            onClick={() => { if (!isOffline) { onDelete(); resetRow(); } else resetRow(); }}
+            onClick={() => { if (!isOffline) beginDelete(); else resetRow(); }}
           >
             <div className="absolute inset-0 bg-destructive/10 pointer-events-none" />
             <Trash2 className="w-4 h-4 flex-shrink-0 relative z-10" />
@@ -2045,7 +2083,15 @@ export default function HomeSpending() {
                       breakdownEnter={breakdownRevealIds.includes(tx.id)}
                       onReceipt={() => { setReceiptTx(tx); setActionTx(null); }}
                       onEdit={() => { if (!hasUnavailable) { setEditTx(tx); setActionTx(null); } }}
-                      onDelete={() => remove.mutate({ id: tx.id })}
+                      onDelete={(onFailure) => remove.mutate(
+                        { id: tx.id },
+                        {
+                          onError: () => {
+                            toast.error("Could not delete this transaction. Please try again.");
+                            onFailure();
+                          },
+                        },
+                      )}
                       showHint={tx.id === topTxId}
                       isOffline={!isOnline}
                     >

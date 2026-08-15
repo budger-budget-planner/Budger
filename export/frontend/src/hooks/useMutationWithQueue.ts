@@ -110,8 +110,17 @@ export function useMutationWithQueue<TVars>(
             });
             // Call opts.onSuccess so the UI can still close dialogs / update state.
             // Per-call overrides.onSuccess is intentionally skipped — it may depend
-            // on server-returned data (e.g. a new resource id).
-            void o.onSuccess?.(undefined, vars);
+            // on server-returned data (e.g. a new resource id). Await the callback
+            // so a rejected cache invalidation/navigation callback is handled below
+            // instead of becoming an unhandled promise rejection.
+            try {
+              await o.onSuccess?.(undefined, vars);
+            } catch (e) {
+              // The operation is already safely queued, so do not report that the
+              // save itself failed. Surface the follow-up UI failure separately.
+              console.error("[MutationQueue] offline success callback failed:", e);
+              toast.error("Saved offline, but the screen could not refresh. It will sync when you are back online.");
+            }
           } catch (e) {
             toast.error("Failed to save offline. Please try again.");
             console.error("[MutationQueue] enqueue failed:", e);
