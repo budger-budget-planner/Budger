@@ -37,29 +37,19 @@ router.post("/live-activity/token", async (req, res): Promise<void> => {
     return;
   }
 
-  // Upsert — one activityId = one token row
-  const existing = await db
-    .select()
-    .from(liveActivityTokensTable)
-    .where(
-      and(
-        eq(liveActivityTokensTable.userId, userId),
-        eq(liveActivityTokensTable.activityId, String(activityId)),
-      ),
-    );
-
-  if (existing.length > 0) {
-    await db
-      .update(liveActivityTokensTable)
-      .set({ token: String(token), updatedAt: new Date() })
-      .where(eq(liveActivityTokensTable.id, existing[0].id));
-  } else {
-    await db.insert(liveActivityTokensTable).values({
+  // The unique constraint is the concurrency arbiter: two callbacks for the
+  // same activity cannot create duplicate rows, and the latest token wins.
+  await db
+    .insert(liveActivityTokensTable)
+    .values({
       userId,
       activityId: String(activityId),
       token: String(token),
+    })
+    .onConflictDoUpdate({
+      target: [liveActivityTokensTable.userId, liveActivityTokensTable.activityId],
+      set: { token: String(token), updatedAt: new Date() },
     });
-  }
 
   res.status(200).json({ ok: true });
 });

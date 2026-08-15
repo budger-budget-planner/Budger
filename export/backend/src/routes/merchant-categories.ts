@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, merchantCategoryRulesTable } from "../db";
+import { db, merchantCategoryRulesTable, categoriesTable } from "../db";
 import { eq, and } from "drizzle-orm";
 import { recordMerchantAssignment, enrichRule, normalizeMerchant } from "../lib/merchantRules";
 import { logger } from "../lib/logger";
@@ -28,6 +28,20 @@ router.post("/merchant-categories", async (req, res): Promise<void> => {
   const { merchantName, categoryId } = req.body;
   if (!merchantName || typeof merchantName !== "string" || typeof categoryId !== "number") {
     res.status(400).json({ error: "merchantName (string) and categoryId (number) are required" });
+    return;
+  }
+
+  // Category IDs are enumerable, so require the category to belong to the
+  // caller before recording a rule or returning its name/color.
+  const [category] = await db
+    .select({ id: categoriesTable.id })
+    .from(categoriesTable)
+    .where(and(
+      eq(categoriesTable.id, categoryId),
+      eq(categoriesTable.userId, userId),
+    ));
+  if (!category) {
+    res.status(404).json({ error: "Category not found" });
     return;
   }
 

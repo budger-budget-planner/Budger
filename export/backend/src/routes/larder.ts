@@ -387,6 +387,18 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
 
+  // Match POST /goal-contributions: personal goals are owner-only, while
+  // household goals are available only to members of that household.
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  if (goal.householdId) {
+    if (!user?.householdId || user.householdId !== goal.householdId) {
+      res.status(403).json({ error: "Not a member of this goal's household" }); return;
+    }
+  } else if (goal.userId !== userId) {
+    res.status(403).json({ error: "Not authorized to dedicate to this goal" }); return;
+  }
+
   // Verify user has enough in the selected Asset (currency sub-balance) —
   // entries may span multiple currencies when the account currency changed over time.
   const entries = await db.select().from(larderEntriesTable).where(and(
@@ -403,10 +415,6 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   } catch (err) {
     res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient Larder balance" }); return;
   }
-
-  // Verify goal exists and user can contribute
-  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
-  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
 
   const rates = await fetchRates();
   const accountAmount = round2(convertAmount(nativeAmount, assetCurrency, currency, rates));

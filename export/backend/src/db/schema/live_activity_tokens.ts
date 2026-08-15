@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const liveActivityTokensTable = pgTable("live_activity_tokens", {
@@ -8,6 +8,8 @@ export const liveActivityTokensTable = pgTable("live_activity_tokens", {
   token: text("token").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, table => [
+  unique("live_activity_tokens_user_activity_unique").on(table.userId, table.activityId),
+]);
 
 export type LiveActivityToken = typeof liveActivityTokensTable.$inferSelect;

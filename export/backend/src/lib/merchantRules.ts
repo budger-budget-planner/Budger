@@ -86,7 +86,10 @@ export async function getAutoCategory(
 /** Enrich a rule with category name/color for the API response */
 export async function enrichRule(rule: any): Promise<any> {
   const [cat] = rule.categoryId
-    ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, rule.categoryId))
+    ? await db.select().from(categoriesTable).where(and(
+      eq(categoriesTable.id, rule.categoryId),
+      eq(categoriesTable.userId, rule.userId),
+    ))
     : [];
   return {
     id: rule.id,

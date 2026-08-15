@@ -127,6 +127,13 @@
       "when": 1786799356000,
       "tag": "0017_webhook_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786799357000,
+      "tag": "0018_live_activity_token_unique",
+      "breakpoints": true
     }
   ]
 }
