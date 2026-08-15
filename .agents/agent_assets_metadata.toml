@@ -116,3 +116,10 @@ uri = "file://output/problem-tracker.docx"
 type = "word_document"
 title = "Problem Tracker — repaired"
 description = "The repaired Word document with the updated problem table."
+
+[[outputs]]
+id = "B7FpHeql64Wm7fgfQNGpf"
+uri = "file://output/Support_Manual.docx"
+type = "word_document"
+title = "Support_Manual.docx"
+description = "Support manual containing the supplied Budger hosting, deployment, GitHub, database, and fix-location instructions."
