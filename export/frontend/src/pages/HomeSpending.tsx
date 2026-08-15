@@ -845,94 +845,56 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getGetLarderQueryKey() });
 }
 
-function dateToMonth(dateStr: string): string {
-  // dateStr is "yyyy-MM-dd"; derive month from it
-  return dateStr.slice(0, 7);
-}
-
-async function syncGoalContribution(opts: {
-  txId: number;
-  txDate: string;
+async function buildAtomicAllocation(opts: {
   isGoalExpense: boolean;
+  txDate: string;
   goalId: string;
   goalAmount: string;
-  existingContribId: number | null;
-  queryClient: ReturnType<typeof useQueryClient>;
-  viewMonth: string;
   goals: any[];
   userCurrency: string;
+  rates: Record<string, number> | null;
 }) {
-  const { txId, txDate, isGoalExpense, goalId, goalAmount, existingContribId, queryClient, viewMonth, goals, userCurrency } = opts;
-  const isLarder = goalId === "larder";
+  const empty = {
+    goalContribution: null,
+    larderAmount: null,
+    larderCurrency: null,
+  } as const;
+  const accountAmount = parseFloat(goalAmount);
+  if (!isGoalExpense || !Number.isFinite(accountAmount) || accountAmount <= 0) return empty;
 
-  // Find and delete ALL contributions for this transaction across every month.
-  // Searching by transactionId avoids missing contributions from past months
-  // when the caller's viewMonth doesn't match the transaction's date month.
-  const linkedRes = await fetch(`/api/goal-contributions?transactionId=${txId}`, { credentials: "include" });
-  const linkedContribs: any[] = linkedRes.ok ? await linkedRes.json() : [];
-  const idsToDelete = new Set<number>(linkedContribs.map((c: any) => c.id));
-  if (existingContribId != null && !isLarder) idsToDelete.add(existingContribId);
-  await Promise.all([...idsToDelete].map(id =>
-    apiFetch(`/api/goal-contributions/${id}`, { method: "DELETE" }),
-  ));
-
-  // Find and delete any prior Larder entry created by dedicating this transaction
-  // straight to the Larder, so switching selections doesn't leave stale entries.
-  const larderRes = await fetch("/api/larder", { credentials: "include" });
-  const larderData = larderRes.ok ? await larderRes.json() : { entries: [] };
-  const priorLarderEntries: any[] = (larderData.entries ?? []).filter(
-    (e: any) => e.sourceType === "transaction_dedication" && e.sourceId === txId,
-  );
-  await Promise.all(priorLarderEntries.map(e =>
-    apiFetch(`/api/larder/entries/${e.id}`, { method: "DELETE" }),
-  ));
-
-  if (isGoalExpense && isLarder && parseFloat(goalAmount) > 0) {
-    await apiFetch("/api/larder/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: parseFloat(goalAmount),
-        currency: userCurrency,
-        sourceType: "transaction_dedication",
-        sourceId: txId,
-      }),
-    });
-  } else if (isGoalExpense && goalId && goalId !== "none" && parseFloat(goalAmount) > 0) {
-    // Create new contribution, converted to goal's base currency.
-    // We also store accountAmount/accountCurrency (the pre-conversion user-currency amount)
-    // so that split validation can compare amounts in the same currency as the transaction.
-    const month = dateToMonth(txDate);
-    const goal = goals.find((g: any) => String(g.id) === String(goalId));
-    const goalCurrency: string = (goal as any)?.currency ?? userCurrency;
-    const accountAmt = parseFloat(goalAmount);
-    let contribAmount = accountAmt;
-    if (goalCurrency !== userCurrency) {
-      try {
-        const rates = await fetchRates();
-        contribAmount = convertAmount(accountAmt, userCurrency, goalCurrency, rates);
-      } catch { /* keep unconverted if fetch fails */ }
-    }
-    await apiFetch("/api/goal-contributions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        goalId: parseInt(goalId),
-        transactionId: txId,
-        amount: contribAmount,
-        currency: goalCurrency,
-        accountAmount: accountAmt,
-        accountCurrency: userCurrency,
-        month,
-      }),
-    });
+  if (goalId === "larder") {
+    return {
+      goalContribution: null,
+      larderAmount: accountAmount,
+      larderCurrency: userCurrency,
+    };
   }
 
-  queryClient.invalidateQueries({ queryKey: getGetGoalsSummaryQueryKey() });
-  queryClient.invalidateQueries({ queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) });
-  queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-  queryClient.invalidateQueries({ queryKey: ["member-goal-contributions"] });
-  queryClient.invalidateQueries({ queryKey: getGetLarderQueryKey() });
+  if (!goalId || goalId === "none") {
+    throw new Error("Please select a goal");
+  }
+  const goal = goals.find((candidate: any) => String(candidate.id) === String(goalId));
+  if (!goal) throw new Error("Selected goal is no longer available");
+
+  const goalCurrency: string = goal.currency ?? userCurrency;
+  let contributionAmount = accountAmount;
+  if (goalCurrency !== userCurrency) {
+    const conversionRates = opts.rates ?? await fetchRates();
+    contributionAmount = convertAmount(accountAmount, userCurrency, goalCurrency, conversionRates);
+  }
+
+  return {
+    goalContribution: {
+      goalId: parseInt(goalId, 10),
+      amount: contributionAmount,
+      currency: goalCurrency,
+      month: opts.txDate.slice(0, 7),
+      accountAmount,
+      accountCurrency: userCurrency,
+    },
+    larderAmount: null,
+    larderCurrency: null,
+  };
 }
 
 function SwipeableTxRow({
@@ -1549,28 +1511,39 @@ export default function HomeSpending() {
     return form.goalAmount;
   }
 
-  function handleCreate(form: TxFormState) {
+  async function handleCreate(form: TxFormState) {
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const isGoalExpense = form.goalMode !== "off";
     const effectiveGoalAmount = resolveGoalAmount(form);
+    let allocation: Awaited<ReturnType<typeof buildAtomicAllocation>>;
+    try {
+      allocation = await buildAtomicAllocation({
+        isGoalExpense,
+        txDate: form.date,
+        goalId: form.goalId,
+        goalAmount: effectiveGoalAmount,
+        goals: goals ?? [],
+        userCurrency: prefs.currency,
+        rates,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not prepare the allocation");
+      return;
+    }
     create.mutate(
-      { data: { amount: parseFloat(form.amount), description: form.description, categoryId, date: form.date, paymentMethod: form.paymentMethod, foundedWithRealizedGoal: form.foundedWithRealizedGoal } },
+      { data: {
+        amount: parseFloat(form.amount),
+        description: form.description,
+        categoryId,
+        date: form.date,
+        paymentMethod: form.paymentMethod,
+        foundedWithRealizedGoal: form.foundedWithRealizedGoal,
+        ...allocation,
+      } },
       {
-        onSuccess: async (tx: any) => {
+        onSuccess: () => {
           invalidateAll(queryClient);
           setAddOpen(false);
-          await syncGoalContribution({
-            txId: tx.id,
-            txDate: form.date,
-            isGoalExpense,
-            goalId: form.goalId,
-            goalAmount: effectiveGoalAmount,
-            existingContribId: null,
-            queryClient,
-            viewMonth,
-            goals: goals ?? [],
-            userCurrency: prefs.currency,
-          });
         },
       }
     );
@@ -1579,9 +1552,23 @@ export default function HomeSpending() {
   function handleUpdate(form: TxFormState) {
     if (!editTx) return;
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
-    const existingContrib = contribByTxId.get(editTx.id) ?? null;
     const isGoalExpense = form.goalMode !== "off";
     const effectiveGoalAmount = resolveGoalAmount(form);
+    let allocation: Awaited<ReturnType<typeof buildAtomicAllocation>>;
+    try {
+      allocation = await buildAtomicAllocation({
+        isGoalExpense,
+        txDate: form.date,
+        goalId: form.goalId,
+        goalAmount: effectiveGoalAmount,
+        goals: goals ?? [],
+        userCurrency: prefs.currency,
+        rates,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not prepare the allocation");
+      return;
+    }
 
     // Was this an auto-assigned category that the user is now overriding?
     const wasAutoAssigned = editTx.categoryAutoAssigned && categoryId !== editTx.categoryId;
@@ -1598,27 +1585,16 @@ export default function HomeSpending() {
           date: form.date,
           paymentMethod: form.paymentMethod,
           foundedWithRealizedGoal: form.foundedWithRealizedGoal,
+          ...allocation,
         },
       },
       {
-        onSuccess: async () => {
+        onSuccess: () => {
           invalidateAll(queryClient);
           setEditTx(null);
           if (wasAutoAssigned && overriddenMerchant && overriddenCategoryName) {
             setAutoRulePrompt({ merchantName: overriddenMerchant, oldCategoryName: overriddenCategoryName });
           }
-          await syncGoalContribution({
-            txId: editTx.id,
-            txDate: form.date,
-            isGoalExpense,
-            goalId: form.goalId,
-            goalAmount: effectiveGoalAmount,
-            existingContribId: existingContrib?.id ?? null,
-            queryClient,
-            viewMonth,
-            goals: goals ?? [],
-            userCurrency: prefs.currency,
-          });
         },
       }
     );

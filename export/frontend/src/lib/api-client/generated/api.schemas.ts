@@ -222,6 +222,18 @@ export interface TransactionInput {
   /** @nullable */
   transactionCurrency?: string | null;
   foundedWithRealizedGoal?: boolean;
+  /** Optional atomic goal allocation created with the transaction. */
+  goalContribution?: {
+    goalId: number;
+    amount: number;
+    currency?: string | null;
+    month?: string;
+    accountAmount?: number | null;
+    accountCurrency?: string | null;
+  } | null;
+  /** Optional atomic personal Larder allocation created with the transaction. */
+  larderAmount?: number | null;
+  larderCurrency?: string | null;
 }
 
 export interface TransactionUpdate {
@@ -237,6 +249,18 @@ export interface TransactionUpdate {
   transactionCurrency?: string | null;
   currencyLocked?: boolean;
   foundedWithRealizedGoal?: boolean;
+  /** When present, replace all goal allocation rows for this transaction. */
+  goalContribution?: {
+    goalId: number;
+    amount: number;
+    currency?: string | null;
+    month?: string;
+    accountAmount?: number | null;
+    accountCurrency?: string | null;
+  } | null;
+  /** When present, replace the transaction's Larder allocation. */
+  larderAmount?: number | null;
+  larderCurrency?: string | null;
 }
 
 export interface BreakdownTransactionRow {
