@@ -14,12 +14,19 @@ const fixtures = vi.hoisted(() => {
       id: { table: "users", field: "id" },
       householdId: { table: "users", field: "householdId" },
     },
-    categoriesTable: { householdId: { table: "categories", field: "householdId" } },
+    categoriesTable: {
+      userId: { table: "categories", field: "userId" },
+      householdId: { table: "categories", field: "householdId" },
+    },
     transactionsTable: {},
     recurringPaymentsTable: {},
     recurringPaymentLogsTable: {},
     notificationItemsTable: {},
-    invitesTable: {},
+    invitesTable: {
+      email: { table: "invites", field: "email" },
+      householdId: { table: "invites", field: "householdId" },
+      status: { table: "invites", field: "status" },
+    },
     budgetStretchesTable: {},
   };
 
@@ -28,7 +35,9 @@ const fixtures = vi.hoisted(() => {
     members: [] as Record<string, any>[],
     users: [] as Record<string, any>[],
     categories: [] as Record<string, any>[],
+    invites: [] as Record<string, any>[],
     failAt: null as string | null,
+    sessionUserId: 1,
   };
 
   const reset = () => {
@@ -48,7 +57,12 @@ const fixtures = vi.hoisted(() => {
       { id: 21, userId: 2, householdId: 10 },
       { id: 22, userId: 3, householdId: 99 },
     ];
+    state.invites = [
+      { id: 30, email: "member@example.com", householdId: 10, status: "pending" },
+      { id: 31, email: "other@example.com", householdId: 99, status: "pending" },
+    ];
     state.failAt = null;
+    state.sessionUserId = 1;
   };
 
   const clone = () => structuredClone(state);
@@ -57,7 +71,9 @@ const fixtures = vi.hoisted(() => {
     state.members = snapshot.members;
     state.users = snapshot.users;
     state.categories = snapshot.categories;
+    state.invites = snapshot.invites;
     state.failAt = snapshot.failAt;
+    state.sessionUserId = snapshot.sessionUserId;
   };
 
   const rowsFor = (table: any) => {
@@ -65,6 +81,7 @@ const fixtures = vi.hoisted(() => {
     if (table === tables.householdMembersTable) return state.members;
     if (table === tables.usersTable) return state.users;
     if (table === tables.categoriesTable) return state.categories;
+    if (table === tables.invitesTable) return state.invites;
     return [];
   };
 
@@ -99,7 +116,13 @@ const fixtures = vi.hoisted(() => {
   const update = (table: any) => ({
     set: (_values: Record<string, any>) => ({
       where: async (condition: any) => {
-        const failure = table === tables.usersTable ? "users.update" : "categories.update";
+        const failure = table === tables.usersTable
+          ? "users.update"
+          : table === tables.categoriesTable
+            ? "categories.update"
+            : table === tables.invitesTable
+              ? "invites.update"
+              : "unknown.update";
         if (state.failAt === failure) throw new Error(`injected ${failure} failure`);
         for (const row of rowsFor(table)) {
           if (matches(condition, row)) Object.assign(row, _values);
@@ -178,7 +201,7 @@ vi.mock("drizzle-orm", async () => {
   };
 });
 
-vi.mock("../lib/push-sender", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("../lib/push-sender", () => ({ sendPushToUser: vi.fn(async () => {}) }));
 vi.mock("../lib/notification-counts", () => ({ getUnreadNotificationCount: vi.fn(async () => 0) }));
 vi.mock("../lib/household-head-transfer", () => ({ transferHouseholdRecurringPayments: vi.fn() }));
 vi.mock("../lib/rates", () => ({ fetchRates: vi.fn(), convertAmount: vi.fn() }));
@@ -187,7 +210,7 @@ vi.mock("../lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info:
 const app = express();
 app.use(express.json());
 app.use((req, _res, next) => {
-  (req as any).session = { userId: 1 };
+  (req as any).session = { userId: fixtures.state.sessionUserId };
   next();
 });
 const { default: householdsRouter } = await import("../routes/households");
@@ -236,5 +259,60 @@ describe("DELETE /households", () => {
     expect(second.status).toBe(200);
     expect(fixtures.state.households).toHaveLength(0);
     expect(fixtures.state.members).toEqual([{ userId: 3, householdId: 99, role: "head" }]);
+  });
+});
+
+describe("POST /households/leave", () => {
+  beforeEach(() => fixtures.reset());
+
+  it("cleans membership, profile, categories, and invites atomically", async () => {
+    fixtures.state.sessionUserId = 2;
+
+    const response = await request(app).post("/households/leave");
+
+    expect(response.status).toBe(200);
+    expect(fixtures.state.members).toEqual([
+      { userId: 1, householdId: 10, role: "head" },
+      { userId: 3, householdId: 99, role: "head" },
+    ]);
+    expect(fixtures.state.users.find(user => user.id === 2)?.householdId).toBeNull();
+    expect(fixtures.state.categories.find(category => category.id === 21)?.householdId).toBeNull();
+    expect(fixtures.state.invites.find(invite => invite.id === 30)?.status).toBe("cancelled");
+    expect(fixtures.state.invites.find(invite => invite.id === 31)?.status).toBe("pending");
+  });
+
+  it.each(["members.delete", "users.update", "categories.update", "invites.update"])(
+    "rolls back all cleanup when %s fails",
+    async (failurePoint) => {
+      fixtures.state.sessionUserId = 2;
+      fixtures.state.failAt = failurePoint;
+      const before = structuredClone(fixtures.state);
+
+      const response = await request(app).post("/households/leave");
+
+      expect(response.status).toBe(500);
+      expect(fixtures.state).toEqual(before);
+    },
+  );
+
+  it("can be retried after a failed cleanup without leaving partial state", async () => {
+    fixtures.state.sessionUserId = 2;
+    fixtures.state.failAt = "categories.update";
+
+    const first = await request(app).post("/households/leave");
+    expect(first.status).toBe(500);
+    expect(fixtures.state.members).toHaveLength(3);
+
+    fixtures.state.failAt = null;
+    const second = await request(app).post("/households/leave");
+
+    expect(second.status).toBe(200);
+    expect(fixtures.state.members).toEqual([
+      { userId: 1, householdId: 10, role: "head" },
+      { userId: 3, householdId: 99, role: "head" },
+    ]);
+    expect(fixtures.state.users.find(user => user.id === 2)?.householdId).toBeNull();
+    expect(fixtures.state.categories.find(category => category.id === 21)?.householdId).toBeNull();
+    expect(fixtures.state.invites.find(invite => invite.id === 30)?.status).toBe("cancelled");
   });
 });

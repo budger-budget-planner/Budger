@@ -707,40 +707,66 @@ router.post("/households/leave", async (req, res): Promise<void> => {
 
   const leavingHouseholdId = householdId;
 
-  // Gather head + household name before removing the member so we can notify.
-  const [household] = await db.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
-  const allMembers = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, leavingHouseholdId));
-  const myMembership = allMembers.find(m => m.userId === userId);
-  if (myMembership && isHead(myMembership.role)) {
-    res.status(409).json({ error: "HEAD_TRANSFER_REQUIRED", message: "Transfer household headship before leaving." });
-    return;
-  }
-  const headMember = allMembers.find(m => isHead(m.role) && m.userId !== userId);
+  const leaveResult = await db.transaction(async (tx) => {
+    // Serialize leave against household deletion and head-transfer changes.
+    await tx.execute(sql`SELECT id FROM ${householdsTable} WHERE id = ${leavingHouseholdId} FOR UPDATE`);
 
-  await db.delete(householdMembersTable).where(
-    and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, leavingHouseholdId))
-  );
-  await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, userId));
-  // Un-share this user's own categories from the household they just left, so
-  // they don't keep leaking to the remaining members.
-  await db.update(categoriesTable)
-    .set({ householdId: null })
-    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, leavingHouseholdId)));
+    // Re-read all authorization and notification data after acquiring the
+    // household lock. This prevents a stale preflight check from removing a
+    // member after their household membership or role has changed.
+    const [lockedUser] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [household] = await tx.select().from(householdsTable).where(eq(householdsTable.id, leavingHouseholdId));
+    const allMembers = await tx.select().from(householdMembersTable)
+      .where(eq(householdMembersTable.householdId, leavingHouseholdId));
+    const myMembership = allMembers.find(m => m.userId === userId);
+    if (!lockedUser || !myMembership) {
+      throw new Error("HOUSEHOLD_MEMBERSHIP_CHANGED");
+    }
+    if (isHead(myMembership.role)) {
+      throw new Error("HEAD_TRANSFER_REQUIRED");
+    }
+    const headMember = allMembers.find(m => isHead(m.role) && m.userId !== userId);
 
-  // Cancel all invite records for this user's email in the household they left
-  // so that stale email links don't cause a confusing ALREADY_DECIDED dead-end
-  // if they get re-invited later.
-  await db.update(invitesTable)
-    .set({ status: "cancelled" })
-    .where(and(
-      eq(invitesTable.email, user.email),
-      eq(invitesTable.householdId, leavingHouseholdId),
-    ));
+    await tx.delete(householdMembersTable).where(
+      and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, leavingHouseholdId))
+    );
+    await tx.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, userId));
+    // Un-share this user's own categories from the household they just left,
+    // so they don't keep leaking to the remaining members.
+    await tx.update(categoriesTable)
+      .set({ householdId: null })
+      .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.householdId, leavingHouseholdId)));
+
+    // Cancel all invite records for this user's email in the household they
+    // left so stale links cannot cause a confusing ALREADY_DECIDED dead-end.
+    await tx.update(invitesTable)
+      .set({ status: "cancelled" })
+      .where(and(
+        eq(invitesTable.email, lockedUser.email),
+        eq(invitesTable.householdId, leavingHouseholdId),
+      ));
+
+    return {
+      headMember,
+      leaverName: lockedUser.name ?? "A member",
+      householdName: household?.name ?? "your household",
+    };
+  }).catch((err: unknown) => {
+    if (err instanceof Error && err.message === "HEAD_TRANSFER_REQUIRED") {
+      res.status(409).json({ error: "HEAD_TRANSFER_REQUIRED", message: "Transfer household headship before leaving." });
+      return null;
+    }
+    if (err instanceof Error && err.message === "HOUSEHOLD_MEMBERSHIP_CHANGED") {
+      res.status(409).json({ error: "HOUSEHOLD_MEMBERSHIP_CHANGED", message: "Your household membership changed. Please refresh and try again." });
+      return null;
+    }
+    throw err;
+  });
+  if (!leaveResult) return;
 
   // Notify the household head via NC + push (fire-and-forget; never fails the leave).
-  if (headMember) {
-    const leaverName = user.name ?? "A member";
-    const hhName = household?.name ?? "your household";
+  if (leaveResult.headMember) {
+    const { headMember, leaverName, householdName: hhName } = leaveResult;
     try {
       await db.insert(notificationItemsTable).values({
         userId: headMember.userId,
