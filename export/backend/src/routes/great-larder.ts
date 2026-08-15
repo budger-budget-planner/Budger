@@ -232,68 +232,77 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
 
-  // Resolve account currency early — needed for currency-aware defaults below.
-  const currency = user.currency ?? "USD";
-
-  const personalEntries = await db.select().from(larderEntriesTable).where(and(
-    eq(larderEntriesTable.userId, userId),
-    bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
-  ));
-  const rates = await fetchRates();
-  const balances = currencyBalances(personalEntries);
-
-  let assetCurrency: string;
-  try {
-    assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
-  } catch (err) {
-    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient personal Larder balance" }); return;
+  if (typeof percent === "number" && (percent <= 0 || percent > 100)) {
+    res.status(400).json({ error: "percent must be between 1 and 100" }); return;
   }
-  const assetBalance = balances.find(b => b.currency === assetCurrency)!.amount;
-
-  // Amount/percent are denominated in the selected Asset's own currency.
-  let nativeAmount: number;
-  if (typeof percent === "number") {
-    if (percent <= 0 || percent > 100) {
-      res.status(400).json({ error: "percent must be between 1 and 100" }); return;
-    }
-    nativeAmount = round2(assetBalance * percent / 100);
-  } else if (typeof rawAmount === "number") {
-    nativeAmount = round2(rawAmount);
-  } else {
+  if (typeof percent !== "number" && typeof rawAmount !== "number") {
     res.status(400).json({ error: "amount or percent is required" }); return;
   }
 
-  if (nativeAmount <= 0) { res.status(400).json({ error: "amount must be positive" }); return; }
+  let transfer: {
+    entry: typeof greatLarderEntriesTable.$inferSelect;
+    contributorName: string;
+  } | null;
   try {
-    assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+    transfer = await db.transaction(async (tx) => {
+      // Serialize all transfers from this personal Larder. The balance is
+      // append-only, so locking the stable user row prevents two concurrent
+      // requests from both passing the same pre-debit balance check.
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
+      const [lockedUser] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+      if (!lockedUser?.householdId) return null;
+
+      const personalEntries = await tx.select().from(larderEntriesTable).where(and(
+        eq(larderEntriesTable.userId, userId),
+        bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
+      ));
+      const balances = currencyBalances(personalEntries);
+      const assetCurrency = resolveAssetCurrency(balances, assetCurrencyInput);
+      const assetBalance = balances.find(b => b.currency === assetCurrency)!.amount;
+
+      // Amount/percent are denominated in the selected Asset's own currency.
+      const nativeAmount = typeof percent === "number"
+        ? round2(assetBalance * percent / 100)
+        : round2(rawAmount as number);
+      if (nativeAmount <= 0) throw new AssetSelectionError("amount must be positive");
+      assertSufficientAssetBalance(balances, assetCurrency, nativeAmount);
+
+      // Keep the personal debit and household credit in the same transaction.
+      await tx.insert(larderEntriesTable).values({
+        userId,
+        amount: String(-nativeAmount),
+        currency: assetCurrency,
+        sourceType: "great_larder_transfer",
+        bucket,
+      });
+
+      const [entry] = await tx.insert(greatLarderEntriesTable).values({
+        householdId: lockedUser.householdId,
+        contributedByUserId: userId,
+        amount: String(nativeAmount),
+        currency: assetCurrency,
+        sourceType: "member_transfer",
+        status: "approved",
+        bucket: null,
+        note: "From personal Larder",
+      }).returning();
+
+      return {
+        entry,
+        contributorName: lockedUser.name ?? "Unknown",
+      };
+    });
   } catch (err) {
-    res.status(400).json({ error: err instanceof AssetSelectionError ? err.message : "Insufficient personal Larder balance" }); return;
+    if (err instanceof AssetSelectionError) {
+      res.status(400).json({ error: err.message }); return;
+    }
+    throw err;
   }
 
-  // Deduct from personal Larder — from the specific Asset (currency) the user picked
-  await db.insert(larderEntriesTable).values({
-    userId,
-    amount: String(-nativeAmount),
-    currency: assetCurrency,
-    sourceType: "great_larder_transfer",
-    bucket,
-  });
-
-  // Credit Great Larder in the same currency (moves that Asset's value across
-  // ledgers 1:1, avoiding conversion drift) — auto-approved, no head needed.
-  const [entry] = await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId,
-    contributedByUserId: userId,
-    amount: String(nativeAmount),
-    currency: assetCurrency,
-    sourceType: "member_transfer",
-    status: "approved",
-    bucket: null,
-    note: "From personal Larder",
-  }).returning();
-
-  const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  res.status(201).json(fmtEntry(entry, u?.name ?? "Unknown"));
+  if (!transfer) {
+    res.status(400).json({ error: "Not in a household" }); return;
+  }
+  res.status(201).json(fmtEntry(transfer.entry, transfer.contributorName));
 });
 
 // POST /great-larder/fund — create a fund transaction; requires head approval
