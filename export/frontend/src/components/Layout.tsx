@@ -177,10 +177,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
     lastRefreshAt.current = now;
     const minVisible = new Promise((resolve) => setTimeout(resolve, 600));
-    await Promise.all([
-      queryClient.refetchQueries({ type: "active" }),
-      minVisible,
-    ]);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ type: "active" }),
+        minVisible,
+      ]);
+    } catch {
+      // A failed active query must not leave the pull gesture rejected or make
+      // the 30-second cooldown hide the only available retry.
+      lastRefreshAt.current = 0;
+      toast({ title: t("layout.refresh_failed"), variant: "destructive" });
+    }
   }
   const { pull: ptrPull, pullPx: ptrPullPx, refreshing: ptrRefreshing, dragging: ptrDragging } =
     usePullToRefresh(mainRef, handlePullRefresh, !isOnline);

@@ -100,6 +100,10 @@ export function usePullToRefresh(
         setPullPx(56); // settle at the loading-indicator resting height
         try {
           await onRefreshRef.current();
+        } catch {
+          // Keep the gesture handler non-rejecting so touchend/touchcancel
+          // cannot create an unhandled promise rejection. The caller owns the
+          // user-facing retry feedback.
         } finally {
           refreshingRef.current = false;
           setRefreshing(false);

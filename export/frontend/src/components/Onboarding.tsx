@@ -61,6 +61,7 @@ export default function Onboarding({
   const initialCrashReplayConsent = useRef(getCrashReplayConsent());
   const [crashReplayConsented, setCrashReplayConsented] = useState(initialCrashReplayConsent.current);
   const [finishing, setFinishing]     = useState(false);
+  const [finishError, setFinishError] = useState(false);
 
   // ── Splash-out state for the welcome screen's CTA ─────────────────────────
   const [launching, setLaunching]   = useState(false);
@@ -104,6 +105,7 @@ export default function Onboarding({
   async function finish() {
     if (finishing) return;
     setFinishing(true);
+    setFinishError(false);
     const shouldReloadForCrashConsent =
       crashReplayConsented !== initialCrashReplayConsent.current;
     try {
@@ -118,7 +120,14 @@ export default function Onboarding({
       await updateMe.mutateAsync({ data: updateData as any });
       await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
     } catch {
-      // Continue even if network fails
+      // Keep onboarding open when persistence fails. The local selections remain
+      // in state, so retrying does not make the user repeat the setup.
+      if (mountedRef.current) {
+        setFinishError(true);
+        setLaunching(false);
+        setLaunchVisible(false);
+      }
+      return;
     } finally {
       setFinishing(false);
     }
@@ -492,6 +501,11 @@ export default function Onboarding({
 
           {/* CTA button */}
           <div className="w-full flex-shrink-0">
+            {finishError && (
+              <p role="alert" className="text-sm text-destructive text-center mb-3">
+                {t("ob.finish_failed")}
+              </p>
+            )}
             <button
               onClick={handleLetsStart}
               disabled={finishing || launching}

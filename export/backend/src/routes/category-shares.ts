@@ -113,18 +113,38 @@ router.post("/category-share-proposals/:id/accept", async (req, res): Promise<vo
   if (!proposal || proposal.targetUserId !== userId) { res.status(404).json({ error: "Proposal not found" }); return; }
   if (proposal.status !== "pending") { res.status(409).json({ error: "Proposal already resolved" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const category = await db.transaction(async (tx) => {
+    // Claim the pending proposal and create the category in the same
+    // transaction. The conditional update is atomic, so concurrent accepts
+    // cannot both claim the same proposal. If category creation fails, the
+    // proposal remains pending because the claim rolls back with the insert.
+    const [claimed] = await tx.update(categoryShareProposalsTable)
+      .set({ status: "accepted" })
+      .where(and(
+        eq(categoryShareProposalsTable.id, id),
+        eq(categoryShareProposalsTable.targetUserId, userId),
+        eq(categoryShareProposalsTable.status, "pending"),
+      ))
+      .returning();
 
-  const [category] = await db.insert(categoriesTable).values({
-    name: proposal.name,
-    color: proposal.color,
-    icon: "tag",
-    budget: null,
-    userId,
-    householdId: user?.householdId ?? null,
-  }).returning();
+    if (!claimed) return null;
 
-  await db.update(categoryShareProposalsTable).set({ status: "accepted" }).where(eq(categoryShareProposalsTable.id, id));
+    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [created] = await tx.insert(categoriesTable).values({
+      name: claimed.name,
+      color: claimed.color,
+      icon: "tag",
+      budget: null,
+      userId,
+      householdId: user?.householdId ?? null,
+    }).returning();
+
+    return created;
+  });
+
+  // A second accept may have passed the initial read while the first request
+  // was still in flight. The conditional claim above is the final authority.
+  if (!category) { res.status(409).json({ error: "Proposal already resolved" }); return; }
 
   res.status(201).json({ ...category, budget: null, createdAt: category.createdAt.toISOString() });
 });

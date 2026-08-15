@@ -33,6 +33,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "layout.badger_hint":        { en: "Tap to scan a screenshot",                        pl: "Dotknij, by zeskanować zrzut ekranu"                              },
   "layout.screenshot_imported": { en: "Transactions imported",               pl: "Transakcje zaimportowane"                 },
   "layout.refresh_cooldown":    { en: "Wait {seconds}s to refresh again",    pl: "Poczekaj {seconds}s przed kolejnym odświeżeniem" },
+  "layout.refresh_failed":      { en: "Couldn't refresh. Pull down to try again.", pl: "Nie udało się odświeżyć. Pociągnij ponownie, aby spróbować." },
 
   // ── Common ──
   "common.back":        { en: "Back",       pl: "Wróć"       },
