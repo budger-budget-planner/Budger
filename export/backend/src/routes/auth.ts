@@ -595,9 +595,9 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     return;
   }
 
-  req.log.info({ userId, email: maskEmail(user.email) }, "auth: account deletion scheduled (24h grace)");
-
   const displayName = user.name || user.email;
+  const DELETION_GRACE_MS = 24 * 60 * 60 * 1000; // 24 hours
+  const deletionAt = new Date(Date.now() + DELETION_GRACE_MS);
 
   // ── Household side-effects ──────────────────────────────────────────────────
   const myMembership = await db
@@ -606,6 +606,23 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     .where(eq(householdMembersTable.userId, userId))
     .limit(1)
     .then(r => r[0] ?? null);
+
+  // Non-head accounts have no household ownership transfer. Schedule them
+  // before any notification work so the durable state is committed first.
+  let deletionScheduledInTransaction = false;
+  if (!myMembership || !["head", "owner"].includes(myMembership.role)) {
+    await db.transaction(async (tx) => {
+      const [scheduled] = await tx.update(usersTable)
+        .set({ deletionScheduledAt: deletionAt })
+        .where(and(
+          eq(usersTable.id, userId),
+          isNull(usersTable.deletionScheduledAt),
+        ))
+        .returning({ id: usersTable.id });
+      if (!scheduled) throw new Error("DELETION_SCHEDULE_FAILED");
+    });
+    deletionScheduledInTransaction = true;
+  }
 
   if (myMembership) {
     const householdId = myMembership.householdId;
@@ -664,23 +681,36 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
             .set({ ownerId: newHead.userId })
             .where(eq(householdsTable.id, householdId));
           await transferHouseholdRecurringPayments(tx, userId, newHead.userId, householdId);
+          const [scheduled] = await tx.update(usersTable)
+            .set({ deletionScheduledAt: deletionAt })
+            .where(and(
+              eq(usersTable.id, userId),
+              isNull(usersTable.deletionScheduledAt),
+            ))
+            .returning({ id: usersTable.id });
+          if (!scheduled) throw new Error("DELETION_SCHEDULE_FAILED");
         });
+        deletionScheduledInTransaction = true;
         req.log.info(
           { householdId, oldHead: userId, newHead: newHead.userId },
           "auth: household headship transferred on deletion request",
         );
 
-        // Notify ALL other members: departing member + leadership change
-        await db.insert(notificationItemsTable).values(
-          otherMembers.map(m => ({
-            userId: m.userId,
-            type: "household_head_transferred",
-            titleEn: "Household leadership changed",
-            titlePl: "Zmiana lidera gospodarstwa",
-            bodyEn: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
-            bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zarządzanie gospodarstwem zostało przekazane nowemu liderowi.`,
-          }))
-        ).onConflictDoNothing();
+        // Notify ALL other members after the transfer+schedule commit.
+        try {
+          await db.insert(notificationItemsTable).values(
+            otherMembers.map(m => ({
+              userId: m.userId,
+              type: "household_head_transferred",
+              titleEn: "Household leadership changed",
+              titlePl: "Zmiana lidera gospodarstwa",
+              bodyEn: `${displayName} has requested account deletion. Household leadership has been transferred to a new head.`,
+              bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zarządzanie gospodarstwem zostało przekazane nowemu liderowi.`,
+            }))
+          ).onConflictDoNothing();
+        } catch (err) {
+          req.log.warn({ err, householdId }, "auth: failed to create head-transfer notifications");
+        }
 
         // Real system push, mirroring the in-app NC rows just written.
         Promise.all(otherMembers.map(async (m) => {
@@ -698,15 +728,19 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
           });
         })).catch(() => {});
 
-        // Personal notification for the newly-promoted head specifically
-        await db.insert(notificationItemsTable).values({
-          userId: newHead.userId,
-          type: "household_you_are_now_head",
-          titleEn: "You are now the household head",
-          titlePl: "Zostałeś(-aś) liderem gospodarstwa",
-          bodyEn: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget, and now have full management access.`,
-          bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-aś) wybrany(-a) na nowego lidera gospodarstwa, ponieważ masz najwyższy miesięczny budżet, i masz teraz pełny dostęp do zarządzania.`,
-        }).onConflictDoNothing();
+        // Personal notification for the newly-promoted head specifically.
+        try {
+          await db.insert(notificationItemsTable).values({
+            userId: newHead.userId,
+            type: "household_you_are_now_head",
+            titleEn: "You are now the household head",
+            titlePl: "Zostałeś(-aś) liderem gospodarstwa",
+            bodyEn: `${displayName} has requested account deletion. You have been selected as the new head of your household because you have the highest monthly budget, and now have full management access.`,
+            bodyPl: `${displayName} poprosił(-a) o usunięcie konta. Zostałeś(-a) wybrany(-a) na nowego lidera gospodarstwa, ponieważ masz najwyższy miesięczny budżet, i masz teraz pełny dostęp do zarządzania.`,
+          }).onConflictDoNothing();
+        } catch (err) {
+          req.log.warn({ err, householdId, newHead: newHead.userId }, "auth: failed to create new-head notification");
+        }
 
         // Real system push for the newly-promoted head.
         const newHeadBadge = await getUnreadNotificationCount(newHead.userId);
@@ -735,16 +769,20 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     } else {
       // ── Not head: just notify other members ─────────────────────────────
       if (otherMembers.length > 0) {
-        await db.insert(notificationItemsTable).values(
-          otherMembers.map(m => ({
-            userId: m.userId,
-            type: "household_member_deletion_request",
-            titleEn: "Member leaving household",
-            titlePl: "Członek opuszcza gospodarstwo",
-            bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
-            bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
-          }))
-        ).onConflictDoNothing();
+        try {
+          await db.insert(notificationItemsTable).values(
+            otherMembers.map(m => ({
+              userId: m.userId,
+              type: "household_member_deletion_request",
+              titleEn: "Member leaving household",
+              titlePl: "Członek opuszcza gospodarstwo",
+              bodyEn: `${displayName} has requested account deletion and will be removed from your household.`,
+              bodyPl: `${displayName} poprosił(-a) o usunięcie konta i zostanie usunięty(-a) z Waszego gospodarstwa.`,
+            }))
+          ).onConflictDoNothing();
+        } catch (err) {
+          req.log.warn({ err, householdId }, "auth: failed to create member-deletion notifications");
+        }
 
         // Real system push, mirroring the in-app NC rows just written.
         Promise.all(otherMembers.map(async (m) => {
@@ -765,13 +803,9 @@ router.post("/auth/request-deletion", async (req, res): Promise<void> => {
     }
   }
 
-  // ── Schedule deletion ────────────────────────────────────────────────────────
-  const DELETION_GRACE_MS = 24 * 60 * 60 * 1000; // 24 hours
-  const deletionAt = new Date(Date.now() + DELETION_GRACE_MS);
-
-  await db.update(usersTable)
-    .set({ deletionScheduledAt: deletionAt })
-    .where(eq(usersTable.id, userId));
+  if (!deletionScheduledInTransaction) {
+    throw new Error("DELETION_SCHEDULE_FAILED");
+  }
 
   req.log.info({ userId, deletionAt }, "auth: account marked for deletion");
 
