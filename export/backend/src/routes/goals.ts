@@ -570,12 +570,22 @@ router.post("/goals/:id/propose", async (req, res): Promise<void> => {
   const existing = await db.select().from(goalProposalsTable)
     .where(and(eq(goalProposalsTable.goalId, id), eq(goalProposalsTable.status, "pending")));
   if (existing.length > 0) { res.status(409).json({ error: "Proposal already pending" }); return; }
-  const [proposal] = await db.insert(goalProposalsTable).values({
-    goalId: id,
-    proposerId: userId,
-    householdId: user.householdId,
-    status: "pending",
-  }).returning();
+  let proposal: typeof goalProposalsTable.$inferSelect;
+  try {
+    // The partial unique index is the final arbiter when two requests pass
+    // the read above at the same time.
+    [proposal] = await db.insert(goalProposalsTable).values({
+      goalId: id,
+      proposerId: userId,
+      householdId: user.householdId,
+      status: "pending",
+    }).returning();
+  } catch (err) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {
+      res.status(409).json({ error: "Proposal already pending" }); return;
+    }
+    throw err;
+  }
 
   // Push heads so they know there's a proposal awaiting review
   const [proposer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -617,27 +627,32 @@ router.post("/goals/:id/propose-edit", async (req, res): Promise<void> => {
     res.status(400).json({ error: "name, color, budget, deadline required" }); return;
   }
 
-  // Cancel any previously pending edit proposals for this goal by this user
-  await db.update(goalEditProposalsTable)
-    .set({ status: "declined" })
-    .where(and(
-      eq(goalEditProposalsTable.goalId, id),
-      eq(goalEditProposalsTable.proposerId, userId),
-      eq(goalEditProposalsTable.status, "pending")
-    ));
+  const [editProposal] = await db.transaction(async (tx) => {
+    // Serialise replacements for this goal. If the insert fails, the
+    // cancellation is rolled back and the previous proposal remains pending.
+    await tx.execute(sql`SELECT id FROM goals WHERE id = ${id} FOR UPDATE`);
 
-  const [editProposal] = await db.insert(goalEditProposalsTable).values({
-    goalId: id,
-    proposerId: userId,
-    householdId: user.householdId,
-    name: String(name),
-    color: String(color),
-    budget: String(parseFloat(budget)),
-    currency: currency ? String(currency) : goal.currency,
-    deadline: String(deadline),
-    divideByMonths: Boolean(divideByMonths),
-    status: "pending",
-  }).returning();
+    await tx.update(goalEditProposalsTable)
+      .set({ status: "declined" })
+      .where(and(
+        eq(goalEditProposalsTable.goalId, id),
+        eq(goalEditProposalsTable.proposerId, userId),
+        eq(goalEditProposalsTable.status, "pending")
+      ));
+
+    return tx.insert(goalEditProposalsTable).values({
+      goalId: id,
+      proposerId: userId,
+      householdId: user.householdId,
+      name: String(name),
+      color: String(color),
+      budget: String(parseFloat(budget)),
+      currency: currency ? String(currency) : goal.currency,
+      deadline: String(deadline),
+      divideByMonths: Boolean(divideByMonths),
+      status: "pending",
+    }).returning();
+  });
 
   // Push heads so they know there's an edit proposal awaiting review
   const [editProposer] = await db.select().from(usersTable).where(eq(usersTable.id, userId));

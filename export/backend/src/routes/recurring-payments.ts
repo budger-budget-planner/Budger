@@ -247,16 +247,20 @@ router.delete("/recurring-payments/:id", async (req, res, next): Promise<void> =
     const id = parseInt(req.params.id);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-    const [existing] = await db.select().from(recurringPaymentsTable)
-      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
-    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const deleted = await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(recurringPaymentsTable)
+        .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+      if (!existing) return false;
 
-    // Delete logs for this payment
-    await db.delete(recurringPaymentLogsTable)
-      .where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
-
-    await db.delete(recurringPaymentsTable)
-      .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+      // Keep log cleanup and definition deletion in one transaction. If the
+      // definition delete fails, the log history is rolled back as well.
+      await tx.delete(recurringPaymentLogsTable)
+        .where(eq(recurringPaymentLogsTable.recurringPaymentId, id));
+      await tx.delete(recurringPaymentsTable)
+        .where(and(eq(recurringPaymentsTable.id, id), eq(recurringPaymentsTable.userId, userId)));
+      return true;
+    });
+    if (!deleted) { res.status(404).json({ error: "Not found" }); return; }
 
     res.status(204).send();
   } catch (err) { next(err); }
