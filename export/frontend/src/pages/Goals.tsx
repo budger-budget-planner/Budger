@@ -197,6 +197,7 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
   const [saveValue, setSaveValue] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [glSaving, setGlSaving] = useState(false);
+  const glRequestRef = useRef<{ amount: number; key: string } | null>(null);
 
   // Compute pct early so we can use it in query enabled flags
   const _contributedRaw = summary?.totalContributed ?? 0;
@@ -250,15 +251,30 @@ function GoalCard({ goal, summary, onEdit, currency, canEdit, canDelete, rates, 
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     setGlSaving(true);
+    const previousRequest = glRequestRef.current;
+    const idempotencyKey = previousRequest?.amount === amount
+      ? previousRequest.key
+      : crypto.randomUUID();
+    glRequestRef.current = { amount, key: idempotencyKey };
     apiFetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+      },
       body: JSON.stringify({ goalId: goal.id, amount }),
     }).then(async r => {
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Failed"); }
-      queryClient.invalidateQueries({ queryKey: ["great-larder"] });
-      queryClient.invalidateQueries({ queryKey: ["goal-contributions-save", goal.id] });
-      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      if (!r.ok) {
+        if (r.status >= 400 && r.status < 500) glRequestRef.current = null;
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error ?? "Failed");
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["great-larder"] }),
+        queryClient.invalidateQueries({ queryKey: ["goal-contributions-save", goal.id] }),
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() }),
+      ]);
+      glRequestRef.current = null;
       setSaveOpen(false); setSaveValue(""); setSaveError(null);
     }).catch(err => setSaveError(err?.message ?? t("larder.save_error")))
       .finally(() => setGlSaving(false));
@@ -915,6 +931,7 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
   const [saveValue, setSaveValue] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [glSaving, setGlSaving] = useState(false);
+  const glRequestRef = useRef<{ amount: number; key: string } | null>(null);
 
   const remove = useDeleteGoal({
     mutation: {
@@ -962,14 +979,29 @@ function PastGoalCard({ goal, currency }: { goal: any; currency: string }) {
       : parseFloat(saveValue);
     if (!amount || amount <= 0) return;
     setGlSaving(true);
+    const previousRequest = glRequestRef.current;
+    const idempotencyKey = previousRequest?.amount === amount
+      ? previousRequest.key
+      : crypto.randomUUID();
+    glRequestRef.current = { amount, key: idempotencyKey };
     apiFetch(`${import.meta.env.BASE_URL}api/great-larder/save-from-goal`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+      },
       body: JSON.stringify({ goalId: goal.id, amount }),
     }).then(async r => {
-      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Failed"); }
-      queryClient.invalidateQueries({ queryKey: ["great-larder"] });
-      queryClient.invalidateQueries({ queryKey: ["goal-contributions-all", goal.id] });
+      if (!r.ok) {
+        if (r.status >= 400 && r.status < 500) glRequestRef.current = null;
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error ?? "Failed");
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["great-larder"] }),
+        queryClient.invalidateQueries({ queryKey: ["goal-contributions-all", goal.id] }),
+      ]);
+      glRequestRef.current = null;
       setSaveOpen(false); setSaveValue(""); setSaveError(null);
     }).catch(err => setSaveError(err?.message ?? t("larder.save_error")))
       .finally(() => setGlSaving(false));
