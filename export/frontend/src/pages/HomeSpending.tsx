@@ -854,6 +854,7 @@ async function buildAtomicAllocation(opts: {
   userCurrency: string;
   rates: Record<string, number> | null;
 }) {
+  const { isGoalExpense, txDate, goalId, goalAmount, goals, userCurrency, rates } = opts;
   const empty = {
     goalContribution: null,
     larderAmount: null,
@@ -1549,7 +1550,7 @@ export default function HomeSpending() {
     );
   }
 
-  function handleUpdate(form: TxFormState) {
+  async function handleUpdate(form: TxFormState) {
     if (!editTx) return;
     const categoryId = form.categoryId && form.categoryId !== "none" ? parseInt(form.categoryId) : null;
     const isGoalExpense = form.goalMode !== "off";
