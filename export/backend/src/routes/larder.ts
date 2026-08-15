@@ -327,46 +327,70 @@ router.post("/larder/save-from-goal", async (req, res): Promise<void> => {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
 
-  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
-  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
+  // Serialize saves (and regular goal contributions, which use the same lock)
+  // for this goal. The contribution check must run after the lock is acquired;
+  // otherwise two requests can both spend the same remaining contribution.
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM goals WHERE id = ${goalId} FOR UPDATE`);
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  const currency = user?.currency ?? "USD";
+    const [goal] = await tx.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+    if (!goal) return { kind: "missing" as const };
 
-  // Only let a user save out of the amount THEY contributed to this goal
-  const myContribs = await db.select().from(goalContributionsTable)
-    .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
-  const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
-  if (amount > myTotal + 0.001) {
-    res.status(400).json({ error: "Amount exceeds what you contributed to this goal" }); return;
-  }
+    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
+    const currency = user?.currency ?? "USD";
 
-  // Offset the goal's progress with a negative contribution in the same accounting currency
-  await db.insert(goalContributionsTable).values({
-    goalId,
-    amount: String(-amount),
-    currency: goal.currency ?? currency,
-    accountAmount: String(-amount),
-    accountCurrency: currency,
-    month: currentMonth(),
-    userId,
-    householdId: goal.householdId ?? null,
+    // Only let a user save out of the amount THEY contributed to this goal.
+    // This is intentionally read through the transaction handle so the total
+    // includes all committed writes that preceded the goal lock.
+    const myContribs = await tx.select().from(goalContributionsTable)
+      .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
+    const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
+    if (amount > myTotal + 0.001) {
+      return { kind: "exceeds-contribution" as const };
+    }
+
+    // Keep the offset and the Larder credit in the same transaction. If either
+    // write fails, PostgreSQL rolls both back and the caller can safely retry.
+    await tx.insert(goalContributionsTable).values({
+      goalId,
+      amount: String(-amount),
+      currency: goal.currency ?? currency,
+      accountAmount: String(-amount),
+      accountCurrency: currency,
+      month: currentMonth(),
+      userId,
+      householdId: goal.householdId ?? null,
+    });
+
+    const [entry] = await tx.insert(larderEntriesTable).values({
+      userId,
+      amount: String(amount),
+      currency,
+      sourceType: "goal_save",
+      goalId,
+      note: `Saved from goal: ${goal.name}`,
+    }).returning();
+
+    const entries = await tx.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
+    const newLarderTotal = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
+
+    return { kind: "saved" as const, larderEntryId: entry.id, newLarderTotal };
   });
 
-  // Credit the user's Larder
-  const [entry] = await db.insert(larderEntriesTable).values({
-    userId,
-    amount: String(amount),
-    currency,
-    sourceType: "goal_save",
-    goalId,
-    note: `Saved from goal: ${goal.name}`,
-  }).returning();
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Goal not found" });
+    return;
+  }
+  if (result.kind === "exceeds-contribution") {
+    res.status(400).json({ error: "Amount exceeds what you contributed to this goal" });
+    return;
+  }
 
-  const entries = await db.select().from(larderEntriesTable).where(eq(larderEntriesTable.userId, userId));
-  const newLarderTotal = entries.reduce((s, e) => s + parseFloat(e.amount), 0);
-
-  res.status(201).json({ success: true, larderEntryId: entry.id, newLarderTotal });
+  res.status(201).json({
+    success: true,
+    larderEntryId: result.larderEntryId,
+    newLarderTotal: result.newLarderTotal,
+  });
 });
 
 // POST /larder/dedicate-to-goal — move money from Larder into a goal contribution
