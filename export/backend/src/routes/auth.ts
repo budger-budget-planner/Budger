@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { db, usersTable, householdMembersTable, householdsTable, notificationItemsTable, invitesTable } from "../db";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
-import { eq, and, count, inArray, isNull, isNotNull, lt, ne } from "drizzle-orm";
+import { eq, and, count, inArray, isNull, isNotNull, lt, gt, ne } from "drizzle-orm";
 import { sendVerificationEmail, sendDeletionRequestEmail, sendDeletionAckEmail } from "../lib/email-sender";
 import { logger, maskEmail } from "../lib/logger";
 import {
@@ -541,31 +541,27 @@ router.post("/auth/reset-pin", async (req, res): Promise<void> => {
   // Hash the incoming plaintext token and look up by hash (token is never stored plaintext).
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  const [user] = await db.select().from(usersTable)
-    .where(eq(usersTable.pinResetToken, tokenHash));
-
-  if (!user) {
-    res.status(400).json({ error: "Invalid or expired reset link" });
-    return;
-  }
-  if (!user.pinResetTokenExpiresAt || user.pinResetTokenExpiresAt.getTime() < Date.now()) {
-    // Clear the expired token to keep the DB tidy
-    await db.update(usersTable)
-      .set({ pinResetToken: null, pinResetTokenExpiresAt: null })
-      .where(eq(usersTable.id, user.id));
-    res.status(400).json({ error: "Reset link has expired" });
-    return;
-  }
-
   const passwordHash = await bcryptjs.hash(password, 10);
-  await db.update(usersTable)
+  // Consume the token and update the PIN in one conditional write. When two
+  // reset requests race, PostgreSQL locks the matching row and only the first
+  // update can still see the token and an unexpired timestamp.
+  const [updated] = await db.update(usersTable)
     .set({
       passwordHash,
       pinLength: password.length,
       pinResetToken: null,
       pinResetTokenExpiresAt: null,
     })
-    .where(eq(usersTable.id, user.id));
+    .where(and(
+      eq(usersTable.pinResetToken, tokenHash),
+      gt(usersTable.pinResetTokenExpiresAt, new Date()),
+    ))
+    .returning({ id: usersTable.id });
+
+  if (!updated) {
+    res.status(400).json({ error: "Invalid or expired reset link" });
+    return;
+  }
 
   // Do NOT establish a session — user must log in with their new PIN.
   res.json({ success: true });

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, boolean, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, boolean, index, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -50,6 +50,8 @@ export const transactionsTable = pgTable("transactions", {
   foundedWithRealizedGoal: boolean("founded_with_realized_goal").notNull().default(false),
   /** ID of the recurring payment that created this transaction (if any) */
   recurringPaymentId: integer("recurring_payment_id").references(() => recurringPaymentsTable.id, { onDelete: "set null" }),
+  /** Client-supplied idempotency key for authenticated webhook-created transactions. */
+  webhookEventKey: text("webhook_event_key"),
   /** Amount of this transaction that was earmarked for the user's Larder (personal savings).
    *  Only set for 'larder_fund' transactions. Null for regular transactions. */
   larderAmount: numeric("larder_amount", { precision: 12, scale: 2 }),
@@ -63,6 +65,7 @@ export const transactionsTable = pgTable("transactions", {
   index("transactions_category_id_idx").on(table.categoryId),
   index("transactions_date_idx").on(table.date),
   index("transactions_recurring_payment_id_idx").on(table.recurringPaymentId),
+  unique("transactions_user_webhook_event_key_unique").on(table.userId, table.webhookEventKey),
 ]);
 
 export const insertTransactionSchema = createInsertSchema(transactionsTable).omit({ id: true, createdAt: true, updatedAt: true });

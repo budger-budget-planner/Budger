@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable } from "../db";
+import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable, transactionsTable } from "../db";
 import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull, desc } from "drizzle-orm";
 import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
 import { isHead, isChildRole, formatGoal, formatContribution, calculateMonthlyTarget, goalPercentage } from "../lib/goals-helpers";
@@ -892,6 +892,33 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   const contribMonth = month ?? currentMonth;
 
   const user = await userScope(userId);
+  let parsedTransactionId: number | null = null;
+
+  if (transactionId !== undefined && transactionId !== null && transactionId !== "") {
+    parsedTransactionId = parseInt(String(transactionId), 10);
+    if (isNaN(parsedTransactionId)) {
+      res.status(400).json({ error: "transactionId must be an integer" });
+      return;
+    }
+
+    const [linkedTransaction] = await db.select({
+      id: transactionsTable.id,
+      userId: transactionsTable.userId,
+      householdId: transactionsTable.householdId,
+    }).from(transactionsTable).where(eq(transactionsTable.id, parsedTransactionId));
+
+    if (!linkedTransaction) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+
+    const sameHousehold = linkedTransaction.householdId !== null
+      && linkedTransaction.householdId === user?.householdId;
+    if (linkedTransaction.userId !== userId && !sameHousehold) {
+      res.status(403).json({ error: "Not authorized to link this transaction" });
+      return;
+    }
+  }
 
   // Authorization: caller must own the goal (personal) or belong to its household
   const [targetGoal] = await db.select().from(goalsTable).where(eq(goalsTable.id, parseInt(goalId)));
@@ -916,7 +943,7 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   await db.transaction(async (tx) => {
     [contrib] = await tx.insert(goalContributionsTable).values({
       goalId: parseInt(goalId),
-      transactionId: transactionId ? parseInt(transactionId) : null,
+      transactionId: parsedTransactionId,
       amount: String(parseFloat(amount)),
       currency: currency ?? null,
       accountAmount: accountAmount != null ? String(parseFloat(accountAmount)) : null,

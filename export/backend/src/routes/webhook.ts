@@ -400,6 +400,14 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     return;
   }
 
+  const idempotencyKey = req.get("Idempotency-Key")?.trim();
+  if (!idempotencyKey || idempotencyKey.length > 255) {
+    res.status(400).json({
+      error: "Idempotency-Key header is required and must be at most 255 characters",
+    });
+    return;
+  }
+
   logger.info({ userId: user.id }, "Apple Pay webhook: payload received");
 
   const result = parseTransactionPayload(req.body);
@@ -437,8 +445,40 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
       categoryId: autoCategory ?? null,
       categoryAutoAssigned: autoCategory != null,
       transactionCurrency: currency ?? null,
+      webhookEventKey: idempotencyKey,
+    })
+    .onConflictDoNothing({
+      target: [transactionsTable.userId, transactionsTable.webhookEventKey],
     })
     .returning();
+
+  if (!tx) {
+    const [existing] = await db
+      .select({ id: transactionsTable.id })
+      .from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.userId, user.id),
+        eq(transactionsTable.webhookEventKey, idempotencyKey),
+      ));
+    if (!existing) {
+      res.status(409).json({ error: "Webhook idempotency key is already in use" });
+      return;
+    }
+
+    const base = `${req.protocol}://${req.get("host")}`;
+    const resultUrl = `${base}/api/webhook/result/${token}/${existing.id}`;
+    logger.info(
+      { txId: existing.id, userId: user.id },
+      "Apple Pay webhook: duplicate request replayed",
+    );
+    res.status(200).json({
+      success: true,
+      transactionId: existing.id,
+      result_url: resultUrl,
+      replayed: true,
+    });
+    return;
+  }
 
   logger.info(
     { txId: tx.id, userId: user.id, amount, currency, merchant },
