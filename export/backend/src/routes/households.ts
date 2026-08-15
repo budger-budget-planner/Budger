@@ -783,16 +783,35 @@ router.delete("/households", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Only the head of the household can delete it" }); return;
   }
 
-  const members = await db.select().from(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
-  for (const m of members) {
-    await db.update(usersTable).set({ householdId: null }).where(eq(usersTable.id, m.userId));
-  }
-  // The household is going away, so no category should still reference it —
-  // otherwise the dangling householdId would keep matching a since-reused id
-  // (or just be permanently orphaned) and could resurface for other users.
-  await db.update(categoriesTable).set({ householdId: null }).where(eq(categoriesTable.householdId, householdId));
-  await db.delete(householdMembersTable).where(eq(householdMembersTable.householdId, householdId));
-  await db.delete(householdsTable).where(eq(householdsTable.id, householdId));
+  await db.transaction(async (tx) => {
+    // Serialize deletion with membership changes and keep every dependent
+    // cleanup on the same atomic boundary as the household delete.
+    await tx.execute(sql`SELECT id FROM households WHERE id = ${householdId} FOR UPDATE`);
+
+    const [lockedMembership] = await tx.select().from(householdMembersTable)
+      .where(and(eq(householdMembersTable.userId, userId), eq(householdMembersTable.householdId, householdId)));
+    if (!lockedMembership || !isHead(lockedMembership.role)) {
+      throw new Error("Household head membership changed before deletion");
+    }
+
+    // These are set-based so the transaction does not leave a partially
+    // detached household if any dependent write fails.
+    await tx.update(usersTable)
+      .set({ householdId: null })
+      .where(eq(usersTable.householdId, householdId));
+    await tx.update(categoriesTable)
+      .set({ householdId: null })
+      .where(eq(categoriesTable.householdId, householdId));
+    await tx.delete(householdMembersTable)
+      .where(eq(householdMembersTable.householdId, householdId));
+
+    const deleted = await tx.delete(householdsTable)
+      .where(eq(householdsTable.id, householdId))
+      .returning({ id: householdsTable.id });
+    if (deleted.length !== 1) {
+      throw new Error("Household was not deleted");
+    }
+  });
 
   res.json({ success: true });
 });
