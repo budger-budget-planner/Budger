@@ -32,3 +32,4 @@
 - [Push notification localization](push-localization.md) — select Web Push title/body variants from the recipient's persisted account language in the shared sender
 - [Export verification workflow](export-verification.md) — validate production-bound export packages with package-local commands and separate baseline failures from new regressions
 - [Export migration journal](export-migration-journal.md) — every shipping SQL migration needs a matching Drizzle journal entry or startup will skip it
+- [Goal contribution deletion policy](goal-contribution-deletion-policy.md) — contributors may delete their own entries; other household members require current membership, with recalculation in the same transaction
