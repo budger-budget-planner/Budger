@@ -24,7 +24,7 @@ const fixtures = vi.hoisted(() => {
     failLarderWrite: false,
   };
 
-  let transactionTail = Promise.resolve();
+  let userLockTail = Promise.resolve();
 
   const cloneState = () => structuredClone(state);
   const restoreState = (snapshot: ReturnType<typeof cloneState>) => {
@@ -75,22 +75,28 @@ const fixtures = vi.hoisted(() => {
     }),
   });
 
-  const tx = { select, insert };
   const db = {
     select: () => select(),
-    transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => {
-      const previous = transactionTail;
-      let release!: () => void;
-      transactionTail = new Promise<void>(resolve => { release = resolve; });
-      await previous;
-      const snapshot = cloneState();
+    transaction: async (callback: (transaction: any) => Promise<unknown>) => {
+      let releaseUserLock: (() => void) | null = null;
+      let snapshot: ReturnType<typeof cloneState> | null = null;
+      const transaction = {
+        execute: async () => {
+          const previous = userLockTail;
+          userLockTail = new Promise<void>(resolve => { releaseUserLock = resolve; });
+          await previous;
+          snapshot = cloneState();
+        },
+        select,
+        insert,
+      };
       try {
-        return await callback(tx);
+        return await callback(transaction);
       } catch (error) {
-        restoreState(snapshot);
+        if (snapshot) restoreState(snapshot);
         throw error;
       } finally {
-        release();
+        releaseUserLock?.();
       }
     },
   };
@@ -114,7 +120,7 @@ const fixtures = vi.hoisted(() => {
       state.nextTransactionId = 1;
       state.nextLarderId = 2;
       state.failLarderWrite = false;
-      transactionTail = Promise.resolve();
+      userLockTail = Promise.resolve();
     },
   };
 });
@@ -190,5 +196,28 @@ describe("POST /larder/spend", () => {
     expect(fixtures.state.transactions).toHaveLength(0);
     expect(fixtures.state.larder).toHaveLength(1);
     expect(fixtures.state.larder[0].amount).toBe("10.00");
+  });
+
+  it("serializes simultaneous spends so only one can consume the balance", async () => {
+    const responses = await Promise.all([
+      request(app).post("/larder/spend").send({ description: "First spend", amount: 7 }),
+      request(app).post("/larder/spend").send({ description: "Second spend", amount: 7 }),
+    ]);
+
+    expect(responses.map(response => response.status).sort()).toEqual([201, 400]);
+    expect(fixtures.state.transactions).toHaveLength(1);
+    expect(fixtures.state.larder.map(row => row.amount)).toEqual(["10.00", "-7"]);
+  });
+
+  it("rejects a spend that becomes insufficient after the competing spend commits", async () => {
+    const responses = await Promise.all([
+      request(app).post("/larder/spend").send({ description: "First spend", amount: 6 }),
+      request(app).post("/larder/spend").send({ description: "Second spend", amount: 6 }),
+    ]);
+
+    const rejected = responses.find(response => response.status === 400);
+    expect(rejected?.body.error).toBe("Insufficient balance in USD");
+    expect(fixtures.state.transactions).toHaveLength(1);
+    expect(fixtures.state.larder.map(row => row.amount)).toEqual(["10.00", "-6"]);
   });
 });

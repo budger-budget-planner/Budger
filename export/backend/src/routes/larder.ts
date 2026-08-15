@@ -508,8 +508,10 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
     const result = await db.transaction(async (tx) => {
       // Read and validate the selected asset in the same transaction as both
       // writes. This keeps the balance check and the ledger/transaction pair
-      // on one atomic database boundary; concurrency locking is handled by
-      // the follow-up spend-concurrency finding.
+      // on one atomic database boundary. Lock the stable user row first so
+      // concurrent spends for the same account cannot validate the same
+      // balance snapshot.
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
       const entries = await tx.select().from(larderEntriesTable).where(and(
         eq(larderEntriesTable.userId, userId),
         bucket === null ? sql`${larderEntriesTable.bucket} IS NULL` : eq(larderEntriesTable.bucket, bucket),
