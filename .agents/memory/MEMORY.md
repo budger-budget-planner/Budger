@@ -30,3 +30,4 @@
 - [Finance Tracker local database](finance-tracker-local-db.md) — the live API uses an isolated local PostgreSQL cluster, separate from the workspace-managed database
 - [Isolated DB stale PID](isolated-db-stale-pid.md) — verify the recorded PostgreSQL PID is truly postgres before trusting pg_ctl status; clear only stale runtime markers
 - [Push notification localization](push-localization.md) — select Web Push title/body variants from the recipient's persisted account language in the shared sender
+- [Export verification workflow](export-verification.md) — validate production-bound export packages with package-local commands and separate baseline failures from new regressions
