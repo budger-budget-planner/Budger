@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ImageOff, Plus, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { UPLOAD_REQUEST_TIMEOUT_MS } from "@/lib/request-timeout";
 import { t } from "@/lib/i18n";
 import { receiptSrc, compressImage, readImageFile } from "@/lib/imageUtils";
 import { ReceiptImg } from "@/components/ReceiptImg";
@@ -194,13 +195,14 @@ export function ReceiptManager({
       const timeoutId = window.setTimeout(() => {
         uploadTimedOutRef.current = true;
         controller.abort();
-      }, 60000);
+      }, UPLOAD_REQUEST_TIMEOUT_MS);
       let response: Response;
       try {
         response = await apiFetch(`${import.meta.env.BASE_URL}api/transactions/${tx.id}/receipts`, {
           method: "POST",
           body: formData,
           signal: controller.signal,
+          timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
         });
       } finally {
         window.clearTimeout(timeoutId);

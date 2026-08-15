@@ -1,5 +1,12 @@
+import {
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  fetchWithTimeout,
+} from "../request-timeout";
+
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /** Override the shared request timeout for a specific operation. */
+  timeoutMs?: number;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -41,7 +48,9 @@ function resolveCsrfUrl(): string {
 export async function getCsrfToken(): Promise<string> {
   if (_csrfToken) return _csrfToken;
   if (_csrfInflight) return _csrfInflight;
-  _csrfInflight = fetch(resolveCsrfUrl(), { credentials: "include" })
+  _csrfInflight = fetchWithTimeout(resolveCsrfUrl(), {
+    credentials: "include",
+  })
     .then((r) => r.json())
     .then((d) => {
       _csrfToken = (d as { token: string }).token;
@@ -386,7 +395,12 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    headers: headersInit,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -433,7 +447,11 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  let response = await fetch(input, { ...init, method, headers, credentials: "include" });
+  let response = await fetchWithTimeout(
+    input,
+    { ...init, method, headers, credentials: "include" },
+    timeoutMs,
+  );
 
   // A stale/mismatched CSRF token (e.g. served from a cache, or left over
   // after a session rotation / server restart) surfaces as a 403. Self-heal
@@ -448,7 +466,11 @@ export async function customFetch<T = unknown>(
     try {
       const retryHeaders = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
       retryHeaders.set("x-csrf-token", await getCsrfToken());
-      response = await fetch(input, { ...init, method, headers: retryHeaders, credentials: "include" });
+      response = await fetchWithTimeout(
+        input,
+        { ...init, method, headers: retryHeaders, credentials: "include" },
+        timeoutMs,
+      );
     } catch {
       // Retry setup failed — fall through and report the original response.
     }

@@ -1,4 +1,14 @@
+import {
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  fetchWithTimeout,
+} from "./request-timeout";
+
 export const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+export type ApiFetchInit = RequestInit & {
+  /** Override the shared request timeout for a specific operation. */
+  timeoutMs?: number;
+};
 
 // ---------------------------------------------------------------------------
 // CSRF token cache
@@ -13,7 +23,9 @@ let _csrfInflight: Promise<string> | null = null;
 async function getCsrf(): Promise<string> {
   if (_csrfToken) return _csrfToken;
   if (_csrfInflight) return _csrfInflight;
-  _csrfInflight = fetch(`${BASE}/api/csrf-token`, { credentials: "include" })
+  _csrfInflight = fetchWithTimeout(`${BASE}/api/csrf-token`, {
+    credentials: "include",
+  })
     .then((r) => {
       if (!r.ok) throw new Error(`CSRF fetch failed: HTTP ${r.status}`);
       return r.json();
@@ -58,10 +70,14 @@ async function isCsrfRejection(response: Response): Promise<boolean> {
  * Use this instead of bare fetch() for any call that modifies server state.
  * Read-only requests (GET, HEAD) can use plain fetch() unchanged.
  */
-export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const method = (init.method ?? "GET").toUpperCase();
+export async function apiFetch(
+  url: string,
+  init: ApiFetchInit = {},
+): Promise<Response> {
+  const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...requestInit } = init;
+  const method = (requestInit.method ?? "GET").toUpperCase();
   const isMutating = MUTATING.has(method);
-  const headers = new Headers(init.headers);
+  const headers = new Headers(requestInit.headers);
   if (isMutating) {
     try {
       headers.set("x-csrf-token", await getCsrf());
@@ -71,7 +87,11 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
       resetCsrf();
     }
   }
-  const response = await fetch(url, { ...init, headers, credentials: "include" });
+  const response = await fetchWithTimeout(
+    url,
+    { ...requestInit, headers, credentials: "include" },
+    timeoutMs,
+  );
 
   // A stale/mismatched CSRF token (e.g. a cached token from a rotated
   // session, or a server restart) surfaces as a 403. Self-heal by fetching
@@ -79,10 +99,14 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
   // the error to the user.
   if (isMutating && await isCsrfRejection(response)) {
     resetCsrf();
-    const retryHeaders = new Headers(init.headers);
+    const retryHeaders = new Headers(requestInit.headers);
     try {
       retryHeaders.set("x-csrf-token", await getCsrf());
-      return fetch(url, { ...init, headers: retryHeaders, credentials: "include" });
+      return fetchWithTimeout(
+        url,
+        { ...requestInit, headers: retryHeaders, credentials: "include" },
+        timeoutMs,
+      );
     } catch {
       return response;
     }

@@ -17,6 +17,7 @@
 
 import { t } from "./i18n";
 import { getCsrfToken, resetCsrfToken } from "./api-client/custom-fetch";
+import { fetchWithTimeout } from "./request-timeout";
 
 const DB_NAME   = "budger-offline";
 const STORE     = "mutation_queue";
@@ -190,7 +191,7 @@ export async function replayQueue(
         }
       }
 
-      let resp = await fetch(op.endpoint, {
+      let resp = await fetchWithTimeout(op.endpoint, {
         method: op.method,
         credentials: "include",
         headers: replayHeaders,
@@ -215,7 +216,7 @@ export async function replayQueue(
         });
         try {
           retryHeaders.set("x-csrf-token", await getCsrfToken());
-          resp = await fetch(op.endpoint, {
+          resp = await fetchWithTimeout(op.endpoint, {
             method: op.method,
             credentials: "include",
             headers: retryHeaders,
