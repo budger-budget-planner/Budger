@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { householdsTable } from "./households";
@@ -38,9 +38,14 @@ export const greatLarderEntriesTable = pgTable("great_larder_entries", {
   goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
   /** Savings bucket; null means waiting room / Unassigned. */
   bucket: text("bucket"),
+  /** Client-supplied key for retry-safe goal-save requests. */
+  idempotencyKey: text("idempotency_key"),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, table => [
+  uniqueIndex("great_larder_entries_contributor_idempotency_key_unique")
+    .on(table.contributedByUserId, table.idempotencyKey),
+]);
 
 export const insertGreatLarderEntrySchema = createInsertSchema(greatLarderEntriesTable).omit({ id: true, createdAt: true });
 export type InsertGreatLarderEntry = z.infer<typeof insertGreatLarderEntrySchema>;

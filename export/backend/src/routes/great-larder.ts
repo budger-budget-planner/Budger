@@ -738,8 +738,8 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
   res.status(201).json({ success: true, contributionId: contrib.id, newBalance: balance - accountAmount });
 });
 
-// POST /great-larder/save-from-goal — move money from a completed household goal into the Great Larder
-// Body: { goalId, amount }
+// POST /great-larder/save-from-goal — move money from a completed household goal into the Great Larder.
+// Body: { goalId, amount }; Idempotency-Key is required so a lost response can be retried safely.
 // Any household member can save their own contributions into the GL (auto-approved).
 router.post("/great-larder/save-from-goal", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
@@ -755,48 +755,92 @@ router.post("/great-larder/save-from-goal", async (req, res): Promise<void> => {
   if (typeof amount !== "number" || amount <= 0) {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
-
-  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
-  if (!goal) { res.status(404).json({ error: "Goal not found" }); return; }
-  if (goal.householdId !== user.householdId) {
-    res.status(403).json({ error: "Goal does not belong to this household" }); return;
+  const idempotencyKey = req.get("Idempotency-Key")?.trim();
+  if (!idempotencyKey || idempotencyKey.length > 200) {
+    res.status(400).json({ error: "Idempotency-Key header is required" }); return;
   }
 
   const currency = user.currency ?? "USD";
 
-  // Only let a user save out of the amount THEY contributed to this goal
-  const myContribs = await db.select().from(goalContributionsTable)
-    .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
-  const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
-  if (amount > myTotal + 0.001) {
-    res.status(400).json({ error: "Amount exceeds your contribution to this goal" }); return;
-  }
+  const result = await db.transaction(async (tx) => {
+    // Serialize saves and regular goal contributions for this goal. The
+    // idempotency lookup and contribution check must both happen after the
+    // lock, otherwise concurrent requests can spend the same contribution.
+    await tx.execute(sql`SELECT id FROM goals WHERE id = ${goalId} FOR UPDATE`);
 
-  // Offset the goal's progress with a negative contribution (mirrors personal larder save-from-goal)
-  await db.insert(goalContributionsTable).values({
-    goalId,
-    amount: String(-amount),
-    currency: goal.currency ?? currency,
-    accountAmount: String(-amount),
-    accountCurrency: currency,
-    month: currentMonth(),
-    userId,
-    householdId: user.householdId,
+    const [goal] = await tx.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+    if (!goal) return { kind: "missing" as const };
+    if (goal.householdId !== user.householdId) return { kind: "forbidden" as const };
+
+    const [existingEntry] = await tx.select().from(greatLarderEntriesTable).where(and(
+      eq(greatLarderEntriesTable.contributedByUserId, userId),
+      eq(greatLarderEntriesTable.idempotencyKey, idempotencyKey),
+    ));
+    if (existingEntry) {
+      const sameRequest = existingEntry.sourceType === "goal_save"
+        && existingEntry.goalId === goalId
+        && Math.abs(parseFloat(existingEntry.amount) - amount) <= 0.001;
+      return sameRequest
+        ? { kind: "saved" as const, entry: existingEntry, replayed: true }
+        : { kind: "conflict" as const };
+    }
+
+    // Only let a user save out of the amount THEY contributed to this goal.
+    const myContribs = await tx.select().from(goalContributionsTable)
+      .where(and(eq(goalContributionsTable.goalId, goalId), eq(goalContributionsTable.userId, userId)));
+    const myTotal = myContribs.reduce((s, c) => s + parseFloat(String(c.accountAmount ?? c.amount)), 0);
+    if (amount > myTotal + 0.001) return { kind: "exceeds-contribution" as const };
+
+    // Keep the offset and the Great Larder credit in one transaction. A
+    // failure in either write rolls back both, so the same key can retry.
+    await tx.insert(goalContributionsTable).values({
+      goalId,
+      amount: String(-amount),
+      currency: goal.currency ?? currency,
+      accountAmount: String(-amount),
+      accountCurrency: currency,
+      month: currentMonth(),
+      userId,
+      householdId: user.householdId,
+    });
+
+    const [entry] = await tx.insert(greatLarderEntriesTable).values({
+      householdId: user.householdId,
+      contributedByUserId: userId,
+      amount: String(amount),
+      currency,
+      sourceType: "goal_save",
+      status: "approved",
+      goalId,
+      idempotencyKey,
+      note: `Saved from household goal: ${goal.name}`,
+    }).returning();
+
+    return { kind: "saved" as const, entry, replayed: false };
   });
 
-  // Credit the Great Larder (auto-approved — member cashing out their own goal contribution)
-  const [entry] = await db.insert(greatLarderEntriesTable).values({
-    householdId: user.householdId,
-    contributedByUserId: userId,
-    amount: String(amount),
-    currency,
-    sourceType: "goal_save",
-    status: "approved",
-    note: `Saved from household goal: ${goal.name}`,
-  }).returning();
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Goal not found" });
+    return;
+  }
+  if (result.kind === "forbidden") {
+    res.status(403).json({ error: "Goal does not belong to this household" });
+    return;
+  }
+  if (result.kind === "conflict") {
+    res.status(409).json({ error: "Idempotency-Key was already used for a different goal save" });
+    return;
+  }
+  if (result.kind === "exceeds-contribution") {
+    res.status(400).json({ error: "Amount exceeds your contribution to this goal" });
+    return;
+  }
 
-  const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  res.status(201).json({ success: true, entry: fmtEntry(entry, u?.name ?? "Unknown") });
+  res.status(result.replayed ? 200 : 201).json({
+    success: true,
+    replayed: result.replayed,
+    entry: fmtEntry(result.entry, user.name ?? "Unknown"),
+  });
 });
 
 export default router;
