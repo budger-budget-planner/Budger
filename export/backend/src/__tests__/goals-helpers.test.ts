@@ -6,6 +6,7 @@ import {
   formatContribution,
   calculateMonthlyTarget,
   goalPercentage,
+  canDeleteGoalContribution,
 } from "../lib/goals-helpers";
 
 // ─── isHead ──────────────────────────────────────────────────────────────────
@@ -27,6 +28,55 @@ describe("isChildRole", () => {
   it("returns false for 'head'", () => expect(isChildRole("head")).toBe(false));
   it("returns false for 'owner'", () => expect(isChildRole("owner")).toBe(false));
   it("returns false for empty string", () => expect(isChildRole("")).toBe(false));
+});
+
+// ─── canDeleteGoalContribution ──────────────────────────────────────────────
+
+describe("canDeleteGoalContribution", () => {
+  it("allows the contributor to remove a personal contribution", () => {
+    expect(canDeleteGoalContribution(
+      { userId: 42, householdId: null },
+      42,
+      null,
+      false,
+    )).toBe(true);
+  });
+
+  it("denies another user removing a personal contribution", () => {
+    expect(canDeleteGoalContribution(
+      { userId: 42, householdId: null },
+      99,
+      null,
+      false,
+    )).toBe(false);
+  });
+
+  it("allows a current household member to remove a household contribution", () => {
+    expect(canDeleteGoalContribution(
+      { userId: 42, householdId: 7 },
+      99,
+      7,
+      true,
+    )).toBe(true);
+  });
+
+  it("denies a user from another household", () => {
+    expect(canDeleteGoalContribution(
+      { userId: 42, householdId: 7 },
+      99,
+      8,
+      false,
+    )).toBe(false);
+  });
+
+  it("denies a household-id match without current membership", () => {
+    expect(canDeleteGoalContribution(
+      { userId: 42, householdId: 7 },
+      99,
+      7,
+      false,
+    )).toBe(false);
+  });
 });
 
 // ─── formatGoal ──────────────────────────────────────────────────────────────

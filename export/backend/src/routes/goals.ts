@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, goalsTable, goalContributionsTable, goalProposalsTable, goalEditProposalsTable, usersTable, householdsTable, householdMembersTable, goalActivityTable, larderEntriesTable, transactionsTable } from "../db";
 import { eq, or, and, lt, gte, inArray, sql, isNull, isNotNull, desc } from "drizzle-orm";
 import { sendPushToUser, sendPushToUsers } from "../lib/push-sender";
-import { isHead, isChildRole, formatGoal, formatContribution, calculateMonthlyTarget, goalPercentage } from "../lib/goals-helpers";
+import { isHead, isChildRole, formatGoal, formatContribution, calculateMonthlyTarget, goalPercentage, canDeleteGoalContribution } from "../lib/goals-helpers";
 
 const router: IRouter = Router();
 
@@ -941,6 +941,11 @@ router.post("/goal-contributions", async (req, res): Promise<void> => {
   let wasJustRealized = false;
 
   await db.transaction(async (tx) => {
+    // Serialize all goal contribution writes that can change realized state.
+    // The delete path uses the same lock so its post-delete totals cannot be
+    // calculated from a stale contribution set.
+    await tx.execute(sql`SELECT id FROM goals WHERE id = ${parseInt(goalId)} FOR UPDATE`);
+
     [contrib] = await tx.insert(goalContributionsTable).values({
       goalId: parseInt(goalId),
       transactionId: parsedTransactionId,
@@ -1094,39 +1099,76 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  // Fetch the contribution before deletion so we can check threshold rollback
-  const [contrib] = await db.select().from(goalContributionsTable).where(eq(goalContributionsTable.id, id));
-  await db.delete(goalContributionsTable).where(eq(goalContributionsTable.id, id));
-  res.sendStatus(204);
+  const deletion = await db.transaction(async (tx) => {
+    const [caller] = await tx.select({
+      householdId: usersTable.householdId,
+    }).from(usersTable).where(eq(usersTable.id, userId));
 
-  // After response: if deletion causes goal to drop below a completion threshold,
-  // delete the completion activity rows so the idempotency gate resets and a future
-  // re-completion will fire a fresh notification.
-  if (!contrib) return;
-  try {
-    const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
-    if (!goal) return;
+    // Keep the authorization predicate in the lookup itself so an ID from
+    // another user's personal goal is never treated as a deletable record.
+    const householdPredicate = caller?.householdId !== null && caller?.householdId !== undefined
+      ? eq(goalContributionsTable.householdId, caller.householdId)
+      : sql`false`;
+    const [contrib] = await tx.select().from(goalContributionsTable).where(and(
+      eq(goalContributionsTable.id, id),
+      or(eq(goalContributionsTable.userId, userId), householdPredicate),
+    ));
+    if (!contrib) return { kind: "not_found" as const };
 
-    const remaining = await db.select().from(goalContributionsTable)
+    let isCallerHouseholdMember = false;
+    if (contrib.householdId !== null && caller?.householdId === contrib.householdId) {
+      const [membership] = await tx.select({ userId: householdMembersTable.userId })
+        .from(householdMembersTable)
+        .where(and(
+          eq(householdMembersTable.userId, userId),
+          eq(householdMembersTable.householdId, contrib.householdId),
+        ));
+      isCallerHouseholdMember = Boolean(membership);
+    }
+
+    if (!canDeleteGoalContribution(
+      contrib,
+      userId,
+      caller?.householdId ?? null,
+      isCallerHouseholdMember,
+    )) {
+      return { kind: "not_found" as const };
+    }
+
+    // Lock the goal before deleting or reading its remaining contributions.
+    // The contribution-create transaction takes the same lock, so realized
+    // state and activity cleanup see a complete, serialized contribution set.
+    await tx.execute(sql`SELECT id FROM goals WHERE id = ${contrib.goalId} FOR UPDATE`);
+    const [goal] = await tx.select().from(goalsTable).where(eq(goalsTable.id, contrib.goalId));
+    if (!goal) return { kind: "not_found" as const };
+
+    const [deleted] = await tx.delete(goalContributionsTable)
+      .where(and(
+        eq(goalContributionsTable.id, id),
+        or(eq(goalContributionsTable.userId, userId), householdPredicate),
+      ))
+      .returning();
+    if (!deleted) return { kind: "not_found" as const };
+
+    const remaining = await tx.select().from(goalContributionsTable)
       .where(eq(goalContributionsTable.goalId, goal.id));
     const totalNow = remaining.reduce((s, c) => s + parseFloat(c.amount), 0);
     const budget = parseFloat(goal.budget);
 
-    // If goal is no longer fully funded, revert realized state so re-completion re-notifies
-    if (totalNow < budget) {
-      // If goal was realized (fully funded), revert it back to active — no notification
-      if (goal.realizedAt) {
-        await db.update(goalsTable).set({ realizedAt: null }).where(eq(goalsTable.id, goal.id));
-        await db.delete(goalActivityTable).where(and(
-          eq(goalActivityTable.goalId, goal.id),
-          eq(goalActivityTable.type, "goal_realized"),
-        ));
-      }
+    // If the goal is no longer fully funded, revert realized state so
+    // re-completion can emit a fresh notification.
+    if (totalNow < budget && goal.realizedAt) {
+      await tx.update(goalsTable).set({ realizedAt: null }).where(eq(goalsTable.id, goal.id));
+      await tx.delete(goalActivityTable).where(and(
+        eq(goalActivityTable.goalId, goal.id),
+        eq(goalActivityTable.type, "goal_realized"),
+      ));
     }
 
-    // If the deleted contribution's month no longer meets the monthly target, clear that month's rows
-    if (goal.divideByMonths && contrib.month) {
-      const monthContribs = remaining.filter(c => c.month === contrib.month);
+    // If the deleted contribution's month no longer meets the monthly target,
+    // clear that month's activity idempotency rows in the same transaction.
+    if (goal.divideByMonths && deleted.month) {
+      const monthContribs = remaining.filter(c => c.month === deleted.month);
       const monthTotal = monthContribs.reduce((s, c) => s + parseFloat(c.amount), 0);
       const now = new Date();
       const deadlineDate = new Date(goal.deadline);
@@ -1135,22 +1177,25 @@ router.delete("/goal-contributions/:id", async (req, res): Promise<void> => {
         (deadlineDate.getFullYear() - now.getFullYear()) * 12 +
         (deadlineDate.getMonth() - now.getMonth()) + 1
       );
-      const preDeletionTotal = totalNow + parseFloat(contrib.amount);
-      const remainingBudget = Math.max(0, budget - (preDeletionTotal - parseFloat(contrib.amount)));
-      const monthlyTarget = remainingBudget / monthsLeft;
+      const monthlyTarget = Math.max(0, budget - totalNow) / monthsLeft;
 
       if (monthlyTarget > 0 && monthTotal < monthlyTarget) {
-        await db.delete(goalActivityTable).where(and(
+        await tx.delete(goalActivityTable).where(and(
           eq(goalActivityTable.goalId, goal.id),
           eq(goalActivityTable.type, "goal_completed_monthly"),
-          eq(goalActivityTable.activityMonth, contrib.month),
+          eq(goalActivityTable.activityMonth, deleted.month),
         ));
       }
     }
-  } catch (err) {
-    // Non-critical post-delete cleanup — log so we notice if it starts failing consistently
-    req.log.warn({ err }, "goal-contributions: post-delete threshold cleanup failed");
+
+    return { kind: "deleted" as const };
+  });
+
+  if (deletion.kind === "not_found") {
+    res.status(404).json({ error: "Contribution not found" });
+    return;
   }
+  res.sendStatus(204);
 });
 
 // Per-goal member breakdown — all members' contributions for a specific household goal

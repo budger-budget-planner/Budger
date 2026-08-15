@@ -8,6 +8,25 @@ export function isChildRole(role: string): boolean {
   return role === "child" || role === "member";
 }
 
+/**
+ * A contribution may always be removed by its contributor. Contributions
+ * recorded against a household goal may also be removed by another current
+ * member of that household, but never by a user from a different household.
+ */
+export function canDeleteGoalContribution(
+  contribution: { userId: number; householdId: number | null },
+  callerUserId: number,
+  callerHouseholdId: number | null,
+  isCallerHouseholdMember: boolean,
+): boolean {
+  if (contribution.userId === callerUserId) return true;
+  return (
+    contribution.householdId !== null &&
+    contribution.householdId === callerHouseholdId &&
+    isCallerHouseholdMember
+  );
+}
+
 export function formatGoal(g: any) {
   return {
     ...g,
