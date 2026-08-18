@@ -101,7 +101,13 @@ export function useMutationWithQueue<TVars>(
         void (async () => {
           try {
             await enqueue({ endpoint: ep, method, payload });
-            await requestBackgroundSync();
+            // Background Sync is only an optimisation.  Some browsers expose
+            // serviceWorker.ready before the worker is actually usable, and
+            // others can leave that promise pending indefinitely.  Waiting for
+            // it here made an otherwise successful offline save look frozen.
+            // The reconnect listener will replay the queue even when Sync is
+            // unavailable.
+            void requestBackgroundSync();
             o.optimisticUpdate?.(vars, queryClient);
             setWasQueued(true);
             toast("Saved offline", {

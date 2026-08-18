@@ -320,14 +320,24 @@ export function opLabel(op: QueuedOp): string {
 export async function requestBackgroundSync(): Promise<void> {
   try {
     if (!("serviceWorker" in navigator)) return;
-    const reg = await navigator.serviceWorker.ready;
-    if ("sync" in reg) {
-      await (
-        reg as ServiceWorkerRegistration & {
-          sync: { register(tag: string): Promise<void> };
-        }
-      ).sync.register("budger-mutation-queue");
-    }
+    // IndexedDB already contains the durable operation. Background Sync is
+    // only an optimisation, so a stalled serviceWorker.ready must never keep
+    // the initiating mutation in a pending state. The reconnect listener is
+    // the fallback when this API is unavailable.
+    const ready = navigator.serviceWorker.ready;
+    const timeout = new Promise<ServiceWorkerRegistration | null>((resolve) => {
+      window.setTimeout(() => resolve(null), 3000);
+    });
+    const reg = await Promise.race([ready, timeout]);
+    if (!reg || !("sync" in reg)) return;
+
+    const sync = (reg as ServiceWorkerRegistration & {
+      sync: { register(tag: string): Promise<void> };
+    }).sync;
+    await Promise.race([
+      sync.register("budger-mutation-queue"),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 3000)),
+    ]);
   } catch {
     // Background Sync unavailable — window "online" event is the fallback.
   }
