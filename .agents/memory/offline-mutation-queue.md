@@ -47,6 +47,16 @@ description: Architecture and key decisions for the IndexedDB mutation queue, us
 - SW replay logic is INLINED in `sw.ts` (not imported from mutation-queue.ts)
   to avoid any Vite alias / SW compilation issues.
 - SW uses same stop-on-failure and lock semantics as the main-thread replay.
+- The initiating UI must not await `navigator.serviceWorker.ready` or
+  `sync.register()`: either can remain pending in browsers with a stalled or
+  unavailable worker. Queue the IndexedDB record first, complete the UI state
+  transition, and treat Background Sync as best-effort with a short timeout.
+
+**Why:** Waiting for Background Sync made successfully queued offline
+mutations appear frozen because `isPending` could never clear.
+
+**How to apply:** Keep reconnect-driven replay as the reliable fallback; never
+make mutation completion depend on service-worker readiness.
 
 ## IndexedDB schema
 - DB: `"budger-offline"`, store: `"mutation_queue"`, version: 1.
