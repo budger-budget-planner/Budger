@@ -80,7 +80,14 @@ class ErrorBoundary extends Component<
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: false,
+      // Retry infrastructure failures, but never retry a client/permission
+      // response. A short retry window makes a transient API hiccup recover
+      // without treating the user as logged out.
+      retry: (failureCount, error) => {
+        const status = (error as any)?.status as number | undefined;
+        if (status !== undefined && status >= 400 && status < 500) return false;
+        return failureCount < 2;
+      },
       refetchOnWindowFocus: true,
       // Run queries against the SW cache even when offline so the app
       // stays readable without a network connection.
@@ -156,7 +163,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       // the server is temporarily unhappy. Redirecting here caused a cascade
       // where rate-limit spikes from fast tab-switching appeared as logouts.
       const httpStatus = (error as any)?.status as number | undefined;
-      if (!httpStatus || httpStatus === 401) {
+      if (httpStatus === 401) {
         navigate("/login");
       }
       return;
@@ -357,7 +364,7 @@ function AppWithSplash() {
   // for DOM markers.  Navigating here ensures LoginPage is mounted and its
   // markers are at rest before the splash measures them.
   const handleSplashNavigate = useCallback((dest: "home" | "login") => {
-    if (dest === "login") navigate("/login");
+    navigate(dest === "home" ? "/" : "/login");
   }, [navigate]);
 
   // Called when the splash STARTS fading (t=1050ms after seqDone).

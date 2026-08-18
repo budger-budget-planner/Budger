@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
-import { loadPrefs, hasActiveSession } from "@/lib/prefs";
+import { hasActiveSession, getActiveUserId } from "@/lib/prefs";
 import { prefetchHomeData, prefetchHouseholdData } from "@/lib/prefetch";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
@@ -270,13 +270,17 @@ export default function SplashScreen({
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
 
-    const prefs  = loadPrefs();
     // "force-login": InviteSignup always has login markers in its "name" step —
     // use them regardless of whether a different user happens to be signed in.
+    // A persisted active user is a session hint while /api/me is still
+    // resolving. Do not send a known returning user to /login just because a
+    // slow request has not populated React Query yet; AuthGuard can verify the
+    // cookie in place and redirect only on a confirmed 401.
+    const hasSessionHint = user != null || getActiveUserId() != null || hasActiveSession();
     const target: "home" | "login" =
       urlMode === "force-login"
         ? "login"
-        : (user != null && (prefs.staySignedIn || hasActiveSession()) ? "home" : "login");
+        : (hasSessionHint ? "home" : "login");
 
     setDest(target);
 

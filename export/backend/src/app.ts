@@ -258,6 +258,15 @@ function csrfProtection(req: express.Request, res: express.Response, next: expre
 
 app.use("/api", csrfProtection);
 
+// API responses contain authenticated, account-scoped data. Never allow a
+// browser, intermediary, or service-worker layer to reuse a response after a
+// session or mutation changes.
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
+
 app.use("/api", router);
 
 // Unmatched /api routes — explicit 404 instead of falling through.

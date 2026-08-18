@@ -1,7 +1,5 @@
 /// <reference lib="webworker" />
 import { PrecacheEntry, precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-import { registerRoute } from "workbox-routing";
-import { NetworkFirst } from "workbox-strategies";
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: PrecacheEntry[];
@@ -26,7 +24,14 @@ self.addEventListener("install", (event) => {
 
 // Take control of all open clients immediately after activation.
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      // Older builds cached authenticated API responses under this name.
+      // Remove that cache when the new no-API-cache worker activates.
+      caches.delete("budger-api-v1"),
+    ]),
+  );
 });
 
 // Handle explicit SKIP_WAITING message sent by the registration code
@@ -37,26 +42,12 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// ── API caching: NetworkFirst ──────────────────────────────────────────────
-// Tries the network first (5 s timeout), falls back to the last cached
-// response when offline.  Only caches GET requests.
-//
-// /api/csrf-token is deliberately EXCLUDED (see below): it hands out a
-// per-session security token, and NetworkFirst's cache fallback on a slow
-// or flaky connection would serve a stale token that no longer matches the
-// server's live session — every subsequent mutation then fails with
-// "Invalid or missing CSRF token" until the cache is cleared.
-registerRoute(
-  ({ request }) =>
-    request.method === "GET" &&
-    request.url.includes("/api/") &&
-    !request.url.includes("/api/csrf-token") &&
-    !request.url.includes("/api/user/export"),
-  new NetworkFirst({
-    cacheName: "budger-api-v1",
-    networkTimeoutSeconds: 5,
-  })
-);
+// ── API caching ─────────────────────────────────────────────────────────────
+// API responses are authenticated and account-scoped. Do not cache them in the
+// service worker: a URL-only cache key can return an old dashboard, household,
+// goal, or /api/auth/me response after a mutation, session change, or slow
+// network request. React Query still retains in-memory data for offline reading,
+// while state-changing requests are queued separately.
 
 // ── Push notifications ─────────────────────────────────────────────────────
 
