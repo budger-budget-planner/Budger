@@ -33,3 +33,4 @@
 - [Export verification workflow](export-verification.md) — validate production-bound export packages with package-local commands and separate baseline failures from new regressions
 - [Export migration journal](export-migration-journal.md) — every shipping SQL migration needs a matching Drizzle journal entry or startup will skip it
 - [Goal contribution deletion policy](goal-contribution-deletion-policy.md) — contributors may delete their own entries; other household members require current membership, with recalculation in the same transaction
+- [Webhook idempotency compatibility](webhook-idempotency-compatibility.md) — Idempotency-Key must stay optional for legacy Apple Shortcuts and URL-only webhook callers
