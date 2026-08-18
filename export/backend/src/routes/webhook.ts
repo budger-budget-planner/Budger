@@ -400,10 +400,13 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     return;
   }
 
-  const idempotencyKey = req.get("Idempotency-Key")?.trim();
-  if (!idempotencyKey || idempotencyKey.length > 255) {
+  // Idempotency-Key is optional for backwards compatibility with existing
+  // Apple Shortcuts and webhook callers, which only know the token URL and
+  // JSON body. New callers can send it to make retries safe.
+  const idempotencyKey = req.get("Idempotency-Key")?.trim() || null;
+  if (idempotencyKey && idempotencyKey.length > 255) {
     res.status(400).json({
-      error: "Idempotency-Key header is required and must be at most 255 characters",
+      error: "Idempotency-Key must be at most 255 characters",
     });
     return;
   }
@@ -452,7 +455,7 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
     })
     .returning();
 
-  if (!tx) {
+  if (!tx && idempotencyKey) {
     const [existing] = await db
       .select({ id: transactionsTable.id })
       .from(transactionsTable)
@@ -477,6 +480,13 @@ router.post("/webhook/apple/:token", async (req, res): Promise<void> => {
       result_url: resultUrl,
       replayed: true,
     });
+    return;
+  }
+  if (!tx) {
+    // The insert should only return no row for an idempotency conflict. Keep a
+    // defensive response for an unexpected database result rather than
+    // dereferencing an undefined transaction.
+    res.status(500).json({ error: "Transaction could not be created" });
     return;
   }
 
