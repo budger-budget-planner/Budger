@@ -28,7 +28,7 @@ import {
   notificationItemsTable,
   recurringPaymentsTable,
 } from "../db";
-import { eq, and, isNull, or, inArray } from "drizzle-orm";
+import { eq, and, isNull, or, inArray, like, sum } from "drizzle-orm";
 import { sendPushToUser } from "./push-sender";
 import { logger } from "./logger";
 
@@ -92,25 +92,32 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
   const mk = monthKey();
   const monthPrefix = mk;
 
-  // Fetch all data in parallel
-  const [txs, categories, userRPs] = await Promise.all([
-    db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)),
+  // Fetch only monthly aggregates and the small lookup tables. Transaction
+  // rows can contain receipt payloads, so loading the full history here is
+  // unnecessarily expensive for a threshold check.
+  const nativeCurrencyWhere = currency
+    ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, currency))
+    : isNull(transactionsTable.transactionCurrency);
+  const [transactionTotals, categories, userRPs] = await Promise.all([
+    db.select({
+      categoryId: transactionsTable.categoryId,
+      recurringPaymentId: transactionsTable.recurringPaymentId,
+      total: sum(transactionsTable.amount),
+    }).from(transactionsTable).where(and(
+      eq(transactionsTable.userId, userId),
+      like(transactionsTable.date, `${monthPrefix}-%`),
+      eq(transactionsTable.currencyLocked, false),
+      eq(transactionsTable.currencyUnavailable, false),
+      eq(transactionsTable.foundedWithRealizedGoal, false),
+      eq(transactionsTable.isLarderFund, false),
+      nativeCurrencyWhere,
+    )).groupBy(transactionsTable.categoryId, transactionsTable.recurringPaymentId),
     db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
     db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId)),
   ]);
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const rpMap  = new Map(userRPs.map(rp => [rp.id, rp]));
-
-  // Same exclusions as getSpendingGrouped in summary.ts
-  const filtered = txs.filter(tx =>
-    tx.date.startsWith(monthPrefix) &&
-    !tx.currencyLocked &&
-    !tx.currencyUnavailable &&
-    !(tx as any).foundedWithRealizedGoal &&
-    !(tx as any).isLarderFund &&
-    isNativeCurrency(tx, currency),
-  );
 
   // Seed all categories with zero so budgeted-but-unspent categories are included
   const grouped = new Map<string, { total: number; categoryId: number | null; categoryName: string; budget: number | null }>();
@@ -123,7 +130,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
     });
   }
 
-  for (const tx of filtered) {
+  for (const tx of transactionTotals) {
     let key: string;
     if (tx.categoryId) {
       key = String(tx.categoryId);
@@ -136,8 +143,8 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
           budget: cat?.budget ? parseFloat(cat.budget as unknown as string) : null,
         });
       }
-    } else if ((tx as any).recurringPaymentId) {
-      const rpId = (tx as any).recurringPaymentId as number;
+     } else if (tx.recurringPaymentId) {
+       const rpId = tx.recurringPaymentId;
       key = `rp-${rpId}`;
       if (!grouped.has(key)) {
         const rp = rpMap.get(rpId);
@@ -152,7 +159,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
       key = "uncategorized";
       if (!grouped.has(key)) grouped.set(key, { total: 0, categoryId: null, categoryName: "Uncategorized", budget: null });
     }
-    grouped.get(key)!.total += parseFloat(tx.amount);
+     grouped.get(key)!.total += Number(tx.total ?? 0);
   }
 
   const s = sym(currency);

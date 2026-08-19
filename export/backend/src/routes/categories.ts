@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, categoriesTable, usersTable, transactionsTable } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq, like, sum } from "drizzle-orm";
 import {
   CreateCategoryBody,
   UpdateCategoryBody,
@@ -33,23 +33,40 @@ router.get("/categories", async (req, res): Promise<void> => {
     .where(eq(categoriesTable.userId, userId))
     .orderBy(categoriesTable.createdAt);
 
-  // Compute current-month spending per category, excluding founded-with-realized-goal
+  // Compute current-month spending per category in SQL. Do not load full
+  // transaction rows (which also include receipt payloads) just to calculate
+  // two totals.
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const txs = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  const baseSpendingWhere = and(
+    eq(transactionsTable.userId, userId),
+    like(transactionsTable.date, `${monthPrefix}-%`),
+    eq(transactionsTable.currencyLocked, false),
+    eq(transactionsTable.currencyUnavailable, false),
+  );
+  const [spentRows, excludedRows] = await Promise.all([
+    db.select({
+      categoryId: transactionsTable.categoryId,
+      total: sum(transactionsTable.amount),
+    }).from(transactionsTable).where(and(baseSpendingWhere, eq(transactionsTable.foundedWithRealizedGoal, false)))
+      .groupBy(transactionsTable.categoryId),
+    db.select({
+      categoryId: transactionsTable.categoryId,
+      total: sum(transactionsTable.amount),
+    }).from(transactionsTable).where(and(baseSpendingWhere, eq(transactionsTable.foundedWithRealizedGoal, true)))
+      .groupBy(transactionsTable.categoryId),
+  ]);
 
-  const spentMap    = new Map<number, number>();
-  const excludedMap = new Map<number, number>();
-  for (const tx of txs) {
-    if (!tx.categoryId) continue;
-    if (!tx.date.startsWith(monthPrefix)) continue;
-    if (tx.currencyLocked || tx.currencyUnavailable) continue;
-    if (tx.foundedWithRealizedGoal) {
-      excludedMap.set(tx.categoryId, (excludedMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
-    } else {
-      spentMap.set(tx.categoryId, (spentMap.get(tx.categoryId) ?? 0) + parseFloat(tx.amount));
-    }
-  }
+  const spentMap = new Map(
+    spentRows
+      .filter(row => row.categoryId !== null)
+      .map(row => [row.categoryId as number, Number(row.total ?? 0)]),
+  );
+  const excludedMap = new Map(
+    excludedRows
+      .filter(row => row.categoryId !== null)
+      .map(row => [row.categoryId as number, Number(row.total ?? 0)]),
+  );
 
   res.json(categories.map(c => formatCategory(c, spentMap.get(c.id), excludedMap.get(c.id))));
 });
