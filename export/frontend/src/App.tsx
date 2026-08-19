@@ -89,6 +89,7 @@ const queryClient = new QueryClient({
         return failureCount < 2;
       },
       refetchOnWindowFocus: true,
+      refetchIntervalInBackground: false,
       // Run queries against the SW cache even when offline so the app
       // stays readable without a network connection.
       networkMode: "offlineFirst",

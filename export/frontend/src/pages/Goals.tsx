@@ -1192,10 +1192,10 @@ export default function GoalsPage() {
   const [proposalAction, setProposalAction] = useState<string | null>(null);
   const [dismissedProposals, setDismissedProposals] = useState<Set<string>>(new Set());
 
-  const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 20_000, refetchOnWindowFocus: true } } as any);
+  const { data: goals,     isLoading }                = useListGoals({ query: { refetchInterval: 30_000, refetchOnWindowFocus: true, refetchIntervalInBackground: false } } as any);
   const { data: pastGoals, isLoading: pastLoading }   = useListPastGoals();
   // Fetch larder at page level so GoalCard diamonds have data on first render (no late-mount flash)
-  const { data: larderForBadge, isLoading: larderLoading } = useGetLarder({ query: { enabled: true, refetchInterval: 15_000, refetchOnWindowFocus: true } } as any);
+  const { data: larderForBadge, isLoading: larderLoading } = useGetLarder({ query: { enabled: true, refetchInterval: 30_000, refetchOnWindowFocus: true, refetchIntervalInBackground: false } } as any);
   const savedToLarderAmounts = new Map<number, number>();
   const larderDedicatedAmounts = new Map<number, number>();
   ((larderForBadge as any)?.entries ?? []).forEach((e: any) => {
@@ -1265,7 +1265,8 @@ export default function GoalsPage() {
       return r.json();
     },
     enabled: isInHousehold && !isCreator,
-    refetchInterval: 20_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: myEditProposalsMine, refetch: refetchMyEditProposalsMine } = useQuery<EditProposal[]>({
@@ -1276,7 +1277,8 @@ export default function GoalsPage() {
       return r.json();
     },
     enabled: isInHousehold && !isCreator,
-    refetchInterval: 20_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
 

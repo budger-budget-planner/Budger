@@ -984,7 +984,8 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
       if (!response.ok) throw new Error(await response.text().catch(() => "Request failed"));
       return response.json();
     },
-    refetchInterval: 5_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   const accept = useMutation({

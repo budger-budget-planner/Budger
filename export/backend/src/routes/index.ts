@@ -21,6 +21,7 @@ import larderRouter from "./larder";
 import greatLarderRouter from "./great-larder";
 import dataExportRouter from "./data-export";
 import budgetStretchesRouter from "./budget-stretches";
+import notificationCountsRouter from "./notification-counts";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(larderRouter);
 router.use(greatLarderRouter);
 router.use(dataExportRouter);
 router.use(budgetStretchesRouter);
+router.use(notificationCountsRouter);
 
 export default router;

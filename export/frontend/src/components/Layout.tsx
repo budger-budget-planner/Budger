@@ -196,35 +196,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const hasInvitations = (incomingInvites?.length ?? 0) > 0;
   const hasHouseholdAlert = !!(user as any)?.pendingHouseholdAlert;
 
-  const { data: proposalsData } = useQuery<Array<{ id: number; status: string; createdAt: string }>>({
-    queryKey: ["goal-proposals-badge"],
+  type NotificationCounts = {
+    goalProposals: { count: number; latestCreatedAt: string | null };
+    goalEditProposals: { count: number; latestCreatedAt: string | null };
+    goalActivity: Array<{ id: number; type: string; goalName?: string; actorName?: string; createdAt: string }>;
+    categoryShareProposals: number;
+    incomingSplits: number;
+    declinedSplits: number;
+    greatLarderPending: number;
+  };
+  const { data: notificationCounts } = useQuery<NotificationCounts>({
+    queryKey: ["notification-counts"],
     queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/proposals`, { credentials: "include" });
-      if (!r.ok) return [];
+      const r = await fetch(`${import.meta.env.BASE_URL}api/notification-counts`, { credentials: "include" });
+      if (!r.ok) throw new Error("Notification counts request failed");
       return r.json();
     },
-    refetchInterval: 5_000,
-  });
-
-  const { data: editProposalsBadge } = useQuery<Array<{ id: number; createdAt: string }>>({
-    queryKey: ["goal-edit-proposals-badge"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/edit-proposals`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 5_000,
-  });
-
-  const { data: goalActivityBadge } = useQuery<Array<{ id: number; type: string; goalName?: string; actorName?: string; createdAt: string }>>({
-    // Share the same cache entry as Goals.tsx so only one network request is made
-    queryKey: ["goal-activity"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/goals/activity`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 5_000,
+    refetchInterval: 30_000,
+    enabled: !!user?.id && isOnline,
   });
 
   // Scope NC store to this user as soon as we know who they are
@@ -250,12 +239,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   // Goals tab badge only lights up when the household head has pending approvals to action.
-  const hasNewProposals = (proposalsData ?? []).some(
-    (p) => p.status === "pending" && new Date(p.createdAt).getTime() > goalsSeenAt,
-  );
-  const hasNewEditProposals = (editProposalsBadge ?? []).some(
-    (p) => new Date(p.createdAt).getTime() > goalsSeenAt,
-  );
+  const hasNewProposals = !!notificationCounts?.goalProposals.latestCreatedAt
+    && new Date(notificationCounts.goalProposals.latestCreatedAt).getTime() > goalsSeenAt;
+  const hasNewEditProposals = !!notificationCounts?.goalEditProposals.latestCreatedAt
+    && new Date(notificationCounts.goalEditProposals.latestCreatedAt).getTime() > goalsSeenAt;
   const showGoalsBadge = hasNewProposals || hasNewEditProposals;
 
   // ── Detect activity feed events → log to Notification Center ────────────
@@ -265,6 +252,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // devices, or cleared localStorage.
   const processedNcIds = useRef<Set<number>>(new Set());
   useEffect(() => {
+    const goalActivityBadge = notificationCounts?.goalActivity;
     if (!goalActivityBadge || !user?.id) return;
     const NC_TYPES = [
       "goal_completed_monthly",
@@ -359,49 +347,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [goalActivityBadge, user?.id]);
+  }, [notificationCounts?.goalActivity, user?.id]);
 
-  const { data: categoryProposals } = useQuery<Array<{ id: number }>>({
-    queryKey: ["category-share-proposals"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/category-share-proposals`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 5_000,
-  });
-  const hasPendingCategoryProposals = (categoryProposals?.length ?? 0) > 0;
-
-  const { data: incomingSplits } = useQuery<Array<{ id: number }>>({
-    queryKey: ["splits-incoming-badge"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/incoming`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 5_000,
-  });
-  const { data: declinedSplits } = useQuery<Array<{ id: number }>>({
-    queryKey: ["splits-declined-badge"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/splits/issued`, { credentials: "include" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-    refetchInterval: 5_000,
-  });
-  const hasPendingSplits = (incomingSplits?.length ?? 0) > 0 || (declinedSplits?.length ?? 0) > 0;
-
-  const { data: glData } = useQuery<{ entries?: Array<{ id: number; status: string }> } | null>({
-    queryKey: ["great-larder"],
-    queryFn: async () => {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/great-larder`, { credentials: "include" });
-      if (!r.ok) return null;
-      return r.json();
-    },
-    refetchInterval: 5_000,
-  });
-  const hasGLPendingApprovals = (glData?.entries ?? []).some((e) => e.status === "pending");
+  const hasPendingCategoryProposals = (notificationCounts?.categoryShareProposals ?? 0) > 0;
+  const hasPendingSplits = (notificationCounts?.incomingSplits ?? 0) > 0
+    || (notificationCounts?.declinedSplits ?? 0) > 0;
+  const hasGLPendingApprovals = (notificationCounts?.greatLarderPending ?? 0) > 0;
 
   const [showProfile, setShowProfile] = useState(false);
   const [screenshotOpen, setScreenshotOpen] = useState(false);
@@ -560,7 +511,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         // Pre-warm the query cache while the overlay is still visible so that
         // when routes remount they read fresh converted data from cache instantly.
-        queryClient.invalidateQueries();
+        queryClient.invalidateQueries({ predicate: query => {
+          const key = query.queryKey;
+          return key.some(part => typeof part === "string" && (
+            part.includes("Summary") || part.includes("summary") || part === "notification-counts"
+          ));
+        } });
         await queryClient.refetchQueries({ type: "active" });
       } catch {
         // swallow — the overlay will still lift cleanly

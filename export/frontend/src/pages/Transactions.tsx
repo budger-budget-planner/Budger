@@ -737,7 +737,7 @@ export default function TransactionsPage() {
   const { data: categories } = useListCategories();
   const { data: goals }      = useListGoals();
   const { data: transactions, isLoading } = useListTransactions(
-    filterCat !== "all" ? { categoryId: parseInt(filterCat) } : {}
+    filterCat !== "all" ? { categoryId: parseInt(filterCat), limit: 100 } : { limit: 100 }
   );
   const { data: allContribs } = useListGoalContributions({ month: currentMonth });
   const { data: larderSummary } = useGetLarder();

@@ -218,10 +218,22 @@ const memberSpendingLimiter = rateLimit({
   },
   message: { error: "Too many requests, please slow down" },
 });
+const notificationCountsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req.session as any)?.userId;
+    return userId ? `user:${userId}` : ipKeyGenerator(req);
+  },
+  message: { error: "Too many requests, please slow down" },
+});
 app.use("/api", globalApiLimiter);
 app.use("/api/auth", authLimiter);
 app.use("/api/transactions/extract-screenshot", aiLimiter);
 app.use("/api/households/members", memberSpendingLimiter);
+app.use("/api/notification-counts", notificationCountsLimiter);
 
 // ── CSRF protection ───────────────────────────────────────────────────────────
 // Synchronizer-token pattern: GET /api/csrf-token issues a per-session random
