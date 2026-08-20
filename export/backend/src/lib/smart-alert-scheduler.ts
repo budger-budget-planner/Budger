@@ -55,12 +55,6 @@ function sym(currency: string): string {
   return CURRENCY_SYMBOLS[currency] ?? currency;
 }
 
-function isNativeCurrency(tx: any, userCurrency: string): boolean {
-  if (!tx.transactionCurrency) return true;
-  if (tx.transactionCurrency === userCurrency) return true;
-  return false;
-}
-
 /**
  * Try to insert a notification item.  Returns true if actually inserted
  * (first time this dedupKey is seen for this user), false if it was a
@@ -143,8 +137,8 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
           budget: cat?.budget ? parseFloat(cat.budget as unknown as string) : null,
         });
       }
-     } else if (tx.recurringPaymentId) {
-       const rpId = tx.recurringPaymentId;
+    } else if (tx.recurringPaymentId) {
+      const rpId = tx.recurringPaymentId;
       key = `rp-${rpId}`;
       if (!grouped.has(key)) {
         const rp = rpMap.get(rpId);
@@ -159,7 +153,7 @@ async function checkBudgetAlerts(userId: number, currency: string): Promise<void
       key = "uncategorized";
       if (!grouped.has(key)) grouped.set(key, { total: 0, categoryId: null, categoryName: "Uncategorized", budget: null });
     }
-     grouped.get(key)!.total += Number(tx.total ?? 0);
+    grouped.get(key)!.total += Number(tx.total ?? 0);
   }
 
   const s = sym(currency);
