@@ -10,6 +10,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { Sentry } from "./lib/sentry";
 import { DATABASE_URL } from "./db";
+import { requestUsageMetrics } from "./lib/neon-usage-metrics";
 
 // Extend express-session with app-specific fields.
 declare module "express-session" {
@@ -156,6 +157,11 @@ app.use(
     },
   }),
 );
+
+// Keep a bounded, in-memory view of request/database activity for diagnostics.
+// This runs after sessions so authenticated user IDs can be attributed without
+// retaining request bodies or response contents.
+app.use("/api", requestUsageMetrics);
 
 // Rate limiting — three tiers:
 //

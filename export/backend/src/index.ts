@@ -4,6 +4,7 @@ import "./lib/sentry";
 
 import app from "./app";
 import { logger } from "./lib/logger";
+import { recordDbQuery } from "./lib/neon-usage-metrics";
 import { pool, db, DATABASE_URL } from "./db";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import path from "path";
@@ -182,6 +183,7 @@ async function ensureDbSchema(): Promise<void> {
     const result = _orig(...args) as Promise<any>;
     result.then(() => {
       const ms = Date.now() - t0;
+      recordDbQuery(0, ms);
       if (ms > 200) {
         const sql =
           typeof args[0] === "string"
@@ -190,7 +192,9 @@ async function ensureDbSchema(): Promise<void> {
               ((args[0] as any)?.text ?? "?");
         logger.warn({ ms, sql: sql.slice(0, 150) }, "slow-query: exceeded 200ms threshold");
       }
-    }).catch(() => {}); // timing failures must never propagate
+    }).catch(() => {
+      recordDbQuery(0, Date.now() - t0);
+    }); // timing failures must never propagate
     return result;
   };
 }
