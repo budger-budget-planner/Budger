@@ -27,6 +27,7 @@ import {
   pushSubscriptionsTable,
   notificationItemsTable,
   recurringPaymentsTable,
+  pool,
 } from "../db";
 import { eq, and, isNull, or, inArray, like, sum } from "drizzle-orm";
 import { sendPushToUser } from "./push-sender";
@@ -389,7 +390,9 @@ async function checkGoalAlerts(
 
 // ── Main scheduler ────────────────────────────────────────────────────────────
 
-export async function runSmartAlerts(): Promise<void> {
+const SMART_ALERT_LOCK_NAME = "budger:smart-alert-sweep";
+
+async function runSmartAlertsUnlocked(): Promise<void> {
   // Skip silently if Web Push is not configured — same guard as daily reminders
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
 
@@ -424,6 +427,45 @@ export async function runSmartAlerts(): Promise<void> {
     } catch (err) {
       logger.warn({ err, userId: user.id }, "smart-alerts: goal check error");
     }
+  }
+}
+
+/**
+ * Render may run more than one backend instance. The scheduler is started by
+ * every instance, so use a session-level advisory lock held on a dedicated
+ * connection to ensure only one sweep runs at a time. The lock is released
+ * explicitly on normal completion and automatically by Postgres if the
+ * connection disappears.
+ */
+export async function runSmartAlerts(): Promise<void> {
+  const lockClient = await pool.connect();
+  let acquired = false;
+
+  try {
+    const result = await lockClient.query<{ locked: boolean }>(
+      "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
+      [SMART_ALERT_LOCK_NAME],
+    );
+    acquired = result.rows[0]?.locked === true;
+
+    if (!acquired) {
+      logger.info("smart-alerts: another backend instance owns the sweep; skipping");
+      return;
+    }
+
+    await runSmartAlertsUnlocked();
+  } finally {
+    if (acquired) {
+      try {
+        await lockClient.query(
+          "SELECT pg_advisory_unlock(hashtext($1))",
+          [SMART_ALERT_LOCK_NAME],
+        );
+      } catch (err) {
+        logger.warn({ err }, "smart-alerts: failed to release advisory lock");
+      }
+    }
+    lockClient.release();
   }
 }
 
