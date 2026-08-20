@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "../db";
-import { eq, desc, and, isNull, or, like, gte, inArray } from "drizzle-orm";
+import { eq, desc, and, isNull, or, like, gte, inArray, count, sum, sql } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -10,34 +10,44 @@ import { isNativeCurrency, isValidMonthPrefix, monthsAgoDate, roundMoney, native
 const router: IRouter = Router();
 
 async function getSpendingGrouped(userId: number, userCurrency?: string, includeAllCategories = false, monthPrefix?: string) {
-  const whereClause = monthPrefix
-    ? and(eq(transactionsTable.userId, userId), like(transactionsTable.date, `${monthPrefix}-%`))
-    : eq(transactionsTable.userId, userId);
+  const whereClause = and(
+    eq(transactionsTable.userId, userId),
+    ...(monthPrefix ? [like(transactionsTable.date, `${monthPrefix}-%`)] : []),
+    eq(transactionsTable.currencyLocked, false),
+    eq(transactionsTable.currencyUnavailable, false),
+    eq(transactionsTable.foundedWithRealizedGoal, false),
+    eq(transactionsTable.isLarderFund, false),
+    userCurrency
+      ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, userCurrency))
+      : isNull(transactionsTable.transactionCurrency),
+  );
 
-  const txs = await db.select().from(transactionsTable).where(whereClause);
+  const [transactionTotals, categories, userRPs] = await Promise.all([
+    db.select({
+      categoryId: transactionsTable.categoryId,
+      recurringPaymentId: transactionsTable.recurringPaymentId,
+      total: sum(transactionsTable.amount),
+      transactionCount: count(),
+    }).from(transactionsTable).where(whereClause)
+      .groupBy(transactionsTable.categoryId, transactionsTable.recurringPaymentId),
+    // Personal dashboards must only ever show categories the user themselves created.
+    db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
+    // Load recurring payments so RP-linked transactions can be grouped by their RP.
+    db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId)),
+  ]);
 
-  // Personal dashboards must only ever show categories the user themselves created.
-  // Household membership does NOT grant visibility into other members' categories here —
-  // that sharing only happens in the dedicated household-tab view.
-  const categories = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
   const catMap = new Map(categories.map(c => [c.id, c]));
-
-  // Load recurring payments so RP-linked transactions can be grouped by their RP
-  const userRPs = await db.select().from(recurringPaymentsTable).where(eq(recurringPaymentsTable.userId, userId));
   const rpMap = new Map(userRPs.map(rp => [rp.id, rp]));
-
-  const unlocked = txs.filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && !tx.foundedWithRealizedGoal && !tx.isLarderFund && isNativeCurrency(tx, userCurrency));
-
   const grouped = new Map<string, { total: number; count: number; category: any; rp: any }>();
-  for (const tx of unlocked) {
+  for (const tx of transactionTotals) {
     let key: string;
     let category: any = null;
     let rp: any = null;
-    if (tx.categoryId) {
+    if (tx.categoryId != null) {
       key = String(tx.categoryId);
       category = catMap.get(tx.categoryId) ?? null;
-    } else if ((tx as any).recurringPaymentId) {
-      const rpId = (tx as any).recurringPaymentId as number;
+    } else if (tx.recurringPaymentId != null) {
+      const rpId = tx.recurringPaymentId;
       key = `rp-${rpId}`;
       rp = rpMap.get(rpId) ?? null;
     } else {
@@ -45,8 +55,8 @@ async function getSpendingGrouped(userId: number, userCurrency?: string, include
     }
     if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category, rp });
     const entry = grouped.get(key)!;
-    entry.total += parseFloat(tx.amount);
-    entry.count += 1;
+    entry.total += Number(tx.total ?? 0);
+    entry.count += Number(tx.transactionCount ?? 0);
   }
 
   // Ensure every one of the user's categories appears (even with zero spending so far this period)
@@ -105,18 +115,22 @@ router.get("/summary/realized-excluded", async (req, res): Promise<void> => {
   const monthPrefix = rawMonth;
   const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
 
-  // Filter at the SQL level: only this user's realized-goal transactions in this month
-  const txs = await db.select().from(transactionsTable).where(
+  // Aggregate at the SQL level so realized-goal summaries never load full rows.
+  const [totalRow] = await db.select({ total: sum(transactionsTable.amount) })
+    .from(transactionsTable).where(
     and(
       eq(transactionsTable.userId, userId),
       eq(transactionsTable.foundedWithRealizedGoal, true),
-      like(transactionsTable.date, `${monthPrefix}-%`)
+      like(transactionsTable.date, `${monthPrefix}-%`),
+      eq(transactionsTable.currencyLocked, false),
+      eq(transactionsTable.currencyUnavailable, false),
+      userCurrency
+        ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, userCurrency))
+        : isNull(transactionsTable.transactionCurrency),
     )
   );
 
-  const total = txs
-    .filter(tx => !tx.currencyLocked && !tx.currencyUnavailable && isNativeCurrency(tx, userCurrency))
-    .reduce((s, tx) => s + parseFloat(tx.amount), 0);
+  const total = Number(totalRow?.total ?? 0);
 
   res.json({ total: Math.round(total * 100) / 100 });
 });
@@ -129,9 +143,30 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
   // Only load the 6 months we actually need — compute the cutoff date once at the DB level
   const cutoff = monthsAgoDate(now, 5);
 
-  const txs = await db.select().from(transactionsTable)
-    .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, cutoff)));
+  const monthKeyExpression = sql<string>`substring(${transactionsTable.date} from 1 for 7)`;
+  const [monthCounts, monthTotals] = await Promise.all([
+    db.select({ monthKey: monthKeyExpression, transactionCount: count() })
+      .from(transactionsTable)
+      .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, cutoff)))
+      .groupBy(monthKeyExpression),
+    db.select({ monthKey: monthKeyExpression, total: sum(transactionsTable.amount) })
+      .from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.userId, userId),
+        gte(transactionsTable.date, cutoff),
+        eq(transactionsTable.currencyLocked, false),
+        eq(transactionsTable.currencyUnavailable, false),
+        eq(transactionsTable.foundedWithRealizedGoal, false),
+        eq(transactionsTable.isLarderFund, false),
+        typeof req.query.currency === "string"
+          ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, req.query.currency))
+          : isNull(transactionsTable.transactionCurrency),
+      ))
+      .groupBy(monthKeyExpression),
+  ]);
 
+  const totalByMonth = new Map(monthTotals.map(row => [row.monthKey, Number(row.total ?? 0)]));
+  const countByMonth = new Map(monthCounts.map(row => [row.monthKey, Number(row.transactionCount ?? 0)]));
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const results = [];
 
@@ -140,10 +175,8 @@ router.get("/summary/monthly", async (req, res): Promise<void> => {
     const year = d.getFullYear();
     const month = d.getMonth();
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
-    const monthTxs = txs.filter(t => t.date.startsWith(prefix));
-    const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
-    const total = monthTxs.filter(t => !t.currencyLocked && !t.currencyUnavailable && !t.foundedWithRealizedGoal && !t.isLarderFund && isNativeCurrency(t, userCurrency)).reduce((s, t) => s + parseFloat(t.amount), 0);
-    results.push({ month: monthNames[month], year, total: Math.round(total * 100) / 100, count: monthTxs.length });
+    const total = totalByMonth.get(prefix) ?? 0;
+    results.push({ month: monthNames[month], year, total: Math.round(total * 100) / 100, count: countByMonth.get(prefix) ?? 0 });
   }
 
   res.json(results);
@@ -161,10 +194,31 @@ router.get("/summary/history", async (req, res): Promise<void> => {
   // Compute the SQL-level cutoff so we never load transactions outside the requested window
   const cutoff = monthsAgoDate(now, monthsLimit - 1);
 
-  const [txs, categories] = await Promise.all([
-    db.select().from(transactionsTable)
+  const monthKeyExpression = sql<string>`substring(${transactionsTable.date} from 1 for 7)`;
+  const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
+  const [monthCounts, groupedRows, categories] = await Promise.all([
+    db.select({ monthKey: monthKeyExpression, transactionCount: count() })
+      .from(transactionsTable)
       .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, cutoff)))
-      .orderBy(desc(transactionsTable.date)),
+      .groupBy(monthKeyExpression),
+    db.select({
+      monthKey: monthKeyExpression,
+      categoryId: transactionsTable.categoryId,
+      total: sum(transactionsTable.amount),
+      transactionCount: count(),
+    }).from(transactionsTable)
+      .where(and(
+        eq(transactionsTable.userId, userId),
+        gte(transactionsTable.date, cutoff),
+        eq(transactionsTable.currencyLocked, false),
+        eq(transactionsTable.currencyUnavailable, false),
+        eq(transactionsTable.foundedWithRealizedGoal, false),
+        eq(transactionsTable.isLarderFund, false),
+        userCurrency
+          ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, userCurrency))
+          : isNull(transactionsTable.transactionCurrency),
+      ))
+      .groupBy(monthKeyExpression, transactionsTable.categoryId),
     // Scope categories to this user only — no need to load every category in the system
     db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId)),
   ]);
@@ -173,31 +227,30 @@ router.get("/summary/history", async (req, res): Promise<void> => {
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const monthMap = new Map<string, { txs: any[] }>();
-  for (const tx of txs) {
-    const prefix = tx.date.substring(0, 7);
-    if (!monthMap.has(prefix)) monthMap.set(prefix, { txs: [] });
-    monthMap.get(prefix)!.txs.push(tx);
+  const countByMonth = new Map(monthCounts.map(row => [row.monthKey, Number(row.transactionCount ?? 0)]));
+  const rowsByMonth = new Map<string, typeof groupedRows>();
+  for (const row of groupedRows) {
+    const monthRows = rowsByMonth.get(row.monthKey) ?? [];
+    monthRows.push(row);
+    rowsByMonth.set(row.monthKey, monthRows);
   }
 
-  const history = Array.from(monthMap.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
+  const history = Array.from(countByMonth.keys())
+    .sort((a, b) => b.localeCompare(a))
     .slice(0, monthsLimit)
-    .map(([monthKey, { txs: monthTxs }]) => {
+    .map((monthKey) => {
       const [yearStr, monthStr] = monthKey.split("-");
       const year = parseInt(yearStr);
       const monthIdx = parseInt(monthStr) - 1;
 
       const grouped = new Map<string, { total: number; count: number; category: any }>();
-      const userCurrency = typeof req.query.currency === "string" ? req.query.currency : undefined;
-      for (const tx of monthTxs) {
-        if (tx.currencyLocked || tx.currencyUnavailable || tx.foundedWithRealizedGoal || tx.isLarderFund || !isNativeCurrency(tx, userCurrency)) continue;
-        const key = tx.categoryId ? String(tx.categoryId) : "uncategorized";
-        const category = tx.categoryId ? catMap.get(tx.categoryId) : null;
+      for (const row of rowsByMonth.get(monthKey) ?? []) {
+        const key = row.categoryId != null ? String(row.categoryId) : "uncategorized";
+        const category = row.categoryId != null ? catMap.get(row.categoryId) : null;
         if (!grouped.has(key)) grouped.set(key, { total: 0, count: 0, category });
         const entry = grouped.get(key)!;
-        entry.total += parseFloat(tx.amount);
-        entry.count += 1;
+        entry.total += Number(row.total ?? 0);
+        entry.count += Number(row.transactionCount ?? 0);
       }
 
       const grandTotal = Array.from(grouped.values()).reduce((s, e) => s + e.total, 0);
@@ -217,7 +270,7 @@ router.get("/summary/history", async (req, res): Promise<void> => {
         month: monthNames[monthIdx],
         year,
         total: Math.round(grandTotal * 100) / 100,
-        count: monthTxs.length,
+        count: countByMonth.get(monthKey) ?? 0,
         categories: cats,
       };
     });
