@@ -65,6 +65,7 @@ export const transactionsTable = pgTable("transactions", {
   index("transactions_category_id_idx").on(table.categoryId),
   index("transactions_date_idx").on(table.date),
   index("transactions_recurring_payment_id_idx").on(table.recurringPaymentId),
+  index("transactions_user_date_idx").on(table.userId, table.date),
   unique("transactions_user_webhook_event_key_unique").on(table.userId, table.webhookEventKey),
 ]);
 
