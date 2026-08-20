@@ -181,9 +181,9 @@ async function ensureDbSchema(): Promise<void> {
     const t0 = Date.now();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = _orig(...args) as Promise<any>;
-    result.then(() => {
+    result.then((queryResult: any) => {
       const ms = Date.now() - t0;
-      recordDbQuery(0, ms);
+      recordDbQuery(queryResult?.rowCount ?? 0, ms);
       if (ms > 200) {
         const sql =
           typeof args[0] === "string"
