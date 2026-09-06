@@ -692,7 +692,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <div className="flex flex-col h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground">
 
       {/* ── Top header ── */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 h-[4.375rem]
@@ -960,6 +960,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             paddingBottom: NAV_HEIGHT,
             marginTop: ptrRefreshing ? 56 : ptrPullPx,
             transition: ptrDragging ? "none" : "margin-top 0.25s ease",
+            overscrollBehaviorY: "contain",
           }}
         >
           {children}

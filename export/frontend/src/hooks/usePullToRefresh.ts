@@ -45,6 +45,18 @@ export function usePullToRefresh(
     const MAX_TRAVEL = 88; // cap on how far the indicator visually travels
     const TOP_EPSILON = 1; // tolerate sub-pixel scroll positions on mobile browsers
 
+    function documentScrollTop() {
+      return Math.max(
+        window.scrollY,
+        document.documentElement.scrollTop,
+        document.body.scrollTop,
+      );
+    }
+
+    function isAtTop() {
+      return element.scrollTop <= TOP_EPSILON && documentScrollTop() <= TOP_EPSILON;
+    }
+
     function resetVisuals() {
       committed.current = false;
       pullRef.current = 0;
@@ -74,7 +86,7 @@ export function usePullToRefresh(
       // for the rest of this touch — never re-arm PTR mid-gesture.
       if (
         startScrollTop.current > TOP_EPSILON ||
-        element.scrollTop > TOP_EPSILON
+        !isAtTop()
       ) {
         cancelGesture();
         return;
@@ -115,7 +127,7 @@ export function usePullToRefresh(
       // actual scroll top. This is intentionally checked before recording
       // coordinates so scrolling back toward the top cannot become a PTR
       // gesture when the finger is released.
-      if (element.scrollTop > TOP_EPSILON) {
+      if (!isAtTop()) {
         gestureLockedOut.current = true;
         return;
       }
