@@ -134,6 +134,13 @@
       "when": 1786799357000,
       "tag": "0018_live_activity_token_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787223000000,
+      "tag": "0020_transactions_user_date_idx",
+      "breakpoints": true
     }
   ]
 }
