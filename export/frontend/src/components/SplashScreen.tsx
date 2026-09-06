@@ -4,7 +4,7 @@ import { useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { hasActiveSession, getActiveUserId } from "@/lib/prefs";
-import { prefetchHomeData, prefetchHouseholdData } from "@/lib/prefetch";
+import { prefetchHomeData } from "@/lib/prefetch";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
 // Phase 1 "bigText"  : large wordmark centered, logo invisible (holds 700 ms)
@@ -161,7 +161,7 @@ export default function SplashScreen({
   const logoRef     = useRef<HTMLDivElement>(null);
   const wordmarkRef = useRef<HTMLDivElement>(null);
 
-  const { data: user, isLoading } = useGetMe();
+  const { data: user } = useGetMe();
   const resolvedRef = useRef(false);
 
   // ── Prefetch state ────────────────────────────────────────────────────────
@@ -195,11 +195,12 @@ export default function SplashScreen({
     return () => ids.forEach(clearTimeout);
   }, []);
 
-  // ── Wave 1 prefetch: fire all home-page queries as soon as logo pulses ────
+  // ── Startup prefetch: load the destination underneath the whole intro ────
+  // This deliberately starts at mount rather than waiting for "showing".
+  // The banner and logo transition are visual cover for this request wave.
   useEffect(() => {
-    if (phase !== "showing" || prefetchFiredRef.current) return;
+    if (prefetchFiredRef.current) return;
     prefetchFiredRef.current    = true;
-    floatStartedAtRef.current   = Date.now();
     let cancelled = false;
     prefetchHomeData(queryClient).then(() => {
       if (!cancelled) setDataReady(true);
@@ -207,18 +208,20 @@ export default function SplashScreen({
     return () => { cancelled = true; };
   // queryClient is the stable module-level instance; excluding from deps is safe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, []);
 
-  // ── Wave 2 prefetch: household members, once /me resolves ────────────────
+  // Start the pulse clock only after the logo has reached its normal size.
+  // Prefetch may finish during the banner/transition, but sniff must never
+  // interrupt that intro.
   useEffect(() => {
-    if (isLoading || !user) return;
-    prefetchHouseholdData(queryClient, (user as any).householdId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user]);
+    if (phase === "showing" && floatStartedAtRef.current == null) {
+      floatStartedAtRef.current = Date.now();
+    }
+  }, [phase]);
 
   // ── Sniff trigger: fires when data is ready + min pulse time has elapsed ──
   useEffect(() => {
-    if (!dataReady || sniffFiredRef.current) return;
+    if (phase !== "showing" || !dataReady || sniffFiredRef.current) return;
     const elapsed = floatStartedAtRef.current != null
       ? Date.now() - floatStartedAtRef.current
       : MIN_PULSE_MS;
@@ -236,7 +239,7 @@ export default function SplashScreen({
     const id = setTimeout(fire, wait);
     return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady]);
+  }, [dataReady, phase]);
 
   // ── Safety cap: force sniff after MAX_PULSE_MS on very slow networks ──────
   useEffect(() => {
