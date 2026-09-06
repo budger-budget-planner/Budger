@@ -931,7 +931,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {!isOnline && location !== "/" && <OfflineMask />}
 
       {/* ── Page content ── */}
-      <div className="relative flex-1 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         {/* Pull-to-refresh indicator — slides in from behind the content as
             the user drags down; spins while the refetch is in flight. */}
         <div
@@ -955,7 +955,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         <main
           ref={mainRef}
-          className="h-full overflow-auto"
+          className="h-full min-h-0 overflow-auto"
           style={{
             paddingBottom: NAV_HEIGHT,
             marginTop: ptrRefreshing ? 56 : ptrPullPx,

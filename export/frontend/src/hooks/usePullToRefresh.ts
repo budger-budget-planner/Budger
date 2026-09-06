@@ -27,6 +27,8 @@ export function usePullToRefresh(
 
   const startY = useRef<number | null>(null);
   const startX = useRef(0);
+  const startScrollTop = useRef(0);
+  const gestureLockedOut = useRef(false);
   const committed = useRef(false); // true once a move has been claimed as a vertical pull
   const pullRef = useRef(0);
   const refreshingRef = useRef(false);
@@ -41,8 +43,9 @@ export function usePullToRefresh(
     const element: HTMLElement = currentElement;
 
     const MAX_TRAVEL = 88; // cap on how far the indicator visually travels
+    const TOP_EPSILON = 1; // tolerate sub-pixel scroll positions on mobile browsers
 
-    function reset() {
+    function resetVisuals() {
       committed.current = false;
       pullRef.current = 0;
       setPull(0);
@@ -50,20 +53,49 @@ export function usePullToRefresh(
       setDragging(false);
     }
 
+    function cancelGesture() {
+      element.removeEventListener("touchmove", handleMove);
+      startY.current = null;
+      gestureLockedOut.current = true;
+      resetVisuals();
+    }
+
     function handleMove(e: TouchEvent) {
-      if (startY.current == null || disabledRef.current || refreshingRef.current) return;
+      if (
+        startY.current == null ||
+        gestureLockedOut.current ||
+        disabledRef.current ||
+        refreshingRef.current
+      ) return;
+
+      // A pull-to-refresh gesture must begin at the top and stay there. If
+      // this touch began below the top, or the browser has scrolled the
+      // container during the gesture, hand control back to native scrolling
+      // for the rest of this touch — never re-arm PTR mid-gesture.
+      if (
+        startScrollTop.current > TOP_EPSILON ||
+        element.scrollTop > TOP_EPSILON
+      ) {
+        cancelGesture();
+        return;
+      }
+
       const dy = e.touches[0].clientY - startY.current;
       const dx = e.touches[0].clientX - startX.current;
 
       if (!committed.current) {
         // Wait for a clear, mostly-vertical downward drag before claiming the
         // gesture — bails out cleanly for horizontal swipes (carousels, etc.).
-        if (dy <= 6 || Math.abs(dx) > dy || element.scrollTop > 0) return;
+        if (dy <= 6) return;
+        if (Math.abs(dx) > dy) {
+          cancelGesture();
+          return;
+        }
         committed.current = true;
         setDragging(true);
       }
 
-      if (dy <= 0 || element.scrollTop > 0) { reset(); return; }
+      if (dy <= 0) { cancelGesture(); return; }
       if (e.cancelable) e.preventDefault();
 
       const threshold = window.innerHeight / 5; // ~1/5 of the screen
@@ -75,9 +107,22 @@ export function usePullToRefresh(
 
     function handleStart(e: TouchEvent) {
       if (disabledRef.current || refreshingRef.current) return;
-      if (element.scrollTop > 0) { startY.current = null; return; }
+      startY.current = null;
+      gestureLockedOut.current = false;
+      resetVisuals();
+
+      // Do not arm the gesture for a touch that starts anywhere below the
+      // actual scroll top. This is intentionally checked before recording
+      // coordinates so scrolling back toward the top cannot become a PTR
+      // gesture when the finger is released.
+      if (element.scrollTop > TOP_EPSILON) {
+        gestureLockedOut.current = true;
+        return;
+      }
+
       startY.current = e.touches[0].clientY;
       startX.current = e.touches[0].clientX;
+      startScrollTop.current = element.scrollTop;
       // Only add the non-passive listener when at the top — this lets the
       // browser use the fast compositor scroll path at all other positions.
       element.addEventListener("touchmove", handleMove, { passive: false });
@@ -87,9 +132,13 @@ export function usePullToRefresh(
       // Always clean up the dynamically-added move listener.
       element.removeEventListener("touchmove", handleMove);
 
-      if (!committed.current) { startY.current = null; return; }
+      if (!committed.current || gestureLockedOut.current) {
+        startY.current = null;
+        return;
+      }
       committed.current = false;
       startY.current = null;
+      gestureLockedOut.current = true;
       setDragging(false);
       const triggered = pullRef.current >= 1;
 
@@ -112,7 +161,7 @@ export function usePullToRefresh(
           pullRef.current = 0;
         }
       } else {
-        reset();
+        resetVisuals();
       }
     }
 
