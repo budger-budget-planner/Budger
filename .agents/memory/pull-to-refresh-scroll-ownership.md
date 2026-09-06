@@ -7,4 +7,4 @@ Pull-to-refresh must be attached to the element that actually owns page scrollin
 
 **Why:** A top-only gesture guard can be logically correct but still trigger during ordinary upward navigation when the referenced element is not the real scroll container. Checking only the inner element is insufficient if the document itself can scroll.
 
-**How to apply:** When changing the app shell or PTR hook, preserve the constrained flex layout and verify both the inner and document scroll positions. A touch beginning below the page top must never arm refresh; keep the gesture locked out for the remainder of a touch once it starts below top or native scrolling takes over.
+**How to apply:** When changing the app shell or PTR hook, preserve the constrained flex layout and verify both the inner and document scroll positions. A touch beginning below the page top must never arm refresh; keep the gesture locked out for the remainder of a touch once it starts below top or native scrolling takes over. Treat `touchcancel` as an abort, never as a release that can trigger refresh.
