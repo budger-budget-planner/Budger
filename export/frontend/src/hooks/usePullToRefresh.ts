@@ -140,6 +140,16 @@ export function usePullToRefresh(
       element.addEventListener("touchmove", handleMove, { passive: false });
     }
 
+    function handleCancel() {
+      // A cancelled touch means the browser/native scroller took over. It
+      // must never be interpreted as a deliberate release of a completed
+      // pull, especially on long iOS swipes that emit touchcancel.
+      element.removeEventListener("touchmove", handleMove);
+      startY.current = null;
+      gestureLockedOut.current = true;
+      resetVisuals();
+    }
+
     async function handleEnd() {
       // Always clean up the dynamically-added move listener.
       element.removeEventListener("touchmove", handleMove);
@@ -179,12 +189,12 @@ export function usePullToRefresh(
 
     element.addEventListener("touchstart", handleStart, { passive: true });
     element.addEventListener("touchend", handleEnd, { passive: true });
-    element.addEventListener("touchcancel", handleEnd, { passive: true });
+    element.addEventListener("touchcancel", handleCancel, { passive: true });
     return () => {
       element.removeEventListener("touchstart", handleStart);
       element.removeEventListener("touchmove", handleMove);
       element.removeEventListener("touchend", handleEnd);
-      element.removeEventListener("touchcancel", handleEnd);
+      element.removeEventListener("touchcancel", handleCancel);
     };
     // Deliberately only re-binds if the container itself changes — disabled/
     // onRefresh are read via refs above so they stay fresh without tearing
