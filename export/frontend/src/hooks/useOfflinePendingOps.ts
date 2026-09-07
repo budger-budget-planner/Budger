@@ -89,10 +89,12 @@ export function useOfflinePendingOps(): OfflinePendingOps {
     ops
       .filter((op) => {
         const api = op.endpoint.split("/api/")[1] ?? "";
-        return op.status === "pending" && op.method === "POST" && /^recurring-payments\/\d+\/apply$/.test(api);
+        return op.status === "pending" &&
+          op.method === "POST" &&
+          /^(?:recurring-payments|household-recurring-payments)\/\d+\/apply$/.test(api);
       })
       .map((op) => {
-        const m = op.endpoint.match(/\/recurring-payments\/(\d+)\/apply$/);
+        const m = op.endpoint.match(/\/(?:household-)?recurring-payments\/(\d+)\/apply$/);
         return m ? parseInt(m[1], 10) : null;
       })
       .filter((id): id is number => id !== null),

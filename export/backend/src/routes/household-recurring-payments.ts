@@ -119,8 +119,14 @@ async function applyHouseholdRecurringPayment(
         sourceType: "recurring_payment",
         status: "approved",
         transactionId: tx.id,
+        // A retry of the same monthly application must not create a second
+        // Great Larder contribution. The recurring-payment log protects the
+        // transaction side, while this key protects the savings side.
+        idempotencyKey: `recurring-payment:${rp.id}:${monthKey}`,
+        // Household recurring deposits start in the unassigned waiting room.
+        bucket: null,
         note: rp.name,
-      });
+      }).onConflictDoNothing();
     }
 
     return tx.id;

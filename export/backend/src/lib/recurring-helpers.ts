@@ -56,6 +56,7 @@ export function formatRP(
     amount: parseFloat(rp.amount),
     dayOfMonth: rp.dayOfMonth ?? null,
     addToLarder: rp.addToLarder ?? false,
+    scope: rp.scope ?? "personal",
     appliedThisMonth,
     transactionId,
     createdAt:

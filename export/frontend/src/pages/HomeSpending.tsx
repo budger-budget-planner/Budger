@@ -1377,7 +1377,7 @@ export default function HomeSpending() {
   const householdManualRPs = (householdRPs ?? []).filter((rp: any) => rp.type === "manual");
   const allManualRPs: any[] = [
     ...manualRPs.map(rp => ({ ...rp, scope: (rp as any).scope ?? "personal" })),
-    ...householdManualRPs.map((rp: any) => ({ ...rp, scope: "household" })),
+    ...householdManualRPs.map((rp: any) => ({ ...rp, scope: (rp as any).scope ?? "household" })),
   ];
 
   // Map transactionId → stretch (for orange stretch badge on rows)
