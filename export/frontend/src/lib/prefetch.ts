@@ -12,8 +12,9 @@
  * Wave 2 (prefetchHouseholdData): queries that require knowing the user's
  *   householdId. Called once useGetMe() resolves with a user object.
  *
- * Both return Promise<void>. Errors are swallowed — prefetchQuery never throws,
- * it just skips caching on failure, so the page falls back to its own fetch.
+ * Both return Promise<void>. The splash treats this promise as a hard visual
+ * boundary: it does not begin its exit sequence until every startup request
+ * has either produced data or reached a terminal error state.
  */
 
 import { type QueryClient } from "@tanstack/react-query";
@@ -53,11 +54,11 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
   const { month, startDate, endDate } = currentMonthParams();
   const { currency } = loadPrefs();
 
-  await Promise.allSettled([
-    // /api/auth/me — also fetched by the splash hook, but including here
-    // ensures it's in cache for AuthGuard even if the hook hasn't resolved yet.
-    queryClient.prefetchQuery(getGetMeQueryOptions()),
-
+  // Resolve /me independently from the parallel home wave. The household
+  // wave cannot start until this request has reached a terminal state and its
+  // user data is definitely in the cache.
+  const userPromise = queryClient.fetchQuery(getGetMeQueryOptions());
+  const homeWave = Promise.allSettled([
     // Static lists — no params
     queryClient.prefetchQuery(getListCategoriesQueryOptions()),
     queryClient.prefetchQuery(getListRecurringPaymentsQueryOptions()),
@@ -100,9 +101,13 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
     }),
   ]);
 
-  // /me is part of the same request wave. Once it has settled, use its
-  // household identity to finish the second wave before allowing the splash
-  // to play its exit animation.
+  // Wait for both waves. Promise.allSettled intentionally turns terminal API
+  // errors into a settled startup state; it must not turn an in-flight request
+  // into an early splash exit.
+  await Promise.allSettled([userPromise, homeWave]);
+
+  // Once /me has settled, use its household identity to finish the second
+  // wave before allowing the splash to play its exit animation.
   const user = queryClient.getQueryData<any>(
     getGetMeQueryOptions().queryKey,
   );

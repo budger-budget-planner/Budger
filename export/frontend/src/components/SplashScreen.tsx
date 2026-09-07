@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetMe } from "@/lib/api-client";
+import { getGetMeQueryKey, useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
-import { hasActiveSession, getActiveUserId } from "@/lib/prefs";
 import { prefetchHomeData } from "@/lib/prefetch";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
@@ -29,10 +28,10 @@ const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
 
 // ── Prefetch timing ───────────────────────────────────────────────────────────
 // Logo pulses for at least MIN_PULSE_MS before sniff fires (even if data loads fast).
-// If data takes longer, sniff waits. MAX_PULSE_MS is a hard cap so the splash
-// never hangs indefinitely on very slow or offline connections.
+// If data takes longer, the splash remains in this phase until the complete
+// startup wave has settled. There is intentionally no timeout escape hatch:
+// showing a page spinner after the logo moves is worse than extending the pulse.
 const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float start)
-const MAX_PULSE_MS = 8000; // safety cap: sniff fires regardless after this
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
@@ -241,24 +240,6 @@ export default function SplashScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataReady, phase]);
 
-  // ── Safety cap: force sniff after MAX_PULSE_MS on very slow networks ──────
-  useEffect(() => {
-    if (phase !== "showing") return;
-    const id = setTimeout(() => {
-      if (sniffFiredRef.current) return;
-      setDataReady(true); // also unblocks exit-glide condition
-      sniffFiredRef.current = true;
-      setAnimStep("sniff");
-      setAnimDurMs(SNIFF_MS);
-      setTimeout(() => setAnimStep("idle"),                               SNIFF_MS);
-      setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },  SNIFF_MS + GAP_MS);
-      setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS);
-    }, MAX_PULSE_MS);
-    return () => clearTimeout(id);
-  // phase transitions once (bigText→shrinkText→showing); only "showing" triggers the cap.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
-
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!seqDone || resolvedRef.current) return;
@@ -279,11 +260,16 @@ export default function SplashScreen({
     // resolving. Do not send a known returning user to /login just because a
     // slow request has not populated React Query yet; AuthGuard can verify the
     // cookie in place and redirect only on a confirmed 401.
-    const hasSessionHint = user != null || getActiveUserId() != null || hasActiveSession();
+    // The startup prefetch has already settled /me before seqDone can occur.
+    // Read the cache directly as well as the hook value so a returning user
+    // cannot be sent to the guarded home route while AuthGuard is still
+    // rendering its page-level loading spinner.
+    const cachedUser = queryClient.getQueryData(getGetMeQueryKey());
+    const hasSession = user != null || cachedUser != null;
     const target: "home" | "login" =
       urlMode === "force-login"
         ? "login"
-        : (hasSessionHint ? "home" : "login");
+        : (hasSession ? "home" : "login");
 
     setDest(target);
 
