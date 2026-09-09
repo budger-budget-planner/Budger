@@ -4,6 +4,7 @@ import { getGetMeQueryKey, useGetMe } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { prefetchHomeData } from "@/lib/prefetch";
+import { getActiveUserId, hasActiveSession, loadPrefs } from "@/lib/prefs";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
 // Phase 1 "bigText"  : large wordmark centered, logo invisible (holds 700 ms)
@@ -28,9 +29,9 @@ const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
 
 // ── Prefetch timing ───────────────────────────────────────────────────────────
 // Logo pulses for at least MIN_PULSE_MS before sniff fires (even if data loads fast).
-// If data takes longer, the splash remains in this phase until the complete
-// startup wave has settled. There is intentionally no timeout escape hatch:
-// showing a page spinner after the logo moves is worse than extending the pulse.
+// If data takes longer, startup requests are individually bounded and the
+// splash exits after the wave reaches a terminal state. A cold start must not
+// leave the logo pulsing indefinitely because one endpoint is unavailable.
 const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float start)
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────
@@ -160,7 +161,10 @@ export default function SplashScreen({
   const logoRef     = useRef<HTMLDivElement>(null);
   const wordmarkRef = useRef<HTMLDivElement>(null);
 
-  const { data: user } = useGetMe();
+  const { data: user } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false },
+    request: { timeoutMs: 7_000 },
+  });
   const resolvedRef = useRef(false);
 
   // ── Prefetch state ────────────────────────────────────────────────────────
@@ -201,9 +205,15 @@ export default function SplashScreen({
     if (prefetchFiredRef.current) return;
     prefetchFiredRef.current    = true;
     let cancelled = false;
-    prefetchHomeData(queryClient).then(() => {
-      if (!cancelled) setDataReady(true);
-    });
+    prefetchHomeData(queryClient)
+      .catch(() => {
+        // Individual startup requests are best-effort. The prefetch helper
+        // already settles its waves, but keep the visual boundary fail-open
+        // if a future startup addition unexpectedly rejects.
+      })
+      .finally(() => {
+        if (!cancelled) setDataReady(true);
+      });
     return () => { cancelled = true; };
   // queryClient is the stable module-level instance; excluding from deps is safe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,7 +275,13 @@ export default function SplashScreen({
     // cannot be sent to the guarded home route while AuthGuard is still
     // rendering its page-level loading spinner.
     const cachedUser = queryClient.getQueryData(getGetMeQueryKey());
-    const hasSession = user != null || cachedUser != null;
+    const prefs = loadPrefs();
+    const requiresLogin = !prefs.staySignedIn && !hasActiveSession();
+    const meState = queryClient.getQueryState(getGetMeQueryKey());
+    const meRejected = (meState?.error as any)?.status === 401;
+    const hasKnownAccount =
+      user != null || cachedUser != null || getActiveUserId() != null;
+    const hasSession = !requiresLogin && !meRejected && hasKnownAccount;
     const target: "home" | "login" =
       urlMode === "force-login"
         ? "login"

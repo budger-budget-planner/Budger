@@ -109,7 +109,10 @@ function SmartNotificationsRunner() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useGetMe();
+  const { data: user, isLoading, error } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false },
+    request: { timeoutMs: 7_000 },
+  });
   const [, navigate] = useLocation();
   const logout = useLogout();
   const resetSplash = useSplashReset();
@@ -157,13 +160,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   useEffect(() => {
+    const httpStatus = (error as any)?.status as number | undefined;
+    // React Query may retain the previous user object while /me is being
+    // revalidated. A confirmed 401 must still win over that stale data.
+    if (httpStatus === 401) {
+      navigate("/login");
+      return;
+    }
     if (!isLoading && !user) {
       // Only redirect to login on a genuine 401 (session gone / never existed).
       // Any other failure — 429 Too Many Requests, 500 Server Error, network
       // timeout — must NOT trigger a redirect: the session is still valid and
       // the server is temporarily unhappy. Redirecting here caused a cascade
       // where rate-limit spikes from fast tab-switching appeared as logouts.
-      const httpStatus = (error as any)?.status as number | undefined;
       if (httpStatus === 401) {
         navigate("/login");
       }

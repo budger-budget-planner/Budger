@@ -19,6 +19,7 @@
 
 import { type QueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { fetchWithTimeout } from "@/lib/request-timeout";
 import {
   getGetMeQueryOptions,
   getListCategoriesQueryOptions,
@@ -36,6 +37,13 @@ import {
   getListIncomingInvitesQueryOptions,
 } from "@/lib/api-client";
 import { loadPrefs } from "@/lib/prefs";
+
+const STARTUP_REQUEST_TIMEOUT_MS = 7_000;
+// Generated query option types require a queryKey even though the generated
+// helpers supply the correct endpoint-specific key. Keep this small override
+// key-free so each helper can retain its own cache key.
+const STARTUP_QUERY_OPTIONS = { retry: false as const } as any;
+const STARTUP_REQUEST_OPTIONS = { timeoutMs: STARTUP_REQUEST_TIMEOUT_MS };
 
 /** ISO date helpers for the current month */
 function currentMonthParams() {
@@ -57,60 +65,121 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
   // Resolve /me independently from the parallel home wave. The household
   // wave cannot start until this request has reached a terminal state and its
   // user data is definitely in the cache.
-  const userPromise = queryClient.fetchQuery(getGetMeQueryOptions());
+  const userPromise = queryClient
+    .fetchQuery(
+      getGetMeQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    )
+    .catch(() => null);
   const homeWave = Promise.allSettled([
     // Static lists — no params
-    queryClient.prefetchQuery(getListCategoriesQueryOptions()),
-    queryClient.prefetchQuery(getListRecurringPaymentsQueryOptions()),
-    queryClient.prefetchQuery(getGetLarderQueryOptions()),
-    queryClient.prefetchQuery(getListGoalsQueryOptions()),
-    queryClient.prefetchQuery(getListGoalContributionsQueryOptions({ month })),
+    queryClient.prefetchQuery(
+      getListCategoriesQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+    queryClient.prefetchQuery(
+      getListRecurringPaymentsQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+    queryClient.prefetchQuery(
+      getGetLarderQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+    queryClient.prefetchQuery(
+      getListGoalsQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+    queryClient.prefetchQuery(
+      getListGoalContributionsQueryOptions(
+        { month },
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
     // HomeSpending uses the no-params goal summary key. Keep the
     // month-specific key below as well for the dashboard.
-    queryClient.prefetchQuery(getGetGoalsSummaryQueryOptions({})),
-    queryClient.prefetchQuery(getGetMonthlySummaryQueryOptions()),
-    queryClient.prefetchQuery(getListIncomingInvitesQueryOptions()),
+    queryClient.prefetchQuery(
+      getGetGoalsSummaryQueryOptions(
+        {},
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
+    queryClient.prefetchQuery(
+      getGetMonthlySummaryQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+    queryClient.prefetchQuery(
+      getListIncomingInvitesQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
 
     // Current-month parameterised queries
     queryClient.prefetchQuery(
-      getGetSpendingSummaryQueryOptions({ month, currency } as any),
+      getGetSpendingSummaryQueryOptions(
+        { month, currency } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
     ),
     queryClient.prefetchQuery(
-      getGetGoalsSummaryQueryOptions({ month } as any),
+      getGetGoalsSummaryQueryOptions(
+        { month } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
     ),
     queryClient.prefetchQuery(
-      getListBudgetStretchesQueryOptions({ month } as any),
+      getListBudgetStretchesQueryOptions(
+        { month } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
     ),
     queryClient.prefetchQuery(
-      getListTransactionsQueryOptions({ startDate, endDate } as any),
+      getListTransactionsQueryOptions(
+        { startDate, endDate } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
     ),
     queryClient.prefetchQuery(
-      getGetRecentActivityQueryOptions(),
+      getGetRecentActivityQueryOptions(
+        undefined,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
     ),
     // Layout reads this badge immediately after the home route mounts.
     queryClient.prefetchQuery({
       queryKey: ["notification-counts"],
-      queryFn: async () => {
-        const response = await fetch(
+      queryFn: async ({ signal }) => {
+        const response = await fetchWithTimeout(
           `${import.meta.env.BASE_URL}api/notification-counts`,
-          { credentials: "include" },
+          { credentials: "include", signal },
+          STARTUP_REQUEST_TIMEOUT_MS,
         );
         if (!response.ok) throw new Error("Notification counts request failed");
         return response.json();
       },
+      ...STARTUP_QUERY_OPTIONS,
     }),
   ]);
 
   // Wait for both waves. Promise.allSettled intentionally turns terminal API
   // errors into a settled startup state; it must not turn an in-flight request
   // into an early splash exit.
-  await Promise.allSettled([userPromise, homeWave]);
+  const [, user] = await Promise.all([homeWave, userPromise]);
 
   // Once /me has settled, use its household identity to finish the second
   // wave before allowing the splash to play its exit animation.
-  const user = queryClient.getQueryData<any>(
-    getGetMeQueryOptions().queryKey,
-  );
   if (user?.householdId) {
     await prefetchHouseholdData(queryClient, user.householdId);
   }
@@ -127,7 +196,18 @@ export async function prefetchHouseholdData(
   householdId: number | null | undefined,
 ): Promise<void> {
   if (!householdId) return;
-  await queryClient.prefetchQuery(getListHouseholdMembersQueryOptions());
+  const membersResult = await Promise.allSettled([
+    queryClient.prefetchQuery(
+      getListHouseholdMembersQueryOptions({
+        query: STARTUP_QUERY_OPTIONS,
+        request: STARTUP_REQUEST_OPTIONS,
+      }),
+    ),
+  ]);
+
+  // A failed member lookup must not reject the startup boundary. The home
+  // route can retry it normally after the splash has exited.
+  if (membersResult[0].status !== "fulfilled") return;
 
   // HomeSpending only enables this endpoint for the current household head.
   // Prefetch it here so its enabled query cannot become the visible
@@ -143,16 +223,20 @@ export async function prefetchHouseholdData(
   const { month } = currentMonthParams();
 
   if (isHead) {
-    await queryClient.prefetchQuery({
-      queryKey: ["household-recurring-payments"],
-      queryFn: async () => {
-        const response = await fetch(
-          `${import.meta.env.BASE_URL}api/household-recurring-payments`,
-          { credentials: "include" },
-        );
-        if (!response.ok) return [];
-        return response.json();
-      },
-    });
+    await Promise.allSettled([
+      queryClient.prefetchQuery({
+        queryKey: ["household-recurring-payments"],
+        queryFn: async ({ signal }) => {
+          const response = await fetchWithTimeout(
+            `${import.meta.env.BASE_URL}api/household-recurring-payments`,
+            { credentials: "include", signal },
+            STARTUP_REQUEST_TIMEOUT_MS,
+          );
+          if (!response.ok) return [];
+          return response.json();
+        },
+        ...STARTUP_QUERY_OPTIONS,
+      }),
+    ]);
   }
 }
