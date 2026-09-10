@@ -33,6 +33,11 @@ const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
 // splash exits after the wave reaches a terminal state. A cold start must not
 // leave the logo pulsing indefinitely because one endpoint is unavailable.
 const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float start)
+// A resize/orientation change can keep a destination marker moving while the
+// browser settles its viewport. Never let that measurement hold the full-screen
+// overlay forever; the destination can still render correctly using the
+// position-safe fallback transform.
+const EXIT_MEASURE_TIMEOUT_MS = 1500;
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────
 const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
@@ -307,6 +312,8 @@ export default function SplashScreen({
     let wordmarkT: LogoTransform | null = null;
     const needed = target === "login" ? 2 : 1;
     let resolved = 0;
+    let logoResolved = false;
+    let wordmarkResolved = false;
 
     function onAllReady() {
       resolved++;
@@ -326,6 +333,23 @@ export default function SplashScreen({
       t2 = setTimeout(() => onDone(target),                       1400);
     }
 
+    function resolveLogo(transform: LogoTransform | null) {
+      if (logoResolved) return;
+      logoResolved = true;
+      logoT = transform ?? fallbackTransform(target);
+      onAllReady();
+    }
+
+    function resolveWordmark(transform: LogoTransform | null) {
+      if (wordmarkResolved) return;
+      wordmarkResolved = true;
+      // If a viewport resize prevents the login marker from stabilising, keep
+      // the wordmark visible and let the overlay fade cover the small landing
+      // difference instead of leaving the splash on a black screen.
+      wordmarkT = transform ?? { translate: "translateY(-12vh)", scale: 48 / WORDMARK_SIZE };
+      onAllReady();
+    }
+
     // ── Startup delay before polling ─────────────────────────────────────────
     // Give the router one tick to commit the navigation and mount the
     // destination page before we start measuring DOM markers.  Without this,
@@ -342,7 +366,7 @@ export default function SplashScreen({
       cancelLogo = pollForTransform(
         target === "home" ? "[data-splash-logo-home]" : "[data-splash-logo-login]",
         measureLogoTarget,
-        (t) => { logoT = t ?? fallbackTransform(target); onAllReady(); },
+        resolveLogo,
         logoRef.current,
       );
 
@@ -350,11 +374,24 @@ export default function SplashScreen({
         cancelWordmark = pollForTransform(
           "[data-splash-wordmark-login]",
           measureWordmarkTarget,
-          (t) => { wordmarkT = t; onAllReady(); },
+          resolveWordmark,
           wordmarkRef.current,
         );
       }
     }, target === "login" ? 200 : 80);
+    const measureTimeoutId = setTimeout(() => {
+      if (cancelled) return;
+      // Resolve any marker that is still moving or unavailable after a
+      // resize/reposition. The splash must always have a terminal visual path.
+      if (!logoResolved) {
+        cancelLogo?.();
+        resolveLogo(null);
+      }
+      if (target === "login" && !wordmarkResolved) {
+        cancelWordmark?.();
+        resolveWordmark(null);
+      }
+    }, (target === "login" ? 200 : 80) + EXIT_MEASURE_TIMEOUT_MS);
 
     // ── Cleanup ──────────────────────────────────────────────────────────────
     // IMPORTANT: do NOT cancel t2 (the onDone timer) here.
@@ -374,6 +411,7 @@ export default function SplashScreen({
       cancelLogo?.();
       cancelWordmark?.();
       clearTimeout(t1);
+      clearTimeout(measureTimeoutId);
       // t2 (onDone) intentionally NOT cancelled — see comment above.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

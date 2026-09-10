@@ -109,7 +109,7 @@ function SmartNotificationsRunner() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useGetMe({
+  const { data: user, isLoading, error, refetch } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false },
     request: { timeoutMs: 7_000 },
   });
@@ -241,10 +241,31 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  // Return null when !user — onNavigate() already switches the route to /login
-  // before polling starts, so AuthGuard is not in the tree when the splash fades.
-  // A spinner here bleeds through the semi-transparent fading overlay (Bug 3).
-  if (!user) return null;
+  // A confirmed 401 is redirected to /login by the effect above. For every
+  // other failure, keep a visible recovery state instead of returning null:
+  // returning null after the splash is removed produces an indistinguishable
+  // black screen during a transient network/API failure or viewport resume.
+  if (!user) {
+    const httpStatus = (error as any)?.status as number | undefined;
+    if (httpStatus !== 401) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground px-6 text-center">
+          <p className="text-base font-semibold">We couldn’t load your account</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-5 px-5 py-3 rounded-xl bg-foreground text-background text-sm font-semibold active:scale-95 transition"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   // Server is the source of truth for onboarding status.
   const serverSaysOnboarded = user.firstLoginDone === true;
