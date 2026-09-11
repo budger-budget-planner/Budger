@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetMeQueryKey, useGetMe } from "@/lib/api-client";
+import { getGetMeQueryKey } from "@/lib/api-client";
 import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 import { prefetchHomeData } from "@/lib/prefetch";
-import { getActiveUserId, hasActiveSession, loadPrefs } from "@/lib/prefs";
+import { hasActiveSession, loadPrefs } from "@/lib/prefs";
 
 // ── Intro phase timing ────────────────────────────────────────────────────────
 // Phase 1 "bigText"  : large wordmark centered, logo invisible (holds 700 ms)
@@ -166,10 +166,6 @@ export default function SplashScreen({
   const logoRef     = useRef<HTMLDivElement>(null);
   const wordmarkRef = useRef<HTMLDivElement>(null);
 
-  const { data: user } = useGetMe({
-    query: { queryKey: getGetMeQueryKey(), retry: false },
-    request: { timeoutMs: 7_000 },
-  });
   const resolvedRef = useRef(false);
 
   // ── Prefetch state ────────────────────────────────────────────────────────
@@ -178,6 +174,7 @@ export default function SplashScreen({
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const floatStartedAtRef = useRef<number | null>(null); // records when "showing" began
+  const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect URL at mount to determine the correct exit behaviour.
   // Must run synchronously at mount so the exit effect always sees a stable value.
@@ -210,16 +207,28 @@ export default function SplashScreen({
     if (prefetchFiredRef.current) return;
     prefetchFiredRef.current    = true;
     let cancelled = false;
-    prefetchHomeData(queryClient)
-      .catch(() => {
-        // Individual startup requests are best-effort. The prefetch helper
-        // already settles its waves, but keep the visual boundary fail-open
-        // if a future startup addition unexpectedly rejects.
-      })
-      .finally(() => {
-        if (!cancelled) setDataReady(true);
-      });
-    return () => { cancelled = true; };
+    async function loadStartupData() {
+      let retryDelay = 350;
+      while (!cancelled) {
+        try {
+          await prefetchHomeData(queryClient);
+          if (!cancelled) setDataReady(true);
+          return;
+        } catch {
+          // Keep all transient loading behind the pulsing splash. There is no
+          // partial-page or retry-button state after the overlay is removed.
+          await new Promise<void>((resolve) => {
+            startupRetryTimerRef.current = setTimeout(resolve, retryDelay);
+          });
+          retryDelay = Math.min(retryDelay * 2, 2_000);
+        }
+      }
+    }
+    void loadStartupData();
+    return () => {
+      cancelled = true;
+      if (startupRetryTimerRef.current) clearTimeout(startupRetryTimerRef.current);
+    };
   // queryClient is the stable module-level instance; excluding from deps is safe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -271,21 +280,15 @@ export default function SplashScreen({
 
     // "force-login": InviteSignup always has login markers in its "name" step —
     // use them regardless of whether a different user happens to be signed in.
-    // A persisted active user is a session hint while /api/me is still
-    // resolving. Do not send a known returning user to /login just because a
-    // slow request has not populated React Query yet; AuthGuard can verify the
-    // cookie in place and redirect only on a confirmed 401.
-    // The startup prefetch has already settled /me before seqDone can occur.
-    // Read the cache directly as well as the hook value so a returning user
-    // cannot be sent to the guarded home route while AuthGuard is still
-    // rendering its page-level loading spinner.
+    // Startup prefetch has completed /me before seqDone can occur. Use the
+    // cache as the source of truth so a local session hint cannot route to the
+    // guarded home page while its account request is still unresolved.
     const cachedUser = queryClient.getQueryData(getGetMeQueryKey());
     const prefs = loadPrefs();
     const requiresLogin = !prefs.staySignedIn && !hasActiveSession();
     const meState = queryClient.getQueryState(getGetMeQueryKey());
     const meRejected = (meState?.error as any)?.status === 401;
-    const hasKnownAccount =
-      user != null || cachedUser != null || getActiveUserId() != null;
+    const hasKnownAccount = cachedUser != null;
     const hasSession = !requiresLogin && !meRejected && hasKnownAccount;
     const target: "home" | "login" =
       urlMode === "force-login"
