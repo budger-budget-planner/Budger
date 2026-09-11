@@ -9,12 +9,13 @@
  * /me is resolved first so an unauthenticated splash never fires a burst of
  * guaranteed 401 requests.
  *
- * Wave 2 (prefetchHouseholdData): queries that require knowing the user's
- *   householdId. Called once useGetMe() resolves with a user object.
+ * Household data is started in the background after the critical home data
+ * is ready. Those queries are already enabled by the mounted home/layout
+ * components, so they share the in-flight request instead of blocking startup.
  *
- * Both return Promise<void>. A rejection is intentionally allowed to reach the
- * splash, which retries it behind the pulsing logo instead of exposing a
- * partially-loaded page.
+ * The critical helper rejects when a required request fails. The splash
+ * retries the complete critical wave behind the pulsing logo instead of
+ * exposing a partially-loaded page.
  */
 
 import { type QueryClient } from "@tanstack/react-query";
@@ -31,27 +32,13 @@ import {
   getListBudgetStretchesQueryOptions,
   getListTransactionsQueryOptions,
   getListHouseholdMembersQueryOptions,
-  getListIncomingInvitesQueryOptions,
 } from "@/lib/api-client";
 
-const STARTUP_REQUEST_TIMEOUT_MS = 7_000;
-// Startup requests are retried automatically for transient network/5xx errors.
-// Client errors (including 401) are not retried; /me handles 401 as the normal
-// logged-out path below.
-const STARTUP_QUERY_OPTIONS = {
-  retry: (failureCount: number, error: unknown) => {
-    const status = (error as any)?.status as number | undefined;
-    if (
-      status !== undefined &&
-      status >= 400 &&
-      status < 500 &&
-      status !== 408 &&
-      status !== 425 &&
-      status !== 429
-    ) return false;
-    return failureCount < 2;
-  },
-} as any;
+const STARTUP_REQUEST_TIMEOUT_MS = 6_000;
+// Retry the wave as a unit from SplashScreen. Nested retries here can turn one
+// slow endpoint into 3 × 6 seconds before the splash gets a chance to retry
+// with the rest of the cache already warm.
+const STARTUP_QUERY_OPTIONS = { retry: false as const } as any;
 const STARTUP_REQUEST_OPTIONS = { timeoutMs: STARTUP_REQUEST_TIMEOUT_MS };
 
 /** ISO date helpers for the current month */
@@ -126,13 +113,6 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
-    queryClient.fetchQuery(
-      getListIncomingInvitesQueryOptions({
-        query: STARTUP_QUERY_OPTIONS,
-        request: STARTUP_REQUEST_OPTIONS,
-      }),
-    ),
-
     // Current-month parameterised queries
     queryClient.fetchQuery(
       getListBudgetStretchesQueryOptions(
@@ -146,33 +126,23 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
-    // Layout reads this badge immediately after the home route mounts.
-    queryClient.fetchQuery({
-      queryKey: ["notification-counts"],
-      queryFn: async ({ signal }) => {
-        const response = await fetchWithTimeout(
-          `${import.meta.env.BASE_URL}api/notification-counts`,
-          { credentials: "include", signal },
-          STARTUP_REQUEST_TIMEOUT_MS,
-        );
-        if (!response.ok) throw new Error("Notification counts request failed");
-        return response.json();
-      },
-      ...STARTUP_QUERY_OPTIONS,
-    }),
   ]);
 
-  // Once /me has settled, use its household identity to finish the second
-  // wave before allowing the splash to play its exit animation. A failure
-  // rejects the whole startup attempt so the splash can retry it.
+  // Household members and household recurring payments are useful immediately
+  // after the home shell mounts, but are not required to paint the core home
+  // cards. Start them now so the component queries can share the in-flight
+  // work without making the splash wait for a second serialized wave.
   if (user?.householdId) {
-    await prefetchHouseholdData(queryClient, user.householdId);
+    void prefetchHouseholdData(queryClient, user.householdId).catch(() => {
+      // The mounted components own the visible retry/error state for these
+      // secondary queries. A secondary failure must not hold the splash open.
+    });
   }
 }
 
 /**
- * Wave 2 — prefetch queries that require knowing the user.
- * Call only after useGetMe() has resolved with a non-null user.
+ * Background prefetch for queries that require knowing the user.
+ * Call only after the critical home data has resolved.
  *
  * @param householdId  Pass user.householdId; if null/undefined this is a no-op.
  */
@@ -199,8 +169,6 @@ export async function prefetchHouseholdData(
   );
   const currentMember = members.find((member) => member.userId === user?.id);
   const isHead = currentMember?.role === "head" || currentMember?.role === "owner";
-  const { month } = currentMonthParams();
-
   if (isHead) {
     await queryClient.fetchQuery({
       queryKey: ["household-recurring-payments"],
