@@ -412,6 +412,10 @@ export default function DashboardPage() {
                 pointerEvents: weeklyTransition === "weekly" ? "none" : "auto",
               }}
             >
+              {/* Reserve the same back-button row used by WeeklyCategoryDonut.
+                  Keeping both layers' donut row at the same Y prevents the
+                  cross-fade from looking like the chart is being repositioned. */}
+              <div style={{ height: 24, flexShrink: 0 }} />
               {weeklyCategoryId !== null && weeklyError ? (
                 <div className="h-44 flex flex-col items-center justify-center gap-3 text-center">
                   <p className="text-sm text-muted-foreground">{t("common.error")}</p>

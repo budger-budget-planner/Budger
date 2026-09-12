@@ -12,6 +12,7 @@ const EXPAND = 14;
 const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 const DUR = "0.48s";
 const TRANS = `${DUR} ${EASE}`;
+const HEADER_H = 24;
 const LEGEND_EXIT_TRANS = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.15s ease`;
 const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`;
 
@@ -265,7 +266,13 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       onContextMenu={event => event.preventDefault()}
       style={{ display: "flex", flexDirection: "column", width: "100%" }}
     >
-      <div className="flex items-center justify-between gap-3 mb-3">
+      {/* Keep this row the same height as Dashboard's invisible spacer so the
+          donut remains fixed while the dashboard layer cross-fades into this
+          view. */}
+      <div
+        className="flex items-center justify-between gap-3"
+        style={{ height: HEADER_H, flexShrink: 0 }}
+      >
         <button
           type="button"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
