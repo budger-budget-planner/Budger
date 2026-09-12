@@ -6,102 +6,119 @@ id = "UVGJE6TfVVrsrYhEElwlW"
 uri = "file://attached_assets/generated_audio/badger-sniff.mp3"
 type = "audio"
 title = "badger-sniff"
+logical_id = "7231b425-3f1b-4911-b814-598ae296e65a"
 
 [[outputs]]
 id = "8XDk6XQOQpJwj5GxxNmDL"
 uri = "file://budger-logo.png"
 type = "image"
 title = "Budger Logo — 1024×1024 PNG"
+logical_id = "4a157f1e-c860-48e8-8c76-c3be792fcf71"
 
 [[outputs]]
 id = "hB44ZRlK8GOSDNKhU238z"
 uri = "file://output/Budger_App_Architecture_Guide.docx"
 type = "word_document"
 title = "Budger App Architecture Guide"
+logical_id = "4b1f105d-f446-4634-bf3f-343a0c94f4de"
 
 [[outputs]]
 id = "KgPrtLVz685HWo5oeDjc7"
 uri = "file://output/Budger_Przewodnik_Architektura_PL.docx"
 type = "word_document"
 title = "Budger - Przewodnik po Architekturze (PL)"
+logical_id = "648a5064-a291-4286-9018-66c78efaa4f4"
 
 [[outputs]]
 id = "An_nnQS-xz-_ok6R9ubhQ"
 uri = "file://output/Budger_Engineering_Handoff_EN.docx"
 type = "word_document"
 title = "Budger - Engineering Handoff (EN)"
+logical_id = "7331283d-d787-4e81-a21b-6a50fc9d37d0"
 
 [[outputs]]
 id = "64siG2Stho0cog_sRPHns"
 uri = "file://output/Budger_Dokumentacja_Przekazania_PL.docx"
 type = "word_document"
 title = "Budger - Dokumentacja Przekazania Projektu (PL)"
+logical_id = "56e835cf-2f89-478d-95f3-80716ec09169"
 
 [[outputs]]
 id = "piYAcZEJ97zpVcK_XvtCj"
 uri = "file://export/budger-fullstack.zip"
 type = "unspecified"
 title = "Budger — standalone frontend + backend (Vercel-ready)"
+logical_id = "818a0cc7-c91e-4dd9-b00d-93ff520a78f5"
 
 [[outputs]]
 id = "ykohekabM3TOT4ntuKvwz"
 uri = "file://output/Household_Donut_Chart_Plan.pdf"
 type = "pdf"
 title = "Household Donut Chart — Implementation Plan"
+logical_id = "b4a08dbc-38f4-4000-8d22-5e04221dd4eb"
 
 [[outputs]]
 id = "fx5HnTaJSqMksF8hMVA_l"
 uri = "file://reports/budger-app-store-readiness-audit.pdf"
 type = "pdf"
 title = "Download: Budger App Store Readiness Audit PDF"
+logical_id = "bb5cc616-295c-4654-a7dd-1331bf00c353"
 
 [[outputs]]
 id = "J7vHrJqMHbt8O9FpO83-k"
 uri = "file://attached_assets/budger-app-store-readiness-audit.pdf"
 type = "pdf"
 title = "Budger App Store Readiness Audit (PDF)"
+logical_id = "438c326c-fb67-49e8-8f07-d6c0ab901b4b"
 
 [[outputs]]
 id = "8bLjexteT34gxrkUW9hzn"
 uri = "file://attached_assets/budger-google-play-readiness-audit.pdf"
 type = "pdf"
 title = "Budger Google Play Readiness Audit (PDF)"
+logical_id = "b9afdde2-5ca7-4e00-b785-0a22e003de4d"
 
 [[outputs]]
 id = "Pfqi_Y7ke2CZnB5zWQtT8"
 uri = "file://attached_assets/budger-app-store-readiness-audit.docx"
 type = "word_document"
 title = "Budger App Store Readiness Audit (DOCX)"
+logical_id = "c38727e9-8751-430e-b170-9869e1b8517d"
 
 [[outputs]]
 id = "XcFfzTfMG3SGinsWsaBpm"
 uri = "file://attached_assets/budger-google-play-readiness-audit.docx"
 type = "word_document"
 title = "Budger Google Play Readiness Audit (DOCX)"
+logical_id = "a6a81af7-a75a-42fc-a07f-e99ff67804c4"
 
 [[outputs]]
 id = "j1_QSxkm94rsGaUGmjExN"
 uri = "file://output/Budger_Donut_Privacy_Bug_Analysis.pdf"
 type = "pdf"
 title = "Household Donut Privacy Bug Analysis"
+logical_id = "8a681385-3463-4daa-8bb1-1165a64fa9fe"
 
 [[outputs]]
 id = "aq-fV0Czw-X-QHk0InVDr"
 uri = "file://output/budger_icon_2048.png"
 type = "image"
 title = "Budger Icon — 2048×2048 (centered B)"
+logical_id = "dcb7d360-d11e-4847-b2fe-1f570b99a50a"
 
 [[outputs]]
 id = "lZb-N2oqOrASIg1-P3zQT"
 uri = "file://output/Budger_Budget_Stretch_Implementation_Plan.pdf"
 type = "pdf"
 title = "Budget Stretch — Implementation Plan"
+logical_id = "b4bc3d2b-294b-46f7-b033-e40d13d0002c"
 
 [[outputs]]
 id = "t74tuk9oBpsNzjZrMIp7m"
 uri = "file://output/Budger_Stretch_Push_Plan.pdf"
 type = "pdf"
 title = "Budger Stretch Push Plan"
+logical_id = "1cef7c31-cf87-4203-971d-9871e58f32e3"
 
 [[outputs]]
 id = "mXEZnYn61IPfG_HHMAauz"
@@ -109,6 +126,7 @@ uri = "file://output/Budger_Larder_Production_Plan.docx"
 type = "word_document"
 title = "Budger Larder Production Rollout Plan"
 description = "Read-only comparison of the working Larder implementation versus the shipping export, with a detailed corrected production rollout plan, verification gates, deployment order, and rollback steps."
+logical_id = "25b59866-ac95-4cef-b847-b1550d452f7b"
 
 [[outputs]]
 id = "ePKKu2cyIlRuy8IOtBKoo"
@@ -116,6 +134,7 @@ uri = "file://output/problem-tracker.docx"
 type = "word_document"
 title = "Problem Tracker — repaired"
 description = "The repaired Word document with the updated problem table."
+logical_id = "b067289e-bb93-432b-8357-523245f97d97"
 
 [[outputs]]
 id = "B7FpHeql64Wm7fgfQNGpf"
@@ -123,3 +142,18 @@ uri = "file://output/Support_Manual.docx"
 type = "word_document"
 title = "Support_Manual.docx"
 description = "Support manual containing the supplied Budger hosting, deployment, GitHub, database, and fix-location instructions."
+logical_id = "eba042fa-1c66-419f-9ae5-6eaea7a37861"
+
+[[outputs]]
+id = "iVAj2kjYNf-jGg-IM7WqR"
+uri = "file://output/Budger_Weekly_Drilldown_Implementation_Plan_Updated.pdf"
+type = "pdf"
+title = "Budger Weekly Drill-down Implementation Plan"
+description = "Updated plan covering long-press behavior, authenticated weekly aggregation, exact 100% donut math, date-only periods, full-month transaction handoff, dashboard reset, and verification requirements."
+logical_id = "8198e39e-2f1c-4970-b511-5fe7acce22ee"
+content_hash = "sha256:6650cec0740d45bd49e51fb4c1c628addcf6c3891ca11acaf35bed531b9b5c96"
+size = 18754
+mtime_ms = 1789241763620
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:b8ad8342-9812-4285-ad73-751e32eaba31/8198e39e-2f1c-4970-b511-5fe7acce22ee/6ef4b268-dec5-4af8-8b7b-e4e917337c04"
+storage_version_token = "1789241782426272"
+content_type = "application/pdf"
