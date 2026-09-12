@@ -138,10 +138,24 @@ export function buildWeeklyDonutDisplayItems(data: CategoryWeeklySpending): Disp
 export function buildWeeklyDonutTransitionSegments(
   data: CategoryWeeklySpending,
 ): WeeklyDonutTransitionSegment[] {
-  return buildWeeklyDonutDisplayItems(data).map(item => ({
-    d: donutPath(item.start, item.end),
-    color: item.color,
-  }));
+  const displayItems = buildWeeklyDonutDisplayItems(data);
+  const transitionGap = 2.5;
+  const drawableDegrees = Math.max(0, 360 - transitionGap * displayItems.length);
+  let cursor = 0;
+
+  // The settled weekly chart can be contiguous, but the transition must show
+  // the same separated "snap" stage as HouseholdDonutChart. Without these
+  // gaps, the muted weekly paths are indistinguishable from the preceding
+  // dark full-circle arc.
+  return displayItems.map(item => {
+    const sweep = ((item.end - item.start) / 360) * drawableDegrees;
+    const segment = {
+      d: donutPath(cursor, cursor + sweep),
+      color: item.color,
+    };
+    cursor += sweep + transitionGap;
+    return segment;
+  });
 }
 
 export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
