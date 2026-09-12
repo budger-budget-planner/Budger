@@ -57,7 +57,7 @@ function currentMonthParams() {
 }
 
 /**
- * Wave 1 — prefetch everything needed by the initial home tab.
+ * Wave 1 — prefetch the data required for the initial home paint.
  * Safe to call as soon as the splash mounts.
  */
 export async function prefetchHomeData(queryClient: QueryClient): Promise<void> {
@@ -79,8 +79,27 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
     });
   if (!user) return;
 
+  // Keep the splash critical path deliberately small. HomeSpending can render
+  // its secondary controls with empty fallbacks while these queries warm in
+  // the background; only the first transaction rows and authoritative summary
+  // are needed for the initial home cards.
   await Promise.all([
-    // Static lists — no params
+    queryClient.fetchQuery(
+      getListTransactionsQueryOptions(
+        { startDate, endDate, limit: HOME_TRANSACTION_INITIAL_LIMIT } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
+    queryClient.fetchQuery({
+      ...getTransactionMonthSummaryQueryOptions(month, STARTUP_REQUEST_TIMEOUT_MS),
+      ...STARTUP_QUERY_OPTIONS,
+    }),
+  ]);
+
+  // Secondary home data is useful immediately after the shell mounts, but it
+  // must not keep the splash visible. The mounted queries share these
+  // in-flight requests when they become visible.
+  void Promise.all([
     queryClient.fetchQuery(
       getListCategoriesQueryOptions({
         query: STARTUP_QUERY_OPTIONS,
@@ -119,21 +138,15 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
-    // Current-month parameterised queries
     queryClient.fetchQuery(
       getListBudgetStretchesQueryOptions(
         { month } as any,
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
-    queryClient.fetchQuery(
-      getListTransactionsQueryOptions(
-        { startDate, endDate, limit: HOME_TRANSACTION_INITIAL_LIMIT } as any,
-        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
-      ),
-    ),
-    queryClient.fetchQuery(getTransactionMonthSummaryQueryOptions(month, STARTUP_REQUEST_TIMEOUT_MS)),
-  ]);
+  ]).catch(() => {
+    // The mounted queries own secondary loading and retry/error states.
+  });
 
   // Household members and household recurring payments are useful immediately
   // after the home shell mounts, but are not required to paint the core home
@@ -163,9 +176,10 @@ async function prefetchHomeMonthBundle(
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
-    queryClient.fetchQuery(
-      getTransactionMonthSummaryQueryOptions(monthKey, STARTUP_REQUEST_TIMEOUT_MS),
-    ),
+    queryClient.fetchQuery({
+      ...getTransactionMonthSummaryQueryOptions(monthKey, STARTUP_REQUEST_TIMEOUT_MS),
+      ...STARTUP_QUERY_OPTIONS,
+    }),
     queryClient.fetchQuery(
       getListGoalContributionsQueryOptions(
         { month: monthKey },
