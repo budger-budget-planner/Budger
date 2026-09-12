@@ -468,11 +468,19 @@ export default function DashboardPage() {
 
   const isWeeklyBackTransition = weeklyTransition.startsWith("back-");
   const monthlyChartIsRestoring = weeklyTransition === "back-restore-others";
+  const monthlyChartIsForwardTransitioning =
+    weeklyTransition === "snap-weeks" || weeklyTransition === "coloring";
   const monthlyChartOpacity = weeklyTransition === "weekly"
     ? 0
+    : monthlyChartIsForwardTransitioning
+      ? 0
     : isWeeklyBackTransition
       ? (monthlyChartIsRestoring ? 1 : 0)
       : 1;
+  const showWeeklyTransitionOverlay =
+    weeklyTransition !== "idle"
+    && weeklyTransition !== "entering"
+    && weeklyTransition !== "weekly";
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
@@ -732,8 +740,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {weeklyTransition !== "idle" &&
-              weeklyTransition !== "entering" &&
+            {showWeeklyTransitionOverlay &&
               (weeklyTransitionSegments.length > 0 || weeklyTransitionArc) && (
                 <DonutTransitionOverlay
                   segments={weeklyTransitionSegments}
