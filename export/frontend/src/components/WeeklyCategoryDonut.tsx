@@ -6,10 +6,11 @@ import { t } from "@/lib/i18n";
 
 const CX = 160;
 const CY = 160;
-const INNER_RADIUS = 76;
+const INNER_RADIUS = 75;
 const OUTER_RADIUS = 128;
 const EXPAND = 14;
 const HEADER_H = 24;
+const WEEK_GAP = 2.5;
 
 // Deliberately separated hues keep adjacent paid periods readable even when
 // the category itself is a saturated color.
@@ -118,9 +119,12 @@ export function buildWeeklyDonutDisplayItems(data: CategoryWeeklySpending): Disp
     });
   }
 
+  const drawableDegrees = Math.max(0, 360 - WEEK_GAP * rawItems.length);
   let cursor = 0;
   return rawItems.map((item): DisplayItem => {
-    const sweep = totalVisualCents > 0 ? (item.cents / totalVisualCents) * 360 : 0;
+    const sweep = totalVisualCents > 0
+      ? (item.cents / totalVisualCents) * drawableDegrees
+      : 0;
     const result = {
       key: item.key,
       label: item.label,
@@ -131,7 +135,7 @@ export function buildWeeklyDonutDisplayItems(data: CategoryWeeklySpending): Disp
       end: cursor + sweep,
       isRemaining: item.isRemaining,
     };
-    cursor += sweep;
+    cursor += sweep + WEEK_GAP;
     return result;
   });
 }
@@ -139,24 +143,12 @@ export function buildWeeklyDonutDisplayItems(data: CategoryWeeklySpending): Disp
 export function buildWeeklyDonutTransitionSegments(
   data: CategoryWeeklySpending,
 ): WeeklyDonutTransitionSegment[] {
-  const displayItems = buildWeeklyDonutDisplayItems(data);
-  const transitionGap = 2.5;
-  const drawableDegrees = Math.max(0, 360 - transitionGap * displayItems.length);
-  let cursor = 0;
-
-  // The settled weekly chart can be contiguous, but the transition must show
-  // the same separated "snap" stage as HouseholdDonutChart. Without these
-  // gaps, the muted weekly paths are indistinguishable from the preceding
-  // dark full-circle arc.
-  return displayItems.map(item => {
-    const sweep = ((item.end - item.start) / 360) * drawableDegrees;
-    const segment = {
-      d: donutPath(cursor, cursor + sweep),
+  // Use the same separated geometry for the settled chart and the transition
+  // overlay so the color bloom does not snap between two different layouts.
+  return buildWeeklyDonutDisplayItems(data).map(item => ({
+      d: donutPath(item.start, item.end),
       color: item.color,
-    };
-    cursor += sweep + transitionGap;
-    return segment;
-  });
+    }));
 }
 
 export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions, expanded = false }: Props) {
@@ -177,6 +169,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
   }
 
   const centerPercentage = selectedItem?.percentage ?? totalPercentage;
+  const centerSpent = selectedItem?.amount ?? data.totalSpent;
 
   return (
     <div
@@ -258,6 +251,16 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               <text x={CX} y={CY + 16} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#6b7280">
                 {t("donut.of_budget_used")}
               </text>
+              {expanded && (
+                <>
+                  <text x={CX} y={CY + 32} textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#374151">
+                    {fmtAmt(centerSpent, currency)} / {fmtAmt(data.budget, currency)}
+                  </text>
+                  <text x={CX} y={CY + 50} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#374151">
+                    {t("donut.xx_to_exit")}
+                  </text>
+                </>
+              )}
             </g>
           </svg>
         </div>
