@@ -36,3 +36,4 @@
 - [Goal contribution deletion policy](goal-contribution-deletion-policy.md) — contributors may delete their own entries; other household members require current membership, with recalculation in the same transaction
 - [Webhook idempotency compatibility](webhook-idempotency-compatibility.md) — Idempotency-Key must stay optional for legacy Apple Shortcuts and URL-only webhook callers
 - [Pull-to-refresh scroll ownership](pull-to-refresh-scroll-ownership.md) — PTR top guards require the app shell's inner main to own scrolling; flex parents need min-height:0
+- [Weekly category drill-down](weekly-drilldown.md) — server owns calendar periods, exclusions, budget adjustments, and the standalone export must mirror the canonical contract
