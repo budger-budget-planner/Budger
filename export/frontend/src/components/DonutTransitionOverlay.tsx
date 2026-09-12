@@ -18,6 +18,7 @@ type Props = {
   arc?: DonutTransitionArc | null;
   colored: boolean;
   colorDuration: number;
+  expanded?: boolean;
 };
 
 export function donutTransitionArc(start: number, end: number): string {
@@ -42,7 +43,13 @@ export function donutTransitionArc(start: number, end: number): string {
   ].join(" ");
 }
 
-export default function DonutTransitionOverlay({ segments = [], arc, colored, colorDuration }: Props) {
+export default function DonutTransitionOverlay({
+  segments = [],
+  arc,
+  colored,
+  colorDuration,
+  expanded = false,
+}: Props) {
   return (
     <div
       aria-hidden="true"
@@ -58,7 +65,7 @@ export default function DonutTransitionOverlay({ segments = [], arc, colored, co
     >
       <div style={{ height: HEADER_H, flexShrink: 0 }} />
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
-        <div style={{ width: 180, flexShrink: 0 }}>
+        <div style={{ width: expanded ? "100%" : 180, flexShrink: 0 }}>
           <svg width="100%" viewBox="0 0 320 320" style={{ display: "block", overflow: "visible" }}>
             {arc && (
               <path

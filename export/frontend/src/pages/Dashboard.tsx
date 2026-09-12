@@ -83,6 +83,7 @@ export default function DashboardPage() {
   const [weeklyTransitionArc, setWeeklyTransitionArc] = useState<DonutTransitionArc | null>(null);
   const [weeklyTransitionColored, setWeeklyTransitionColored] = useState(false);
   const [donutMountKey, setDonutMountKey] = useState(0);
+  const [donutMode, setDonutMode] = useState<"compact" | "expanded">("compact");
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const weeklyTransitionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -132,6 +133,7 @@ export default function DashboardPage() {
     setWeeklyTransitionArc(null);
     setWeeklyTransitionColored(false);
     setDonutMountKey(key => key + 1);
+    setDonutMode("compact");
   }, [viewMonth]);
 
   useEffect(() => {
@@ -631,6 +633,8 @@ export default function DashboardPage() {
                   spending={spendingForChartEnriched as any}
                   totalBudget={totalBudgetForChart}
                   currency={prefs.currency}
+                   initialMode={donutMode}
+                   onModeChange={setDonutMode}
                   hasData={
                     spendingForChartEnriched.some((s: any) => s.count > 0) ||
                     (recurringPayments?.length ?? 0) > 0
@@ -719,6 +723,7 @@ export default function DashboardPage() {
                 <WeeklyCategoryDonut
                   data={weeklyCategory}
                   currency={prefs.currency}
+                   expanded={donutMode === "expanded"}
                    onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
                     const category = (weeklyCategory.categoryName ?? "").trim();
@@ -736,6 +741,7 @@ export default function DashboardPage() {
                   arc={weeklyTransitionArc}
                   colored={weeklyTransitionColored}
                   colorDuration={isWeeklyBackTransition ? 1350 : 1650}
+                  expanded={donutMode === "expanded"}
                 />
               )}
           </div>

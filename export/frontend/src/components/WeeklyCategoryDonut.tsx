@@ -21,6 +21,7 @@ type Props = {
   currency: string;
   onBack: () => void;
   onShowTransactions: () => void;
+  expanded?: boolean;
 };
 
 type DisplayItem = {
@@ -158,7 +159,7 @@ export function buildWeeklyDonutTransitionSegments(
   });
 }
 
-export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
+export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions, expanded = false }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
@@ -203,7 +204,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
         <div
           style={{
-            width: 180,
+            width: expanded ? "100%" : 180,
             flexShrink: 0,
           }}
         >
