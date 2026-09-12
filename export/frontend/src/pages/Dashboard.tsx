@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import {
@@ -19,8 +19,18 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
   PieChart, Pie, Cell,
 } from "recharts";
-import DonutBudgetChart from "@/components/DonutBudgetChart";
-import WeeklyCategoryDonut from "@/components/WeeklyCategoryDonut";
+import DonutBudgetChart, {
+  getCategoryTransitionArc,
+  getCategoryTransitionSegments,
+} from "@/components/DonutBudgetChart";
+import WeeklyCategoryDonut, {
+  buildWeeklyDonutTransitionSegments,
+  type WeeklyDonutTransitionSegment,
+} from "@/components/WeeklyCategoryDonut";
+import DonutTransitionOverlay, {
+  donutTransitionArc,
+  type DonutTransitionArc,
+} from "@/components/DonutTransitionOverlay";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound, currencySymbol } from "@/lib/prefs";
@@ -30,6 +40,17 @@ import { useLiveActivity } from "@/hooks/useLiveActivity";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const CHART_COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"];
+type WeeklyTransition =
+  | "idle"
+  | "entering"
+  | "snap-weeks"
+  | "coloring"
+  | "weekly"
+  | "back-full-circle"
+  | "back-contracting"
+  | "back-snap-monthly"
+  | "back-coloring"
+  | "back-restore-others";
 
 function BarTooltipContent({ active, payload, label, currency }: any) {
   if (!active || !payload?.length || !payload[0]?.value) return null;
@@ -56,11 +77,16 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
   const [weeklyCategoryId, setWeeklyCategoryId] = useState<number | null>(null);
-  const [weeklyTransition, setWeeklyTransition] = useState<"idle" | "entering" | "weekly">("idle");
+  const [weeklyTransition, setWeeklyTransition] = useState<WeeklyTransition>("idle");
   const [weeklyTransitionReady, setWeeklyTransitionReady] = useState(false);
+  const [weeklyTransitionSegments, setWeeklyTransitionSegments] = useState<WeeklyDonutTransitionSegment[]>([]);
+  const [weeklyTransitionArc, setWeeklyTransitionArc] = useState<DonutTransitionArc | null>(null);
+  const [weeklyTransitionColored, setWeeklyTransitionColored] = useState(false);
   const [donutMountKey, setDonutMountKey] = useState(0);
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
+  const weeklyTransitionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const weeklyTransitionRafRef = useRef<number | null>(null);
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
 
@@ -98,17 +124,25 @@ export default function DashboardPage() {
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
 
   useEffect(() => {
+    clearWeeklyTransitionAnimation();
     setWeeklyCategoryId(null);
     setWeeklyTransition("idle");
     setWeeklyTransitionReady(false);
+    setWeeklyTransitionSegments([]);
+    setWeeklyTransitionArc(null);
+    setWeeklyTransitionColored(false);
     setDonutMountKey(key => key + 1);
   }, [viewMonth]);
 
   useEffect(() => {
     if (weeklyTransition === "entering" && weeklyTransitionReady && weeklyCategory) {
-      setWeeklyTransition("weekly");
+      startWeeklyForwardTransition();
     }
   }, [weeklyCategory, weeklyTransition, weeklyTransitionReady]);
+
+  useEffect(() => () => {
+    clearWeeklyTransitionAnimation();
+  }, []);
 
   // IDs of household RPs — used to exclude them from the donut chart entirely.
   const householdRpIds = new Set<number>((householdRPs ?? []).map((rp: any) => rp.id));
@@ -236,6 +270,155 @@ export default function DashboardPage() {
     return { ...item, budget: effectiveBudget, isStretched: stretch.toAmt > 0 || stretch.fromAmt > 0, stretchAmount: netAmt };
   }) ?? spendingForChart;
 
+  const weeklyTransitionMonthlySegments = useMemo(() => {
+    if (weeklyCategoryId == null || !spendingForChartEnriched || totalBudgetForChart <= 0) return [];
+    return getCategoryTransitionSegments(
+      spendingForChartEnriched as any,
+      adjustedTotalBudgetForChart ?? totalBudgetForChart,
+      weeklyCategoryId,
+    );
+  }, [
+    weeklyCategoryId,
+    spendingForChartEnriched,
+    totalBudgetForChart,
+    adjustedTotalBudgetForChart,
+  ]);
+
+  const weeklyTransitionMonthlyArc = useMemo(() => {
+    if (weeklyCategoryId == null || !spendingForChartEnriched || totalBudgetForChart <= 0) return null;
+    return getCategoryTransitionArc(
+      spendingForChartEnriched as any,
+      adjustedTotalBudgetForChart ?? totalBudgetForChart,
+      weeklyCategoryId,
+    );
+  }, [
+    weeklyCategoryId,
+    spendingForChartEnriched,
+    totalBudgetForChart,
+    adjustedTotalBudgetForChart,
+  ]);
+
+  function clearWeeklyTransitionAnimation() {
+    weeklyTransitionTimersRef.current.forEach(clearTimeout);
+    weeklyTransitionTimersRef.current = [];
+    if (weeklyTransitionRafRef.current !== null) {
+      cancelAnimationFrame(weeklyTransitionRafRef.current);
+      weeklyTransitionRafRef.current = null;
+    }
+  }
+
+  function queueWeeklyTransition(timer: ReturnType<typeof setTimeout>) {
+    weeklyTransitionTimersRef.current.push(timer);
+  }
+
+  function finishWeeklyTransition() {
+    clearWeeklyTransitionAnimation();
+    setWeeklyTransition("idle");
+    setWeeklyTransitionReady(false);
+    setWeeklyTransitionSegments([]);
+    setWeeklyTransitionArc(null);
+    setWeeklyTransitionColored(false);
+    setWeeklyCategoryId(null);
+    setDonutMountKey(key => key + 1);
+  }
+
+  function startWeeklyForwardTransition() {
+    if (!weeklyCategory || weeklyTransition !== "entering") return;
+
+    clearWeeklyTransitionAnimation();
+    setWeeklyTransitionReady(false);
+    setWeeklyTransitionSegments(buildWeeklyDonutTransitionSegments(weeklyCategory));
+    setWeeklyTransitionArc(null);
+    setWeeklyTransitionColored(false);
+    setWeeklyTransition("snap-weeks");
+
+    // Match HouseholdDonutChart: muted destination segments hold briefly
+    // before their real colors bloom in.
+    queueWeeklyTransition(setTimeout(() => {
+      setWeeklyTransitionColored(true);
+      setWeeklyTransition("coloring");
+
+      queueWeeklyTransition(setTimeout(() => {
+        setWeeklyTransition("weekly");
+      }, 1650));
+    }, 200));
+  }
+
+  function animateWeeklyBackArc(target: { startDeg: number; endDeg: number }, onComplete: () => void) {
+    const startTime = performance.now();
+    const duration = 650;
+
+    const easeInOut = (value: number) =>
+      value < 0.5 ? 2 * value * value : -1 + (4 - 2 * value) * value;
+
+    const step = (now: number) => {
+      const rawT = Math.min((now - startTime) / duration, 1);
+      const easedT = 1 - easeInOut(rawT);
+      const currentStart = target.startDeg * (1 - easedT);
+      const currentEnd = target.endDeg + (360 - target.endDeg) * easedT;
+      setWeeklyTransitionArc({
+        d: donutTransitionArc(currentStart, currentEnd),
+        color: "#2d3748",
+      });
+
+      if (rawT < 1) {
+        weeklyTransitionRafRef.current = requestAnimationFrame(step);
+      } else {
+        weeklyTransitionRafRef.current = null;
+        onComplete();
+      }
+    };
+
+    weeklyTransitionRafRef.current = requestAnimationFrame(step);
+  }
+
+  function startWeeklyBackTransition() {
+    if (weeklyTransition !== "weekly" || weeklyCategoryId == null) return;
+    const targetArc = weeklyTransitionMonthlyArc;
+    if (!targetArc || weeklyTransitionMonthlySegments.length === 0) {
+      finishWeeklyTransition();
+      return;
+    }
+
+    clearWeeklyTransitionAnimation();
+    // Remount the monthly chart while it is hidden so its completed weekly
+    // drill state cannot reappear underneath the reverse transition.
+    setDonutMountKey(key => key + 1);
+    setWeeklyTransitionSegments([]);
+    setWeeklyTransitionColored(false);
+    setWeeklyTransitionArc({
+      d: donutTransitionArc(0, 359.99),
+      color: "#2d3748",
+    });
+    setWeeklyTransition("back-full-circle");
+
+    // Match HouseholdDonutChart's backward pause before contracting.
+    queueWeeklyTransition(setTimeout(() => {
+      setWeeklyTransition("back-contracting");
+      animateWeeklyBackArc(targetArc, () => {
+        setWeeklyTransitionArc(null);
+        setWeeklyTransitionSegments(weeklyTransitionMonthlySegments);
+        setWeeklyTransitionColored(false);
+        setWeeklyTransition("back-snap-monthly");
+
+        queueWeeklyTransition(setTimeout(() => {
+          setWeeklyTransitionColored(true);
+          setWeeklyTransition("back-coloring");
+
+          queueWeeklyTransition(setTimeout(() => {
+            // Keep the restored category visible while the remaining monthly
+            // categories fade back in underneath it.
+            setWeeklyTransition("back-restore-others");
+
+            queueWeeklyTransition(setTimeout(() => {
+              finishWeeklyTransition();
+            }, 1140));
+          }, 1350));
+        }, 200));
+      });
+    }, 300));
+  }
+
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
   const catBudgetSum = (categories ?? []).reduce((s, c) => s + (c.budget != null ? Number(c.budget) : 0), 0);
   const rpBudgetSumDash = (recurringPayments ?? []).reduce((s, rp) => s + Number(rp.amount), 0);
@@ -280,6 +463,14 @@ export default function DashboardPage() {
     householdName: "Budger",
     isCurrentMonth,
   } : null);
+
+  const isWeeklyBackTransition = weeklyTransition.startsWith("back-");
+  const monthlyChartIsRestoring = weeklyTransition === "back-restore-others";
+  const monthlyChartOpacity = weeklyTransition === "weekly"
+    ? 0
+    : isWeeklyBackTransition
+      ? (monthlyChartIsRestoring ? 1 : 0)
+      : 1;
 
   return (
     <div className="px-4 pt-4 pb-4 max-w-3xl mx-auto">
@@ -407,9 +598,13 @@ export default function DashboardPage() {
             <div
               style={{
                 gridArea: "1 / 1",
-                opacity: weeklyTransition === "weekly" ? 0 : 1,
-                transition: weeklyTransition === "weekly" ? "opacity 0.9s ease" : "none",
-                pointerEvents: weeklyTransition === "weekly" ? "none" : "auto",
+                opacity: monthlyChartOpacity,
+                transition: weeklyTransition === "weekly"
+                  ? "opacity 0.9s ease"
+                  : monthlyChartIsRestoring
+                    ? "opacity 1.14s ease"
+                    : "none",
+                pointerEvents: weeklyTransition === "idle" || weeklyTransition === "entering" ? "auto" : "none",
               }}
             >
               {/* Reserve the same back-button row used by WeeklyCategoryDonut.
@@ -421,12 +616,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground">{t("common.error")}</p>
                   <button
                     className="text-xs underline"
-                    onClick={() => {
-                      setWeeklyCategoryId(null);
-                      setWeeklyTransition("idle");
-                      setWeeklyTransitionReady(false);
-                      setDonutMountKey(key => key + 1);
-                    }}
+                    onClick={finishWeeklyTransition}
                   >
                     {t("weekly.back")}
                   </button>
@@ -456,6 +646,9 @@ export default function DashboardPage() {
                     ) {
                       setWeeklyTransition("entering");
                       setWeeklyTransitionReady(false);
+                      setWeeklyTransitionSegments([]);
+                      setWeeklyTransitionArc(null);
+                      setWeeklyTransitionColored(false);
                       setWeeklyCategoryId(Number(item.categoryId));
                     }
                   }}
@@ -515,19 +708,18 @@ export default function DashboardPage() {
                 style={{
                   gridArea: "1 / 1",
                   opacity: weeklyTransition === "weekly" ? 1 : 0,
-                  transition: weeklyTransition === "weekly" ? "opacity 0.9s ease 0.05s" : "none",
+                  transition: weeklyTransition === "weekly"
+                    ? "opacity 0.9s ease 0.05s"
+                    : weeklyTransition === "back-full-circle"
+                      ? "opacity 0.3s ease"
+                      : "none",
                   pointerEvents: weeklyTransition === "weekly" ? "auto" : "none",
                 }}
               >
                 <WeeklyCategoryDonut
                   data={weeklyCategory}
                   currency={prefs.currency}
-                  onBack={() => {
-                    setWeeklyCategoryId(null);
-                    setWeeklyTransition("idle");
-                    setWeeklyTransitionReady(false);
-                    setDonutMountKey(key => key + 1);
-                  }}
+                   onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
                     const category = (weeklyCategory.categoryName ?? "").trim();
                     navigate(`/?month=${encodeURIComponent(viewMonth)}&category=${encodeURIComponent(category)}`);
@@ -535,6 +727,17 @@ export default function DashboardPage() {
                 />
               </div>
             )}
+
+            {weeklyTransition !== "idle" &&
+              weeklyTransition !== "entering" &&
+              (weeklyTransitionSegments.length > 0 || weeklyTransitionArc) && (
+                <DonutTransitionOverlay
+                  segments={weeklyTransitionSegments}
+                  arc={weeklyTransitionArc}
+                  colored={weeklyTransitionColored}
+                  colorDuration={isWeeklyBackTransition ? 1350 : 1650}
+                />
+              )}
           </div>
         </div>
 

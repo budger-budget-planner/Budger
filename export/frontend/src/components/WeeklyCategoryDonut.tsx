@@ -34,6 +34,11 @@ type DisplayItem = {
   isRemaining: boolean;
 };
 
+export type WeeklyDonutTransitionSegment = {
+  d: string;
+  color: string;
+};
+
 function polar(radius: number, degrees: number) {
   const radians = ((degrees - 90) * Math.PI) / 180;
   return { x: CX + radius * Math.cos(radians), y: CY + radius * Math.sin(radians) };
@@ -66,72 +71,83 @@ function percentLabel(value: number): string {
   return `${Math.round(value)}%`;
 }
 
+export function buildWeeklyDonutDisplayItems(data: CategoryWeeklySpending): DisplayItem[] {
+  const budgetCents = Math.round(data.budget * 100);
+  const spentCents = data.weeks.map(week => Math.round(week.spent * 100));
+  const spentTotalCents = spentCents.reduce((sum, cents) => sum + cents, 0);
+  const remainingCents = Math.max(0, budgetCents - spentTotalCents);
+  const totalVisualCents = remainingCents > 0
+    ? budgetCents
+    : Math.max(budgetCents, spentTotalCents);
+
+  const rawItems: Array<{
+    key: string;
+    label: string;
+    color: string;
+    amount: number;
+    percentage: number;
+    cents: number;
+    isRemaining: boolean;
+  }> = [];
+
+  data.weeks.forEach((week, index) => {
+    const cents = spentCents[index];
+    // Empty periods are intentionally absent from both the ring and the list.
+    if (cents <= 0) return;
+    rawItems.push({
+      key: `week-${index}`,
+      label: weekRangeLabel(week.startDate, week.endDate),
+      color: WEEK_COLORS[index % WEEK_COLORS.length],
+      amount: cents / 100,
+      percentage: budgetCents > 0 ? (cents / budgetCents) * 100 : 0,
+      cents,
+      isRemaining: false,
+    });
+  });
+
+  if (remainingCents > 0) {
+    rawItems.push({
+      key: "remaining",
+      label: t("weekly.remaining"),
+      color: REMAINING_COLOR,
+      amount: remainingCents / 100,
+      percentage: budgetCents > 0 ? (remainingCents / budgetCents) * 100 : 0,
+      cents: remainingCents,
+      isRemaining: true,
+    });
+  }
+
+  let cursor = 0;
+  return rawItems.map((item): DisplayItem => {
+    const sweep = totalVisualCents > 0 ? (item.cents / totalVisualCents) * 360 : 0;
+    const result = {
+      key: item.key,
+      label: item.label,
+      color: item.color,
+      amount: item.amount,
+      percentage: item.percentage,
+      start: cursor,
+      end: cursor + sweep,
+      isRemaining: item.isRemaining,
+    };
+    cursor += sweep;
+    return result;
+  });
+}
+
+export function buildWeeklyDonutTransitionSegments(
+  data: CategoryWeeklySpending,
+): WeeklyDonutTransitionSegment[] {
+  return buildWeeklyDonutDisplayItems(data).map(item => ({
+    d: donutPath(item.start, item.end),
+    color: item.color,
+  }));
+}
+
 export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const displayItems = useMemo(() => {
-    const budgetCents = Math.round(data.budget * 100);
-    const spentCents = data.weeks.map(week => Math.round(week.spent * 100));
-    const spentTotalCents = spentCents.reduce((sum, cents) => sum + cents, 0);
-    const remainingCents = Math.max(0, budgetCents - spentTotalCents);
-    const totalVisualCents = remainingCents > 0
-      ? budgetCents
-      : Math.max(budgetCents, spentTotalCents);
-
-    const rawItems: Array<{
-      key: string;
-      label: string;
-      color: string;
-      amount: number;
-      percentage: number;
-      cents: number;
-      isRemaining: boolean;
-    }> = [];
-
-    data.weeks.forEach((week, index) => {
-      const cents = spentCents[index];
-      // Empty periods are intentionally absent from both the ring and the list.
-      if (cents <= 0) return;
-      rawItems.push({
-        key: `week-${index}`,
-        label: weekRangeLabel(week.startDate, week.endDate),
-        color: WEEK_COLORS[index % WEEK_COLORS.length],
-        amount: cents / 100,
-        percentage: budgetCents > 0 ? (cents / budgetCents) * 100 : 0,
-        cents,
-        isRemaining: false,
-      });
-    });
-
-    if (remainingCents > 0) {
-      rawItems.push({
-        key: "remaining",
-        label: t("weekly.remaining"),
-        color: REMAINING_COLOR,
-        amount: remainingCents / 100,
-        percentage: budgetCents > 0 ? (remainingCents / budgetCents) * 100 : 0,
-        cents: remainingCents,
-        isRemaining: true,
-      });
-    }
-
-    let cursor = 0;
-    return rawItems.map((item): DisplayItem => {
-      const sweep = totalVisualCents > 0 ? (item.cents / totalVisualCents) * 360 : 0;
-      const result = {
-        key: item.key,
-        label: item.label,
-        color: item.color,
-        amount: item.amount,
-        percentage: item.percentage,
-        start: cursor,
-        end: cursor + sweep,
-        isRemaining: item.isRemaining,
-      };
-      cursor += sweep;
-      return result;
-    });
-  }, [data]);
+  const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
 
   const selectedItem = displayItems.find(item => item.key === selectedKey) ?? null;
   const totalPercentage = data.budget > 0 ? (data.totalSpent / data.budget) * 100 : 0;

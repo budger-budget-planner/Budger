@@ -94,6 +94,16 @@ export type SpendingItem = {
   stretchType?: string | null;
 };
 
+export type DonutTransitionSegment = {
+  d: string;
+  color: string;
+};
+
+export type DonutCategoryTransitionArc = {
+  startDeg: number;
+  endDeg: number;
+};
+
 // ─── Colour helpers ───────────────────────────────────────────────────────────
 
 function hexDarken(hex: string, amount: number): string {
@@ -376,6 +386,29 @@ function buildChart(
       isStretched: g.isStretched, stretchAmount: g.stretchAmount }));
 
   return { segs, groupBorders, legend, sumBudgets };
+}
+
+export function getCategoryTransitionSegments(
+  spending: SpendingItem[],
+  totalBudget: number,
+  categoryId: number,
+): DonutTransitionSegment[] {
+  const categoryKey = `cat-${categoryId}`;
+  const { segs } = buildChart(spending, totalBudget, null);
+  return segs
+    .filter(segment => segment.catKey === categoryKey)
+    .map(segment => ({ d: segment.d, color: segment.fill }));
+}
+
+export function getCategoryTransitionArc(
+  spending: SpendingItem[],
+  totalBudget: number,
+  categoryId: number,
+): DonutCategoryTransitionArc | null {
+  const categoryKey = `cat-${categoryId}`;
+  const { groupBorders } = buildChart(spending, totalBudget, null);
+  const group = groupBorders.find(border => border.catKey === categoryKey);
+  return group ? { startDeg: group.startDeg, endDeg: group.endDeg } : null;
 }
 
 // ─── Animation constants ──────────────────────────────────────────────────────
