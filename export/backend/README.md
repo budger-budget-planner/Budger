@@ -3,7 +3,6 @@
 This is Budger, split out of its original pnpm monorepo into two independent,
 deployable projects:
 
-
 - **`frontend/`** — React + Vite PWA. Deploy to Vercel.
 - **`backend/`** — Express API + Postgres (Neon) + Supabase Storage. Deploy
   to any Node host (Render, Railway, Fly.io, a VPS, …).
