@@ -421,9 +421,13 @@ type Props = {
   adjustedTotalBudget?: number | null;
   /** Fired after an eligible category has been held for roughly 500 ms. */
   onCategoryLongPress?: (item: SpendingItem) => void;
+  /** Fired when the category drill transition reaches its full-circle hold. */
+  onCategoryTransitionReady?: (item: SpendingItem) => void;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress }: Props) {
+type CategoryDrillPhase = "idle" | "fade-others" | "to-arc" | "expanding" | "hold-circle";
+
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -453,6 +457,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const secondSegMidDegRef = useRef<number>(0);
   // Latest hasData value — updated every render, read inside the timer closure
   const hasDataRef = useRef<boolean>(false);
+  const [categoryDrillPhase, setCategoryDrillPhase] = useState<CategoryDrillPhase>("idle");
+  const [categoryDrillArc, setCategoryDrillArc] = useState<{ d: string; opacity: number; transition?: string } | null>(null);
+  const categoryDrillCatKeyRef = useRef<string | null>(null);
+  const categoryDrillItemRef = useRef<SpendingItem | null>(null);
+  const categoryDrillTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const categoryDrillRafRef = useRef<number | null>(null);
 
   const effectiveChartBudget = (adjustedTotalBudget != null && adjustedTotalBudget > 0)
     ? adjustedTotalBudget
@@ -474,6 +484,86 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const budgetUsedPct = effectiveTotalBudget > 0 ? Math.round((totalSpent / effectiveTotalBudget) * 100) : null;
   const selectedLegend = legend.find(l => l.catKey === selectedCat) ?? null;
   const expanded       = mode === "expanded";
+  const categoryDrillActive = categoryDrillPhase !== "idle";
+
+  function cancelCategoryDrillTransition() {
+    categoryDrillTimersRef.current.forEach(clearTimeout);
+    categoryDrillTimersRef.current = [];
+    if (categoryDrillRafRef.current !== null) {
+      cancelAnimationFrame(categoryDrillRafRef.current);
+      categoryDrillRafRef.current = null;
+    }
+  }
+
+  useEffect(() => () => cancelCategoryDrillTransition(), []);
+
+  function startCategoryDrillTransition(item: SpendingItem, catKey: string) {
+    const group = groupBorders.find(candidate => candidate.catKey === catKey);
+    if (!group) return;
+
+    cancelCategoryDrillTransition();
+    categoryDrillCatKeyRef.current = catKey;
+    categoryDrillItemRef.current = item;
+    setCategoryDrillArc(null);
+    setCategoryDrillPhase("fade-others");
+
+    if (loadPrefs().disableAnimations) {
+      setCategoryDrillArc({ d: arc(CX, CY, RI, RO, 0, 359.99), opacity: 1 });
+      setCategoryDrillPhase("hold-circle");
+      onCategoryTransitionReady?.(item);
+      return;
+    }
+
+    const push = (timer: ReturnType<typeof setTimeout>) => {
+      categoryDrillTimersRef.current.push(timer);
+    };
+
+    // Match HouseholdDonutChart's drill timing:
+    // fade others (280ms) → category arc (200ms) → full circle (650ms) → hold (400ms).
+    push(setTimeout(() => {
+      setCategoryDrillArc({
+        d: arc(CX, CY, RI, RO, group.startDeg, group.endDeg),
+        opacity: 0,
+        transition: "opacity 0.18s ease",
+      });
+      setCategoryDrillPhase("to-arc");
+
+      categoryDrillRafRef.current = requestAnimationFrame(() => {
+        setCategoryDrillArc(previous => previous ? { ...previous, opacity: 1 } : previous);
+        categoryDrillRafRef.current = null;
+      });
+
+      push(setTimeout(() => {
+        setCategoryDrillPhase("expanding");
+        const startTime = performance.now();
+        const duration = 650;
+
+        const step = (now: number) => {
+          const rawT = Math.min((now - startTime) / duration, 1);
+          const easedT = rawT < 0.5 ? 2 * rawT * rawT : -1 + (4 - 2 * rawT) * rawT;
+          const currentStart = group.startDeg * (1 - easedT);
+          const currentEnd = group.endDeg + (360 - group.endDeg) * easedT;
+          setCategoryDrillArc(previous => previous
+            ? { ...previous, d: arc(CX, CY, RI, RO, currentStart, currentEnd) }
+            : previous);
+
+          if (rawT < 1) {
+            categoryDrillRafRef.current = requestAnimationFrame(step);
+          } else {
+            categoryDrillRafRef.current = null;
+            setCategoryDrillArc({ d: arc(CX, CY, RI, RO, 0, 359.99), opacity: 1 });
+            setCategoryDrillPhase("hold-circle");
+            push(setTimeout(() => {
+              const drilledItem = categoryDrillItemRef.current;
+              if (drilledItem) onCategoryTransitionReady?.(drilledItem);
+            }, 400));
+          }
+        };
+
+        categoryDrillRafRef.current = requestAnimationFrame(step);
+      }, 200));
+    }, 280));
+  }
 
   // ── Track container width so both ends of the SVG transition are concrete px
   //    values — avoids the layout jump caused by animating to/from "100%".   ──
@@ -594,6 +684,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     longPressTriggeredRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       longPressTriggeredRef.current = true;
+      startCategoryDrillTransition(item, catKey);
       onCategoryLongPress(item);
       longPressTimerRef.current = null;
     }, 500);
@@ -604,6 +695,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   }
 
   function handleSegmentClick(catKey: string) {
+    if (categoryDrillActive) return;
     if (longPressTriggeredRef.current) {
       longPressTriggeredRef.current = false;
       return;
@@ -612,6 +704,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   }
 
   function handleCenterTap() {
+    if (categoryDrillActive) return;
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
       // Double-tap: toggle mode AND cancel any pending/active hint pulses
@@ -719,11 +812,14 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             const wiggleCatKey = segs[0]?.catKey ?? null;
 
             // Helper: path props for a fill segment
-            function fillPath(seg: Seg) {
+             function fillPath(seg: Seg) {
               const isSel  = selectedCat === seg.catKey;
               const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
               const tx = isSel ? EXPAND * Math.cos(midRad) : 0;
               const ty = isSel ? EXPAND * Math.sin(midRad) : 0;
+               const drillOpacity = categoryDrillPhase === "fade-others"
+                 ? (seg.catKey === categoryDrillCatKeyRef.current ? 1 : 0)
+                 : categoryDrillActive ? 0 : 1;
               return (
                 <path
                   key={seg.id}
@@ -733,6 +829,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   style={{
                     transform:  `translate(${tx}px, ${ty}px)`,
                     transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                      opacity: drillOpacity,
+                      transitionProperty: "transform, opacity",
                     filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
                     cursor:     "pointer",
                   }}
@@ -768,8 +866,11 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               const touchW  = (groupIsOverBudget || isOrangeStretch) ? 2.5 : 1;
               const style = {
                 transform:     `translate(${tx}px, ${ty}px)`,
-                transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease",
                 pointerEvents: "none" as const,
+                opacity: categoryDrillPhase === "fade-others"
+                  ? (seg.catKey === categoryDrillCatKeyRef.current ? 1 : 0)
+                  : categoryDrillActive ? 0 : 1,
               };
 
               // No touching caps — simple single path (unchanged behaviour)
@@ -823,8 +924,11 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                   strokeWidth={strokeWidth}
                   style={{
                     transform:     "translate(0px, 0px)",
-                    transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                      transition:    "transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease",
                     pointerEvents: "none",
+                      opacity: categoryDrillPhase === "fade-others"
+                        ? (gb.catKey === categoryDrillCatKeyRef.current ? 1 : 0)
+                        : categoryDrillActive ? 0 : 1,
                   }}
                 />
               );
@@ -879,6 +983,18 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               </>
             );
           })()}
+
+          {categoryDrillArc && (
+            <path
+              d={categoryDrillArc.d}
+              fill="#2d3748"
+              style={{
+                opacity: categoryDrillArc.opacity,
+                transition: categoryDrillArc.transition ?? "none",
+                pointerEvents: "none",
+              }}
+            />
+          )}
 
           {/* ── Larder-designated segment sparkles ─────────────────────────
               Disabled: set DONUT_SPARKLES_ENABLED = true to restore.
@@ -1004,7 +1120,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 18 SVG →  10 px displayed   (was fontSize 9  in old 180 viewBox) */}
           <g
             style={{
-              opacity:       expanded ? 0 : 1,
+              opacity:       expanded || categoryDrillActive ? 0 : 1,
               transition:    `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`,
               pointerEvents: "none",
             }}
@@ -1029,7 +1145,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               Delayed 0.25 s so the donut has already grown before text appears. */}
           <g
             style={{
-              opacity:       expanded ? 1 : 0,
+              opacity:       expanded && !categoryDrillActive ? 1 : 0,
               transition:    `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`,
               pointerEvents: "none",
             }}
@@ -1135,12 +1251,15 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
           the donut has already shrunk close to its compact size first.       */}
       <div
         style={{
-          maxWidth:   expanded ? 0 : 220,
-          marginLeft: expanded ? 0 : 12,
-          opacity:    expanded ? 0 : 1,
+          maxWidth:   expanded || categoryDrillActive ? 0 : 220,
+          marginLeft: expanded || categoryDrillActive ? 0 : 12,
+          opacity:    expanded || categoryDrillActive ? 0 : 1,
           overflow:   "hidden",
           flexShrink: 1,
-          transition: expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS,
+          pointerEvents: categoryDrillActive ? "none" : "auto",
+          transition: categoryDrillActive
+            ? "max-width 0.2s ease, margin-left 0.2s ease, opacity 0.2s ease"
+            : expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS,
         }}
       >
         {/* Fixed inner width prevents items from squishing during the animation */}

@@ -257,7 +257,6 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
   }
 
   const centerPercentage = selectedItem?.percentage ?? totalPercentage;
-  const centerAmount = selectedItem?.amount ?? data.totalSpent;
 
   return (
     <div
@@ -266,6 +265,17 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       onContextMenu={event => event.preventDefault()}
       style={{ display: "flex", flexDirection: "column", width: "100%" }}
     >
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          onClick={onBack}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t("weekly.back")}
+        </button>
+      </div>
+
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
         <div
           style={{
@@ -345,11 +355,11 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
             })()}
 
             <g style={{ opacity: expanded ? 0 : 1, transition: `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`, pointerEvents: "none" }}>
-              <text x={CX} y={CY - 9} textAnchor="middle" fontSize="21" fontWeight="700" fill="#fff">
-                {fmtAmt(data.totalSpent, currency)}
+              <text x={CX} y={CY - 9} textAnchor="middle" dominantBaseline="middle" fontSize="28" fontWeight="700" fill="#fff">
+                {percentLabel(centerPercentage)}
               </text>
-              <text x={CX} y={CY + 14} textAnchor="middle" fontSize="10" fill="#9ca3af">
-                {fmtAmt(data.budget, currency)} {t("weekly.budget")}
+              <text x={CX} y={CY + 16} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#6b7280">
+                {t("donut.of_budget_used")}
               </text>
             </g>
 
@@ -365,9 +375,6 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               </text>
               <text x={CX} y={CY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="#6b7280">
                 {t("donut.of_budget_used")}
-              </text>
-              <text x={CX} y={CY + 27} textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="700" fill="#fff">
-                {fmtAmt(centerAmount, currency)}
               </text>
               {selectedItem && (
                 <text x={CX} y={CY + 47} textAnchor="middle" dominantBaseline="middle" fontSize="8.5" fill="#4b5563">

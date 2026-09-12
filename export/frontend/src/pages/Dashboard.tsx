@@ -56,6 +56,9 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
   const [weeklyCategoryId, setWeeklyCategoryId] = useState<number | null>(null);
+  const [weeklyTransition, setWeeklyTransition] = useState<"idle" | "entering" | "weekly">("idle");
+  const [weeklyTransitionReady, setWeeklyTransitionReady] = useState(false);
+  const [donutMountKey, setDonutMountKey] = useState(0);
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
@@ -96,7 +99,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setWeeklyCategoryId(null);
+    setWeeklyTransition("idle");
+    setWeeklyTransitionReady(false);
+    setDonutMountKey(key => key + 1);
   }, [viewMonth]);
+
+  useEffect(() => {
+    if (weeklyTransition === "entering" && weeklyTransitionReady && weeklyCategory) {
+      setWeeklyTransition("weekly");
+    }
+  }, [weeklyCategory, weeklyTransition, weeklyTransitionReady]);
 
   // IDs of household RPs — used to exclude them from the donut chart entirely.
   const householdRpIds = new Set<number>((householdRPs ?? []).map((rp: any) => rp.id));
@@ -391,100 +403,135 @@ export default function DashboardPage() {
         {/* Spending by Category — budget-based donut */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">{t("dashboard.by_category")}</p>
-          {weeklyCategoryId !== null && weeklyCategory ? (
-            <WeeklyCategoryDonut
-              data={weeklyCategory}
-              currency={prefs.currency}
-              onBack={() => setWeeklyCategoryId(null)}
-              onShowTransactions={() => {
-                const category = (weeklyCategory.categoryName ?? "").trim();
-                navigate(`/?month=${encodeURIComponent(viewMonth)}&category=${encodeURIComponent(category)}`);
+          <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
+            <div
+              style={{
+                gridArea: "1 / 1",
+                opacity: weeklyTransition === "weekly" ? 0 : 1,
+                transition: weeklyTransition === "weekly" ? "opacity 0.9s ease" : "none",
+                pointerEvents: weeklyTransition === "weekly" ? "none" : "auto",
               }}
-            />
-          ) : weeklyCategoryId !== null && weeklyLoading ? (
-            <div className="h-44 flex items-center justify-center">
-              <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            </div>
-          ) : weeklyCategoryId !== null && weeklyError ? (
-            <div className="h-44 flex flex-col items-center justify-center gap-3 text-center">
-              <p className="text-sm text-muted-foreground">{t("common.error")}</p>
-              <button className="text-xs underline underline-offset-2" onClick={() => setWeeklyCategoryId(null)}>
-                {t("weekly.back")}
-              </button>
-            </div>
-          ) : spendingLoading ? (
-            <div className="h-44 flex items-center justify-center">
-              <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            </div>
-          ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 && totalBudgetForChart > 0 ? (
-            <DonutBudgetChart
-              spending={spendingForChartEnriched as any}
-              totalBudget={totalBudgetForChart}
-              currency={prefs.currency}
-              hasData={
-                spendingForChartEnriched.some((s: any) => s.count > 0) ||
-                (recurringPayments?.length ?? 0) > 0
-              }
-              adjustedTotalBudget={adjustedTotalBudgetForChart}
-               onCategoryLongPress={(item: any) => {
-                 if (
-                   item.categoryId != null &&
-                   !item.isUncategorized &&
-                   !item.isRecurringApplied &&
-                   Number(item.budget ?? 0) > 0 &&
-                   Number(item.total ?? 0) > 0
-                 ) {
-                   setWeeklyCategoryId(Number(item.categoryId));
-                 }
-               }}
-            />
-          ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 ? (
-            /* Fallback: no total budget set — show spending-proportional donut */
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
-                <ResponsiveContainer width={140} height={140}>
-                  <PieChart style={{ outline: "none" }}>
-                    <Pie data={spendingForChartEnriched} dataKey="total" cx="50%" cy="50%"
-                      innerRadius={38} outerRadius={64} paddingAngle={2}
-                      style={{ outline: "none" }}>
-                      {spendingForChartEnriched.map((entry: any, i: number) => (
-                        <Cell key={(entry as any)._catKey ?? entry.categoryId ?? `unc-${i}`}
-                          fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex-1 space-y-2 min-w-0">
-                {spendingForChartEnriched.slice(0, 6).map((item: any, i: number) => (
-                  <div key={(item as any)._catKey ?? item.categoryId ?? `unc-${i}`} className="space-y-0.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: (item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className="text-muted-foreground truncate">
-                          {(!item.categoryName || item.categoryName === "Uncategorized") ? t("common.uncategorized") : item.categoryName}
-                        </span>
-                        {item.budget != null && item.total > item.budget && (
-                          <span className="text-destructive font-medium flex-shrink-0">!</span>
+            >
+              {weeklyCategoryId !== null && weeklyError ? (
+                <div className="h-44 flex flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-muted-foreground">{t("common.error")}</p>
+                  <button
+                    className="text-xs underline"
+                    onClick={() => {
+                      setWeeklyCategoryId(null);
+                      setWeeklyTransition("idle");
+                      setWeeklyTransitionReady(false);
+                      setDonutMountKey(key => key + 1);
+                    }}
+                  >
+                    {t("weekly.back")}
+                  </button>
+                </div>
+              ) : spendingLoading ? (
+                <div className="h-44 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+              ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 && totalBudgetForChart > 0 ? (
+                <DonutBudgetChart
+                  key={donutMountKey}
+                  spending={spendingForChartEnriched as any}
+                  totalBudget={totalBudgetForChart}
+                  currency={prefs.currency}
+                  hasData={
+                    spendingForChartEnriched.some((s: any) => s.count > 0) ||
+                    (recurringPayments?.length ?? 0) > 0
+                  }
+                  adjustedTotalBudget={adjustedTotalBudgetForChart}
+                  onCategoryLongPress={(item: any) => {
+                    if (
+                      item.categoryId != null &&
+                      !item.isUncategorized &&
+                      !item.isRecurringApplied &&
+                      Number(item.budget ?? 0) > 0 &&
+                      Number(item.total ?? 0) > 0
+                    ) {
+                      setWeeklyTransition("entering");
+                      setWeeklyTransitionReady(false);
+                      setWeeklyCategoryId(Number(item.categoryId));
+                    }
+                  }}
+                  onCategoryTransitionReady={() => setWeeklyTransitionReady(true)}
+                />
+              ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 ? (
+                /* Fallback: no total budget set — show spending-proportional donut */
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 [&_*:focus]:outline-none [&_*:focus]:ring-0 [&_.recharts-sector:focus]:outline-none">
+                    <ResponsiveContainer width={140} height={140}>
+                      <PieChart style={{ outline: "none" }}>
+                        <Pie data={spendingForChartEnriched} dataKey="total" cx="50%" cy="50%"
+                          innerRadius={38} outerRadius={64} paddingAngle={2}
+                          style={{ outline: "none" }}>
+                          {spendingForChartEnriched.map((entry: any, i: number) => (
+                            <Cell key={(entry as any)._catKey ?? entry.categoryId ?? `unc-${i}`}
+                              fill={(entry as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 space-y-2 min-w-0">
+                    {spendingForChartEnriched.slice(0, 6).map((item: any, i: number) => (
+                      <div key={(item as any)._catKey ?? item.categoryId ?? `unc-${i}`} className="space-y-0.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: (item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length] }} />
+                            <span className="text-muted-foreground truncate">
+                              {(!item.categoryName || item.categoryName === "Uncategorized") ? t("common.uncategorized") : item.categoryName}
+                            </span>
+                            {item.budget != null && item.total > item.budget && (
+                              <span className="text-destructive font-medium flex-shrink-0">!</span>
+                            )}
+                          </div>
+                          <span className="font-semibold ml-2 flex-shrink-0">{fmtAmt(item.total, prefs.currency)}</span>
+                        </div>
+                        {item.budget != null && (
+                          <BudgetBar spent={item.total} budget={item.budget}
+                            color={(item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
                         )}
                       </div>
-                      <span className="font-semibold ml-2 flex-shrink-0">{fmtAmt(item.total, prefs.currency)}</span>
-                    </div>
-                    {item.budget != null && (
-                      <BudgetBar spent={item.total} budget={item.budget}
-                        color={(item as any).categoryColor ?? CHART_COLORS[i % CHART_COLORS.length]} />
-                    )}
+                    ))}
                   </div>
-                ))}
+                </div>
+              ) : (
+                <div className="h-44 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <TrendingDown className="w-8 h-8 opacity-30" />
+                  <p className="text-sm">{t("dashboard.no_spending")}</p>
+                </div>
+              )}
+            </div>
+
+            {weeklyCategoryId !== null && weeklyCategory && (
+              <div
+                style={{
+                  gridArea: "1 / 1",
+                  opacity: weeklyTransition === "weekly" ? 1 : 0,
+                  transition: weeklyTransition === "weekly" ? "opacity 0.9s ease 0.05s" : "none",
+                  pointerEvents: weeklyTransition === "weekly" ? "auto" : "none",
+                }}
+              >
+                <WeeklyCategoryDonut
+                  data={weeklyCategory}
+                  currency={prefs.currency}
+                  onBack={() => {
+                    setWeeklyCategoryId(null);
+                    setWeeklyTransition("idle");
+                    setWeeklyTransitionReady(false);
+                    setDonutMountKey(key => key + 1);
+                  }}
+                  onShowTransactions={() => {
+                    const category = (weeklyCategory.categoryName ?? "").trim();
+                    navigate(`/?month=${encodeURIComponent(viewMonth)}&category=${encodeURIComponent(category)}`);
+                  }}
+                />
               </div>
-            </div>
-          ) : (
-            <div className="h-44 flex flex-col items-center justify-center text-muted-foreground gap-2">
-              <TrendingDown className="w-8 h-8 opacity-30" />
-              <p className="text-sm">{t("dashboard.no_spending")}</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Goals progress — simplified */}
