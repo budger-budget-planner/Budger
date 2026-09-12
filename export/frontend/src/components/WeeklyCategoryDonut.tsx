@@ -173,9 +173,8 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
         <div
           style={{
-            width: expanded ? containerWidth : 180,
+            width: 180,
             flexShrink: 0,
-            transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
           }}
         >
           <svg
