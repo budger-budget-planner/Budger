@@ -592,6 +592,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   return (
     <div
       ref={containerRef}
+      className="donut-chart-no-selection"
+      onContextMenu={event => event.preventDefault()}
       style={{
         display:    "flex",
         alignItems: "flex-start",
