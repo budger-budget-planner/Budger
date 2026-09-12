@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, List } from "lucide-react";
 import type { CategoryWeeklySpending } from "@/lib/api-client";
-import { fmtAmt, loadPrefs } from "@/lib/prefs";
+import { fmtAmt } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
 const CX = 160;
@@ -9,33 +9,12 @@ const CY = 160;
 const INNER_RADIUS = 76;
 const OUTER_RADIUS = 128;
 const EXPAND = 14;
-const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
-const DUR = "0.48s";
-const TRANS = `${DUR} ${EASE}`;
 const HEADER_H = 24;
-const LEGEND_EXIT_TRANS = `max-width ${TRANS}, margin-left ${TRANS}, opacity 0.15s ease`;
-const LEGEND_ENTER_TRANS = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`;
 
 // Deliberately separated hues keep adjacent paid periods readable even when
 // the category itself is a saturated color.
 const WEEK_COLORS = ["#22d3ee", "#a78bfa", "#fbbf24", "#4ade80"];
 const REMAINING_COLOR = "#374151";
-
-const HINT_KF_ID = "weekly-donut-hint-kf";
-if (typeof document !== "undefined" && !document.getElementById(HINT_KF_ID)) {
-  const style = document.createElement("style");
-  style.id = HINT_KF_ID;
-  style.textContent = `
-    @keyframes weeklyDonutBlink037 { 0% { opacity: 0; } 50% { opacity: .37; } 100% { opacity: 0; } }
-    @keyframes weeklyDonutBlink045 { 0% { opacity: 0; } 50% { opacity: .45; } 100% { opacity: 0; } }
-    @keyframes weeklyDonutBlink053 { 0% { opacity: 0; } 50% { opacity: .53; } 100% { opacity: 0; } }
-    @keyframes weeklyDonutBlink061 { 0% { opacity: 0; } 50% { opacity: .61; } 100% { opacity: 0; } }
-  `;
-  document.head.appendChild(style);
-}
-
-const HINT_ANIM_A = ["weeklyDonutBlink037", "weeklyDonutBlink045", "weeklyDonutBlink053"] as const;
-const HINT_ANIM_B = ["weeklyDonutBlink045", "weeklyDonutBlink053", "weeklyDonutBlink061"] as const;
 
 type Props = {
   data: CategoryWeeklySpending;
@@ -89,16 +68,6 @@ function percentLabel(value: number): string {
 
 export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [mode, setMode] = useState<"compact" | "expanded">("compact");
-  const [containerWidth, setContainerWidth] = useState(320);
-  const [hintKey, setHintKey] = useState(0);
-  const [legendAnimKey, setLegendAnimKey] = useState(0);
-  const lastCenterTapRef = useRef(0);
-  const hintTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const hintRadiiRef = useRef({ r1: INNER_RADIUS - 2, r2: INNER_RADIUS - 2 });
-  const containerRef = useRef<HTMLDivElement>(null);
-  const firstGroupRef = useRef<SVGGElement>(null);
-  const secondGroupRef = useRef<SVGGElement>(null);
 
   const displayItems = useMemo(() => {
     const budgetCents = Math.round(data.budget * 100);
@@ -164,7 +133,6 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
     });
   }, [data]);
 
-  const expanded = mode === "expanded";
   const selectedItem = displayItems.find(item => item.key === selectedKey) ?? null;
   const totalPercentage = data.budget > 0 ? (data.totalSpent / data.budget) * 100 : 0;
   const selectedMidpoint = selectedItem ? (selectedItem.start + selectedItem.end) / 2 : 0;
@@ -173,95 +141,14 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
     ? `translate(${EXPAND * Math.cos(selectedRadians)}px, ${EXPAND * Math.sin(selectedRadians)}px)`
     : "translate(0px, 0px)";
 
-  useLayoutEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-    const width = Math.round(element.getBoundingClientRect().width);
-    if (width > 0) setContainerWidth(width);
-  }, []);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-    const resizeObserver = new ResizeObserver(entries => {
-      const width = Math.round(entries[0].contentRect.width);
-      if (width > 0) setContainerWidth(width);
-    });
-    resizeObserver.observe(element);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  // Match the compact donut's staggered hint pulses. They are intentionally
-  // visual-only and never intercept taps.
-  useEffect(() => {
-    if (loadPrefs().disableAnimations) return;
-    hintTimersRef.current = [3_000, 8_000, 13_000].map((delay, index) =>
-      setTimeout(() => {
-        const minRadius = Math.round(0.65 * (INNER_RADIUS - 2));
-        const maxRadius = INNER_RADIUS - 2;
-        const r1 = minRadius + Math.floor(Math.random() * Math.max(1, maxRadius - minRadius - 4));
-        const r2 = Math.min(maxRadius, r1 + 5 + Math.floor(Math.random() * Math.max(1, maxRadius - r1 - 4)));
-        hintRadiiRef.current = { r1, r2 };
-        setHintKey(index + 1);
-      }, delay),
-    );
-    return () => hintTimersRef.current.forEach(clearTimeout);
-  }, []);
-
-  // Match the subtle two-beat segment wiggle used by the other dashboard donuts.
-  useEffect(() => {
-    if (loadPrefs().disableAnimations) return;
-    const timer = setTimeout(() => {
-      const wiggle = (element: SVGGElement | null, midpoint: number) => {
-        if (!element) return;
-        const radians = ((midpoint - 90) * Math.PI) / 180;
-        const x1 = EXPAND * 0.65 * Math.cos(radians);
-        const y1 = EXPAND * 0.65 * Math.sin(radians);
-        const x2 = EXPAND * 0.38 * Math.cos(radians);
-        const y2 = EXPAND * 0.38 * Math.sin(radians);
-        element.animate([
-          { transform: "translate(0px, 0px)" },
-          { transform: `translate(${x1}px, ${y1}px)`, offset: 0.28 },
-          { transform: "translate(0px, 0px)", offset: 0.5 },
-          { transform: `translate(${x2}px, ${y2}px)`, offset: 0.72 },
-          { transform: "translate(0px, 0px)" },
-        ], { duration: 700, fill: "none" });
-      };
-      if (displayItems.length > 1) {
-        wiggle(firstGroupRef.current, (displayItems[0].start + displayItems[0].end) / 2);
-        setTimeout(() => wiggle(secondGroupRef.current, (displayItems[1].start + displayItems[1].end) / 2), 900);
-      }
-    }, 4_000);
-    return () => clearTimeout(timer);
-  }, [displayItems]);
-
-  useEffect(() => {
-    if (!expanded) setLegendAnimKey(key => key + 1);
-  }, [expanded]);
-
   function handleSegmentClick(key: string) {
     setSelectedKey(previous => previous === key ? null : key);
-  }
-
-  function handleCenterTap() {
-    const now = Date.now();
-    if (now - lastCenterTapRef.current < 350) {
-      const nextMode = expanded ? "compact" : "expanded";
-      setMode(nextMode);
-      hintTimersRef.current.forEach(clearTimeout);
-      hintTimersRef.current = [];
-      setHintKey(0);
-      lastCenterTapRef.current = 0;
-    } else {
-      lastCenterTapRef.current = now;
-    }
   }
 
   const centerPercentage = selectedItem?.percentage ?? totalPercentage;
 
   return (
     <div
-      ref={containerRef}
       className="donut-chart-no-selection"
       onContextMenu={event => event.preventDefault()}
       style={{ display: "flex", flexDirection: "column", width: "100%" }}
@@ -297,13 +184,11 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
             style={{ overflow: "visible", display: "block" }}
             aria-label={t("weekly.chart_label")}
           >
-            {displayItems.map((item, index) => {
+            {displayItems.map(item => {
               const isSelected = selectedKey === item.key;
-              const groupRef = index === 0 ? firstGroupRef : index === 1 ? secondGroupRef : undefined;
               return (
                 <g
                   key={item.key}
-                  ref={groupRef}
                   style={{
                     transform: isSelected ? selectedTranslate : "translate(0px, 0px)",
                     transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
@@ -336,32 +221,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               );
             })}
 
-            {mode === "compact" && hintKey > 0 && (() => {
-              const index = (hintKey - 1) % 3;
-              const { r1, r2 } = hintRadiiRef.current;
-              return (
-                <>
-                  <circle
-                    key={`weekly-hint-a-${hintKey}`}
-                    cx={CX}
-                    cy={CY}
-                    r={r1}
-                    fill="#374151"
-                    style={{ animation: `${HINT_ANIM_A[index]} 0.224s ease 0s both`, pointerEvents: "none" }}
-                  />
-                  <circle
-                    key={`weekly-hint-b-${hintKey}`}
-                    cx={CX}
-                    cy={CY}
-                    r={r2}
-                    fill="#374151"
-                    style={{ animation: `${HINT_ANIM_B[index]} 0.224s ease 0.304s both`, pointerEvents: "none" }}
-                  />
-                </>
-              );
-            })()}
-
-            <g style={{ opacity: expanded ? 0 : 1, transition: `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`, pointerEvents: "none" }}>
+            <g style={{ pointerEvents: "none" }}>
               <text x={CX} y={CY - 9} textAnchor="middle" dominantBaseline="middle" fontSize="28" fontWeight="700" fill="#fff">
                 {percentLabel(centerPercentage)}
               </text>
@@ -369,53 +229,15 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                 {t("donut.of_budget_used")}
               </text>
             </g>
-
-            <g style={{ opacity: expanded ? 1 : 0, transition: `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`, pointerEvents: "none" }}>
-              <circle
-                cx={CX}
-                cy={CY}
-                r={INNER_RADIUS - 4}
-                fill={selectedItem?.color ? `${selectedItem.color}18` : "transparent"}
-              />
-              <text x={CX} y={CY - 19} textAnchor="middle" dominantBaseline="middle" fontSize="28" fontWeight="700" fill="#fff">
-                {percentLabel(centerPercentage)}
-              </text>
-              <text x={CX} y={CY + 4} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="#6b7280">
-                {t("donut.of_budget_used")}
-              </text>
-              {selectedItem && (
-                <text x={CX} y={CY + 47} textAnchor="middle" dominantBaseline="middle" fontSize="8.5" fill="#4b5563">
-                  {selectedItem.label}
-                </text>
-              )}
-              {!selectedItem && (
-                <text x={CX} y={CY + 50} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#374151">
-                  {t("donut.xx_to_exit")}
-                </text>
-              )}
-            </g>
-
-            <circle
-              cx={CX}
-              cy={CY}
-              r={INNER_RADIUS - 2}
-              fill="transparent"
-              role="button"
-              aria-label={expanded ? t("donut.collapse_label") : t("donut.expand_label")}
-              style={{ cursor: "pointer" }}
-              onClick={handleCenterTap}
-            />
           </svg>
         </div>
 
         <div
           style={{
-            maxWidth: expanded ? 0 : 220,
-            marginLeft: expanded ? 0 : 12,
-            opacity: expanded ? 0 : 1,
+            maxWidth: 220,
+            marginLeft: 12,
             overflow: "hidden",
             flexShrink: 1,
-            transition: expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS,
           }}
         >
           <div style={{ width: 160 }} className="space-y-2.5">
@@ -425,7 +247,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               const dimmed = selectedKey !== null && !isSelected;
               return (
                 <button
-                  key={`${item.key}-${legendAnimKey}`}
+                  key={item.key}
                   type="button"
                   className="w-full text-left"
                   style={{
