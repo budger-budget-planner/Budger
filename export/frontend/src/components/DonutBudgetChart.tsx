@@ -578,7 +578,12 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
 
   function beginCategoryLongPress(catKey: string) {
     clearLongPressTimer();
-    const item = spending.find(candidate => (candidate._catKey ?? String(candidate.categoryId ?? "uncategorized")) === catKey);
+    // Keep this lookup in lockstep with buildChart's category-key derivation.
+    // Normal categories are rendered with `cat-${id}`; looking them up as just
+    // `${id}` makes every ordinary category ineligible for the long-press path.
+    const item = spending.find(candidate =>
+      (candidate._catKey ?? `cat-${candidate.categoryId ?? "null"}`) === catKey
+    );
     const eligible = !!item
       && item.categoryId != null
       && !item.isUncategorized
