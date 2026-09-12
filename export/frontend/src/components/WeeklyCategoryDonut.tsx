@@ -168,8 +168,15 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
     setSelectedKey(previous => previous === key ? null : key);
   }
 
-  const centerPercentage = selectedItem?.percentage ?? totalPercentage;
-  const centerSpent = selectedItem?.amount ?? data.totalSpent;
+  // Compact mode mirrors the dashboard donut: the centre always describes the
+  // whole category. A selected period only changes the centre after the donut
+  // has been expanded, matching DonutBudgetChart's interaction model.
+  const centerPercentage = expanded && selectedItem?.percentage != null
+    ? selectedItem.percentage
+    : totalPercentage;
+  const centerSpent = expanded && selectedItem?.amount != null
+    ? selectedItem.amount
+    : data.totalSpent;
 
   return (
     <div
@@ -245,11 +252,26 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
             })}
 
             <g style={{ pointerEvents: "none" }}>
-              <text x={CX} y={CY - 9} textAnchor="middle" dominantBaseline="middle" fontSize="28" fontWeight="700" fill="#fff">
+              <text
+                x={CX}
+                y={CY - 10}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={expanded ? 28 : 32}
+                fontWeight="700"
+                fill="#fff"
+              >
                 {percentLabel(centerPercentage)}
               </text>
-              <text x={CX} y={CY + 16} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#6b7280">
-                {t("donut.of_budget_used")}
+              <text
+                x={CX}
+                y={CY + 16}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={expanded ? 11 : 18}
+                fill="#6b7280"
+              >
+                {t(expanded ? "donut.of_budget_used" : "donut.of_budget")}
               </text>
               {expanded && (
                 <>
@@ -291,12 +313,25 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                   }}
                   onClick={() => handleSegmentClick(item.key)}
                 >
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="truncate leading-tight">{item.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-xs text-muted-foreground truncate leading-tight">
+                      {item.label}
                     </span>
-                    <span className="flex-shrink-0 font-semibold">{fmtAmt(item.amount, currency)}</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 ml-4">
+                    <span className="text-xs font-semibold leading-tight">
+                      {fmtAmt(item.amount, currency)}
+                    </span>
+                    <span
+                      className="text-[11px] font-medium leading-tight"
+                      style={{ color: "#6b7280" }}
+                    >
+                      ({Math.round(item.percentage)}%)
+                    </span>
                   </div>
                 </button>
               );
