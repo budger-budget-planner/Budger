@@ -41,7 +41,7 @@ import {
   getHomeTransactionParams,
   getRetainedHomeMonths,
   getTransactionMonthSummaryQueryOptions,
-  HOME_TRANSACTION_PREFETCH_SIZE,
+  HOME_TRANSACTION_INITIAL_LIMIT,
 } from "@/lib/home-transaction-cache";
 
 const STARTUP_REQUEST_TIMEOUT_MS = 6_000;
@@ -128,7 +128,7 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
     ),
     queryClient.fetchQuery(
       getListTransactionsQueryOptions(
-        { startDate, endDate, limit: HOME_TRANSACTION_PREFETCH_SIZE } as any,
+        { startDate, endDate, limit: HOME_TRANSACTION_INITIAL_LIMIT } as any,
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),

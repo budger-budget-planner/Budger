@@ -2,7 +2,10 @@ import { addMonths, endOfMonth, format, startOfMonth } from "date-fns";
 import { apiFetch, BASE } from "@/lib/api";
 
 export const HOME_TRANSACTION_PAGE_SIZE = 15;
-export const HOME_TRANSACTION_PREFETCH_SIZE = HOME_TRANSACTION_PAGE_SIZE + 1;
+// The summary endpoint is the authoritative has-more signal, so the splash
+// should never fetch an extra transaction just to infer whether another row
+// exists.
+export const HOME_TRANSACTION_INITIAL_LIMIT = HOME_TRANSACTION_PAGE_SIZE;
 export const HOME_TRANSACTION_CACHE_RADIUS = 2;
 
 export type HomeTransactionMonthSummary = {

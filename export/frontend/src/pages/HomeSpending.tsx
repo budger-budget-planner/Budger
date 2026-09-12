@@ -42,6 +42,7 @@ import {
   getHomeTransactionParams,
   getTransactionMonthSummaryQueryOptions,
   HOME_TRANSACTION_PAGE_SIZE,
+  HOME_TRANSACTION_INITIAL_LIMIT,
 } from "@/lib/home-transaction-cache";
 import { prefetchHomeMonthWindow } from "@/lib/prefetch";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -1332,7 +1333,7 @@ export default function HomeSpending() {
     || searchQuery.trim().length > 0;
   const transactionParams = wantsFullMonth
     ? getHomeTransactionParams(viewMonth)
-    : { startDate: fromStr, endDate: toStr, limit: HOME_TRANSACTION_PAGE_SIZE + 1 };
+    : { startDate: fromStr, endDate: toStr, limit: HOME_TRANSACTION_INITIAL_LIMIT };
 
   const { data: categories }    = useListCategories();
   const { data: goals }         = useListGoals();
