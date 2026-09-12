@@ -29,11 +29,13 @@ import type {
   CategoryInput,
   CategorySpending,
   CategoryUpdate,
+  CategoryWeeklySpending,
   CurrencyConvertInput,
   ErrorEnvelope,
   ForgotPinInput,
   ForgotPinOutput,
   FundGreatLarderBody,
+  GetCategoryWeeklySpendingParams,
   GetGoalsSummaryParams,
   GetRecentActivityParams,
   GetSpendingSummaryParams,
@@ -5244,6 +5246,112 @@ export function useGetSpendingSummary<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSpendingSummaryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get category spending grouped into four calendar periods
+ */
+export const getGetCategoryWeeklySpendingUrl = (
+  params: GetCategoryWeeklySpendingParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/summary/category-weeks?${stringifiedParams}`
+    : `/api/summary/category-weeks`;
+};
+
+export const getCategoryWeeklySpending = async (
+  params: GetCategoryWeeklySpendingParams,
+  options?: RequestInit,
+): Promise<CategoryWeeklySpending> => {
+  return customFetch<CategoryWeeklySpending>(
+    getGetCategoryWeeklySpendingUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetCategoryWeeklySpendingQueryKey = (
+  params?: GetCategoryWeeklySpendingParams,
+) => {
+  return [`/api/summary/category-weeks`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCategoryWeeklySpendingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCategoryWeeklySpending>>,
+  TError = ErrorType<void>,
+>(
+  params: GetCategoryWeeklySpendingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategoryWeeklySpending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCategoryWeeklySpendingQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCategoryWeeklySpending>>
+  > = ({ signal }) =>
+    getCategoryWeeklySpending(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCategoryWeeklySpending>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCategoryWeeklySpendingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCategoryWeeklySpending>>
+>;
+export type GetCategoryWeeklySpendingQueryError = ErrorType<void>;
+
+/**
+ * @summary Get category spending grouped into four calendar periods
+ */
+
+export function useGetCategoryWeeklySpending<
+  TData = Awaited<ReturnType<typeof getCategoryWeeklySpending>>,
+  TError = ErrorType<void>,
+>(
+  params: GetCategoryWeeklySpendingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategoryWeeklySpending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCategoryWeeklySpendingQueryOptions(
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

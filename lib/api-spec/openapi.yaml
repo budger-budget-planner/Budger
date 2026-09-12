@@ -1194,6 +1194,40 @@ paths:
                 items:
                   $ref: "#/components/schemas/CategorySpending"
 
+  /summary/category-weeks:
+    get:
+      operationId: getCategoryWeeklySpending
+      tags: [summary]
+      summary: Get category spending grouped into four calendar periods
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+        - name: categoryId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: currency
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Category spending grouped into four calendar periods
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryWeeklySpending"
+        "400":
+          description: Invalid month or category
+        "404":
+          description: Category not found
+
   /summary/monthly:
     get:
       operationId: getMonthlySummary
@@ -2261,6 +2295,46 @@ components:
           type: object
           additionalProperties:
             type: number
+
+    CategoryWeeklyPeriod:
+      type: object
+      required: [index, startDate, endDate, days, spent, entriesCount]
+      properties:
+        index:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        days:
+          type: integer
+        spent:
+          type: number
+        entriesCount:
+          type: integer
+
+    CategoryWeeklySpending:
+      type: object
+      required: [month, categoryId, categoryName, categoryColor, budget, totalSpent, weeks]
+      properties:
+        month:
+          type: string
+        categoryId:
+          type: integer
+        categoryName:
+          type: string
+        categoryColor:
+          type: string
+        budget:
+          type: number
+        totalSpent:
+          type: number
+        weeks:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/CategoryWeeklyPeriod"
 
     TransactionInput:
       type: object

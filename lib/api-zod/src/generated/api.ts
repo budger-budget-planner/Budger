@@ -1595,6 +1595,44 @@ export const GetSpendingSummaryResponse = zod.array(
 );
 
 /**
+ * @summary Get category spending grouped into four calendar periods
+ */
+export const getCategoryWeeklySpendingQueryMonthRegExp = new RegExp(
+  "^\\d{4}-\\d{2}$",
+);
+
+export const GetCategoryWeeklySpendingQueryParams = zod.object({
+  month: zod.coerce.string().regex(getCategoryWeeklySpendingQueryMonthRegExp),
+  categoryId: zod.coerce.number().min(1),
+  currency: zod.coerce.string().optional(),
+});
+
+export const getCategoryWeeklySpendingResponseWeeksMin = 4;
+export const getCategoryWeeklySpendingResponseWeeksMax = 4;
+
+export const GetCategoryWeeklySpendingResponse = zod.object({
+  month: zod.string(),
+  categoryId: zod.number(),
+  categoryName: zod.string(),
+  categoryColor: zod.string(),
+  budget: zod.number(),
+  totalSpent: zod.number(),
+  weeks: zod
+    .array(
+      zod.object({
+        index: zod.number(),
+        startDate: zod.string(),
+        endDate: zod.string(),
+        days: zod.number(),
+        spent: zod.number(),
+        entriesCount: zod.number(),
+      }),
+    )
+    .min(getCategoryWeeklySpendingResponseWeeksMin)
+    .max(getCategoryWeeklySpendingResponseWeeksMax),
+});
+
+/**
  * @summary Get monthly spending totals for the last 6 months
  */
 export const GetMonthlySummaryResponseItem = zod.object({

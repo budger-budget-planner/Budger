@@ -244,6 +244,29 @@ export interface TransactionMonthSummary {
   lockedByCurrency: TransactionMonthSummaryLockedByCurrency;
 }
 
+export interface CategoryWeeklyPeriod {
+  index: number;
+  startDate: string;
+  endDate: string;
+  days: number;
+  spent: number;
+  entriesCount: number;
+}
+
+export interface CategoryWeeklySpending {
+  month: string;
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
+  budget: number;
+  totalSpent: number;
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  weeks: CategoryWeeklyPeriod[];
+}
+
 export interface TransactionInput {
   amount: number;
   description: string;
@@ -893,6 +916,18 @@ export type GetSpendingSummaryParams = {
   startDate?: string;
   endDate?: string;
   month?: string;
+};
+
+export type GetCategoryWeeklySpendingParams = {
+  /**
+   * @pattern ^\d{4}-\d{2}$
+   */
+  month: string;
+  /**
+   * @minimum 1
+   */
+  categoryId: number;
+  currency?: string;
 };
 
 export type GetRecentActivityParams = {
