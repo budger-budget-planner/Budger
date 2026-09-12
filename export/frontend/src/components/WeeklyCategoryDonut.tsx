@@ -8,7 +8,7 @@ const CX = 160;
 const CY = 160;
 const INNER_RADIUS = 75;
 const OUTER_RADIUS = 128;
-const EXPAND = 14;
+const DETACH_DISTANCE = 14;
 const HEADER_H = 24;
 const WEEK_GAP = 2.5;
 
@@ -22,7 +22,6 @@ type Props = {
   currency: string;
   onBack: () => void;
   onShowTransactions: () => void;
-  expanded?: boolean;
 };
 
 type DisplayItem = {
@@ -151,32 +150,16 @@ export function buildWeeklyDonutTransitionSegments(
     }));
 }
 
-export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions, expanded = false }: Props) {
+export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
 
-  const selectedItem = displayItems.find(item => item.key === selectedKey) ?? null;
   const totalPercentage = data.budget > 0 ? (data.totalSpent / data.budget) * 100 : 0;
-  const selectedMidpoint = selectedItem ? (selectedItem.start + selectedItem.end) / 2 : 0;
-  const selectedRadians = ((selectedMidpoint - 90) * Math.PI) / 180;
-  const selectedTranslate = selectedItem
-    ? `translate(${EXPAND * Math.cos(selectedRadians)}px, ${EXPAND * Math.sin(selectedRadians)}px)`
-    : "translate(0px, 0px)";
 
   function handleSegmentClick(key: string) {
     setSelectedKey(previous => previous === key ? null : key);
   }
-
-  // Compact mode mirrors the dashboard donut: the centre always describes the
-  // whole category. A selected period only changes the centre after the donut
-  // has been expanded, matching DonutBudgetChart's interaction model.
-  const centerPercentage = expanded && selectedItem?.percentage != null
-    ? selectedItem.percentage
-    : totalPercentage;
-  const centerSpent = expanded && selectedItem?.amount != null
-    ? selectedItem.amount
-    : data.totalSpent;
 
   return (
     <div
@@ -204,7 +187,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
         <div
           style={{
-            width: expanded ? "100%" : 180,
+            width: 180,
             flexShrink: 0,
           }}
         >
@@ -216,20 +199,32 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
           >
             {displayItems.map(item => {
               const isSelected = selectedKey === item.key;
+              const midpoint = (item.start + item.end) / 2;
+              const radians = ((midpoint - 90) * Math.PI) / 180;
+              const outerRadius = isSelected
+                ? OUTER_RADIUS + DETACH_DISTANCE
+                : OUTER_RADIUS;
+              const path = donutPath(item.start, item.end, outerRadius);
+              const detachX = DETACH_DISTANCE * Math.cos(radians);
+              const detachY = DETACH_DISTANCE * Math.sin(radians);
+              const transform = isSelected
+                ? `translate(${detachX} ${detachY})`
+                : undefined;
+              const isOverBudget = data.totalSpent > data.budget && !item.isRemaining;
+              const borderColor = isOverBudget ? "#ff3333" : `${item.color}90`;
               return (
-                <g
-                  key={item.key}
-                  style={{
-                    transform: isSelected ? selectedTranslate : "translate(0px, 0px)",
-                    transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-                  }}
-                >
+                <g key={item.key}>
                   <path
-                    d={donutPath(item.start, item.end)}
+                    d={path}
                     fill={item.color}
-                    stroke={data.totalSpent > data.budget && !item.isRemaining ? "#ff3333" : "none"}
-                    strokeWidth={data.totalSpent > data.budget && !item.isRemaining ? 3 : 0}
-                    style={{ cursor: "pointer", transition: "all 0.48s cubic-bezier(0.4, 0, 0.2, 1)" }}
+                    stroke={borderColor}
+                    strokeWidth={isOverBudget ? 3 : 1}
+                    strokeLinejoin="round"
+                    transform={transform}
+                    style={{
+                      cursor: "pointer",
+                      transition: "d 0.22s cubic-bezier(0.34,1.56,0.64,1), transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                    }}
                     role="button"
                     aria-label={item.label}
                     onPointerDown={event => event.currentTarget.setPointerCapture(event.pointerId)}
@@ -237,12 +232,16 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                   />
                   {/* Extra stroke target keeps short periods easy to tap on mobile. */}
                   <path
-                    d={donutPath(item.start, item.end)}
+                    d={path}
                     fill="none"
                     stroke="transparent"
                     strokeWidth={16}
+                    transform={transform}
                     pointerEvents="stroke"
-                    style={{ cursor: "pointer" }}
+                    style={{
+                      cursor: "pointer",
+                      transition: "d 0.22s cubic-bezier(0.34,1.56,0.64,1), transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+                    }}
                     aria-hidden="true"
                     onPointerDown={event => event.currentTarget.setPointerCapture(event.pointerId)}
                     onClick={() => handleSegmentClick(item.key)}
@@ -257,32 +256,22 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                 y={CY - 10}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={expanded ? 28 : 32}
+                fontSize={32}
                 fontWeight="700"
                 fill="#fff"
               >
-                {percentLabel(centerPercentage)}
+                {percentLabel(totalPercentage)}
               </text>
               <text
                 x={CX}
                 y={CY + 16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={expanded ? 11 : 18}
+                fontSize={18}
                 fill="#6b7280"
               >
-                {t(expanded ? "donut.of_budget_used" : "donut.of_budget")}
+                {t("donut.of_budget")}
               </text>
-              {expanded && (
-                <>
-                  <text x={CX} y={CY + 32} textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#374151">
-                    {fmtAmt(centerSpent, currency)} / {fmtAmt(data.budget, currency)}
-                  </text>
-                  <text x={CX} y={CY + 50} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#374151">
-                    {t("donut.xx_to_exit")}
-                  </text>
-                </>
-              )}
             </g>
           </svg>
         </div>

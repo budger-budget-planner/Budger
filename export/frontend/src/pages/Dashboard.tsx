@@ -723,7 +723,6 @@ export default function DashboardPage() {
                 <WeeklyCategoryDonut
                   data={weeklyCategory}
                   currency={prefs.currency}
-                   expanded={donutMode === "expanded"}
                    onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
                     const category = (weeklyCategory.categoryName ?? "").trim();
@@ -741,7 +740,6 @@ export default function DashboardPage() {
                   arc={weeklyTransitionArc}
                   colored={weeklyTransitionColored}
                   colorDuration={isWeeklyBackTransition ? 1350 : 1650}
-                  expanded={donutMode === "expanded"}
                 />
               )}
           </div>
