@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
-import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "../db";
+import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable, budgetStretchesTable } from "../db";
 import { eq, desc, and, isNull, or, like, gte, lte, inArray, count, sum, sql } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
 } from "../api-zod";
-import { isNativeCurrency, isValidMonthPrefix, monthsAgoDate, roundMoney, nativeSpendingTxs } from "../lib/summary-helpers";
+import { buildCalendarPeriods, isNativeCurrency, isValidMonthPrefix, monthsAgoDate, roundMoney, nativeSpendingTxs } from "../lib/summary-helpers";
 
 const router: IRouter = Router();
 
@@ -102,6 +102,133 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
 
   const result = await getSpendingGrouped(userId, userCurrency, true, monthPrefix);
   res.json(result);
+});
+
+// ── GET /summary/category-weeks ──────────────────────────────────────────────
+// Returns server-owned calendar periods for one eligible personal category.
+// The browser must not download the month's transactions to calculate this.
+router.get("/summary/category-weeks", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const rawMonth = typeof req.query.month === "string" ? req.query.month : "";
+  const categoryId = Number(req.query.categoryId);
+  if (!isValidMonthPrefix(rawMonth)) {
+    res.status(400).json({ error: "month query param is required (YYYY-MM)" });
+    return;
+  }
+  if (!Number.isInteger(categoryId) || categoryId < 1) {
+    res.status(400).json({ error: "categoryId query param must be a positive integer" });
+    return;
+  }
+
+  const [user] = await db
+    .select({ currency: usersTable.currency })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  const requestedCurrency = typeof req.query.currency === "string"
+    ? req.query.currency
+    : user?.currency;
+  const nativeCurrency = requestedCurrency
+    ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, requestedCurrency))
+    : isNull(transactionsTable.transactionCurrency);
+
+  const [category, transactions, currentStretches, previousMonthStretches] = await Promise.all([
+    db.select({
+      id: categoriesTable.id,
+      name: categoriesTable.name,
+      color: categoriesTable.color,
+      budget: categoriesTable.budget,
+    }).from(categoriesTable).where(and(
+      eq(categoriesTable.id, categoryId),
+      eq(categoriesTable.userId, userId),
+    )),
+    db.select({
+      date: transactionsTable.date,
+      amount: transactionsTable.amount,
+    }).from(transactionsTable).where(and(
+      eq(transactionsTable.userId, userId),
+      eq(transactionsTable.categoryId, categoryId),
+      like(transactionsTable.date, `${rawMonth}-%`),
+      eq(transactionsTable.currencyLocked, false),
+      eq(transactionsTable.currencyUnavailable, false),
+      eq(transactionsTable.foundedWithRealizedGoal, false),
+      eq(transactionsTable.isLarderFund, false),
+      nativeCurrency,
+    )),
+    db.select().from(budgetStretchesTable).where(and(
+      eq(budgetStretchesTable.userId, userId),
+      eq(budgetStretchesTable.month, rawMonth),
+    )),
+    (() => {
+      const [year, monthNumber] = rawMonth.split("-").map(Number);
+      const previous = new Date(year, monthNumber - 2, 1);
+      const previousMonth = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`;
+      return db.select().from(budgetStretchesTable).where(and(
+        eq(budgetStretchesTable.userId, userId),
+        eq(budgetStretchesTable.month, previousMonth),
+        eq(budgetStretchesTable.stretchType, "cross_month"),
+      ));
+    })(),
+  ]);
+
+  const categoryRow = category[0];
+  if (!categoryRow) {
+    res.status(404).json({ error: "Category not found" });
+    return;
+  }
+
+  const baseBudget = Number(categoryRow.budget ?? 0);
+  let budgetAdjustment = 0;
+  for (const stretch of currentStretches) {
+    if (stretch.toCategoryId === categoryId) budgetAdjustment += Number(stretch.amount);
+    if (
+      stretch.stretchType === "cross_category" &&
+      stretch.fromCategoryId === categoryId &&
+      stretch.toCategoryId !== categoryId
+    ) {
+      budgetAdjustment -= Number(stretch.amount);
+    }
+  }
+  // A cross-month stretch recorded in the previous month borrows from this
+  // month's budget, so it reduces the effective amount available here.
+  for (const stretch of previousMonthStretches) {
+    if (stretch.toCategoryId === categoryId) budgetAdjustment -= Number(stretch.amount);
+  }
+  const budget = roundMoney(Math.max(0, baseBudget + budgetAdjustment));
+
+  const periods = buildCalendarPeriods(rawMonth);
+  const weeklyTotals = periods.map(() => ({ spent: 0, entriesCount: 0 }));
+  for (const transaction of transactions) {
+    const transactionDate = transaction.date.slice(0, 10);
+    const period = periods.findIndex(
+      candidate => transactionDate >= candidate.startDate && transactionDate <= candidate.endDate,
+    );
+    if (period >= 0) {
+      weeklyTotals[period].spent += Number(transaction.amount);
+      weeklyTotals[period].entriesCount += 1;
+    }
+  }
+  const totalSpent = roundMoney(weeklyTotals.reduce((total, week) => total + week.spent, 0));
+
+  if (budget <= 0 || totalSpent <= 0) {
+    res.status(422).json({ error: "Category is not eligible for weekly drill-down" });
+    return;
+  }
+
+  res.json({
+    month: rawMonth,
+    categoryId: categoryRow.id,
+    categoryName: categoryRow.name,
+    categoryColor: categoryRow.color,
+    budget,
+    totalSpent,
+    weeks: periods.map((period, index) => ({
+      ...period,
+      spent: roundMoney(weeklyTotals[index].spent),
+      entriesCount: weeklyTotals[index].entriesCount,
+    })),
+  });
 });
 
 router.get("/summary/transactions", async (req, res): Promise<void> => {

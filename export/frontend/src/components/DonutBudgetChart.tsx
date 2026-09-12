@@ -419,9 +419,11 @@ type Props = {
    *  month differs from the base prefs.totalBudget. Pass this adjusted value to
    *  show a corrected percentage in the donut centre and the orange stretch label. */
   adjustedTotalBudget?: number | null;
+  /** Fired after an eligible category has been held for roughly 500 ms. */
+  onCategoryLongPress?: (item: SpendingItem) => void;
 };
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -438,6 +440,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const lastCenterTapRef  = useRef<number>(0);
   // Pending hint-pulse timer IDs — exposed here so a double-tap can cancel them
   const hintTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggeredRef = useRef(false);
   const containerRef     = useRef<HTMLDivElement>(null);
   // Random radii for the two circles in each hint firing (r1 < r2, both ≥ 65 % of hole)
   const hintRadiiRef = useRef<{ r1: number; r2: number }>({ r1: RI - 2, r2: RI - 2 });
@@ -565,7 +569,40 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   }, []);
 
   // ── Interaction handlers ──────────────────────────────────────────────────
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function beginCategoryLongPress(catKey: string) {
+    clearLongPressTimer();
+    const item = spending.find(candidate => (candidate._catKey ?? String(candidate.categoryId ?? "uncategorized")) === catKey);
+    const eligible = !!item
+      && item.categoryId != null
+      && !item.isUncategorized
+      && !item.isRecurringApplied
+      && Number(item.budget ?? 0) > 0
+      && item.total > 0;
+    if (!eligible || !item || !onCategoryLongPress) return;
+    longPressTriggeredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      onCategoryLongPress(item);
+      longPressTimerRef.current = null;
+    }, 500);
+  }
+
+  function endCategoryLongPress() {
+    clearLongPressTimer();
+  }
+
   function handleSegmentClick(catKey: string) {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     setSelectedCat(prev => (prev === catKey ? null : catKey));
   }
 
@@ -694,6 +731,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                     filter:     seg.isOverBudget ? `url(#${idRedGlow})` : "none",
                     cursor:     "pointer",
                   }}
+                  onPointerDown={() => beginCategoryLongPress(seg.catKey)}
+                  onPointerUp={endCategoryLongPress}
+                  onPointerLeave={endCategoryLongPress}
+                  onPointerCancel={endCategoryLongPress}
                   onClick={() => handleSegmentClick(seg.catKey)}
                 />
               );
@@ -1116,6 +1157,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 className="w-full text-left"
                 style={{ opacity: dimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
                 onClick={() => handleSegmentClick(item.catKey)}
+                onPointerDown={() => beginCategoryLongPress(item.catKey)}
+                onPointerUp={endCategoryLongPress}
+                onPointerLeave={endCategoryLongPress}
+                onPointerCancel={endCategoryLongPress}
               >
                 <div className="flex items-center gap-1.5">
                   <span

@@ -62,3 +62,45 @@ export function nativeSpendingTxs(
       isNativeCurrency(tx, userCurrency),
   );
 }
+
+export type CalendarPeriod = {
+  index: number;
+  startDate: string;
+  endDate: string;
+  days: number;
+};
+
+function formatCalendarDate(year: number, monthIndex: number, day: number): string {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Splits a calendar month into four deterministic, contiguous periods.
+ * Extra days are assigned from the beginning of the month:
+ * 28 → 7/7/7/7, 29 → 8/7/7/7, 30 → 8/8/7/7, 31 → 8/8/8/7.
+ */
+export function buildCalendarPeriods(month: string): CalendarPeriod[] {
+  if (!isValidMonthPrefix(month)) {
+    throw new Error("Invalid month format, expected YYYY-MM");
+  }
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const monthIndex = monthNumber - 1;
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const baseDays = Math.floor(daysInMonth / 4);
+  const extraDays = daysInMonth % 4;
+  let cursor = 1;
+
+  return Array.from({ length: 4 }, (_, index) => {
+    const days = baseDays + (index < extraDays ? 1 : 0);
+    const startDay = cursor;
+    const endDay = cursor + days - 1;
+    cursor = endDay + 1;
+    return {
+      index,
+      startDate: formatCalendarDate(year, monthIndex, startDay),
+      endDate: formatCalendarDate(year, monthIndex, endDay),
+      days,
+    };
+  });
+}

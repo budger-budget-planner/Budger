@@ -471,6 +471,26 @@ export interface CategorySpending {
   recurringPaymentId: number | null;
 }
 
+export interface CategoryWeeklyPeriod {
+  index: number;
+  startDate: string;
+  endDate: string;
+  days: number;
+  spent: number;
+  entriesCount: number;
+}
+
+export interface CategoryWeeklySpending {
+  month: string;
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
+  budget: number;
+  totalSpent: number;
+  /** Exactly four server-defined calendar periods. */
+  weeks: CategoryWeeklyPeriod[];
+}
+
 export interface MonthlyTotal {
   month: string;
   year: number;
@@ -782,6 +802,14 @@ export type GetSpendingSummaryParams = {
   startDate?: string;
   endDate?: string;
   month?: string;
+};
+
+export type GetCategoryWeeklySpendingParams = {
+  /** @pattern ^\d{4}-\d{2}$ */
+  month: string;
+  /** @minimum 1 */
+  categoryId: number;
+  currency?: string;
 };
 
 export type GetRecentActivityParams = {

@@ -80,6 +80,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "donut.xx_to_exit":       { en: "×× to exit",             pl: "×× aby wyjść"             },
   "donut.collapse_label":   { en: "Double-tap to collapse chart", pl: "Podwójne dotknięcie, aby zwinąć" },
   "donut.expand_label":     { en: "Double-tap to expand chart",   pl: "Podwójne dotknięcie, aby rozwinąć" },
+  "weekly.week":             { en: "Week",               pl: "Tydzień" },
+  "weekly.remaining":        { en: "Remaining budget",    pl: "Pozostały budżet" },
+  "weekly.budget":           { en: "budget",             pl: "budżet" },
+  "weekly.back":             { en: "Back to categories",  pl: "Wróć do kategorii" },
+  "weekly.show_transactions":{ en: "Show transactions",   pl: "Pokaż transakcje" },
+  "weekly.chart_label":      { en: "Weekly category spending", pl: "Tygodniowe wydatki kategorii" },
 
   // ── Dashboard ──
   "dashboard.title":          { en: "Dashboard",           pl: "Pulpit"                       },

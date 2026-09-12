@@ -12,6 +12,7 @@ import {
   useGetMe,
   useListHouseholdMembers,
   useListBudgetStretches,
+  useGetCategoryWeeklySpending,
 } from "@/lib/api-client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +20,7 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 import DonutBudgetChart from "@/components/DonutBudgetChart";
+import WeeklyCategoryDonut from "@/components/WeeklyCategoryDonut";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { loadPrefs, savePrefs, fmtAmt, fmtAmtRound, currencySymbol } from "@/lib/prefs";
@@ -53,6 +55,7 @@ export default function DashboardPage() {
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const [, navigate] = useLocation();
   const [viewDate, setViewDate] = useState(new Date());
+  const [weeklyCategoryId, setWeeklyCategoryId] = useState<number | null>(null);
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
@@ -81,7 +84,19 @@ export default function DashboardPage() {
   const { data: spendingRaw, isLoading: spendingLoading } = useGetSpendingSummary({ month: viewMonth, currency: prefs.currency } as any);
   const { data: recurringPayments } = useListRecurringPayments({ query: { enabled: isCurrentMonth } as any });
   const { data: categories } = useListCategories();
+  const { data: weeklyCategory, isLoading: weeklyLoading, isError: weeklyError } = useGetCategoryWeeklySpending(
+    {
+      month: viewMonth,
+      categoryId: weeklyCategoryId ?? 1,
+      currency: prefs.currency,
+    },
+    { query: { enabled: weeklyCategoryId !== null } as any },
+  );
   const updateMe = useUpdateMe({ mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) } });
+
+  useEffect(() => {
+    setWeeklyCategoryId(null);
+  }, [viewMonth]);
 
   // IDs of household RPs — used to exclude them from the donut chart entirely.
   const householdRpIds = new Set<number>((householdRPs ?? []).map((rp: any) => rp.id));
@@ -376,7 +391,28 @@ export default function DashboardPage() {
         {/* Spending by Category — budget-based donut */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">{t("dashboard.by_category")}</p>
-          {spendingLoading ? (
+          {weeklyCategoryId !== null && weeklyCategory ? (
+            <WeeklyCategoryDonut
+              data={weeklyCategory}
+              currency={prefs.currency}
+              onBack={() => setWeeklyCategoryId(null)}
+              onShowTransactions={() => {
+                const category = (weeklyCategory.categoryName ?? "").trim();
+                navigate(`/?month=${encodeURIComponent(viewMonth)}&category=${encodeURIComponent(category)}`);
+              }}
+            />
+          ) : weeklyCategoryId !== null && weeklyLoading ? (
+            <div className="h-44 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : weeklyCategoryId !== null && weeklyError ? (
+            <div className="h-44 flex flex-col items-center justify-center gap-3 text-center">
+              <p className="text-sm text-muted-foreground">{t("common.error")}</p>
+              <button className="text-xs underline underline-offset-2" onClick={() => setWeeklyCategoryId(null)}>
+                {t("weekly.back")}
+              </button>
+            </div>
+          ) : spendingLoading ? (
             <div className="h-44 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
@@ -390,6 +426,17 @@ export default function DashboardPage() {
                 (recurringPayments?.length ?? 0) > 0
               }
               adjustedTotalBudget={adjustedTotalBudgetForChart}
+               onCategoryLongPress={(item: any) => {
+                 if (
+                   item.categoryId != null &&
+                   !item.isUncategorized &&
+                   !item.isRecurringApplied &&
+                   Number(item.budget ?? 0) > 0 &&
+                   Number(item.total ?? 0) > 0
+                 ) {
+                   setWeeklyCategoryId(Number(item.categoryId));
+                 }
+               }}
             />
           ) : spendingForChartEnriched && spendingForChartEnriched.length > 0 ? (
             /* Fallback: no total budget set — show spending-proportional donut */

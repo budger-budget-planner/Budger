@@ -5,6 +5,7 @@ import {
   monthsAgoDate,
   roundMoney,
   nativeSpendingTxs,
+  buildCalendarPeriods,
 } from "../lib/summary-helpers";
 
 // ─── isNativeCurrency ────────────────────────────────────────────────────────
@@ -100,6 +101,31 @@ describe("roundMoney", () => {
   });
   it("handles negative amounts", () => {
     expect(roundMoney(-9.999)).toBe(-10);
+  });
+});
+
+// ─── buildCalendarPeriods ────────────────────────────────────────────────────
+
+describe("buildCalendarPeriods", () => {
+  it.each([
+    ["2023-02", [7, 7, 7, 7]],
+    ["2024-02", [8, 7, 7, 7]],
+    ["2024-04", [8, 8, 7, 7]],
+    ["2024-06", [8, 8, 7, 7]],
+    ["2024-07", [8, 8, 8, 7]],
+  ])("splits %s into deterministic day counts", (month, expected) => {
+    expect(buildCalendarPeriods(month).map(period => period.days)).toEqual(expected);
+  });
+
+  it("assigns the leap-day extra day to the first period", () => {
+    expect(buildCalendarPeriods("2024-02").map(period => period.days)).toEqual([8, 7, 7, 7]);
+  });
+
+  it("returns contiguous server date boundaries", () => {
+    const periods = buildCalendarPeriods("2025-04");
+    expect(periods[0]).toMatchObject({ startDate: "2025-04-01", endDate: "2025-04-08" });
+    expect(periods[3]).toMatchObject({ startDate: "2025-04-24", endDate: "2025-04-30" });
+    expect(periods[1].startDate).toBe("2025-04-09");
   });
 });
 
