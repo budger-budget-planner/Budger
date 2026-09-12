@@ -37,6 +37,7 @@ import type {
   GetGoalsSummaryParams,
   GetRecentActivityParams,
   GetSpendingSummaryParams,
+  GetTransactionMonthSummaryParams,
   Goal,
   GoalContribution,
   GoalContributionInput,
@@ -91,6 +92,7 @@ import type {
   SetNotificationItemReadBody,
   Transaction,
   TransactionInput,
+  TransactionMonthSummary,
   TransactionUpdate,
   UpdateMerchantCategoryRuleInput,
   UploadUrlRequest,
@@ -1531,6 +1533,112 @@ export const useCreateTransaction = <
 > => {
   return useMutation(getCreateTransactionMutationOptions(options));
 };
+
+/**
+ * @summary Get aggregate transaction totals for a date range
+ */
+export const getGetTransactionMonthSummaryUrl = (
+  params: GetTransactionMonthSummaryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/summary/transactions?${stringifiedParams}`
+    : `/api/summary/transactions`;
+};
+
+export const getTransactionMonthSummary = async (
+  params: GetTransactionMonthSummaryParams,
+  options?: RequestInit,
+): Promise<TransactionMonthSummary> => {
+  return customFetch<TransactionMonthSummary>(
+    getGetTransactionMonthSummaryUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetTransactionMonthSummaryQueryKey = (
+  params?: GetTransactionMonthSummaryParams,
+) => {
+  return [`/api/summary/transactions`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTransactionMonthSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTransactionMonthSummary>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetTransactionMonthSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTransactionMonthSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTransactionMonthSummaryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTransactionMonthSummary>>
+  > = ({ signal }) =>
+    getTransactionMonthSummary(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTransactionMonthSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTransactionMonthSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTransactionMonthSummary>>
+>;
+export type GetTransactionMonthSummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get aggregate transaction totals for a date range
+ */
+
+export function useGetTransactionMonthSummary<
+  TData = Awaited<ReturnType<typeof getTransactionMonthSummary>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetTransactionMonthSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTransactionMonthSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTransactionMonthSummaryQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get a transaction

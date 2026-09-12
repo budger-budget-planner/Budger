@@ -37,6 +37,13 @@ import {
   useGetGoalsSummary,
   useListBudgetStretches,
 } from "@/lib/api-client";
+import {
+  currentMonthKey,
+  getHomeTransactionParams,
+  getTransactionMonthSummaryQueryOptions,
+  HOME_TRANSACTION_PAGE_SIZE,
+} from "@/lib/home-transaction-cache";
+import { prefetchHomeMonthWindow } from "@/lib/prefetch";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMutationWithQueue } from "@/hooks/useMutationWithQueue";
 import { useOfflinePendingOps } from "@/hooks/useOfflinePendingOps";
@@ -829,6 +836,7 @@ function SplitSheet({
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+  qc.invalidateQueries({ queryKey: ["home-transaction-month-summary"] });
   qc.invalidateQueries({ queryKey: getGetSpendingSummaryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetMonthlySummaryQueryKey() });
   qc.invalidateQueries({ queryKey: getGetRecentActivityQueryKey() });
@@ -1267,6 +1275,7 @@ export default function HomeSpending() {
   const sym = currencySymbol(prefs.currency);
 
   const [viewDate,     setViewDate]    = useState(new Date());
+  const [showAllMonth, setShowAllMonth] = useState<string | null>(null);
   const [addOpen,      setAddOpen]     = useState(false);
   const [editTx,       setEditTx]      = useState<any | null>(null);
   const [receiptTx,    setReceiptTx]   = useState<any | null>(null);
@@ -1316,8 +1325,14 @@ export default function HomeSpending() {
   const monthEnd       = endOfMonth(viewDate);
   const fromStr        = format(monthStart, "yyyy-MM-dd");
   const toStr          = format(monthEnd,   "yyyy-MM-dd");
-  const isCurrentMonth = format(viewDate, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const viewMonth      = format(viewDate, "yyyy-MM");
+  const isCurrentMonth = viewMonth === currentMonthKey();
+  const wantsFullMonth = !isCurrentMonth
+    || showAllMonth === viewMonth
+    || searchQuery.trim().length > 0;
+  const transactionParams = wantsFullMonth
+    ? getHomeTransactionParams(viewMonth)
+    : { startDate: fromStr, endDate: toStr, limit: HOME_TRANSACTION_PAGE_SIZE + 1 };
 
   const { data: categories }    = useListCategories();
   const { data: goals }         = useListGoals();
@@ -1327,7 +1342,11 @@ export default function HomeSpending() {
     { query: { queryKey: getListGoalContributionsQueryKey({ month: viewMonth }) } }
   );
   const { data: larderSummary } = useGetLarder();
-  const { data: transactions, isLoading } = useListTransactions({ startDate: fromStr, endDate: toStr } as any);
+  const { data: transactions, isLoading } = useListTransactions(transactionParams as any);
+  const { data: monthSummary } = useQuery({
+    ...getTransactionMonthSummaryQueryOptions(viewMonth),
+    staleTime: 30_000,
+  });
   const { data: recurringPayments } = useListRecurringPayments({
     query: { enabled: isCurrentMonth } as any,
   });
@@ -1364,6 +1383,10 @@ export default function HomeSpending() {
   }, [breakdownAnimation, queryClient]);
 
   const { data: monthStretches } = useListBudgetStretches({ month: viewMonth } as any);
+
+  useEffect(() => {
+    void prefetchHomeMonthWindow(queryClient, viewMonth);
+  }, [queryClient, viewMonth]);
   const applyRP = useMutationWithQueue({
     endpoint: (vars: { id: number; data: any; scope?: string }) =>
       vars.scope === "household"
@@ -1447,18 +1470,20 @@ export default function HomeSpending() {
     },
   });
 
-  const sorted = [...(transactions ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...(transactions ?? [])]
+    .slice(0, wantsFullMonth ? undefined : HOME_TRANSACTION_PAGE_SIZE)
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Locked / unavailable currency transactions are excluded from the main budget total
   const isLockedForeign = (tx: any) =>
     tx.currencyLocked && tx.transactionCurrency && tx.transactionCurrency !== prefs.currency
     && !tx.currencyUnavailable;
 
-  const total = sorted
+  const calculatedTotal = sorted
     .filter(tx => !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency) && !(tx as any).foundedWithRealizedGoal && !(tx as any).isLarderFund)
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
-  const realizedGoalExcluded = sorted
+  const calculatedRealizedGoalExcluded = sorted
     .filter(tx => !!(tx as any).foundedWithRealizedGoal && !tx.currencyLocked && !(tx as any).currencyUnavailable && (!tx.transactionCurrency || tx.transactionCurrency === prefs.currency))
     .reduce((s, tx) => s + Number(tx.amount), 0);
 
@@ -1470,7 +1495,15 @@ export default function HomeSpending() {
       lockedByCurrency[cur] = (lockedByCurrency[cur] ?? 0) + Number(tx.amount);
     }
   }
-  const lockedEntries = Object.entries(lockedByCurrency);
+  const lockedEntries = Object.entries(monthSummary?.lockedByCurrency ?? lockedByCurrency);
+  const total = monthSummary?.spendingTotal ?? calculatedTotal;
+  const realizedGoalExcluded = monthSummary?.realizedGoalExcluded ?? calculatedRealizedGoalExcluded;
+  const entryCount = monthSummary?.entriesCount ?? sorted.length;
+  const hasMoreThisMonth = isCurrentMonth
+    && showAllMonth !== viewMonth
+    && (monthSummary
+      ? monthSummary.entriesCount > HOME_TRANSACTION_PAGE_SIZE
+      : (transactions?.length ?? 0) > HOME_TRANSACTION_PAGE_SIZE);
 
   const totalBudget = prefs.totalBudget;
   const budgetPct   = totalBudget ? Math.min((total / totalBudget) * 100, 100) : 0;
@@ -1820,7 +1853,7 @@ export default function HomeSpending() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
-                  <p className="text-3xl font-bold">{sorted.length}</p>
+                  <p className="text-3xl font-bold">{entryCount}</p>
                 </div>
               </div>
             </>
@@ -1867,7 +1900,7 @@ export default function HomeSpending() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{t("home.entries")}</p>
-                  <p className="text-2xl font-bold">{sorted.length}</p>
+                  <p className="text-2xl font-bold">{entryCount}</p>
                 </div>
               </div>
 
@@ -2292,6 +2325,16 @@ export default function HomeSpending() {
               </div>
             </div>
           ))
+        )}
+        {hasMoreThisMonth && (
+          <Button
+            variant="outline"
+            className="w-full rounded-xl"
+            onClick={() => setShowAllMonth(viewMonth)}
+            disabled={!isOnline}
+          >
+            {t("home.show_all_for_month")}
+          </Button>
         )}
       </div>
 

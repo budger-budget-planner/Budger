@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, transactionsTable, categoriesTable, usersTable, goalsTable, goalContributionsTable, recurringPaymentsTable } from "../db";
-import { eq, desc, and, isNull, or, like, gte, inArray, count, sum, sql } from "drizzle-orm";
+import { eq, desc, and, isNull, or, like, gte, lte, inArray, count, sum, sql } from "drizzle-orm";
 import {
   GetSpendingSummaryQueryParams,
   GetRecentActivityQueryParams,
@@ -102,6 +102,80 @@ router.get("/summary/spending", async (req, res): Promise<void> => {
 
   const result = await getSpendingGrouped(userId, userCurrency, true, monthPrefix);
   res.json(result);
+});
+
+router.get("/summary/transactions", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+
+  const query = GetSpendingSummaryQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
+
+  const { startDate, endDate } = query.data;
+  if (
+    !startDate ||
+    !endDate ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
+  ) {
+    res.status(400).json({ error: "startDate and endDate must use YYYY-MM-DD" });
+    return;
+  }
+
+  const [user] = await db
+    .select({ currency: usersTable.currency })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  const nativeCurrency = user?.currency
+    ? or(isNull(transactionsTable.transactionCurrency), eq(transactionsTable.transactionCurrency, user.currency))
+    : isNull(transactionsTable.transactionCurrency);
+  const dateScope = and(
+    eq(transactionsTable.userId, userId),
+    gte(transactionsTable.date, startDate),
+    lte(transactionsTable.date, endDate),
+  );
+  const spendScope = and(
+    dateScope,
+    eq(transactionsTable.currencyLocked, false),
+    eq(transactionsTable.currencyUnavailable, false),
+    eq(transactionsTable.foundedWithRealizedGoal, false),
+    eq(transactionsTable.isLarderFund, false),
+    nativeCurrency,
+  );
+  const realizedScope = and(
+    dateScope,
+    eq(transactionsTable.currencyLocked, false),
+    eq(transactionsTable.currencyUnavailable, false),
+    eq(transactionsTable.foundedWithRealizedGoal, true),
+    nativeCurrency,
+  );
+  const lockedScope = and(
+    dateScope,
+    eq(transactionsTable.currencyLocked, true),
+    eq(transactionsTable.currencyUnavailable, false),
+  );
+
+  const [entryCountRows, spendingRows, realizedRows, lockedRows] = await Promise.all([
+    db.select({ count: count() }).from(transactionsTable).where(dateScope),
+    db.select({ total: sum(transactionsTable.amount) }).from(transactionsTable).where(spendScope),
+    db.select({ total: sum(transactionsTable.amount) }).from(transactionsTable).where(realizedScope),
+    db.select({
+      currency: transactionsTable.transactionCurrency,
+      total: sum(transactionsTable.amount),
+    }).from(transactionsTable).where(lockedScope).groupBy(transactionsTable.transactionCurrency),
+  ]);
+
+  const lockedByCurrency: Record<string, number> = {};
+  for (const row of lockedRows) {
+    if (row.currency) lockedByCurrency[row.currency] = Number(row.total ?? 0);
+  }
+
+  res.json({
+    entriesCount: Number(entryCountRows[0]?.count ?? 0),
+    spendingTotal: Math.round(Number(spendingRows[0]?.total ?? 0) * 100) / 100,
+    realizedGoalExcluded: Math.round(Number(realizedRows[0]?.total ?? 0) * 100) / 100,
+    lockedByCurrency,
+  });
 });
 
 router.get("/summary/realized-excluded", async (req, res): Promise<void> => {

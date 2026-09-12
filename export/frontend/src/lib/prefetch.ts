@@ -19,7 +19,6 @@
  */
 
 import { type QueryClient } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth } from "date-fns";
 import { fetchWithTimeout } from "@/lib/request-timeout";
 import {
   getGetMeQueryOptions,
@@ -32,7 +31,18 @@ import {
   getListBudgetStretchesQueryOptions,
   getListTransactionsQueryOptions,
   getListHouseholdMembersQueryOptions,
+  getListTransactionsQueryKey,
+  getListGoalContributionsQueryKey,
+  getListBudgetStretchesQueryKey,
 } from "@/lib/api-client";
+import {
+  currentMonthKey,
+  getHomeMonthParams,
+  getHomeTransactionParams,
+  getRetainedHomeMonths,
+  getTransactionMonthSummaryQueryOptions,
+  HOME_TRANSACTION_PREFETCH_SIZE,
+} from "@/lib/home-transaction-cache";
 
 const STARTUP_REQUEST_TIMEOUT_MS = 6_000;
 // Retry the wave as a unit from SplashScreen. Nested retries here can turn one
@@ -43,11 +53,7 @@ const STARTUP_REQUEST_OPTIONS = { timeoutMs: STARTUP_REQUEST_TIMEOUT_MS };
 
 /** ISO date helpers for the current month */
 function currentMonthParams() {
-  const now    = new Date();
-  const month  = format(now, "yyyy-MM");
-  const startDate = format(startOfMonth(now), "yyyy-MM-dd");
-  const endDate   = format(endOfMonth(now),   "yyyy-MM-dd");
-  return { month, startDate, endDate };
+  return getHomeMonthParams(currentMonthKey());
 }
 
 /**
@@ -122,10 +128,11 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
     ),
     queryClient.fetchQuery(
       getListTransactionsQueryOptions(
-        { startDate, endDate } as any,
+        { startDate, endDate, limit: HOME_TRANSACTION_PREFETCH_SIZE } as any,
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
     ),
+    queryClient.fetchQuery(getTransactionMonthSummaryQueryOptions(month, STARTUP_REQUEST_TIMEOUT_MS)),
   ]);
 
   // Household members and household recurring payments are useful immediately
@@ -137,6 +144,100 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
       // The mounted components own the visible retry/error state for these
       // secondary queries. A secondary failure must not hold the splash open.
     });
+  }
+
+  void prefetchHomeMonthWindow(queryClient, month).catch(() => {
+    // Background month hydration must never hold the splash open.
+  });
+}
+
+async function prefetchHomeMonthBundle(
+  queryClient: QueryClient,
+  month: string,
+): Promise<void> {
+  const { month: monthKey } = getHomeMonthParams(month);
+  await Promise.all([
+    queryClient.fetchQuery(
+      getListTransactionsQueryOptions(
+        getHomeTransactionParams(monthKey),
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
+    queryClient.fetchQuery(
+      getTransactionMonthSummaryQueryOptions(monthKey, STARTUP_REQUEST_TIMEOUT_MS),
+    ),
+    queryClient.fetchQuery(
+      getListGoalContributionsQueryOptions(
+        { month: monthKey },
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
+    queryClient.fetchQuery(
+      getListBudgetStretchesQueryOptions(
+        { month: monthKey } as any,
+        { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
+      ),
+    ),
+  ]);
+}
+
+function monthFromQueryKey(queryKey: readonly unknown[]): string | null {
+  const params = queryKey[1];
+  if (!params || typeof params !== "object") return null;
+  const startDate = (params as { startDate?: unknown }).startDate;
+  return typeof startDate === "string" ? startDate.slice(0, 7) : null;
+}
+
+function pruneHomeMonthCache(queryClient: QueryClient, retainedMonths: Set<string>): void {
+  const currentMonth = currentMonthKey();
+  for (const query of queryClient.getQueryCache().findAll()) {
+    const key = query.queryKey;
+    let month: string | null = null;
+    if (key[0] === "/api/transactions") {
+      month = monthFromQueryKey(key);
+    } else if (key[0] === "home-transaction-month-summary") {
+      month = typeof key[1] === "string" ? key[1] : null;
+    } else if (key[0] === "/api/goal-contributions") {
+      const params = key[1];
+      month = params && typeof params === "object" && typeof (params as any).month === "string"
+        ? (params as any).month
+        : null;
+    } else if (key[0] === "/api/budget-stretches") {
+      const params = key[1];
+      month = params && typeof params === "object" && typeof (params as any).month === "string"
+        ? (params as any).month
+        : null;
+    }
+    if (month && month !== currentMonth && !retainedMonths.has(month)) {
+      queryClient.removeQueries({ queryKey: key, exact: true });
+    }
+  }
+}
+
+/**
+ * Keep the current month pinned and hydrate the selected month plus its
+ * two-month neighborhood. Bundles are loaded one month at a time so a deep
+ * navigation does not create another request storm.
+ */
+export async function prefetchHomeMonthWindow(
+  queryClient: QueryClient,
+  selectedMonth: string,
+): Promise<void> {
+  const retainedMonths = getRetainedHomeMonths(selectedMonth);
+  pruneHomeMonthCache(queryClient, new Set(retainedMonths));
+
+  for (const month of retainedMonths) {
+    const transactionKey = getListTransactionsQueryKey(getHomeTransactionParams(month));
+    const hasFullTransactions = queryClient.getQueryData(transactionKey) !== undefined;
+    const hasSummary = queryClient.getQueryData(
+      getTransactionMonthSummaryQueryOptions(month).queryKey,
+    ) !== undefined;
+    if (hasFullTransactions && hasSummary) continue;
+    try {
+      await prefetchHomeMonthBundle(queryClient, month);
+    } catch {
+      // A later navigation or the active month query can retry this bundle.
+    }
   }
 }
 

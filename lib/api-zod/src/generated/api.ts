@@ -362,6 +362,21 @@ export const CreateTransactionBody = zod.object({
 });
 
 /**
+ * @summary Get aggregate transaction totals for a date range
+ */
+export const GetTransactionMonthSummaryQueryParams = zod.object({
+  startDate: zod.coerce.string(),
+  endDate: zod.coerce.string(),
+});
+
+export const GetTransactionMonthSummaryResponse = zod.object({
+  entriesCount: zod.number(),
+  spendingTotal: zod.number(),
+  realizedGoalExcluded: zod.number(),
+  lockedByCurrency: zod.record(zod.string(), zod.number()),
+});
+
+/**
  * @summary Get a transaction
  */
 export const GetTransactionParams = zod.object({

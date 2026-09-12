@@ -358,6 +358,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
+  /summary/transactions:
+    get:
+      operationId: getTransactionMonthSummary
+      tags: [summary]
+      summary: Get aggregate transaction totals for a date range
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Aggregate transaction totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionMonthSummary"
+
   /transactions/{id}:
     get:
       operationId: getTransaction
@@ -2218,6 +2242,25 @@ components:
         - recurringPaymentId
         - recurringPaymentName
         - recurringPaymentColor
+
+    TransactionMonthSummary:
+      type: object
+      required:
+        - entriesCount
+        - spendingTotal
+        - realizedGoalExcluded
+        - lockedByCurrency
+      properties:
+        entriesCount:
+          type: integer
+        spendingTotal:
+          type: number
+        realizedGoalExcluded:
+          type: number
+        lockedByCurrency:
+          type: object
+          additionalProperties:
+            type: number
 
     TransactionInput:
       type: object

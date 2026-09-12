@@ -235,6 +235,15 @@ export interface Transaction {
   stretch?: BudgetStretch | null;
 }
 
+export type TransactionMonthSummaryLockedByCurrency = { [key: string]: number };
+
+export interface TransactionMonthSummary {
+  entriesCount: number;
+  spendingTotal: number;
+  realizedGoalExcluded: number;
+  lockedByCurrency: TransactionMonthSummaryLockedByCurrency;
+}
+
 export interface TransactionInput {
   amount: number;
   description: string;
@@ -848,6 +857,11 @@ export type ListTransactionsParams = {
   endDate?: string;
   limit?: number;
   offset?: number;
+};
+
+export type GetTransactionMonthSummaryParams = {
+  startDate: string;
+  endDate: string;
 };
 
 export type MarkAllNotificationItemsRead200 = {
