@@ -45,6 +45,7 @@ type WeeklyTransition =
   | "entering"
   | "snap-weeks"
   | "coloring"
+  | "revealing"
   | "weekly"
   | "back-full-circle"
   | "back-contracting"
@@ -82,6 +83,8 @@ export default function DashboardPage() {
   const [weeklyTransitionSegments, setWeeklyTransitionSegments] = useState<WeeklyDonutTransitionSegment[]>([]);
   const [weeklyTransitionArc, setWeeklyTransitionArc] = useState<DonutTransitionArc | null>(null);
   const [weeklyTransitionColored, setWeeklyTransitionColored] = useState(false);
+  const [weeklyContentVisible, setWeeklyContentVisible] = useState(false);
+  const [weeklyContentRevealKey, setWeeklyContentRevealKey] = useState(0);
   const [donutMountKey, setDonutMountKey] = useState(0);
   const [donutMode, setDonutMode] = useState<"compact" | "expanded">("compact");
   const [donutContainerWidth, setDonutContainerWidth] = useState(320);
@@ -158,6 +161,7 @@ export default function DashboardPage() {
     setWeeklyTransitionSegments([]);
     setWeeklyTransitionArc(null);
     setWeeklyTransitionColored(false);
+    setWeeklyContentVisible(false);
     setDonutMountKey(key => key + 1);
     updateDonutMode("compact");
   }, [viewMonth]);
@@ -358,6 +362,7 @@ export default function DashboardPage() {
     setWeeklyTransitionSegments(buildWeeklyDonutTransitionSegments(weeklyCategory));
     setWeeklyTransitionArc(null);
     setWeeklyTransitionColored(false);
+    setWeeklyContentVisible(false);
     setWeeklyTransition("snap-weeks");
 
     // Match HouseholdDonutChart: muted destination segments hold briefly
@@ -367,7 +372,16 @@ export default function DashboardPage() {
       setWeeklyTransition("coloring");
 
       queueWeeklyTransition(setTimeout(() => {
-        setWeeklyTransition("weekly");
+        // Keep the colored transition overlay mounted while the real weekly
+        // center and collapsed legend fade in underneath it. This avoids the
+        // one-frame black/reload flash at the overlay → weekly handoff.
+        setWeeklyContentRevealKey(key => key + 1);
+        setWeeklyContentVisible(true);
+        setWeeklyTransition("revealing");
+
+        queueWeeklyTransition(setTimeout(() => {
+          setWeeklyTransition("weekly");
+        }, 1000));
       }, 1650));
     }, 200));
   }
@@ -499,7 +513,9 @@ export default function DashboardPage() {
   const isWeeklyBackTransition = weeklyTransition.startsWith("back-");
   const monthlyChartIsRestoring = weeklyTransition === "back-restore-others";
   const monthlyChartIsForwardTransitioning =
-    weeklyTransition === "snap-weeks" || weeklyTransition === "coloring";
+    weeklyTransition === "snap-weeks"
+    || weeklyTransition === "coloring"
+    || weeklyTransition === "revealing";
   const monthlyChartOpacity = weeklyTransition === "weekly"
     ? 0
     : monthlyChartIsForwardTransitioning
@@ -751,8 +767,8 @@ export default function DashboardPage() {
               <div
                 style={{
                   gridArea: "1 / 1",
-                  opacity: weeklyTransition === "weekly" ? 1 : 0,
-                  transition: weeklyTransition === "weekly"
+                  opacity: weeklyTransition === "weekly" || weeklyTransition === "revealing" ? 1 : 0,
+                  transition: weeklyTransition === "weekly" || weeklyTransition === "revealing"
                     ? "opacity 0.9s ease 0.05s"
                     : weeklyTransition === "back-full-circle"
                       ? "opacity 0.3s ease"
@@ -767,6 +783,8 @@ export default function DashboardPage() {
                   initialMode={donutMode}
                   onModeChange={updateDonutMode}
                   initialContainerWidth={donutContainerWidth}
+                  contentVisible={weeklyContentVisible}
+                  contentRevealKey={weeklyContentRevealKey}
                    onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
                     const category = (weeklyCategory.categoryName ?? "").trim();

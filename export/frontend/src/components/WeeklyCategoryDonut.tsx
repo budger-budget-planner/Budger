@@ -31,6 +31,8 @@ type Props = {
   initialMode?: "compact" | "expanded";
   onModeChange?: (mode: "compact" | "expanded") => void;
   initialContainerWidth?: number;
+  contentVisible?: boolean;
+  contentRevealKey?: number;
 };
 
 type DisplayItem = {
@@ -168,6 +170,8 @@ export default function WeeklyCategoryDonut({
   initialMode = "compact",
   onModeChange,
   initialContainerWidth,
+  contentVisible = true,
+  contentRevealKey = 0,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [internalMode, setInternalMode] = useState<"compact" | "expanded">(initialMode);
@@ -337,8 +341,10 @@ export default function WeeklyCategoryDonut({
 
             <g
               style={{
-                opacity: expanded ? 0 : 1,
-                transition: `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`,
+                opacity: !contentVisible || expanded ? 0 : 1,
+                transition: !contentVisible
+                  ? "opacity 0.18s ease"
+                  : "opacity 0.28s 0.28s ease",
                 pointerEvents: "none",
               }}
             >
@@ -367,8 +373,10 @@ export default function WeeklyCategoryDonut({
 
             <g
               style={{
-                opacity: expanded ? 1 : 0,
-                transition: `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`,
+                opacity: contentVisible && expanded ? 1 : 0,
+                transition: contentVisible && expanded
+                  ? "opacity 0.28s 0.25s ease"
+                  : "opacity 0.15s ease",
                 pointerEvents: "none",
               }}
             >
@@ -432,11 +440,15 @@ export default function WeeklyCategoryDonut({
           style={{
             maxWidth: expanded ? 0 : 220,
             marginLeft: expanded ? 0 : 12,
-            opacity: expanded ? 0 : 1,
+            opacity: expanded || !contentVisible ? 0 : 1,
             overflow: "hidden",
             flexShrink: 1,
             pointerEvents: expanded ? "none" : "auto",
-            transition: expanded ? LEGEND_EXIT_TRANSITION : LEGEND_ENTER_TRANSITION,
+            transition: !contentVisible
+              ? "opacity 0.18s ease"
+              : expanded
+                ? LEGEND_EXIT_TRANSITION
+                : LEGEND_ENTER_TRANSITION,
           }}
         >
           <div style={{ width: 160 }} className="space-y-2.5">
@@ -446,7 +458,7 @@ export default function WeeklyCategoryDonut({
               const dimmed = selectedKey !== null && !isSelected;
               return (
                 <div
-                  key={item.key}
+                  key={`${item.key}-${contentRevealKey}`}
                   style={{
                     animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
                     animationDelay: `${0.48 + index * 0.07}s`,
