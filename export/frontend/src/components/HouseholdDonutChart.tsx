@@ -911,6 +911,7 @@ export default function HouseholdDonutChart({
   //
   function startDrillBack() {
     if (drillPhase !== "personal") return;
+    const gb = drilledGroupRef.current;
     onHouseholdMemberSelect?.(null);
     onDrilledMemberChange?.(null, false);
     lockTimersRef.current.forEach(clearTimeout); lockTimersRef.current = [];
@@ -931,7 +932,7 @@ export default function HouseholdDonutChart({
       return;
     }
 
-    if (!drilledGroupRef.current) {
+    if (!gb) {
       setDrillPhase("idle");
       setDrilledMemberId(null);
       return;
@@ -940,24 +941,44 @@ export default function HouseholdDonutChart({
     clearDrillTimers();
     pendingPersonalTransitionRef.current = null;
 
-    // Return directly to the household chart. The previous reverse sequence
-    // faded the personal chart out, showed a dark full-circle overlay, then
-    // rebuilt the household chart; in compact mode that made the personal
-    // legend appear once before disappearing and reappearing a second time.
-    setArcAnim(null);
-    setMemberTransSegs([]);
-    setMemberTransColored(false);
+    // A: fade the personal view out while a dark full circle takes its place.
+    // Keep the personal layer mounted during this pause so the return does not
+    // flash through an empty card.
     setHhOpacity(1);
+    setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: "#2d3748" });
     setPersOpacity(0);
-    setLegendAnimKey(key => key + 1);
-    setDrillPhase("restore-others");
+    setDrillPhase("full-circle");
 
-    // Keep the drilled member id during the short restore phase so its segment
-    // stays visible while the remaining household segments fade back in.
     push(setTimeout(() => {
-      setDrillPhase("idle");
-      setDrilledMemberId(null);
-    }, 1140));
+      // B: contract the dark full circle back to the drilled member's arc.
+      setDrillPhase("contracting");
+      animateArc(gb.startDeg, gb.endDeg, "#2d3748", true, 650, () => {
+        // C: snap the grey member parts into place and hold briefly.
+        setMemberTransSegs(memberSegsRef.current);
+        setMemberTransColored(false);
+        setArcAnim(null);
+        setDrillPhase("snap-member");
+
+        push(setTimeout(() => {
+          // D: restore the member's real color.
+          setMemberTransColored(true);
+          setDrillPhase("color-restore");
+
+          push(setTimeout(() => {
+            // E: reveal the remaining household slices and restart the
+            // compact legend once, in the same order as the chart.
+            setMemberTransSegs([]);
+            setDrillPhase("restore-others");
+            setLegendAnimKey(key => key + 1);
+
+            push(setTimeout(() => {
+              setDrillPhase("idle");
+              setDrilledMemberId(null);
+            }, 1140));
+          }, 1350));
+        }, 200));
+      });
+    }, 300));
   }
 
   // ── Long-press helpers ──────────────────────────────────────────────────────
@@ -1054,9 +1075,18 @@ export default function HouseholdDonutChart({
 
 
   // ── Stagger legend items each time the chart enters compact mode ──
+  // Reverse drill phases own their reveal timing, so only increment the key
+  // when the legend is actually allowed to re-enter.
+  const LEGEND_DRILL_PHASES_SET = [
+    "to-arc", "expanding", "hold-circle", "snap-cats", "color-in",
+    "full-circle", "contracting", "snap-member", "color-restore",
+  ];
   useEffect(() => {
-    if (!expanded) setLegendAnimKey(k => k + 1);
-  }, [expanded]);
+    if (!expanded && !LEGEND_DRILL_PHASES_SET.includes(drillPhase)) {
+      setLegendAnimKey(k => k + 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, drillPhase]);
 
   // ─── Empty state ─────────────────────────────────────────────────────────────
   if (members.length === 0) {
