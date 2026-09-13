@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import {
@@ -84,12 +84,32 @@ export default function DashboardPage() {
   const [weeklyTransitionColored, setWeeklyTransitionColored] = useState(false);
   const [donutMountKey, setDonutMountKey] = useState(0);
   const [donutMode, setDonutMode] = useState<"compact" | "expanded">("compact");
+  const [donutContainerWidth, setDonutContainerWidth] = useState(320);
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const weeklyTransitionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const weeklyTransitionRafRef = useRef<number | null>(null);
+  const donutContainerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
+
+  useLayoutEffect(() => {
+    const element = donutContainerRef.current;
+    if (!element) return;
+    const width = Math.round(element.getBoundingClientRect().width);
+    if (width > 0) setDonutContainerWidth(width);
+  }, []);
+
+  useEffect(() => {
+    const element = donutContainerRef.current;
+    if (!element) return;
+    const resizeObserver = new ResizeObserver(entries => {
+      const width = Math.round(entries[0].contentRect.width);
+      if (width > 0) setDonutContainerWidth(width);
+    });
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => { fetchRates().then(setRates); }, []);
 
@@ -604,7 +624,7 @@ export default function DashboardPage() {
         {/* Spending by Category — budget-based donut */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-sm font-semibold mb-3">{t("dashboard.by_category")}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
+          <div ref={donutContainerRef} style={{ display: "grid", gridTemplateColumns: "1fr" }}>
             <div
               style={{
                 gridArea: "1 / 1",
@@ -643,6 +663,7 @@ export default function DashboardPage() {
                   currency={prefs.currency}
                    initialMode={donutMode}
                    onModeChange={setDonutMode}
+                   initialContainerWidth={donutContainerWidth}
                   hasData={
                     spendingForChartEnriched.some((s: any) => s.count > 0) ||
                     (recurringPayments?.length ?? 0) > 0
@@ -731,6 +752,9 @@ export default function DashboardPage() {
                 <WeeklyCategoryDonut
                   data={weeklyCategory}
                   currency={prefs.currency}
+                  initialMode={donutMode}
+                  onModeChange={setDonutMode}
+                  initialContainerWidth={donutContainerWidth}
                    onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
                     const category = (weeklyCategory.categoryName ?? "").trim();
@@ -747,6 +771,8 @@ export default function DashboardPage() {
                   arc={weeklyTransitionArc}
                   colored={weeklyTransitionColored}
                   colorDuration={isWeeklyBackTransition ? 1350 : 1650}
+                  expanded={donutMode === "expanded"}
+                  containerWidth={donutContainerWidth}
                 />
               )}
           </div>

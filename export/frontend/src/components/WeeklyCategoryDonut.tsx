@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, List } from "lucide-react";
 import type { CategoryWeeklySpending } from "@/lib/api-client";
 import { fmtAmt } from "@/lib/prefs";
@@ -27,6 +27,9 @@ type Props = {
   currency: string;
   onBack: () => void;
   onShowTransactions: () => void;
+  initialMode?: "compact" | "expanded";
+  onModeChange?: (mode: "compact" | "expanded") => void;
+  initialContainerWidth?: number;
 };
 
 type DisplayItem = {
@@ -155,14 +158,33 @@ export function buildWeeklyDonutTransitionSegments(
     }));
 }
 
-export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
+export default function WeeklyCategoryDonut({
+  data,
+  currency,
+  onBack,
+  onShowTransactions,
+  initialMode = "compact",
+  onModeChange,
+  initialContainerWidth,
+}: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(320);
+  const [expanded, setExpanded] = useState(initialMode === "expanded");
+  const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastCenterTapRef = useRef(0);
+  const skipExpandTransitionRef = useRef(true);
 
   const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const width = Math.round(element.getBoundingClientRect().width);
+    if (width > 0) {
+      setContainerWidth(width);
+      skipExpandTransitionRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -173,7 +195,6 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       if (width > 0) setContainerWidth(width);
     };
 
-    updateWidth();
     const resizeObserver = new ResizeObserver(updateWidth);
     resizeObserver.observe(element);
     return () => resizeObserver.disconnect();
@@ -189,7 +210,9 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
   function handleCenterTap() {
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
-      setExpanded(previous => !previous);
+      const nextMode = expanded ? "compact" : "expanded";
+      setExpanded(nextMode === "expanded");
+      onModeChange?.(nextMode);
       setSelectedKey(null);
       lastCenterTapRef.current = 0;
     } else {
@@ -233,7 +256,11 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
           style={{
             width: expanded ? containerWidth : 180,
             flexShrink: 0,
-            transition: expanded ? `width ${DUR} 0.3s ${EASE}` : WIDTH_TRANSITION,
+            transition: skipExpandTransitionRef.current
+              ? "none"
+              : expanded
+                ? `width ${DUR} 0.3s ${EASE}`
+                : WIDTH_TRANSITION,
           }}
         >
           <svg
