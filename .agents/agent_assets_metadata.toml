@@ -381,3 +381,17 @@ mtime_ms = 1789330869354
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/7de2f6f0-852b-48ab-913e-75bfbe94a766/8f319331-41f9-4472-91b7-700f1c2b2f9c"
 storage_version_token = "1789330881067374"
 content_type = "image/png"
+
+[[outputs]]
+id = "oEwilGTRQDXkvxgy-udYE"
+uri = "file://output/badger_front_face_body.png"
+type = "image"
+title = "Badger body with front-facing logo face"
+description = "A transparent PNG combining the side-view badger body with the straight-on Budger logo face."
+logical_id = "ccc0f785-7e42-4645-bc20-be4f4edbe373"
+content_hash = "sha256:9574909cfab49f67b85cbe7257ee261768d140af85970652f3b82296f8db985d"
+size = 265219
+mtime_ms = 1789331385598
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ccc0f785-7e42-4645-bc20-be4f4edbe373/8c77cd25-8840-45ca-848d-6b994bec9256"
+storage_version_token = "1789331412867527"
+content_type = "image/png"
