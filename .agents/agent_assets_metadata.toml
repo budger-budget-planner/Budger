@@ -437,3 +437,17 @@ mtime_ms = 1789334316169
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ded0dec2-5532-404b-9798-d60fc40331c4/2ee6622b-a59d-4741-a07b-d9a1d835f109"
 storage_version_token = "1789334322642072"
 content_type = "image/png"
+
+[[outputs]]
+id = "Ct6kbKn-Wci_hmOCEeuP6"
+uri = "file://output/badger_approaching_stocky.png"
+type = "image"
+title = "Stocky realistic badger approach"
+description = "A shorter, broader, low-slung straight-on badger approaching on all fours, with the original face and transparent background."
+logical_id = "1c38028d-1a98-49ee-b6e0-ecc51e6babd8"
+content_hash = "sha256:0f75b07b80d1872552a885dd794f95d9ee6b20e61b3e0d45e601be40b365c69b"
+size = 1002285
+mtime_ms = 1789334372697
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/1c38028d-1a98-49ee-b6e0-ecc51e6babd8/e9b808a4-4eb0-4967-80a9-f59d9bf44c58"
+storage_version_token = "1789334379726943"
+content_type = "image/png"
