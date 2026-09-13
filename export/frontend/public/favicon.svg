@@ -13,10 +13,10 @@
   <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none" stroke="url(#borderGrad)" stroke-width="1.5"/>
   <g clip-path="url(#headClip)">
     <ellipse cx="50" cy="52" rx="48" ry="35" fill="#111"/>
-    <ellipse cx="50" cy="53" rx="42" ry="33" fill="#F0EDE6"/>
     <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
     <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" stroke-width="27" stroke-linecap="round" fill="none"/>
-    <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6"/>
+    <ellipse cx="50" cy="41" rx="11" ry="23" fill="#F0EDE6"/>
+    <ellipse cx="50" cy="69" rx="19" ry="12" fill="#E8E4DC"/>
     <circle cx="29" cy="48" r="10.5" fill="white"/>
     <circle cx="71" cy="48" r="10.5" fill="white"/>
     <circle cx="30" cy="49" r="7" fill="#0d0d0d"/>

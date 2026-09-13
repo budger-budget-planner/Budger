@@ -367,14 +367,16 @@ export default function BadgerLogo({
       {/* One perfect oval head — all facial details stay inside this boundary */}
       <g clipPath={`url(#headClip-${uid})`}>
       <ellipse cx="50" cy="52" rx="48" ry="35" fill="#111" />
-      <ellipse cx="50" cy="53" rx="42" ry="33" fill="#F0EDE6" />
 
       {/* Black face stripes */}
       <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
       <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
 
       {/* White centre stripe */}
-      <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6" />
+      <ellipse cx="50" cy="41" rx="11" ry="23" fill="#F0EDE6" />
+
+      {/* Compact rounded muzzle, fully contained by the oval head */}
+      <ellipse cx="50" cy="69" rx="19" ry="12" fill="#E8E4DC" />
 
       {/* ── Animated group — class drives which child (and itself) animates ── */}
       <g className={grp}>
