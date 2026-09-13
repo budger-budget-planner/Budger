@@ -529,6 +529,7 @@ export default function HouseholdDonutChart({
   const drilledGroupRef       = useRef<GroupBorder | null>(null);
   // Saved member arc segs for snap-member (drill-back)
   const memberSegsRef         = useRef<Array<{ d: string; color: string }>>([]);
+  const legendHasCompletedReturnRef = useRef(false);
   // Latest personal spending for snap-cats (drill-forward)
   const personalSpendingRef           = useRef<SpendingItem[]>([]);
   // Stored callback: fires when personal data arrives after the animation finishes
@@ -968,6 +969,7 @@ export default function HouseholdDonutChart({
             // E: reveal the remaining household slices and restart the
             // compact legend once, in the same order as the chart.
             setMemberTransSegs([]);
+            legendHasCompletedReturnRef.current = true;
             setDrillPhase("restore-others");
             setLegendAnimKey(key => key + 1);
 
@@ -1079,10 +1081,10 @@ export default function HouseholdDonutChart({
   // when the legend is actually allowed to re-enter.
   const LEGEND_DRILL_PHASES_SET = [
     "to-arc", "expanding", "hold-circle", "snap-cats", "color-in",
-    "full-circle", "contracting", "snap-member", "color-restore",
+    "full-circle", "contracting", "snap-member", "color-restore", "restore-others",
   ];
   useEffect(() => {
-    if (!expanded && !LEGEND_DRILL_PHASES_SET.includes(drillPhase)) {
+    if (!expanded && drillPhase !== "idle" && !LEGEND_DRILL_PHASES_SET.includes(drillPhase)) {
       setLegendAnimKey(k => k + 1);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1116,6 +1118,8 @@ export default function HouseholdDonutChart({
   // Legend hidden whenever the arc/trans overlays are the main visual focus
   const LEGEND_DRILL_PHASES: DrillPhase[] = ["to-arc","expanding","hold-circle","snap-cats","color-in","full-circle","contracting","snap-member","color-restore"];
   const legendHidden = LEGEND_DRILL_PHASES.includes(drillPhase);
+  const legendAnimationBaseDelay =
+    drillPhase === "restore-others" || legendHasCompletedReturnRef.current ? 0 : 0.48;
 
   // Header row height — reserved in BOTH layers so the donut sits at the
   // identical Y position whether the household or personal overlay is showing.
@@ -1345,7 +1349,7 @@ export default function HouseholdDonutChart({
                   key={`${item.groupId}-${legendAnimKey}`}
                   style={{
                     animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
-                    animationDelay: `${(drillPhase === "restore-others" ? 0 : 0.48) + idx * 0.07}s`,
+                    animationDelay: `${legendAnimationBaseDelay + idx * 0.07}s`,
                   }}
                 >
                 <button className="w-full text-left"
