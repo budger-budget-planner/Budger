@@ -325,3 +325,17 @@ mtime_ms = 1789330126982
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/94f9dfcc-c3b8-4626-a3e2-1d3d7e978c76/f21a8638-5177-42fd-ab74-c700fdc027b6"
 storage_version_token = "1789330136571046"
 content_type = "image/png"
+
+[[outputs]]
+id = "Y9__7-94y5PgddL7dwGDl"
+uri = "file://attached_assets/IMG_5525_reimagined_budger_logo.png"
+type = "image"
+title = "Reimagined Budger logo"
+description = "The supplied badger face combined with the refreshed dark-grey rounded frame and lighter-bottom gradient border."
+logical_id = "22595f46-3cae-41ea-ac5a-5591358930b5"
+content_hash = "sha256:3cc11f4f98d2ece378b0447b5c8b1b77fc0b214e6377c65a67930eb4745b624c"
+size = 280763
+mtime_ms = 1789330486902
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/22595f46-3cae-41ea-ac5a-5591358930b5/8cd297b9-f298-41cb-8bcb-993fbad40474"
+storage_version_token = "1789330498729087"
+content_type = "image/png"
