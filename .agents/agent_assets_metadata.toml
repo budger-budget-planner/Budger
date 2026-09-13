@@ -353,3 +353,17 @@ mtime_ms = 1789330726598
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/35a32dfb-5b38-4c2f-8272-c0f76fd49798/6e14fdd2-b638-418d-a25c-d658d1f77a10"
 storage_version_token = "1789330735850805"
 content_type = "image/png"
+
+[[outputs]]
+id = "bwgdyv8PRMmEgLVNpFYn8"
+uri = "file://attached_assets/budger_badger_full_body_left_profile.png"
+type = "image"
+title = "Budger full-body left profile"
+description = "The complete animated Budger badger in left-side profile, facing screen-right, with body, tail, and paws on a transparent background."
+logical_id = "8d162bf2-7ead-497f-948d-4b62a253064d"
+content_hash = "sha256:5ed430ce1d224f150c9d35dfcde369a661154916842811d97ed4c54155abd330"
+size = 832496
+mtime_ms = 1789330798879
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/8d162bf2-7ead-497f-948d-4b62a253064d/02a2ae35-0457-4993-b727-92dd7dbf4655"
+storage_version_token = "1789330808218308"
+content_type = "image/png"
