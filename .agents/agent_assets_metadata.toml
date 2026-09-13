@@ -269,3 +269,17 @@ mtime_ms = 1789327469298
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/1e6f9616-5ee2-4979-84b3-6cdaa6754e1c/978cadfe-8129-43d5-b94a-4c477c4975d8"
 storage_version_token = "1789327482856523"
 content_type = "image/png"
+
+[[outputs]]
+id = "j-n9j1vWV-Uy-X3Dol-kb"
+uri = "file://attached_assets/IMG_5525_thin_border_no_fill.png"
+type = "image"
+title = "Thin border graphic"
+description = "The blank rounded graphic with a slimmer, consistent border and a transparent center."
+logical_id = "f7daccd5-40ff-462d-bd73-f33ef1c1b603"
+content_hash = "sha256:ee3b6dd99f3cdb45faf438c2f8f417d8226260e70e44b3b79a68d624e3bd91e6"
+size = 79155
+mtime_ms = 1789328937266
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/f7daccd5-40ff-462d-bd73-f33ef1c1b603/6397b4ca-1edd-40cf-9b03-71319ede0bc0"
+storage_version_token = "1789328953304610"
+content_type = "image/png"
