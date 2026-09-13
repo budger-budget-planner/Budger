@@ -227,3 +227,17 @@ mtime_ms = 1789326377943
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/60f1b8fd-0d26-45df-9e8f-c855b3a5cf9a/3186c8e7-583b-44c4-aebc-c8a058fd6f9b"
 storage_version_token = "1789326387053614"
 content_type = "image/png"
+
+[[outputs]]
+id = "z5jyYBGMUXQdRxez9zqzm"
+uri = "file://attached_assets/badger-face-contours-cleaned.png"
+type = "image"
+title = "Badger face with cleaned contours"
+description = "Original 1889×1889 PNG with the marked contour breaks cleaned into smoother shapes. Colors, proportions, artwork, and transparency are preserved."
+logical_id = "06b930c4-f08b-4e55-b7e5-5eb185fac723"
+content_hash = "sha256:b679ecf8a26c2cb35cedeae5700952b57b1eddf5c71e3441c9b56361e35077c6"
+size = 207149
+mtime_ms = 1789326673222
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/06b930c4-f08b-4e55-b7e5-5eb185fac723/f0959a4c-44d7-4982-82ff-26648aa67d43"
+storage_version_token = "1789326686993732"
+content_type = "image/png"
