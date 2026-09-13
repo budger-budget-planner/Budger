@@ -395,3 +395,17 @@ mtime_ms = 1789333521821
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ccc0f785-7e42-4645-bc20-be4f4edbe373/4052b5a2-7934-4c01-a18d-70a0fbcff3e5"
 storage_version_token = "1789333538215158"
 content_type = "image/png"
+
+[[outputs]]
+id = "lYgrPeuV4TJpePE5_EAiK"
+uri = "file://output/badger_standing_upright.png"
+type = "image"
+title = "Upright standing badger"
+description = "A full-body, front-facing upright version of the badger with a transparent background."
+logical_id = "eadbe56a-ae58-41ed-b2f4-1b8f4f896070"
+content_hash = "sha256:a97d5e3417ae15896a66925c87338b312b62ff39db9b17ca9bc50d2d3d7a15e4"
+size = 813229
+mtime_ms = 1789334132985
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/eadbe56a-ae58-41ed-b2f4-1b8f4f896070/9d0ddf43-b242-4bce-85f2-82ae294a73f2"
+storage_version_token = "1789334140751948"
+content_type = "image/png"
