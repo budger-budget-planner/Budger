@@ -157,3 +157,17 @@ mtime_ms = 1789241763620
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:b8ad8342-9812-4285-ad73-751e32eaba31/8198e39e-2f1c-4970-b511-5fe7acce22ee/6ef4b268-dec5-4af8-8b7b-e4e917337c04"
 storage_version_token = "1789241782426272"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "cPVGTVi-Z2MOCROnonMBy"
+uri = "file://output/badger-face-cutout.png"
+type = "image"
+title = "Badger face cutout"
+description = "Transparent PNG cut from inside the red markings, with the red guide strokes and outer frame removed."
+logical_id = "513851a7-9544-4bb6-b92f-dda1794d3142"
+content_hash = "sha256:5de7c59e73605a42079960d2863f31c187d89197d60fa83837aa4b2be881ae30"
+size = 779583
+mtime_ms = 1789324349065
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/513851a7-9544-4bb6-b92f-dda1794d3142/40ea25ce-60ef-4040-9964-df06d16494cd"
+storage_version_token = "1789324358385764"
+content_type = "image/png"
