@@ -670,7 +670,7 @@ export default function DashboardPage() {
                 transition: weeklyTransition === "weekly"
                   ? "opacity 0.9s ease"
                   : monthlyChartIsRestoring
-                    ? "opacity 0.9s ease"
+                    ? "none"
                     : "none",
                 pointerEvents:
                   weeklyTransition === "idle"
@@ -715,6 +715,12 @@ export default function DashboardPage() {
                   adjustedTotalBudget={adjustedTotalBudgetForChart}
                    legendAnimationStartDelay={monthlyChartIsRestoring ? 0 : undefined}
                   legendAnimationKey={monthlyLegendAnimationKey}
+                  chartOpacity={
+                    isWeeklyBackTransition
+                      ? (monthlyChartIsRestoring ? 1 : 0)
+                      : 1
+                  }
+                  chartOpacityTransition={monthlyChartIsRestoring ? "0.9s ease" : "none"}
                   onCategoryLongPress={(item: any) => {
                     if (
                       item.categoryId != null &&

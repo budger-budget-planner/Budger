@@ -462,11 +462,15 @@ type Props = {
   legendAnimationStartDelay?: number;
   /** External restart key for a parent-controlled chart transition. */
   legendAnimationKey?: number;
+  /** Opacity applied to the donut SVG independently of its legend. */
+  chartOpacity?: number;
+  /** Transition used when chartOpacity changes. */
+  chartOpacityTransition?: string;
 };
 
 type CategoryDrillPhase = "idle" | "fade-others" | "to-arc" | "expanding" | "hold-circle";
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", mode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady, legendAnimationStartDelay = 0.48, legendAnimationKey = 0 }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", mode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady, legendAnimationStartDelay = 0.48, legendAnimationKey = 0, chartOpacity = 1, chartOpacityTransition = "none" }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -796,7 +800,10 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
             alignItems: "center",
           } : {}),
           flexShrink: 0,
-          transition: expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`,
+          opacity: chartOpacity,
+          transition: chartOpacityTransition === "none"
+            ? (expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`)
+            : `${expanded ? `width ${DUR} 0.3s ${EASE}` : `width ${TRANS}`}, opacity ${chartOpacityTransition}`,
         }}
       >
         <svg
