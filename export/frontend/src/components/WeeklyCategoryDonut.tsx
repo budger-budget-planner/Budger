@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, List } from "lucide-react";
 import type { CategoryWeeklySpending } from "@/lib/api-client";
 import { fmtAmt } from "@/lib/prefs";
@@ -11,6 +11,11 @@ const OUTER_RADIUS = 128;
 const DETACH_DISTANCE = 14;
 const HEADER_H = 24;
 const WEEK_GAP = 2.5;
+const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+const DUR = "0.48s";
+const WIDTH_TRANSITION = `${DUR} ${EASE}`;
+const LEGEND_EXIT_TRANSITION = `max-width ${WIDTH_TRANSITION}, margin-left ${WIDTH_TRANSITION}, opacity 0.15s ease`;
+const LEGEND_ENTER_TRANSITION = `max-width ${DUR} 0.3s ${EASE}, margin-left ${DUR} 0.3s ${EASE}, opacity 0.28s ease 0.38s`;
 
 // Deliberately separated hues keep adjacent paid periods readable even when
 // the category itself is a saturated color.
@@ -152,17 +157,56 @@ export function buildWeeklyDonutTransitionSegments(
 
 export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTransactions }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(320);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastCenterTapRef = useRef(0);
 
   const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
 
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      const width = Math.round(element.getBoundingClientRect().width);
+      if (width > 0) setContainerWidth(width);
+    };
+
+    updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const selectedItem = displayItems.find(item => item.key === selectedKey) ?? null;
   const totalPercentage = data.budget > 0 ? (data.totalSpent / data.budget) * 100 : 0;
 
   function handleSegmentClick(key: string) {
     setSelectedKey(previous => previous === key ? null : key);
   }
 
+  function handleCenterTap() {
+    const now = Date.now();
+    if (now - lastCenterTapRef.current < 350) {
+      setExpanded(previous => !previous);
+      setSelectedKey(null);
+      lastCenterTapRef.current = 0;
+    } else {
+      lastCenterTapRef.current = now;
+    }
+  }
+
+  const centerPercentage = expanded && selectedItem
+    ? selectedItem.percentage
+    : totalPercentage;
+  const centerSpent = expanded && selectedItem
+    ? selectedItem.amount
+    : data.totalSpent;
+
   return (
     <div
+      ref={containerRef}
       className="donut-chart-no-selection"
       onContextMenu={event => event.preventDefault()}
       style={{ display: "flex", flexDirection: "column", width: "100%" }}
@@ -187,8 +231,9 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
       <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
         <div
           style={{
-            width: 180,
+            width: expanded ? containerWidth : 180,
             flexShrink: 0,
+            transition: expanded ? `width ${DUR} 0.3s ${EASE}` : WIDTH_TRANSITION,
           }}
         >
           <svg
@@ -256,32 +301,70 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                 y={CY - 10}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={32}
+                fontSize={expanded ? 28 : 32}
                 fontWeight="700"
                 fill="#fff"
               >
-                {percentLabel(totalPercentage)}
+                {percentLabel(centerPercentage)}
               </text>
               <text
                 x={CX}
                 y={CY + 16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={18}
+                fontSize={expanded ? 11 : 18}
                 fill="#6b7280"
               >
-                {t("donut.of_budget")}
+                {t(expanded ? "donut.of_budget_used" : "donut.of_budget")}
               </text>
+              {expanded && (
+                <>
+                  <text
+                    x={CX}
+                    y={CY + 32}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="9"
+                    fill="#374151"
+                  >
+                    {fmtAmt(centerSpent, currency)} / {fmtAmt(data.budget, currency)}
+                  </text>
+                  <text
+                    x={CX}
+                    y={CY + 50}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="8"
+                    fill="#374151"
+                  >
+                    {t("donut.xx_to_exit")}
+                  </text>
+                </>
+              )}
             </g>
+
+            <circle
+              cx={CX}
+              cy={CY}
+              r={INNER_RADIUS - 2}
+              fill="transparent"
+              role="button"
+              aria-label={expanded ? t("donut.collapse_label") : t("donut.expand_label")}
+              style={{ cursor: "pointer" }}
+              onClick={handleCenterTap}
+            />
           </svg>
         </div>
 
         <div
           style={{
-            maxWidth: 220,
-            marginLeft: 12,
+            maxWidth: expanded ? 0 : 220,
+            marginLeft: expanded ? 0 : 12,
+            opacity: expanded ? 0 : 1,
             overflow: "hidden",
             flexShrink: 1,
+            pointerEvents: expanded ? "none" : "auto",
+            transition: expanded ? LEGEND_EXIT_TRANSITION : LEGEND_ENTER_TRANSITION,
           }}
         >
           <div style={{ width: 160 }} className="space-y-2.5">
