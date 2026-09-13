@@ -297,3 +297,17 @@ mtime_ms = 1789329286966
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/cbb19683-16a8-4efe-bce6-84595a5d0b44/09d9b1a5-81f1-4e20-9af6-d05246c1319c"
 storage_version_token = "1789329294430430"
 content_type = "image/png"
+
+[[outputs]]
+id = "rE0hZvOi-oTL-GI4WSEqQ"
+uri = "file://attached_assets/IMG_5525_uniform_border_no_fill.png"
+type = "image"
+title = "Uniform-thickness border graphic"
+description = "The blank rounded graphic with a reference-matched border kept at one consistent thickness around the entire shape and a transparent center."
+logical_id = "26d798bd-89ab-4e21-b902-ede32fe32143"
+content_hash = "sha256:97eaeaf8bf61523f7d5bdf3911d410a137664135cf1507b8c78315ddc82c2e6c"
+size = 89954
+mtime_ms = 1789329884062
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/26d798bd-89ab-4e21-b902-ede32fe32143/e1e5e9f4-3c93-403c-a4d3-2a21fbfda9a7"
+storage_version_token = "1789329895491437"
+content_type = "image/png"
