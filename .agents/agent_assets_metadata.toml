@@ -171,3 +171,17 @@ mtime_ms = 1789324349065
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/513851a7-9544-4bb6-b92f-dda1794d3142/40ea25ce-60ef-4040-9964-df06d16494cd"
 storage_version_token = "1789324358385764"
 content_type = "image/png"
+
+[[outputs]]
+id = "4maFhFOrdkrTl-Kf6suqu"
+uri = "file://output/badger-face-cutout-smoothed-ai.png"
+type = "image"
+title = "Smoothed badger face cutout"
+description = "Clean transparent PNG with smooth arched top and bottom edges, straight vertical sides, and preserved black/off-white artwork."
+logical_id = "15e90af2-f218-4e2a-98b9-01390611813e"
+content_hash = "sha256:9dae20ee7315306c04621972dbb6a5d43503bfb9bba5de04aa2481bbd0227b09"
+size = 873010
+mtime_ms = 1789324803209
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/15e90af2-f218-4e2a-98b9-01390611813e/e3da75f4-16ef-417f-b6d7-d504803089cc"
+storage_version_token = "1789324814627069"
+content_type = "image/png"
