@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { t } from "@/lib/i18n";
 import {
   useListCategories,
@@ -1090,11 +1090,10 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
+  const search = useSearch();
   const isOnline = useOnlineStatus();
-  const requestedStretchCategoryId = Number(
-    new URLSearchParams(location.split("?")[1] ?? "").get("stretch"),
-  );
+  const requestedStretchCategoryId = Number(new URLSearchParams(search).get("stretch"));
   // Reactive prefs so any auto-sync of totalBudget immediately updates this page's UI
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym         = currencySymbol(prefs.currency);
