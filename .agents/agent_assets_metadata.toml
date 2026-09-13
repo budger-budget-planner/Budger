@@ -409,3 +409,17 @@ mtime_ms = 1789334132985
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/eadbe56a-ae58-41ed-b2f4-1b8f4f896070/9d0ddf43-b242-4bce-85f2-82ae294a73f2"
 storage_version_token = "1789334140751948"
 content_type = "image/png"
+
+[[outputs]]
+id = "rtMBRw13qEC1qa7uAtAXw"
+uri = "file://output/badger_approaching_quadruped.png"
+type = "image"
+title = "Badger approaching on all fours"
+description = "A front-facing quadrupedal badger taking steps toward the viewer, with the original face and transparent background."
+logical_id = "9dd4b83b-5d20-4df3-91c6-87342fec5e4c"
+content_hash = "sha256:a3a166ac5dd02a8626e194c8b23fec003c2efa5a7f57ab56accfb303af2b173a"
+size = 823038
+mtime_ms = 1789334240633
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/9dd4b83b-5d20-4df3-91c6-87342fec5e4c/0d8650c4-2147-4d3f-96ee-58e28894b995"
+storage_version_token = "1789334246667706"
+content_type = "image/png"
