@@ -458,11 +458,13 @@ type Props = {
   onCategoryLongPress?: (item: SpendingItem) => void;
   /** Fired when the category drill transition reaches its full-circle hold. */
   onCategoryTransitionReady?: (item: SpendingItem) => void;
+  /** Initial delay before compact legend items begin their staggered reveal. */
+  legendAnimationStartDelay?: number;
 };
 
 type CategoryDrillPhase = "idle" | "fade-others" | "to-arc" | "expanding" | "hold-circle";
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", mode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", mode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady, legendAnimationStartDelay = 0.48 }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
@@ -1310,7 +1312,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
                 key={`${item.catKey}-${legendAnimKey}`}
                 style={{
                   animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
-                  animationDelay: `${0.48 + idx * 0.07}s`,
+                  animationDelay: `${legendAnimationStartDelay + idx * 0.07}s`,
                 }}
               >
               <button

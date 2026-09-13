@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import {
@@ -19,16 +19,12 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Rectangle,
   PieChart, Pie, Cell,
 } from "recharts";
-import DonutBudgetChart, {
-  getCategoryTransitionArc,
-  getCategoryTransitionSegments,
-} from "@/components/DonutBudgetChart";
+import DonutBudgetChart from "@/components/DonutBudgetChart";
 import WeeklyCategoryDonut, {
   buildWeeklyDonutTransitionSegments,
   type WeeklyDonutTransitionSegment,
 } from "@/components/WeeklyCategoryDonut";
 import DonutTransitionOverlay, {
-  donutTransitionArc,
   type DonutTransitionArc,
 } from "@/components/DonutTransitionOverlay";
 import { TrendingDown, Target, ChevronLeft, ChevronRight } from "lucide-react";
@@ -47,10 +43,6 @@ type WeeklyTransition =
   | "coloring"
   | "revealing"
   | "weekly"
-  | "back-full-circle"
-  | "back-contracting"
-  | "back-snap-monthly"
-  | "back-coloring"
   | "back-restore-others";
 
 function BarTooltipContent({ active, payload, label, currency }: any) {
@@ -91,7 +83,6 @@ export default function DashboardPage() {
   const [barTooltipY, setBarTooltipY] = useState<number | undefined>(undefined);
   const [rates, setRates] = useState<Record<string, number>>({});
   const weeklyTransitionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const weeklyTransitionRafRef = useRef<number | null>(null);
   const donutContainerRef = useRef<HTMLDivElement>(null);
   const donutModeRef = useRef<"compact" | "expanded">("compact");
   const queryClient = useQueryClient();
@@ -302,48 +293,16 @@ export default function DashboardPage() {
     return { ...item, budget: effectiveBudget, isStretched: stretch.toAmt > 0 || stretch.fromAmt > 0, stretchAmount: netAmt };
   }) ?? spendingForChart;
 
-  const weeklyTransitionMonthlySegments = useMemo(() => {
-    if (weeklyCategoryId == null || !spendingForChartEnriched || totalBudgetForChart <= 0) return [];
-    return getCategoryTransitionSegments(
-      spendingForChartEnriched as any,
-      adjustedTotalBudgetForChart ?? totalBudgetForChart,
-      weeklyCategoryId,
-    );
-  }, [
-    weeklyCategoryId,
-    spendingForChartEnriched,
-    totalBudgetForChart,
-    adjustedTotalBudgetForChart,
-  ]);
-
-  const weeklyTransitionMonthlyArc = useMemo(() => {
-    if (weeklyCategoryId == null || !spendingForChartEnriched || totalBudgetForChart <= 0) return null;
-    return getCategoryTransitionArc(
-      spendingForChartEnriched as any,
-      adjustedTotalBudgetForChart ?? totalBudgetForChart,
-      weeklyCategoryId,
-    );
-  }, [
-    weeklyCategoryId,
-    spendingForChartEnriched,
-    totalBudgetForChart,
-    adjustedTotalBudgetForChart,
-  ]);
-
   function clearWeeklyTransitionAnimation() {
     weeklyTransitionTimersRef.current.forEach(clearTimeout);
     weeklyTransitionTimersRef.current = [];
-    if (weeklyTransitionRafRef.current !== null) {
-      cancelAnimationFrame(weeklyTransitionRafRef.current);
-      weeklyTransitionRafRef.current = null;
-    }
   }
 
   function queueWeeklyTransition(timer: ReturnType<typeof setTimeout>) {
     weeklyTransitionTimersRef.current.push(timer);
   }
 
-  function finishWeeklyTransition() {
+  function finishWeeklyTransition(remountDonut = true) {
     clearWeeklyTransitionAnimation();
     setWeeklyTransition("idle");
     setWeeklyTransitionReady(false);
@@ -351,7 +310,7 @@ export default function DashboardPage() {
     setWeeklyTransitionArc(null);
     setWeeklyTransitionColored(false);
     setWeeklyCategoryId(null);
-    setDonutMountKey(key => key + 1);
+    if (remountDonut) setDonutMountKey(key => key + 1);
   }
 
   function startWeeklyForwardTransition() {
@@ -386,83 +345,27 @@ export default function DashboardPage() {
     }, 200));
   }
 
-  function animateWeeklyBackArc(target: { startDeg: number; endDeg: number }, onComplete: () => void) {
-    const startTime = performance.now();
-    const duration = 650;
-
-    const easeInOut = (value: number) =>
-      value < 0.5 ? 2 * value * value : -1 + (4 - 2 * value) * value;
-
-    const step = (now: number) => {
-      const rawT = Math.min((now - startTime) / duration, 1);
-      const easedT = 1 - easeInOut(rawT);
-      const currentStart = target.startDeg * (1 - easedT);
-      const currentEnd = target.endDeg + (360 - target.endDeg) * easedT;
-      setWeeklyTransitionArc({
-        d: donutTransitionArc(currentStart, currentEnd),
-        color: "#2d3748",
-      });
-
-      if (rawT < 1) {
-        weeklyTransitionRafRef.current = requestAnimationFrame(step);
-      } else {
-        weeklyTransitionRafRef.current = null;
-        onComplete();
-      }
-    };
-
-    weeklyTransitionRafRef.current = requestAnimationFrame(step);
-  }
-
   function startWeeklyBackTransition() {
     if (weeklyTransition !== "weekly" || weeklyCategoryId == null) return;
     // Read the live mode ref rather than the mode from the render that began
     // the weekly view. The user may have collapsed/expanded weekly since then.
     const returnMode = donutModeRef.current;
     updateDonutMode(returnMode);
-    const targetArc = weeklyTransitionMonthlyArc;
-    if (!targetArc || weeklyTransitionMonthlySegments.length === 0) {
-      finishWeeklyTransition();
-      return;
-    }
-
     clearWeeklyTransitionAnimation();
     // Remount the monthly chart while it is hidden so its completed weekly
-    // drill state cannot reappear underneath the reverse transition.
+    // drill state cannot reappear underneath the restored chart.
     setDonutMountKey(key => key + 1);
     setWeeklyTransitionSegments([]);
     setWeeklyTransitionColored(false);
-    setWeeklyTransitionArc({
-      d: donutTransitionArc(0, 359.99),
-      color: "#2d3748",
-    });
-    setWeeklyTransition("back-full-circle");
-
-    // Match HouseholdDonutChart's backward pause before contracting.
+    setWeeklyTransitionArc(null);
+    setWeeklyContentVisible(false);
+    // The restored monthly donut is already complete after the remount. Keep
+    // it visible and let only its compact legend stagger in; do not replay the
+    // dark full-circle sequence on top of the chart.
+    setWeeklyTransition("back-restore-others");
     queueWeeklyTransition(setTimeout(() => {
-      setWeeklyTransition("back-contracting");
-      animateWeeklyBackArc(targetArc, () => {
-        setWeeklyTransitionArc(null);
-        setWeeklyTransitionSegments(weeklyTransitionMonthlySegments);
-        setWeeklyTransitionColored(false);
-        setWeeklyTransition("back-snap-monthly");
-
-        queueWeeklyTransition(setTimeout(() => {
-          setWeeklyTransitionColored(true);
-          setWeeklyTransition("back-coloring");
-
-          queueWeeklyTransition(setTimeout(() => {
-            // Keep the restored category visible while the remaining monthly
-            // categories fade back in underneath it.
-            setWeeklyTransition("back-restore-others");
-
-            queueWeeklyTransition(setTimeout(() => {
-              finishWeeklyTransition();
-            }, 1140));
-          }, 1350));
-        }, 200));
-      });
-    }, 300));
+      finishWeeklyTransition(false);
+    }, 900));
   }
 
   // Sum of all category budgets + recurring payments — used to suggest a budget when none is set
@@ -658,9 +561,14 @@ export default function DashboardPage() {
                 transition: weeklyTransition === "weekly"
                   ? "opacity 0.9s ease"
                   : monthlyChartIsRestoring
-                    ? "opacity 1.14s ease"
+                    ? "none"
                     : "none",
-                pointerEvents: weeklyTransition === "idle" || weeklyTransition === "entering" ? "auto" : "none",
+                pointerEvents:
+                  weeklyTransition === "idle"
+                  || weeklyTransition === "entering"
+                  || monthlyChartIsRestoring
+                    ? "auto"
+                    : "none",
               }}
             >
               {/* Reserve the same back-button row used by WeeklyCategoryDonut.
@@ -672,7 +580,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground">{t("common.error")}</p>
                   <button
                     className="text-xs underline"
-                    onClick={finishWeeklyTransition}
+                    onClick={() => finishWeeklyTransition()}
                   >
                     {t("weekly.back")}
                   </button>
@@ -696,6 +604,7 @@ export default function DashboardPage() {
                     (recurringPayments?.length ?? 0) > 0
                   }
                   adjustedTotalBudget={adjustedTotalBudgetForChart}
+                   legendAnimationStartDelay={monthlyChartIsRestoring ? 0 : undefined}
                   onCategoryLongPress={(item: any) => {
                     if (
                       item.categoryId != null &&
@@ -770,10 +679,8 @@ export default function DashboardPage() {
                   opacity: weeklyTransition === "weekly" || weeklyTransition === "revealing" ? 1 : 0,
                   transition: weeklyTransition === "weekly" || weeklyTransition === "revealing"
                     ? "opacity 0.9s ease 0.05s"
-                    : weeklyTransition === "back-full-circle"
-                      ? "opacity 0.3s ease"
-                      : "none",
-                  pointerEvents: weeklyTransition === "weekly" ? "auto" : "none",
+                     : "none",
+                   pointerEvents: weeklyTransition === "weekly" ? "auto" : "none",
                 }}
               >
                 <WeeklyCategoryDonut

@@ -931,46 +931,33 @@ export default function HouseholdDonutChart({
       return;
     }
 
-    const gb = drilledGroupRef.current;
-    if (!gb) { setDrillPhase("idle"); setDrilledMemberId(null); return; }
+    if (!drilledGroupRef.current) {
+      setDrillPhase("idle");
+      setDrilledMemberId(null);
+      return;
+    }
 
     clearDrillTimers();
-    pendingPersonalTransitionRef.current = null; // cancel any in-flight data-wait
+    pendingPersonalTransitionRef.current = null;
 
-    // A: personal fades, dark-grey full circle appears on household SVG (300ms pause)
-    setHhOpacity(1); // household layer visible; all segs opacity-0 via groupOpacity
-    setArcAnim({ d: arc(CX, CY, RI, RO, 0, 359.99), color: "#2d3748" });
+    // Return directly to the household chart. The previous reverse sequence
+    // faded the personal chart out, showed a dark full-circle overlay, then
+    // rebuilt the household chart; in compact mode that made the personal
+    // legend appear once before disappearing and reappearing a second time.
+    setArcAnim(null);
+    setMemberTransSegs([]);
+    setMemberTransColored(false);
+    setHhOpacity(1);
     setPersOpacity(0);
-    setDrillPhase("full-circle"); // personal unmounts after fade (showPersonal = "personal"|"full-circle")
+    setLegendAnimKey(key => key + 1);
+    setDrillPhase("restore-others");
 
+    // Keep the drilled member id during the short restore phase so its segment
+    // stays visible while the remaining household segments fade back in.
     push(setTimeout(() => {
-      // B: contract the dark-grey circle back to member's arc position (650ms)
-      setDrillPhase("contracting");
-      animateArc(gb.startDeg, gb.endDeg, "#2d3748", true, 650, () => {
-        // C: snap — grey member parts appear, arc disappears (200ms hold)
-        setMemberTransSegs(memberSegsRef.current);
-        setMemberTransColored(false);
-        setArcAnim(null);
-        setDrillPhase("snap-member");
-
-        push(setTimeout(() => {
-          // D: member parts get their real colors back (1350ms)
-          setMemberTransColored(true);
-          setDrillPhase("color-restore");
-
-          push(setTimeout(() => {
-            // E: other household segments fade in (1140ms)
-            setMemberTransSegs([]);
-            setDrillPhase("restore-others");
-
-            push(setTimeout(() => {
-              setDrillPhase("idle");
-              setDrilledMemberId(null);
-            }, 1140));
-          }, 1350));
-        }, 200));
-      });
-    }, 300)); // pause before contracting
+      setDrillPhase("idle");
+      setDrilledMemberId(null);
+    }, 1140));
   }
 
   // ── Long-press helpers ──────────────────────────────────────────────────────
@@ -1066,14 +1053,10 @@ export default function HouseholdDonutChart({
   }, [personalLoading]);
 
 
-  // ── Stagger legend items each time the chart enters compact (visible) mode ──
-  // Uses drillPhase directly (not legendHidden) so this hook stays before the
-  // early return at members.length === 0 and avoids both TDZ and hooks-after-return.
-  const LEGEND_DRILL_PHASES_SET = ["to-arc","expanding","hold-circle","snap-cats","color-in","full-circle","contracting","snap-member","color-restore"];
+  // ── Stagger legend items each time the chart enters compact mode ──
   useEffect(() => {
-    if (!expanded && !LEGEND_DRILL_PHASES_SET.includes(drillPhase)) setLegendAnimKey(k => k + 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, drillPhase]);
+    if (!expanded) setLegendAnimKey(k => k + 1);
+  }, [expanded]);
 
   // ─── Empty state ─────────────────────────────────────────────────────────────
   if (members.length === 0) {
@@ -1118,7 +1101,7 @@ export default function HouseholdDonutChart({
       <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══ Household SVG + Legend ══════════════════════════════════════════ */}
-      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: drillPhase === "personal" ? 0 : hhOpacity, transition: drillPhase === "personal" ? "none" : "opacity 0.9s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
+      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", width: "100%", opacity: drillPhase === "personal" ? 0 : hhOpacity, transition: drillPhase === "personal" || drillPhase === "restore-others" ? "none" : "opacity 0.9s ease", pointerEvents: hhOpacity < 0.5 ? "none" : "auto" }}>
         {/* Invisible spacer — reserves same height as the personal overlay's header
             row so the donut appears at the exact same Y in both views. */}
         <div style={{ height: HEADER_H, flexShrink: 0 }} />
@@ -1242,7 +1225,7 @@ export default function HouseholdDonutChart({
             })()}
 
             {/* ── Compact centre text ── */}
-            <g style={{ opacity: expanded || inDrill ? 0 : 1, transition: `opacity ${expanded || inDrill ? "0.18s" : "0.28s 0.28s"} ease`, pointerEvents: "none" }}>
+            <g style={{ opacity: expanded || (inDrill && drillPhase !== "restore-others") ? 0 : 1, transition: `opacity ${expanded || (inDrill && drillPhase !== "restore-others") ? "0.18s" : "0.28s 0.28s"} ease`, pointerEvents: "none" }}>
               {budgetUsedPct !== null ? (
                 <>
                   <text x={CX} y={CY - 10} textAnchor="middle" dominantBaseline="middle" fontSize="32" fontWeight="700" fill="#ffffff">{budgetUsedPct}%</text>
@@ -1257,7 +1240,7 @@ export default function HouseholdDonutChart({
             </g>
 
             {/* ── Expanded centre text ── */}
-            <g style={{ opacity: expanded && !inDrill ? 1 : 0, transition: `opacity ${expanded && !inDrill ? "0.28s 0.25s" : "0.15s"} ease`, pointerEvents: "none" }}>
+            <g style={{ opacity: expanded && (!inDrill || drillPhase === "restore-others") ? 1 : 0, transition: `opacity ${expanded && (!inDrill || drillPhase === "restore-others") ? "0.28s 0.25s" : "0.15s"} ease`, pointerEvents: "none" }}>
               {selectedItem ? (
                 <>
                   <circle cx={CX} cy={CY} r={RI - 4} fill={selectedItem.color + "18"} />
@@ -1327,7 +1310,7 @@ export default function HouseholdDonutChart({
                   key={`${item.groupId}-${legendAnimKey}`}
                   style={{
                     animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
-                    animationDelay: `${0.48 + idx * 0.07}s`,
+                    animationDelay: `${(drillPhase === "restore-others" ? 0 : 0.48) + idx * 0.07}s`,
                   }}
                 >
                 <button className="w-full text-left"
