@@ -151,6 +151,9 @@ export default function BadgerLogo({
           <stop offset="55%"  stopColor="#ababab" />
           <stop offset="100%" stopColor="#999" />
         </linearGradient>
+        <clipPath id={`headClip-${uid}`}>
+          <ellipse cx="50" cy="52" rx="48" ry="35" />
+        </clipPath>
 
         <style>{`
           /* ── shared transform setup ── */
@@ -361,26 +364,17 @@ export default function BadgerLogo({
         stroke={`url(#bgBorderGrad-${uid})`} strokeWidth="1.5" />
 
       {/* ── Static structural layers ── */}
-      {/* Face geometry matches the marked concept exactly */}
-      <ellipse cx="50" cy="52" rx="42" ry="34" fill="#F0EDE6" />
+      {/* One perfect oval head — all facial details stay inside this boundary */}
+      <g clipPath={`url(#headClip-${uid})`}>
+      <ellipse cx="50" cy="52" rx="48" ry="35" fill="#111" />
+      <ellipse cx="50" cy="53" rx="42" ry="33" fill="#F0EDE6" />
 
       {/* Black face stripes */}
       <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
       <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
 
-      {/* Side shapes are part of the marked head, not separate icon ears */}
-      <ellipse cx="19" cy="24" rx="12" ry="11" fill="#777" />
-      <ellipse cx="81" cy="24" rx="12" ry="11" fill="#777" />
-      <ellipse cx="19" cy="25" rx="7"  ry="6.5" fill="#aaa" />
-      <ellipse cx="81" cy="25" rx="7"  ry="6.5" fill="#aaa" />
-
       {/* White centre stripe */}
       <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6" />
-
-      {/* Cheek shapes and muzzle are part of the same marked head */}
-      <ellipse cx="10" cy="52" rx="13" ry="19" fill="#F0EDE6" />
-      <ellipse cx="90" cy="52" rx="13" ry="19" fill="#F0EDE6" />
-      <ellipse cx="50" cy="70" rx="20" ry="14" fill="#E8E4DC" />
 
       {/* ── Animated group — class drives which child (and itself) animates ── */}
       <g className={grp}>
@@ -491,6 +485,7 @@ export default function BadgerLogo({
           fill="white"
           textAnchor="middle"
         >Z</text>
+      </g>
       </g>
       </g>
     </svg>
