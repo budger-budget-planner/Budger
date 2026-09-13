@@ -83,6 +83,7 @@ export default function DashboardPage() {
   const [weeklyTransitionSegments, setWeeklyTransitionSegments] = useState<WeeklyDonutTransitionSegment[]>([]);
   const [weeklyTransitionArc, setWeeklyTransitionArc] = useState<DonutTransitionArc | null>(null);
   const [weeklyTransitionColored, setWeeklyTransitionColored] = useState(false);
+  const [monthlyLegendAnimationKey, setMonthlyLegendAnimationKey] = useState(0);
   const [weeklyContentVisible, setWeeklyContentVisible] = useState(false);
   const [weeklyContentRevealKey, setWeeklyContentRevealKey] = useState(0);
   const [donutMountKey, setDonutMountKey] = useState(0);
@@ -427,11 +428,20 @@ export default function DashboardPage() {
 
           queueWeeklyTransition(setTimeout(() => {
             // Keep the restored category visible while the remaining monthly
-            // categories fade back in underneath it.
+            // categories and legend fade back in together. Remove the
+            // transition overlay first so the monthly chart has a single
+            // source of truth during the handoff.
+            setWeeklyTransitionSegments([]);
+            setWeeklyTransitionArc(null);
+            setMonthlyLegendAnimationKey(key => key + 1);
             setWeeklyTransition("back-restore-others");
 
             queueWeeklyTransition(setTimeout(() => {
-              finishWeeklyTransition();
+              // The chart was already remounted at the start of the return.
+              // Do not remount it again after the fade; that would replay the
+              // chart and cause the duplicate/black handoff this transition
+              // is designed to avoid.
+              finishWeeklyTransition(false);
             }, 1140));
           }, 1350));
         }, 200));
@@ -662,7 +672,7 @@ export default function DashboardPage() {
                 transition: weeklyTransition === "weekly"
                   ? "opacity 0.9s ease"
                   : monthlyChartIsRestoring
-                    ? "none"
+                    ? "opacity 0.9s ease"
                     : "none",
                 pointerEvents:
                   weeklyTransition === "idle"
@@ -706,6 +716,7 @@ export default function DashboardPage() {
                   }
                   adjustedTotalBudget={adjustedTotalBudgetForChart}
                    legendAnimationStartDelay={monthlyChartIsRestoring ? 0 : undefined}
+                  legendAnimationKey={monthlyLegendAnimationKey}
                   onCategoryLongPress={(item: any) => {
                     if (
                       item.categoryId != null &&
