@@ -157,3 +157,17 @@ mtime_ms = 1789241763620
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:b8ad8342-9812-4285-ad73-751e32eaba31/8198e39e-2f1c-4970-b511-5fe7acce22ee/6ef4b268-dec5-4af8-8b7b-e4e917337c04"
 storage_version_token = "1789241782426272"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "7eNroNGiIJ1w1bdmKJU2J"
+uri = "file://export/frontend/public/icon-badger.png"
+type = "image"
+title = "Updated Badger logo"
+description = "Solid dark-grey background with the black-and-white badger head and lighter grey gradient border."
+logical_id = "fd9f54fe-9995-47b8-9d71-8fc6f20b40cb"
+content_hash = "sha256:ffd8b2600fa229f670fd15cfe404f1d92de7719c1808e0d6128b414750307031"
+size = 609341
+mtime_ms = 1789321179208
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:5bb6d124-07c9-4412-9aba-921c8d3cb555/fd9f54fe-9995-47b8-9d71-8fc6f20b40cb/dfd29def-bd62-4309-be12-717e3d05d699"
+storage_version_token = "1789321377863248"
+content_type = "image/png"
