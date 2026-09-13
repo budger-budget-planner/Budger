@@ -185,3 +185,17 @@ mtime_ms = 1789324803209
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/15e90af2-f218-4e2a-98b9-01390611813e/e3da75f4-16ef-417f-b6d7-d504803089cc"
 storage_version_token = "1789324814627069"
 content_type = "image/png"
+
+[[outputs]]
+id = "WC7buCjMqsN8-T68H507R"
+uri = "file://output/badger-face-cutout-final.png"
+type = "image"
+title = "Transparent badger face cutout"
+description = "The original transparent face cutout restored, with only the remaining guide-color pixels removed. No black background was added."
+logical_id = "c32e91d2-40b6-4c91-92ba-b0e8cea64169"
+content_hash = "sha256:fb82d0dbc657d8d166b12e4b15342d8fecd1cf7d47382e57da55840dfdc8804f"
+size = 778064
+mtime_ms = 1789324955325
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/c32e91d2-40b6-4c91-92ba-b0e8cea64169/8e43d1d0-a2ce-4b85-b8ad-271904ffc389"
+storage_version_token = "1789324964230843"
+content_type = "image/png"
