@@ -373,39 +373,44 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               const isSelected = selectedKey === item.key;
               const dimmed = selectedKey !== null && !isSelected;
               return (
-                <button
+                <div
                   key={item.key}
-                  type="button"
-                  className="w-full text-left"
                   style={{
-                    opacity: dimmed ? 0.25 : 1,
-                    transition: "opacity 0.2s ease",
                     animation: "donutLegendItem 0.22s cubic-bezier(0.4, 0, 0.2, 1) both",
                     animationDelay: `${0.48 + index * 0.07}s`,
                   }}
-                  onClick={() => handleSegmentClick(item.key)}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-xs text-muted-foreground truncate leading-tight">
-                      {item.label}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-1 ml-4">
-                    <span className="text-xs font-semibold leading-tight">
-                      {fmtAmt(item.amount, currency)}
-                    </span>
-                    <span
-                      className="text-[11px] font-medium leading-tight"
-                      style={{ color: "#6b7280" }}
-                    >
-                      ({Math.round(item.percentage)}%)
-                    </span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    style={{
+                      opacity: dimmed ? 0.25 : 1,
+                      transition: "opacity 0.2s ease",
+                    }}
+                    onClick={() => handleSegmentClick(item.key)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-xs text-muted-foreground truncate leading-tight">
+                        {item.label}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1 ml-4">
+                      <span className="text-xs font-semibold leading-tight">
+                        {fmtAmt(item.amount, currency)}
+                      </span>
+                      <span
+                        className="text-[11px] font-medium leading-tight"
+                        style={{ color: "#6b7280" }}
+                      >
+                        ({Math.round(item.percentage)}%)
+                      </span>
+                    </div>
+                  </button>
+                </div>
               );
             })}
           </div>
