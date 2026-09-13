@@ -213,3 +213,17 @@ mtime_ms = 1789325172589
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2975de6a-cb40-41d0-97e6-59cf21e6b1e1/b79498a8-9e31-4ef8-a2c0-253ad768145d/d819ea9a-6b44-45ec-9ba8-3fa43c19aaa1"
 storage_version_token = "1789325185070434"
 content_type = "image/png"
+
+[[outputs]]
+id = "77S04khCOGGRXefg-9FO0"
+uri = "file://attached_assets/badger-face-smoothed.png"
+type = "image"
+title = "Smoothed badger face PNG"
+description = "Cleaned edge transitions around the outer silhouette, eye rings, muzzle, and chin while preserving the original artwork and transparent background."
+logical_id = "60f1b8fd-0d26-45df-9e8f-c855b3a5cf9a"
+content_hash = "sha256:87192400340eb698cdc6b927621a60b87944dd2794e61479176f6c44ea66db5f"
+size = 894917
+mtime_ms = 1789326377943
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/60f1b8fd-0d26-45df-9e8f-c855b3a5cf9a/3186c8e7-583b-44c4-aebc-c8a058fd6f9b"
+storage_version_token = "1789326387053614"
+content_type = "image/png"
