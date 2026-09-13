@@ -15,6 +15,11 @@ function currentMonthKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function isValidMonthKey(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
+  return true;
+}
+
 function formatStretch(s: typeof budgetStretchesTable.$inferSelect) {
   return {
     id: s.id,
@@ -35,7 +40,7 @@ router.get("/budget-stretches", async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
   const month = typeof req.query.month === "string" ? req.query.month : null;
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+  if (!isValidMonthKey(month)) {
     res.status(400).json({ error: "month query param is required (YYYY-MM)" }); return;
   }
 
@@ -91,8 +96,7 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   const previousMonth = monthOffset(currentMonth, -1);
   if (
     requestedMonth !== undefined &&
-    (typeof requestedMonth !== "string" ||
-      !/^\d{4}-\d{2}$/.test(requestedMonth) ||
+    (!isValidMonthKey(requestedMonth) ||
       ![currentMonth, previousMonth].includes(requestedMonth))
   ) {
     res.status(400).json({ error: "month must be the current or previous calendar month" }); return;
@@ -122,6 +126,13 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   } else {
     // No transaction — use the selected calendar month, defaulting to current.
     month = requestedMonth ?? currentMonth;
+  }
+
+  // Transaction-created stretches also use the same two-month window. This
+  // prevents a legacy caller from bypassing the month selector by omitting it
+  // and sending a historical transaction instead.
+  if (![currentMonth, previousMonth].includes(month)) {
+    res.status(400).json({ error: "month must be the current or previous calendar month" }); return;
   }
 
   // ── Rule: one stretch per (user, toCategory, month) ─────────────────────

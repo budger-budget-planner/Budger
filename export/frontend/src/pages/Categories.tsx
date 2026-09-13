@@ -196,7 +196,7 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
 
 // ─── Stretch Budget Dialog ──────────────────────────────────────────────────
 
-function StretchCategoryDialog({ category, categories, existingStretch, previousStretch, open, onClose, receiverCatIds, previousReceiverCatIds }: {
+function StretchCategoryDialog({ category, categories, existingStretch, previousStretch, open, onClose, receiverCatIds, previousReceiverCatIds, currentLocked = false, previousLocked = false }: {
   category: any;
   categories: any[];
   existingStretch: any | null;
@@ -205,6 +205,8 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
   onClose: () => void;
   receiverCatIds?: Set<number>;
   previousReceiverCatIds?: Set<number>;
+  currentLocked?: boolean;
+  previousLocked?: boolean;
 }) {
   const sym = currencySymbol(loadPrefs().currency);
   const queryClient = useQueryClient();
@@ -228,7 +230,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
     setAmount(selectedStretch ? String(Number(selectedStretch.amount)) : "");
     setFromCategoryId(selectedStretch ? String(selectedStretch.fromCategoryId) : String(category.id));
     setError(null);
-  }, [category.id, selectedStretch?.amount, selectedStretch?.fromCategoryId, selectedStretch?.id]);
+  }, [category.id, stretchPeriod, selectedStretch?.amount, selectedStretch?.fromCategoryId, selectedStretch?.id]);
 
   const editIsCrossMonth = isEditMode && selectedStretch.stretchType === "cross_month";
   const editFromCat = isEditMode ? categories.find((c: any) => c.id === selectedStretch.fromCategoryId) : null;
@@ -237,8 +239,10 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
   const amtNum = parseFloat(amount) || 0;
   const exceedsMax = isCrossMonth && maxCrossMonth !== null && amtNum > maxCrossMonth;
   const crossMonthNoBudget = !isEditMode && isCrossMonth && catBudget == null;
+  const selectedPeriodLocked = stretchPeriod === "previous" ? previousLocked : currentLocked;
   const isDirty = isEditMode ? amtNum !== Number(selectedStretch.amount) : true;
-  const canSave = amount !== "" && amtNum >= 0 && !exceedsMax && !crossMonthNoBudget && !saving && isDirty;
+  const canSave = amount !== "" && amtNum >= 0 && !exceedsMax && !crossMonthNoBudget
+    && (!selectedPeriodLocked || isEditMode) && !saving && isDirty;
 
   function handleClose() {
     setAmount(selectedStretch ? String(Number(selectedStretch.amount)) : "");
@@ -324,6 +328,31 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t("stretch.month_label")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["current", t("stretch.current_month"), currentLocked && !existingStretch],
+                ["previous", t("stretch.previous_month"), previousLocked && !previousStretch],
+              ] as const).map(([period, label, disabled]) => (
+                <button
+                  key={period}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => { setStretchPeriod(period); setError(null); }}
+                  className={`rounded-xl border px-3 py-2 text-sm transition ${
+                    stretchPeriod === period
+                      ? "border-orange-400 bg-orange-500/15 text-orange-300"
+                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  {label}
+                  {disabled && <span className="ml-1 text-xs">({t("stretch.locked")})</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {isEditMode ? (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">{t("stretch.source_locked")}</Label>
@@ -332,7 +361,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
                   style={{ backgroundColor: editIsCrossMonth ? category.color : (editFromCat?.color ?? "#888") }} />
                 <span className="text-sm text-foreground">
                   {editIsCrossMonth
-                    ? `${category.name} — ${t("stretch.next_month")}${maxCrossMonth != null ? ` (${t("stretch.max_note")} ${sym}${maxCrossMonth.toFixed(2)})` : ""}`
+                    ? `${category.name} — ${sourceMonthLabel}${maxCrossMonth != null ? ` (${t("stretch.max_note")} ${sym}${maxCrossMonth.toFixed(2)})` : ""}`
                     : (editFromCat?.name ?? `Category #${existingStretch.fromCategoryId}`)}
                 </span>
                 <span className="ml-auto text-xs text-muted-foreground">{t("stretch.locked")}</span>
@@ -347,13 +376,13 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
                   <SelectItem value={String(category.id)}>
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-                      <span>{category.name} — {t("stretch.next_month")}</span>
+                      <span>{category.name} — {sourceMonthLabel}</span>
                       {maxCrossMonth != null && (
                         <span className="ml-auto text-xs text-muted-foreground">{t("stretch.max_note")} {sym}{maxCrossMonth.toFixed(2)}</span>
                       )}
                     </div>
                   </SelectItem>
-                  {categories.filter(c => c.id !== category.id && !(receiverCatIds?.has(c.id))).map(c => {
+                  {categories.filter(c => c.id !== category.id && !(selectedReceiverCatIds?.has(c.id))).map(c => {
                     const avail = availableFor(c);
                     return (
                       <SelectItem key={c.id} value={String(c.id)}>
@@ -371,10 +400,14 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
                 crossMonthNoBudget
                   ? <p className="text-xs text-amber-400">⚠ {t("stretch.no_budget_warn").replace("{name}", category.name)}</p>
                   : maxCrossMonth != null
-                    ? <p className="text-xs text-orange-400/70">{t("stretch.borrows_next")} ({t("stretch.max_note")} {sym}{maxCrossMonth.toFixed(2)})</p>
+                    ? <p className="text-xs text-orange-400/70">{borrowLabel} ({t("stretch.max_note")} {sym}{maxCrossMonth.toFixed(2)})</p>
                     : null
               )}
             </div>
+          )}
+
+          {selectedPeriodLocked && !isEditMode && (
+            <p className="text-xs text-amber-400">{t("stretch.locked")}</p>
           )}
 
           <div className="space-y-1.5">
@@ -425,10 +458,12 @@ function StretchCategoryDialog({ category, categories, existingStretch, previous
 
 // ─── Category Card ─────────────────────────────────────────────────────────────
 
-function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, isDonor, receiverCatIds, autoOpenStretch = false }: {
+function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, previousStretch, isDonor, previousLocked = false, receiverCatIds, previousReceiverCatIds, autoOpenStretch = false }: {
   category: any; onEdit: () => void; currency: string; canShare?: boolean;
   stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean };
-  allCategories?: any[]; existingStretch?: any | null; isDonor?: boolean; receiverCatIds?: Set<number>; autoOpenStretch?: boolean;
+  allCategories?: any[]; existingStretch?: any | null; previousStretch?: any | null;
+  isDonor?: boolean; previousLocked?: boolean;
+  receiverCatIds?: Set<number>; previousReceiverCatIds?: Set<number>; autoOpenStretch?: boolean;
 }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
@@ -436,10 +471,12 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
   const [stretchOpen, setStretchOpen] = useState(false);
+  const currentLocked = Boolean(isDonor);
+  const stretchBlocked = currentLocked && previousLocked;
 
   useEffect(() => {
-    if (autoOpenStretch && !isDonor) setStretchOpen(true);
-  }, [autoOpenStretch, isDonor]);
+    if (autoOpenStretch && !stretchBlocked) setStretchOpen(true);
+  }, [autoOpenStretch, stretchBlocked]);
 
   const remove = useDeleteCategory({
     mutation: {
@@ -551,15 +588,15 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
               </button>
             )}
             <button
-              onClick={() => !isDonor && setStretchOpen(true)}
-              disabled={!isOnline || isDonor}
-              title={isDonor ? t("stretch.donated_label") : undefined}
+              onClick={() => !stretchBlocked && setStretchOpen(true)}
+              disabled={!isOnline || stretchBlocked}
+              title={stretchBlocked ? t("stretch.donated_label") : undefined}
               data-testid={`button-stretch-category-${category.id}`}
               className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-xl
                          text-xs font-medium border transition active:opacity-70 disabled:opacity-40
-                         ${isDonor
+                         ${stretchBlocked
                            ? "bg-muted text-muted-foreground border-border cursor-not-allowed"
-                           : existingStretch
+                           : existingStretch || previousStretch
                              ? "bg-orange-500/20 text-orange-400 border-orange-500/50"
                              : "bg-orange-500/10 text-orange-400 border-orange-500/30"}`}
             >
@@ -585,9 +622,13 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
           category={category}
           categories={allCategories ?? []}
           existingStretch={existingStretch ?? null}
+          previousStretch={previousStretch ?? null}
           open={stretchOpen}
           onClose={() => setStretchOpen(false)}
           receiverCatIds={receiverCatIds}
+          previousReceiverCatIds={previousReceiverCatIds}
+          currentLocked={currentLocked}
+          previousLocked={previousLocked}
         />
       )}
     </div>
@@ -1183,12 +1224,17 @@ export default function CategoriesPage() {
   // by s.month !== currentMonth) — those reduce this month's effective budget
   // and lock the category from being stretched again.
   const currentMonth = new Date().toISOString().slice(0, 7);
+  const previousMonth = shiftMonthKey(currentMonth, -1);
   const { data: monthStretches, isLoading: stretchesLoading } = useListBudgetStretches({ month: currentMonth } as any);
+  const { data: previousMonthStretches, isLoading: previousStretchesLoading } = useListBudgetStretches({ month: previousMonth } as any);
   const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; crossMonth: boolean }>();
   const stretchObjectsByCatId = new Map<number, any>();
+  const previousStretchObjectsByCatId = new Map<number, any>();
   const donorCatIds = new Set<number>();
+  const previousDonorCatIds = new Set<number>();
   // Categories whose budget is reduced because they borrowed from this month last month
   const prevMonthLockedCatIds = new Set<number>();
+  const previousMonthLockedCatIds = new Set<number>();
   for (const s of monthStretches ?? []) {
     const toId = (s as any).toCategoryId;
     const fromId = (s as any).fromCategoryId;
@@ -1217,6 +1263,22 @@ export default function CategoriesPage() {
       donorCatIds.add(fromId);
     }
     stretchObjectsByCatId.set(toId, s);
+  }
+  for (const s of (previousMonthStretches ?? [])) {
+    const toId = (s as any).toCategoryId;
+    const fromId = (s as any).fromCategoryId;
+    const isCrossMonth = (s as any).stretchType === "cross_month";
+    const isPreviousMonthImpact = (s as any).month !== previousMonth;
+
+    if (isPreviousMonthImpact) {
+      previousMonthLockedCatIds.add(toId);
+      continue;
+    }
+
+    previousStretchObjectsByCatId.set(toId, s);
+    if (!isCrossMonth && fromId != null && fromId !== toId) {
+      previousDonorCatIds.add(fromId);
+    }
   }
 
   const updateMe = useMutationWithQueue({
@@ -1423,7 +1485,22 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id) || prevMonthLockedCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} autoOpenStretch={!stretchesLoading && requestedStretchCategoryId === cat.id} />
+            <CategoryCard
+              key={cat.id}
+              category={cat}
+              onEdit={() => setEditCat(cat)}
+              currency={prefs.currency}
+              canShare={canShare}
+              stretchInfo={stretchByCatId.get(cat.id)}
+              allCategories={categories as any[]}
+              existingStretch={stretchObjectsByCatId.get(cat.id) ?? null}
+              previousStretch={previousStretchObjectsByCatId.get(cat.id) ?? null}
+              isDonor={donorCatIds.has(cat.id) || prevMonthLockedCatIds.has(cat.id)}
+              previousLocked={previousDonorCatIds.has(cat.id) || previousMonthLockedCatIds.has(cat.id)}
+              receiverCatIds={new Set(stretchObjectsByCatId.keys())}
+              previousReceiverCatIds={new Set(previousStretchObjectsByCatId.keys())}
+              autoOpenStretch={!stretchesLoading && !previousStretchesLoading && requestedStretchCategoryId === cat.id}
+            />
           ))}
         </div>
       ) : (
