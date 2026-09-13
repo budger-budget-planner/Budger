@@ -339,3 +339,17 @@ mtime_ms = 1789330486902
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/22595f46-3cae-41ea-ac5a-5591358930b5/8cd297b9-f298-41cb-8bcb-993fbad40474"
 storage_version_token = "1789330498729087"
 content_type = "image/png"
+
+[[outputs]]
+id = "Zbly2lg5Kx6I_1632FAUx"
+uri = "file://attached_assets/budger_badger_left_profile.png"
+type = "image"
+title = "Budger left-side profile"
+description = "The same animated Budger badger turned 90 degrees toward the viewer's right, shown in left-side profile on a transparent background."
+logical_id = "35a32dfb-5b38-4c2f-8272-c0f76fd49798"
+content_hash = "sha256:a8b73d4b5017a3a1c9068ea31722c1165c33271cd11d1e81656db75f1fb23fc5"
+size = 822016
+mtime_ms = 1789330726598
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/35a32dfb-5b38-4c2f-8272-c0f76fd49798/6e14fdd2-b638-418d-a25c-d658d1f77a10"
+storage_version_token = "1789330735850805"
+content_type = "image/png"
