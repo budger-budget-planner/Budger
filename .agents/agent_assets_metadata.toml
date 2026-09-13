@@ -423,3 +423,17 @@ mtime_ms = 1789334240633
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/9dd4b83b-5d20-4df3-91c6-87342fec5e4c/0d8650c4-2147-4d3f-96ee-58e28894b995"
 storage_version_token = "1789334246667706"
 content_type = "image/png"
+
+[[outputs]]
+id = "EPRUoxOHpRtZERMO5PTZb"
+uri = "file://output/badger_approaching_straight_on.png"
+type = "image"
+title = "Straight-on approaching badger"
+description = "A more frontal, upright-looking quadrupedal badger walking toward the viewer, with all four paws grounded and a transparent background."
+logical_id = "ded0dec2-5532-404b-9798-d60fc40331c4"
+content_hash = "sha256:c811bfd3c0fbb3152948daeee8344c630e6132ee91f33809391a8c9a24462139"
+size = 946560
+mtime_ms = 1789334316169
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ded0dec2-5532-404b-9798-d60fc40331c4/2ee6622b-a59d-4741-a07b-d9a1d835f109"
+storage_version_token = "1789334322642072"
+content_type = "image/png"
