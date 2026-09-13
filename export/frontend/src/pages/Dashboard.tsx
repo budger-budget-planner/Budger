@@ -428,11 +428,9 @@ export default function DashboardPage() {
 
           queueWeeklyTransition(setTimeout(() => {
             // Keep the restored category visible while the remaining monthly
-            // categories and legend fade back in together. Remove the
-            // transition overlay first so the monthly chart has a single
-            // source of truth during the handoff.
-            setWeeklyTransitionSegments([]);
-            setWeeklyTransitionArc(null);
+            // categories and legend fade back in underneath it. The colored
+            // transition segment stays mounted above the chart so the part
+            // that has already returned remains completely still.
             setMonthlyLegendAnimationKey(key => key + 1);
             setWeeklyTransition("back-restore-others");
 
