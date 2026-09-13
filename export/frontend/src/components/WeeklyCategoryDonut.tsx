@@ -305,13 +305,49 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               );
             })}
 
-            <g style={{ pointerEvents: "none" }}>
+            <g
+              style={{
+                opacity: expanded ? 0 : 1,
+                transition: `opacity ${expanded ? "0.18s" : "0.28s 0.28s"} ease`,
+                pointerEvents: "none",
+              }}
+            >
               <text
                 x={CX}
                 y={CY - 10}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={expanded ? 28 : 32}
+                fontSize="32"
+                fontWeight="700"
+                fill="#fff"
+              >
+                {percentLabel(totalPercentage)}
+              </text>
+              <text
+                x={CX}
+                y={CY + 16}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="18"
+                fill="#6b7280"
+              >
+                {t("donut.of_budget")}
+              </text>
+            </g>
+
+            <g
+              style={{
+                opacity: expanded ? 1 : 0,
+                transition: `opacity ${expanded ? "0.28s 0.25s" : "0.15s"} ease`,
+                pointerEvents: "none",
+              }}
+            >
+              <text
+                x={CX}
+                y={CY - 10}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="28"
                 fontWeight="700"
                 fill="#fff"
               >
@@ -322,35 +358,31 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                 y={CY + 16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={expanded ? 11 : 18}
+                fontSize="11"
                 fill="#6b7280"
               >
-                {t(expanded ? "donut.of_budget_used" : "donut.of_budget")}
+                {t("donut.of_budget_used")}
               </text>
-              {expanded && (
-                <>
-                  <text
-                    x={CX}
-                    y={CY + 32}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="9"
-                    fill="#374151"
-                  >
-                    {fmtAmt(centerSpent, currency)} / {fmtAmt(data.budget, currency)}
-                  </text>
-                  <text
-                    x={CX}
-                    y={CY + 50}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="8"
-                    fill="#374151"
-                  >
-                    {t("donut.xx_to_exit")}
-                  </text>
-                </>
-              )}
+              <text
+                x={CX}
+                y={CY + 32}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="9"
+                fill="#374151"
+              >
+                {fmtAmt(centerSpent, currency)} / {fmtAmt(data.budget, currency)}
+              </text>
+              <text
+                x={CX}
+                y={CY + 50}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="8"
+                fill="#374151"
+              >
+                {t("donut.xx_to_exit")}
+              </text>
             </g>
 
             <circle
