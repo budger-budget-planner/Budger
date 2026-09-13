@@ -16,6 +16,7 @@ The old wouter v2 pattern `<Route path="/">` was a prefix match; v3 is not.
 - `/:rest*` looks like a catch-all but does NOT match bare `/`, causing a black screen on the root path.
 - `/login`, `/invite/:token` etc. listed *before* the no-path Route still take precedence in the Switch.
 - Inner `<Switch>` inside the catch-all uses normal exact paths (/dashboard, /categories, etc.).
+- Use `useSearch()` for query parameters. `useLocation()` returns the pathname only, so parsing `?month=...&category=...` from its value silently produces no filters.
 
 ```tsx
 <Switch>
