@@ -1327,7 +1327,12 @@ export default function HouseholdDonutChart({
           marginLeft: expanded ? 0 : 12,
           opacity:    expanded || legendHidden ? 0 : 1,
           overflow:   "hidden", flexShrink: 1,
-          transition: legendHidden ? "opacity 0.2s ease" : (expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS),
+          // During drill-back the rows themselves provide the staggered
+          // reveal. Do not fade the whole legend wrapper first, or it briefly
+          // lands as a complete list before the row animations restart.
+          transition: drillPhase === "restore-others"
+            ? "none"
+            : legendHidden ? "opacity 0.2s ease" : (expanded ? LEGEND_EXIT_TRANS : LEGEND_ENTER_TRANS),
         }}>
           <div style={{ width: 160 }} className="space-y-2.5">
             {legend.map((item, idx) => {
