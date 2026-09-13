@@ -152,7 +152,7 @@ export default function BadgerLogo({
           <stop offset="100%" stopColor="#999" />
         </linearGradient>
         <clipPath id={`headClip-${uid}`}>
-          <ellipse cx="50" cy="52" rx="44" ry="34" />
+          <ellipse cx="50" cy="52" rx="48" ry="35" />
         </clipPath>
 
         <style>{`
@@ -365,18 +365,22 @@ export default function BadgerLogo({
 
       <g clipPath={`url(#headClip-${uid})`}>
       {/* ── Static structural layers ── */}
-      {/* One clean oval head — no separate ears or outer cheek shapes */}
-      <ellipse cx="50" cy="52" rx="44" ry="34" fill="#F0EDE6" />
+      {/* Wide oval head matching the marked boundary — no separate ear shapes */}
+      <ellipse cx="50" cy="52" rx="48" ry="35" fill="#F0EDE6" stroke="#111" strokeWidth="2.5" />
 
       {/* Black face stripes */}
       <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
       <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
 
+      {/* Integrated cheek patches — inside the oval, not ears */}
+      <ellipse cx="18" cy="53" rx="13" ry="19" fill="#F0EDE6" />
+      <ellipse cx="82" cy="53" rx="13" ry="19" fill="#F0EDE6" />
+
       {/* White centre stripe */}
       <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6" />
 
       {/* Compact muzzle — kept inside the oval rather than projecting forward */}
-      <ellipse cx="50" cy="68" rx="15" ry="10" fill="#E8E4DC" />
+      <ellipse cx="50" cy="68" rx="17" ry="10" fill="#E8E4DC" />
 
       {/* ── Animated group — class drives which child (and itself) animates ── */}
       <g className={grp}>
