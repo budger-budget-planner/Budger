@@ -436,6 +436,8 @@ type Props = {
   /** Start the chart in this mode; defaults to "compact". Used by drill-downs
    *  that want to preserve the household donut's current view mode. */
   initialMode?: "compact" | "expanded";
+  /** Current mode when the parent needs to keep multiple donut layers synchronized. */
+  mode?: "compact" | "expanded";
   /** Called when the user double-taps center to toggle mode. Lets the parent
    *  (e.g. HouseholdDonutChart) stay in sync and persist the choice. */
   onModeChange?: (mode: "compact" | "expanded") => void;
@@ -460,14 +462,14 @@ type Props = {
 
 type CategoryDrillPhase = "idle" | "fade-others" | "to-arc" | "expanding" | "hold-circle";
 
-export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady }: Props) {
+export default function DonutBudgetChart({ spending, totalBudget, currency, hasData = false, initialMode = "compact", mode, onModeChange, initialContainerWidth, fixedSvgWrapperHeight, adjustedTotalBudget, onCategoryLongPress, onCategoryTransitionReady }: Props) {
   const uid = useId().replace(/:/g, "");
   const idRedGlow  = `redGlow-${uid}`;
   const idHintGrad = `hintGrad-${uid}`;
   const idHintBlur = `hintBlur-${uid}`;
 
   const [selectedCat,    setSelectedCat]    = useState<string | null>(null);
-  const [mode,           setMode]           = useState<"compact" | "expanded">(initialMode);
+  const [internalMode,   setInternalMode]   = useState<"compact" | "expanded">(initialMode);
   // Seed with the parent's measured width when drilling in so there is no
   // "grow from 320→actual" animation on the first render.
   const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
@@ -516,7 +518,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
   const effectiveTotalBudget = (adjustedTotalBudget != null && adjustedTotalBudget > 0) ? adjustedTotalBudget : totalBudget;
   const budgetUsedPct = effectiveTotalBudget > 0 ? Math.round((totalSpent / effectiveTotalBudget) * 100) : null;
   const selectedLegend = legend.find(l => l.catKey === selectedCat) ?? null;
-  const expanded       = mode === "expanded";
+  const activeMode     = mode ?? internalMode;
+  const expanded       = activeMode === "expanded";
   const categoryDrillActive = categoryDrillPhase !== "idle";
 
   function cancelCategoryDrillTransition() {
@@ -741,8 +744,8 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
       // Double-tap: toggle mode AND cancel any pending/active hint pulses
-      const nextMode = mode === "compact" ? "expanded" : "compact";
-      setMode(nextMode);
+      const nextMode = activeMode === "compact" ? "expanded" : "compact";
+      setInternalMode(nextMode);
       onModeChange?.(nextMode);
       setSelectedCat(null);
       lastCenterTapRef.current = 0;
@@ -1117,7 +1120,7 @@ export default function DonutBudgetChart({ spending, totalBudget, currency, hasD
               Circle B (larger r, brighter): delayed 0.304 s — fill-mode:both
               holds it at opacity 0 during the gap, then it blooms.
               Both circles get the feGaussianBlur filter for soft edges.      */}
-          {mode === "compact" && hintKey > 0 && (() => {
+          {activeMode === "compact" && hintKey > 0 && (() => {
             const idx  = (hintKey - 1) % 3;
             const { r1, r2 } = hintRadiiRef.current;
             return (

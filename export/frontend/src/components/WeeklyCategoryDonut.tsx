@@ -27,6 +27,7 @@ type Props = {
   currency: string;
   onBack: () => void;
   onShowTransactions: () => void;
+  mode?: "compact" | "expanded";
   initialMode?: "compact" | "expanded";
   onModeChange?: (mode: "compact" | "expanded") => void;
   initialContainerWidth?: number;
@@ -163,16 +164,18 @@ export default function WeeklyCategoryDonut({
   currency,
   onBack,
   onShowTransactions,
+  mode,
   initialMode = "compact",
   onModeChange,
   initialContainerWidth,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(initialMode === "expanded");
+  const [internalMode, setInternalMode] = useState<"compact" | "expanded">(initialMode);
   const [containerWidth, setContainerWidth] = useState(initialContainerWidth ?? 320);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastCenterTapRef = useRef(0);
   const skipExpandTransitionRef = useRef(true);
+  const expanded = (mode ?? internalMode) === "expanded";
 
   const displayItems = useMemo(() => buildWeeklyDonutDisplayItems(data), [data]);
 
@@ -211,7 +214,7 @@ export default function WeeklyCategoryDonut({
     const now = Date.now();
     if (now - lastCenterTapRef.current < 350) {
       const nextMode = expanded ? "compact" : "expanded";
-      setExpanded(nextMode === "expanded");
+      setInternalMode(nextMode);
       onModeChange?.(nextMode);
       setSelectedKey(null);
       lastCenterTapRef.current = 0;

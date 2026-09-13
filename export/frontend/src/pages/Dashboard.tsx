@@ -90,8 +90,14 @@ export default function DashboardPage() {
   const weeklyTransitionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const weeklyTransitionRafRef = useRef<number | null>(null);
   const donutContainerRef = useRef<HTMLDivElement>(null);
+  const donutModeRef = useRef<"compact" | "expanded">("compact");
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
+
+  function updateDonutMode(nextMode: "compact" | "expanded") {
+    donutModeRef.current = nextMode;
+    setDonutMode(nextMode);
+  }
 
   useLayoutEffect(() => {
     const element = donutContainerRef.current;
@@ -153,7 +159,7 @@ export default function DashboardPage() {
     setWeeklyTransitionArc(null);
     setWeeklyTransitionColored(false);
     setDonutMountKey(key => key + 1);
-    setDonutMode("compact");
+    updateDonutMode("compact");
   }, [viewMonth]);
 
   useEffect(() => {
@@ -396,6 +402,10 @@ export default function DashboardPage() {
 
   function startWeeklyBackTransition() {
     if (weeklyTransition !== "weekly" || weeklyCategoryId == null) return;
+    // Read the live mode ref rather than the mode from the render that began
+    // the weekly view. The user may have collapsed/expanded weekly since then.
+    const returnMode = donutModeRef.current;
+    updateDonutMode(returnMode);
     const targetArc = weeklyTransitionMonthlyArc;
     if (!targetArc || weeklyTransitionMonthlySegments.length === 0) {
       finishWeeklyTransition();
@@ -661,8 +671,9 @@ export default function DashboardPage() {
                   spending={spendingForChartEnriched as any}
                   totalBudget={totalBudgetForChart}
                   currency={prefs.currency}
+                   mode={donutMode}
                    initialMode={donutMode}
-                   onModeChange={setDonutMode}
+                   onModeChange={updateDonutMode}
                    initialContainerWidth={donutContainerWidth}
                   hasData={
                     spendingForChartEnriched.some((s: any) => s.count > 0) ||
@@ -752,8 +763,9 @@ export default function DashboardPage() {
                 <WeeklyCategoryDonut
                   data={weeklyCategory}
                   currency={prefs.currency}
+                  mode={donutMode}
                   initialMode={donutMode}
-                  onModeChange={setDonutMode}
+                  onModeChange={updateDonutMode}
                   initialContainerWidth={donutContainerWidth}
                    onBack={startWeeklyBackTransition}
                   onShowTransactions={() => {
