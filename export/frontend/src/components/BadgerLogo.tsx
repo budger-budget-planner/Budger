@@ -147,9 +147,9 @@ export default function BadgerLogo({
           x1="50" y1="0" x2="50" y2="100"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%"   stopColor="#999" />
-          <stop offset="55%"  stopColor="#505050" />
-          <stop offset="100%" stopColor="#2a2a2a" />
+          <stop offset="0%"   stopColor="#c2c2c2" />
+          <stop offset="55%"  stopColor="#ababab" />
+          <stop offset="100%" stopColor="#999" />
         </linearGradient>
 
         <style>{`
@@ -356,7 +356,7 @@ export default function BadgerLogo({
       <g style={outerStyle}>
 
       {/* ── Background ── */}
-      <rect width="100" height="100" rx="22" fill="#111" />
+      <rect width="100" height="100" rx="22" fill="#3d3d3d" />
       <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none"
         stroke={`url(#bgBorderGrad-${uid})`} strokeWidth="1.5" />
 
