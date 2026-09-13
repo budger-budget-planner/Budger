@@ -244,6 +244,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
           >
             {displayItems.map(item => {
               const isSelected = selectedKey === item.key;
+              const dimmed = selectedKey !== null && !isSelected;
               const midpoint = (item.start + item.end) / 2;
               const radians = ((midpoint - 90) * Math.PI) / 180;
               const outerRadius = isSelected
@@ -258,7 +259,13 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               const isOverBudget = data.totalSpent > data.budget && !item.isRemaining;
               const borderColor = isOverBudget ? "#ff3333" : `${item.color}90`;
               return (
-                <g key={item.key}>
+                <g
+                  key={item.key}
+                  style={{
+                    opacity: dimmed ? 0.25 : 1,
+                    transition: "opacity 0.2s ease",
+                  }}
+                >
                   <path
                     d={path}
                     fill={item.color}
