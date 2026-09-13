@@ -283,3 +283,17 @@ mtime_ms = 1789328937266
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/f7daccd5-40ff-462d-bd73-f33ef1c1b603/6397b4ca-1edd-40cf-9b03-71319ede0bc0"
 storage_version_token = "1789328953304610"
 content_type = "image/png"
+
+[[outputs]]
+id = "uXdkUqVreF_47imXm1XEs"
+uri = "file://attached_assets/IMG_5525_reference_border_no_fill.png"
+type = "image"
+title = "Reference-thickness border graphic"
+description = "The blank rounded graphic with a thicker border matching the supplied reference and a transparent center."
+logical_id = "cbb19683-16a8-4efe-bce6-84595a5d0b44"
+content_hash = "sha256:9d1f91c1a29e1f26f7a3d9ee0975b1eaf2c26a3d2fc0b0c64f53da8f2e09fc34"
+size = 78881
+mtime_ms = 1789329286966
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b2ae296f-95e8-444a-8c50-f3bdcf057245/cbb19683-16a8-4efe-bce6-84595a5d0b44/09d9b1a5-81f1-4e20-9af6-d05246c1319c"
+storage_version_token = "1789329294430430"
+content_type = "image/png"
