@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, List } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, List } from "lucide-react";
 import type { CategoryWeeklySpending } from "@/lib/api-client";
 import { fmtAmt } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
@@ -27,6 +27,7 @@ type Props = {
   currency: string;
   onBack: () => void;
   onShowTransactions: () => void;
+  onStretch: () => void;
   mode?: "compact" | "expanded";
   initialMode?: "compact" | "expanded";
   onModeChange?: (mode: "compact" | "expanded") => void;
@@ -166,6 +167,7 @@ export default function WeeklyCategoryDonut({
   currency,
   onBack,
   onShowTransactions,
+  onStretch,
   mode,
   initialMode = "compact",
   onModeChange,
@@ -509,15 +511,24 @@ export default function WeeklyCategoryDonut({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onShowTransactions}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/60 active:scale-[0.99] transition"
-        style={{ marginTop: "auto", flexShrink: 0 }}
-      >
-        <List className="w-4 h-4" />
-        {t("weekly.show_transactions")}
-      </button>
+      <div className="flex gap-2" style={{ marginTop: "auto", flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={onShowTransactions}
+          className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-muted/30 border border-border text-sm font-medium hover:bg-muted/60 active:scale-[0.99] transition"
+        >
+          <List className="w-4 h-4" />
+          {t("weekly.show_transactions")}
+        </button>
+        <button
+          type="button"
+          onClick={onStretch}
+          className="flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-xl text-xs font-medium border transition active:opacity-70 bg-orange-500/10 text-orange-400 border-orange-500/30"
+        >
+          <ArrowRightLeft className="w-3.5 h-3.5" />
+          {t("stretch.btn_label")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -813,6 +813,9 @@ export default function DashboardPage() {
                     const category = (weeklyCategory.categoryName ?? "").trim();
                     navigate(`/?month=${encodeURIComponent(viewMonth)}&category=${encodeURIComponent(category)}`);
                   }}
+                  onStretch={() => {
+                    navigate(`/categories?stretch=${encodeURIComponent(weeklyCategory.categoryId)}`);
+                  }}
                 />
               </div>
             )}

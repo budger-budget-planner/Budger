@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { t } from "@/lib/i18n";
 import {
@@ -377,10 +377,10 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
 
 // ─── Category Card ─────────────────────────────────────────────────────────────
 
-function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, isDonor, receiverCatIds }: {
+function CategoryCard({ category, onEdit, currency, canShare = false, stretchInfo, allCategories, existingStretch, isDonor, receiverCatIds, autoOpenStretch = false }: {
   category: any; onEdit: () => void; currency: string; canShare?: boolean;
   stretchInfo?: { toAmt: number; fromAmt: number; crossMonth: boolean };
-  allCategories?: any[]; existingStretch?: any | null; isDonor?: boolean; receiverCatIds?: Set<number>;
+  allCategories?: any[]; existingStretch?: any | null; isDonor?: boolean; receiverCatIds?: Set<number>; autoOpenStretch?: boolean;
 }) {
   const sym = currencySymbol(currency);
   const queryClient = useQueryClient();
@@ -388,6 +388,10 @@ function CategoryCard({ category, onEdit, currency, canShare = false, stretchInf
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
   const [stretchOpen, setStretchOpen] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenStretch && !isDonor) setStretchOpen(true);
+  }, [autoOpenStretch, isDonor]);
 
   const remove = useDeleteCategory({
     mutation: {
@@ -1086,8 +1090,11 @@ function PendingProposals({ onSettled }: { onSettled: () => void }) {
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const isOnline = useOnlineStatus();
+  const requestedStretchCategoryId = Number(
+    new URLSearchParams(location.split("?")[1] ?? "").get("stretch"),
+  );
   // Reactive prefs so any auto-sync of totalBudget immediately updates this page's UI
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym         = currencySymbol(prefs.currency);
@@ -1129,7 +1136,7 @@ export default function CategoriesPage() {
   // by s.month !== currentMonth) — those reduce this month's effective budget
   // and lock the category from being stretched again.
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const { data: monthStretches } = useListBudgetStretches({ month: currentMonth } as any);
+  const { data: monthStretches, isLoading: stretchesLoading } = useListBudgetStretches({ month: currentMonth } as any);
   const stretchByCatId = new Map<number, { toAmt: number; fromAmt: number; crossMonth: boolean }>();
   const stretchObjectsByCatId = new Map<number, any>();
   const donorCatIds = new Set<number>();
@@ -1369,7 +1376,7 @@ export default function CategoriesPage() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id) || prevMonthLockedCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} />
+            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditCat(cat)} currency={prefs.currency} canShare={canShare} stretchInfo={stretchByCatId.get(cat.id)} allCategories={categories as any[]} existingStretch={stretchObjectsByCatId.get(cat.id) ?? null} isDonor={donorCatIds.has(cat.id) || prevMonthLockedCatIds.has(cat.id)} receiverCatIds={new Set(stretchObjectsByCatId.keys())} autoOpenStretch={!stretchesLoading && requestedStretchCategoryId === cat.id} />
           ))}
         </div>
       ) : (
