@@ -147,13 +147,10 @@ export default function BadgerLogo({
           x1="50" y1="0" x2="50" y2="100"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%"   stopColor="#c2c2c2" />
-          <stop offset="55%"  stopColor="#ababab" />
-          <stop offset="100%" stopColor="#999" />
+          <stop offset="0%"   stopColor="#999" />
+          <stop offset="55%"  stopColor="#505050" />
+          <stop offset="100%" stopColor="#2a2a2a" />
         </linearGradient>
-        <clipPath id={`headClip-${uid}`}>
-          <ellipse cx="50" cy="52" rx="48" ry="35" />
-        </clipPath>
 
         <style>{`
           /* ── shared transform setup ── */
@@ -359,24 +356,33 @@ export default function BadgerLogo({
       <g style={outerStyle}>
 
       {/* ── Background ── */}
-      <rect width="100" height="100" rx="22" fill="#2a2a2a" />
+      <rect width="100" height="100" rx="22" fill="#111" />
       <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none"
         stroke={`url(#bgBorderGrad-${uid})`} strokeWidth="1.5" />
 
       {/* ── Static structural layers ── */}
-      {/* One perfect oval head — all facial details stay inside this boundary */}
-      <g clipPath={`url(#headClip-${uid})`}>
-      <ellipse cx="50" cy="52" rx="48" ry="35" fill="#111" />
+      {/* Head */}
+      <ellipse cx="50" cy="52" rx="42" ry="34" fill="#F0EDE6" />
+
+      {/* Ears */}
+      <ellipse cx="19" cy="24" rx="12" ry="11" fill="#777" />
+      <ellipse cx="81" cy="24" rx="12" ry="11" fill="#777" />
+      <ellipse cx="19" cy="25" rx="7"  ry="6.5" fill="#aaa" />
+      <ellipse cx="81" cy="25" rx="7"  ry="6.5" fill="#aaa" />
 
       {/* Black face stripes */}
       <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
       <path d="M 67 74 Q 76 60 80 46 Q 83 33 80 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
 
       {/* White centre stripe */}
-      <ellipse cx="50" cy="41" rx="11" ry="23" fill="#F0EDE6" />
+      <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6" />
 
-      {/* Compact rounded muzzle, fully contained by the oval head */}
-      <ellipse cx="50" cy="69" rx="19" ry="12" fill="#E8E4DC" />
+      {/* Cheek puffs */}
+      <ellipse cx="10" cy="52" rx="13" ry="19" fill="#F0EDE6" />
+      <ellipse cx="90" cy="52" rx="13" ry="19" fill="#F0EDE6" />
+
+      {/* Lower muzzle */}
+      <ellipse cx="50" cy="70" rx="20" ry="14" fill="#E8E4DC" />
 
       {/* ── Animated group — class drives which child (and itself) animates ── */}
       <g className={grp}>
@@ -487,7 +493,6 @@ export default function BadgerLogo({
           fill="white"
           textAnchor="middle"
         >Z</text>
-      </g>
       </g>
       </g>
     </svg>
