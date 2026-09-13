@@ -239,7 +239,15 @@ export default function WeeklyCategoryDonut({
       ref={containerRef}
       className="donut-chart-no-selection"
       onContextMenu={event => event.preventDefault()}
-      style={{ display: "flex", flexDirection: "column", width: "100%" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        // The dashboard overlays this view with the monthly chart field. Fill
+        // that field so the legend determines the shared bottom edge instead
+        // of leaving the action button directly under the donut.
+        height: "100%",
+      }}
     >
       {/* Keep this row the same height as Dashboard's invisible spacer so the
           donut remains fixed while the dashboard layer cross-fades into this
@@ -505,6 +513,7 @@ export default function WeeklyCategoryDonut({
         type="button"
         onClick={onShowTransactions}
         className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/60 active:scale-[0.99] transition"
+        style={{ marginTop: "auto", flexShrink: 0 }}
       >
         <List className="w-4 h-4" />
         {t("weekly.show_transactions")}
