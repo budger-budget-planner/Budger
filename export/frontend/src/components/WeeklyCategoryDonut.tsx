@@ -262,9 +262,7 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                   <path
                     d={path}
                     fill={item.color}
-                    stroke={borderColor}
-                    strokeWidth={isOverBudget ? 3 : 1}
-                    strokeLinejoin="round"
+                    stroke="none"
                     style={{
                       transform: detachTransform,
                       cursor: "pointer",
@@ -274,6 +272,18 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                     aria-label={item.label}
                     onPointerDown={event => event.currentTarget.setPointerCapture(event.pointerId)}
                     onClick={() => handleSegmentClick(item.key)}
+                  />
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke={borderColor}
+                    strokeWidth={isOverBudget ? 3 : 1}
+                    strokeLinejoin="round"
+                    style={{
+                      transform: detachTransform,
+                      pointerEvents: "none",
+                      transition: "transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease",
+                    }}
                   />
                   {/* Extra stroke target keeps short periods easy to tap on mobile. */}
                   <path
