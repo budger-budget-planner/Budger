@@ -151,6 +151,9 @@ export default function BadgerLogo({
           <stop offset="55%"  stopColor="#ababab" />
           <stop offset="100%" stopColor="#999" />
         </linearGradient>
+        <clipPath id={`headClip-${uid}`}>
+          <ellipse cx="50" cy="52" rx="44" ry="34" />
+        </clipPath>
 
         <style>{`
           /* ── shared transform setup ── */
@@ -360,15 +363,10 @@ export default function BadgerLogo({
       <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none"
         stroke={`url(#bgBorderGrad-${uid})`} strokeWidth="1.5" />
 
+      <g clipPath={`url(#headClip-${uid})`}>
       {/* ── Static structural layers ── */}
-      {/* Head */}
-      <ellipse cx="50" cy="52" rx="42" ry="34" fill="#F0EDE6" />
-
-      {/* Ears */}
-      <ellipse cx="19" cy="24" rx="12" ry="11" fill="#777" />
-      <ellipse cx="81" cy="24" rx="12" ry="11" fill="#777" />
-      <ellipse cx="19" cy="25" rx="7"  ry="6.5" fill="#aaa" />
-      <ellipse cx="81" cy="25" rx="7"  ry="6.5" fill="#aaa" />
+      {/* One clean oval head — no separate ears or outer cheek shapes */}
+      <ellipse cx="50" cy="52" rx="44" ry="34" fill="#F0EDE6" />
 
       {/* Black face stripes */}
       <path d="M 33 74 Q 24 60 20 46 Q 17 33 20 22" stroke="#111" strokeWidth="27" strokeLinecap="round" fill="none" />
@@ -377,12 +375,8 @@ export default function BadgerLogo({
       {/* White centre stripe */}
       <ellipse cx="50" cy="40" rx="10" ry="18" fill="#F0EDE6" />
 
-      {/* Cheek puffs */}
-      <ellipse cx="10" cy="52" rx="13" ry="19" fill="#F0EDE6" />
-      <ellipse cx="90" cy="52" rx="13" ry="19" fill="#F0EDE6" />
-
-      {/* Lower muzzle */}
-      <ellipse cx="50" cy="70" rx="20" ry="14" fill="#E8E4DC" />
+      {/* Compact muzzle — kept inside the oval rather than projecting forward */}
+      <ellipse cx="50" cy="68" rx="15" ry="10" fill="#E8E4DC" />
 
       {/* ── Animated group — class drives which child (and itself) animates ── */}
       <g className={grp}>
@@ -493,6 +487,7 @@ export default function BadgerLogo({
           fill="white"
           textAnchor="middle"
         >Z</text>
+      </g>
       </g>
       </g>
     </svg>
