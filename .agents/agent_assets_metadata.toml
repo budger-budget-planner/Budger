@@ -255,3 +255,17 @@ mtime_ms = 1789327217170
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/b8a78c64-b3e6-4b4a-b345-782cb1fe0a94/56e5a6cd-cdaa-40c4-9277-963995780577"
 storage_version_token = "1789327233695921"
 content_type = "image/png"
+
+[[outputs]]
+id = "2GcnjOTEcnRAjFLB8Paco"
+uri = "file://attached_assets/IMG_3686_no-face-black-inside.png"
+type = "image"
+title = "Gradient border with black interior"
+description = "2048×2048 RGBA PNG with the original gradient border preserved and the entire interior replaced by the original black fill; the transparent outside remains unchanged."
+logical_id = "1e6f9616-5ee2-4979-84b3-6cdaa6754e1c"
+content_hash = "sha256:572912ff759a2712be28d242f54134f4553ddabf301b52372594cf4a6d4e54cb"
+size = 78429
+mtime_ms = 1789327469298
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:b8d5cdfe-b508-42f4-94aa-208d0d9bdb07/1e6f9616-5ee2-4979-84b3-6cdaa6754e1c/978cadfe-8129-43d5-b94a-4c477c4975d8"
+storage_version_token = "1789327482856523"
+content_type = "image/png"
