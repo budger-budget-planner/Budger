@@ -38,3 +38,4 @@
 - [Pull-to-refresh scroll ownership](pull-to-refresh-scroll-ownership.md) — PTR top guards require the app shell's inner main to own scrolling; flex parents need min-height:0
 - [Weekly category drill-down](weekly-drilldown.md) — server owns calendar periods, exclusions, budget adjustments, and the standalone export must mirror the canonical contract
 - [GitHub push authentication](github-push-auth.md) — HTTPS pushes may require x-access-token Basic auth; a Bearer header can fail despite a valid secret
+- [Programmatic contour cleanup](programmatic-contour-cleanup.md) — rebuild only marked masks; use supersampling and premultiplied alpha, never global opaque-gap filling
