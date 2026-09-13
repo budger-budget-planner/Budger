@@ -252,9 +252,9 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
               const path = donutPath(item.start, item.end, outerRadius);
               const detachX = DETACH_DISTANCE * Math.cos(radians);
               const detachY = DETACH_DISTANCE * Math.sin(radians);
-              const transform = isSelected
-                ? `translate(${detachX} ${detachY})`
-                : undefined;
+              const detachTransform = isSelected
+                ? `translate(${detachX}px, ${detachY}px)`
+                : "translate(0px, 0px)";
               const isOverBudget = data.totalSpent > data.budget && !item.isRemaining;
               const borderColor = isOverBudget ? "#ff3333" : `${item.color}90`;
               return (
@@ -265,8 +265,8 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                     stroke={borderColor}
                     strokeWidth={isOverBudget ? 3 : 1}
                     strokeLinejoin="round"
-                    transform={transform}
                     style={{
+                      transform: detachTransform,
                       cursor: "pointer",
                       transition: "d 0.22s cubic-bezier(0.34,1.56,0.64,1), transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
                     }}
@@ -281,9 +281,9 @@ export default function WeeklyCategoryDonut({ data, currency, onBack, onShowTran
                     fill="none"
                     stroke="transparent"
                     strokeWidth={16}
-                    transform={transform}
                     pointerEvents="stroke"
                     style={{
+                      transform: detachTransform,
                       cursor: "pointer",
                       transition: "d 0.22s cubic-bezier(0.34,1.56,0.64,1), transform 0.22s cubic-bezier(0.34,1.56,0.64,1)",
                     }}
