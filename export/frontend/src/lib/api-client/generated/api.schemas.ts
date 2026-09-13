@@ -914,6 +914,7 @@ export type BudgetStretch = {
 
 export type CreateBudgetStretchBody = {
   transactionId?: number | null;
+  month?: string;
   toCategoryId: number;
   fromCategoryId: number;
   amount: number;

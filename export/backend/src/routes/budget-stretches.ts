@@ -4,6 +4,17 @@ import { eq, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+function monthOffset(month: string, offset: number): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function formatStretch(s: typeof budgetStretchesTable.$inferSelect) {
   return {
     id: s.id,
@@ -56,7 +67,7 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
 
-  const { transactionId, toCategoryId, fromCategoryId, amount, stretchType } = req.body;
+  const { transactionId, toCategoryId, fromCategoryId, amount, stretchType, month: requestedMonth } = req.body;
 
   // ── Type validation ─────────────────────────────────────────────────────
   if (!toCategoryId || !fromCategoryId || !amount || !stretchType) {
@@ -76,6 +87,17 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
 
+  const currentMonth = currentMonthKey();
+  const previousMonth = monthOffset(currentMonth, -1);
+  if (
+    requestedMonth !== undefined &&
+    (typeof requestedMonth !== "string" ||
+      !/^\d{4}-\d{2}$/.test(requestedMonth) ||
+      ![currentMonth, previousMonth].includes(requestedMonth))
+  ) {
+    res.status(400).json({ error: "month must be the current or previous calendar month" }); return;
+  }
+
   // ── Resolve transactionId and month ─────────────────────────────────────
   let parsedTransactionId: number | null = null;
   let month: string;
@@ -89,7 +111,7 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
     const [tx] = await db.select().from(transactionsTable)
       .where(and(eq(transactionsTable.id, parsedTransactionId), eq(transactionsTable.userId, userId)));
     if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
-    month = tx.date.slice(0, 7); // YYYY-MM
+    month = requestedMonth ?? tx.date.slice(0, 7); // YYYY-MM
 
     // ── Rule 1: One stretch per transaction ───────────────────────────────
     const [existing] = await db.select().from(budgetStretchesTable)
@@ -98,9 +120,8 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
       res.status(409).json({ error: "This transaction already has a budget stretch attached" }); return;
     }
   } else {
-    // No transaction — use current calendar month
-    const now = new Date();
-    month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // No transaction — use the selected calendar month, defaulting to current.
+    month = requestedMonth ?? currentMonth;
   }
 
   // ── Rule: one stretch per (user, toCategory, month) ─────────────────────
@@ -150,26 +171,26 @@ router.post("/budget-stretches", async (req, res): Promise<void> => {
       }); return;
     }
 
-    // ── Rule 4: Two-month cooldown ─────────────────────────────────────────
-    const [y, m] = month.split("-").map(Number);
-    const prevDate  = new Date(y, m - 2, 1);
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+  }
 
-    const [prevStretch] = await db.select().from(budgetStretchesTable)
-      .where(and(
-        eq(budgetStretchesTable.userId, userId),
-        eq(budgetStretchesTable.toCategoryId, parsedToCategoryId),
-        eq(budgetStretchesTable.stretchType, "cross_month"),
-        eq(budgetStretchesTable.month, prevMonth),
-      ));
-    if (prevStretch) {
-      const nextDate    = new Date(y, m, 1);
-      const nextAllowed = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
-      res.status(422).json({
-        error: `Cross-month stretch is locked for this category until ${nextAllowed}. A stretch was already applied in ${prevMonth}.`,
-        nextAllowedMonth: nextAllowed,
-      }); return;
-    }
+  // ── Rule 4: Two-month cooldown ───────────────────────────────────────────
+  // A cross-month stretch in the immediately preceding target month reduces
+  // this category's current budget, so no new stretch of any kind may target
+  // this category until the following month.
+  const cooldownMonth = monthOffset(month, -1);
+  const [previousCrossMonth] = await db.select().from(budgetStretchesTable)
+    .where(and(
+      eq(budgetStretchesTable.userId, userId),
+      eq(budgetStretchesTable.toCategoryId, parsedToCategoryId),
+      eq(budgetStretchesTable.stretchType, "cross_month"),
+      eq(budgetStretchesTable.month, cooldownMonth),
+    ));
+  if (previousCrossMonth) {
+    const nextAllowedMonth = monthOffset(month, 1);
+    res.status(422).json({
+      error: `Stretch is locked for this category until ${nextAllowedMonth}. A cross-month stretch was already applied in ${cooldownMonth}.`,
+      nextAllowedMonth,
+    }); return;
   }
 
   // ── Insert ───────────────────────────────────────────────────────────────

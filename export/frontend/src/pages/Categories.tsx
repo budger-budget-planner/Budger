@@ -42,6 +42,19 @@ function isHeadRole(role: string) { return role === "head" || role === "owner"; 
 function isParentRole(role: string) { return role === "parent"; }
 function canProposeShare(role: string) { return isHeadRole(role) || isParentRole(role); }
 
+type StretchPeriod = "current" | "previous";
+
+function shiftMonthKey(month: string, offset: number): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -183,33 +196,52 @@ function resolveBudgetDollars(rawValue: string, mode: "amount" | "percent", tota
 
 // ─── Stretch Budget Dialog ──────────────────────────────────────────────────
 
-function StretchCategoryDialog({ category, categories, existingStretch, open, onClose, receiverCatIds }: {
-  category: any; categories: any[]; existingStretch: any | null; open: boolean; onClose: () => void; receiverCatIds?: Set<number>;
+function StretchCategoryDialog({ category, categories, existingStretch, previousStretch, open, onClose, receiverCatIds, previousReceiverCatIds }: {
+  category: any;
+  categories: any[];
+  existingStretch: any | null;
+  previousStretch: any | null;
+  open: boolean;
+  onClose: () => void;
+  receiverCatIds?: Set<number>;
+  previousReceiverCatIds?: Set<number>;
 }) {
   const sym = currencySymbol(loadPrefs().currency);
   const queryClient = useQueryClient();
   const catBudget = category.budget != null ? Number(category.budget) : null;
   const maxCrossMonth = catBudget != null ? catBudget * 0.5 : null;
+  const currentMonth = currentMonthKey();
+  const previousMonth = shiftMonthKey(currentMonth, -1);
 
-  const isEditMode = existingStretch != null;
+  const [stretchPeriod, setStretchPeriod] = useState<StretchPeriod>(
+    previousStretch != null && existingStretch == null ? "previous" : "current",
+  );
+  const selectedStretch = stretchPeriod === "previous" ? previousStretch : existingStretch;
+  const isEditMode = selectedStretch != null;
 
-  const [amount, setAmount] = useState(isEditMode ? String(Number(existingStretch.amount)) : "");
+  const [amount, setAmount] = useState("");
   const [fromCategoryId, setFromCategoryId] = useState<string>(String(category.id));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const editIsCrossMonth = isEditMode && existingStretch.stretchType === "cross_month";
-  const editFromCat = isEditMode ? categories.find((c: any) => c.id === existingStretch.fromCategoryId) : null;
+  useEffect(() => {
+    setAmount(selectedStretch ? String(Number(selectedStretch.amount)) : "");
+    setFromCategoryId(selectedStretch ? String(selectedStretch.fromCategoryId) : String(category.id));
+    setError(null);
+  }, [category.id, selectedStretch?.amount, selectedStretch?.fromCategoryId, selectedStretch?.id]);
+
+  const editIsCrossMonth = isEditMode && selectedStretch.stretchType === "cross_month";
+  const editFromCat = isEditMode ? categories.find((c: any) => c.id === selectedStretch.fromCategoryId) : null;
 
   const isCrossMonth = isEditMode ? editIsCrossMonth : fromCategoryId === String(category.id);
   const amtNum = parseFloat(amount) || 0;
   const exceedsMax = isCrossMonth && maxCrossMonth !== null && amtNum > maxCrossMonth;
   const crossMonthNoBudget = !isEditMode && isCrossMonth && catBudget == null;
-  const isDirty = isEditMode ? amtNum !== Number(existingStretch.amount) : true;
+  const isDirty = isEditMode ? amtNum !== Number(selectedStretch.amount) : true;
   const canSave = amount !== "" && amtNum >= 0 && !exceedsMax && !crossMonthNoBudget && !saving && isDirty;
 
   function handleClose() {
-    setAmount(isEditMode ? String(Number(existingStretch.amount)) : "");
+    setAmount(selectedStretch ? String(Number(selectedStretch.amount)) : "");
     setFromCategoryId(String(category.id));
     setError(null);
     setSaving(false);
@@ -222,7 +254,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
     setSaving(true); setError(null);
     try {
       if (isEditMode) {
-        const res = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, {
+        const res = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${selectedStretch.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: amtNum }),
@@ -233,7 +265,13 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
         const res = await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ toCategoryId: category.id, fromCategoryId: parseInt(fromCategoryId), amount: amtNum, stretchType }),
+          body: JSON.stringify({
+            month: stretchPeriod === "previous" ? previousMonth : currentMonth,
+            toCategoryId: category.id,
+            fromCategoryId: parseInt(fromCategoryId),
+            amount: amtNum,
+            stretchType,
+          }),
         });
         if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? "Failed to create stretch"); setSaving(false); return; }
       }
@@ -246,7 +284,7 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
     if (!isEditMode) return;
     setSaving(true); setError(null);
     try {
-      await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${existingStretch.id}`, { method: "DELETE" });
+      await apiFetchWithCsrf(`${import.meta.env.BASE_URL}api/budget-stretches/${selectedStretch.id}`, { method: "DELETE" });
       queryClient.invalidateQueries({ queryKey: getListBudgetStretchesQueryKey() });
       onClose();
     } catch { setError(t("stretch.network_error")); setSaving(false); }
@@ -257,6 +295,16 @@ function StretchCategoryDialog({ category, categories, existingStretch, open, on
     const remaining = Math.max(0, Number(c.budget) - Number(c.spent ?? 0));
     return `${sym}${remaining.toFixed(0)} left`;
   }
+
+  const selectedReceiverCatIds = stretchPeriod === "previous"
+    ? previousReceiverCatIds
+    : receiverCatIds;
+  const sourceMonthLabel = stretchPeriod === "previous"
+    ? t("stretch.current_budget")
+    : t("stretch.next_month");
+  const borrowLabel = stretchPeriod === "previous"
+    ? t("stretch.borrows_current")
+    : t("stretch.borrows_next");
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
