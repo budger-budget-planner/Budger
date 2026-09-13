@@ -356,7 +356,7 @@ export default function BadgerLogo({
       <g style={outerStyle}>
 
       {/* ── Background ── */}
-      <rect width="100" height="100" rx="22" fill="#3d3d3d" />
+      <rect width="100" height="100" rx="22" fill="#2a2a2a" />
       <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none"
         stroke={`url(#bgBorderGrad-${uid})`} strokeWidth="1.5" />
 
