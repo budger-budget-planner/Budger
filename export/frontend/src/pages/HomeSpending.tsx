@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useSearch } from "wouter";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -1272,7 +1272,7 @@ function SwipeableTxRow({
 export default function HomeSpending() {
   const queryClient = useQueryClient();
   const isOnline = useOnlineStatus();
-  const [location] = useLocation();
+  const search = useSearch();
 
   const [prefs, setPrefsState] = useState(() => loadPrefs());
   const sym = currencySymbol(prefs.currency);
@@ -1309,17 +1309,18 @@ export default function HomeSpending() {
   // filter through the URL. Loading the full month here is intentional:
   // the default current-month query is capped for performance.
   useEffect(() => {
-    const queryString = location.split("?")[1] ?? "";
-    const query = new URLSearchParams(queryString);
+    const query = new URLSearchParams(search);
     const month = query.get("month");
     const category = query.get("category");
     if (month && /^\d{4}-\d{2}$/.test(month)) {
       const [year, monthNumber] = month.split("-").map(Number);
       setViewDate(new Date(year, monthNumber - 1, 1));
       setShowAllMonth(month);
+    } else {
+      setShowAllMonth(null);
     }
-    if (category !== null) setSearchQuery(category);
-  }, [location]);
+    setSearchQuery(category ?? "");
+  }, [search]);
   // Occurrence rule: due on first login after onboarding, or after a week of inactivity.
   // We peek (no stamp) here so that a tab-leave before the animation fires does NOT
   // consume the hint. The stamp happens only when the 4 s delay completes below.
