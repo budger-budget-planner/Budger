@@ -10,6 +10,7 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 };
 
 const LOGO_SRC = "/badger-logo.png";
+const NOSE_SRC = "/badger-nose.png";
 // The supplied artwork is intentionally kept at its native aspect ratio.
 const LOGO_ASPECT = 2048 / 2386;
 
@@ -167,7 +168,7 @@ export default function BadgerLogo({
           <span className="blg-nose-overlay" aria-hidden="true">
             <img
               className="blg-nose-overlay-image"
-              src={LOGO_SRC}
+              src={NOSE_SRC}
               alt=""
               draggable={false}
             />
@@ -258,10 +259,10 @@ export default function BadgerLogo({
            from showing underneath the animation. */
         .blg-nose-cover {
           position: absolute;
-          left: 37.5%;
-          top: 56%;
-          width: 25%;
-          height: 22%;
+          left: 40.5%;
+          top: 60%;
+          width: 19%;
+          height: 17%;
           border-radius: 50%;
           background: radial-gradient(
             ellipse at 50% 35%,
@@ -276,15 +277,14 @@ export default function BadgerLogo({
           opacity: 1;
         }
 
-        /* Reuse the supplied artwork for the moving nose instead of drawing a
-           second approximation in CSS. The clipped duplicate preserves the
-           original nose shape, shading, and highlight exactly. */
+        /* This is a transparent crop of the supplied artwork's original nose.
+           Only this exact crop moves; no replacement shape is drawn in CSS. */
         .blg-nose-overlay {
           position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          clip-path: ellipse(8% 6% at 50% 67.5%);
+          left: 41.65%;
+          top: 61.33%;
+          width: 16.76%;
+          height: 15.38%;
           opacity: 0;
           pointer-events: none;
         }
@@ -303,14 +303,11 @@ export default function BadgerLogo({
           animation: blg-sniff-nose var(--blg-anim-dur, 1.4s) ease-in-out forwards;
         }
         @keyframes blg-sniff-nose {
-          0%   { opacity: 1; transform: translateY(0); }
-          15%  { opacity: 1; transform: translateY(-3.5px); }
-          30%  { opacity: 1; transform: translateY(0); }
-          45%  { opacity: 1; transform: translateY(-3.5px); }
-          60%  { opacity: 1; transform: translateY(0); }
-          75%  { opacity: 1; transform: translateY(-3.5px); }
-          90%  { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(0); }
+          0%, 15%   { opacity: 1; transform: translateY(0); }
+          30%       { opacity: 1; transform: translateY(-3.5px); }
+          45%       { opacity: 1; transform: translateY(0); }
+          60%       { opacity: 1; transform: translateY(-3.5px); }
+          75%, 100% { opacity: 1; transform: translateY(0); }
         }
 
         /* The new artwork has a smile but no separate tongue node. This
