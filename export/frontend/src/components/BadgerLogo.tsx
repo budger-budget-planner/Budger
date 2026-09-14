@@ -10,6 +10,8 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 };
 
 const LOGO_SRC = "/badger-logo.png";
+// The supplied artwork is intentionally kept at its native aspect ratio.
+const LOGO_ASPECT = 2048 / 2386;
 
 interface BadgerLogoProps {
   size?: number;
@@ -97,7 +99,6 @@ export default function BadgerLogo({
     };
   }, []);
 
-  // A forced splash animation takes precedence over the idle timer.
   const displayAnim = mode === "awake" ? (forceAnim ?? anim) : null;
   const faceClass =
     mode !== "awake"
@@ -106,13 +107,6 @@ export default function BadgerLogo({
         ? `blg-${displayAnim}`
         : "blg-idle";
 
-  const animationStyle =
-    forceAnimDurationMs != null
-      ? ({ "--blg-anim-dur": `${forceAnimDurationMs}ms` } as React.CSSProperties)
-      : undefined;
-
-  // Keep the pulse on a separate layer from face motion. This prevents the
-  // grow animation from competing with the splash translate/scale wrappers.
   const growDurMs =
     mode === "falling-asleep"
       ? 1600
@@ -131,10 +125,15 @@ export default function BadgerLogo({
         ? "blg-grow-lick"
         : "blg-grow";
 
+  // `size` remains the width used by splash measurement and destination
+  // matching. The height follows the supplied image rather than cropping it.
   const logoStyle = {
     "--blg-size": `${size}px`,
+    ...(forceAnimDurationMs != null
+      ? { "--blg-anim-dur": `${forceAnimDurationMs}ms` }
+      : {}),
     width: size,
-    height: size,
+    height: size * LOGO_ASPECT,
   } as React.CSSProperties;
 
   const growStyle: React.CSSProperties = {
@@ -152,7 +151,7 @@ export default function BadgerLogo({
       aria-label="Budger badger logo"
     >
       <span className="blg-grow-layer" style={growStyle}>
-        <span className={`blg-face ${faceClass}`} style={animationStyle}>
+        <span className={`blg-face ${faceClass}`}>
           <img
             className="blg-face-image"
             src={LOGO_SRC}
@@ -160,9 +159,11 @@ export default function BadgerLogo({
             draggable={false}
           />
 
-          {/* The supplied artwork is a single image, so the tongue and sleep
-              marks remain separate animated overlays rather than being baked
-              into a second, non-animated logo. */}
+          {/* These layers are positioned against the supplied artwork itself,
+              so the existing personality animations act on the new face. */}
+          <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
+          <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
+          <span className="blg-nose-overlay" aria-hidden="true" />
           <span className="blg-tongue" aria-hidden="true" />
           <span className="blg-zzz blg-z1" aria-hidden="true">
             z
@@ -202,78 +203,135 @@ export default function BadgerLogo({
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
-          object-position: center;
+          object-fit: fill;
           user-select: none;
           pointer-events: none;
         }
 
-        /* The raster artwork cannot animate individual SVG nodes, so these
-           motions preserve the original personality without distorting the
-           new illustration or interrupting splash translations. */
-        .blg-wink .blg-face-image {
-          animation: blg-image-wink var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+        /* The supplied image is the base face. The cover replaces the
+           matching eye with the black facial stripe, then draws one small
+           closed-lid line on top during wink/sleep transitions. */
+        .blg-eye-cover {
+          position: absolute;
+          top: 38%;
+          width: 19%;
+          height: 20%;
+          border-radius: 50%;
+          background: #171717;
+          opacity: 0;
+          transform-origin: center;
+          pointer-events: none;
         }
-        @keyframes blg-image-wink {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          15%      { transform: scale(0.99, 0.96) rotate(-1.2deg); }
-          52%      { transform: scale(0.99, 0.96) rotate(-1.2deg); }
-          72%      { transform: scale(1.015, 1.04) rotate(0.8deg); }
-          85%      { transform: scale(0.997, 0.99) rotate(-0.25deg); }
+        .blg-eye-cover-left { left: 25%; }
+        .blg-eye-cover-right { left: 58%; }
+        .blg-eye-cover::after {
+          content: "";
+          position: absolute;
+          left: 14%;
+          top: 50%;
+          width: 72%;
+          height: 22%;
+          border-top: max(1px, calc(var(--blg-size) * 0.026)) solid #575757;
+          border-radius: 50%;
         }
 
-        .blg-sniff .blg-face-image {
-          animation: blg-image-sniff var(--blg-anim-dur, 1.4s) ease-in-out forwards;
+        .blg-wink .blg-eye-cover-right {
+          animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
-        @keyframes blg-image-sniff {
-          0%, 100% { transform: translateY(0) scale(1); }
-          15%, 45%, 75% { transform: translateY(-2px) scale(1.018, 1.01); }
-          30%, 60%, 90% { transform: translateY(0) scale(1); }
+        @keyframes blg-wink-eye {
+          0%, 100% { opacity: 0; transform: scaleY(0.1); }
+          15%, 52% { opacity: 1; transform: scaleY(1); }
+          72%      { opacity: 0.85; transform: scaleY(1.08); }
+          85%      { opacity: 0.35; transform: scaleY(0.7); }
         }
 
+        /* The replacement nose is aligned to the nose in the supplied image,
+           so sniff moves the visible nose rather than the entire face. */
+        .blg-nose-overlay {
+          position: absolute;
+          left: 40%;
+          top: 61.5%;
+          width: 20%;
+          height: 15%;
+          border-radius: 50%;
+          background: #111;
+          opacity: 0;
+          transform-origin: center;
+          pointer-events: none;
+        }
+        .blg-nose-overlay::before {
+          content: "";
+          position: absolute;
+          left: 15%;
+          top: 14%;
+          width: 31%;
+          height: 29%;
+          border-radius: 50%;
+          background: #2c2c2c;
+        }
+        .blg-sniff .blg-nose-overlay {
+          animation: blg-sniff-nose var(--blg-anim-dur, 1.4s) ease-in-out forwards;
+        }
+        @keyframes blg-sniff-nose {
+          0%, 100% { opacity: 0; transform: translateY(0) scaleX(1); }
+          15%, 45%, 75% {
+            opacity: 1;
+            transform: translateY(-3px) scaleX(1.09);
+          }
+          30%, 60%, 90% {
+            opacity: 1;
+            transform: translateY(0) scaleX(1);
+          }
+        }
+
+        /* The new artwork has a smile but no separate tongue node. This
+           overlay gives the existing lick animation a real visible target. */
         .blg-tongue {
           position: absolute;
           left: 50%;
-          top: 74%;
+          top: 73%;
           width: 13%;
-          height: 10%;
+          height: 11%;
           border-radius: 50% 50% 48% 48%;
           background: linear-gradient(180deg, #f080a2 0%, #d95379 100%);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
           opacity: 0;
           transform: translate(-50%, -10%) scaleY(0.1);
           transform-origin: center top;
           pointer-events: none;
         }
-        .blg-lick .blg-face-image {
-          animation: blg-image-lick var(--blg-anim-dur, 2.4s) ease-in-out forwards;
-        }
         .blg-lick .blg-tongue {
           animation: blg-tongue-lick var(--blg-anim-dur, 2.4s) ease-in-out forwards;
         }
-        @keyframes blg-image-lick {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          28%      { transform: translateY(1px) rotate(-0.8deg); }
-          58%      { transform: translateY(1px) rotate(0.8deg); }
-          80%      { transform: translateY(0) rotate(0deg); }
-        }
         @keyframes blg-tongue-lick {
-          0%, 7%   { opacity: 0; transform: translate(-50%, -10%) scaleY(0.1); }
-          15%, 78% { opacity: 0.95; transform: translate(-50%, 0) scaleY(1); }
+          0%, 7%    { opacity: 0; transform: translate(-50%, -10%) scaleY(0.1); }
+          15%, 27%  { opacity: 0.95; transform: translate(-50%, 0) scaleY(1); }
+          58%       { opacity: 0.95; transform: translate(-42%, 2px) scaleX(0.75) scaleY(0.9) rotate(14deg); }
+          78%       { opacity: 0.9; transform: translate(-50%, 0) scaleY(1); }
           90%, 100% { opacity: 0; transform: translate(-50%, -12%) scaleY(0.1); }
         }
 
-        .blg-falling-asleep .blg-face-image {
-          animation: blg-image-fall-asleep 1.6s ease-in-out forwards;
+        /* Offline sleep state: close the eyes over the supplied illustration,
+           then use the same overlays for the sleeping and waking states. */
+        .blg-falling-asleep .blg-eye-cover-left,
+        .blg-falling-asleep .blg-eye-cover-right {
+          animation: blg-eye-close 1.6s ease-in-out forwards;
         }
-        @keyframes blg-image-fall-asleep {
-          0%   { transform: scale(1); filter: brightness(1); }
-          45%  { transform: scale(0.985) translateY(1px); filter: brightness(0.88); }
-          100% { transform: scale(0.97) translateY(1px); filter: brightness(0.72); }
+        .blg-falling-asleep .blg-eye-cover-right {
+          animation-delay: 0.15s;
+        }
+        @keyframes blg-eye-close {
+          0%   { opacity: 0; transform: scaleY(0.1); }
+          35%  { opacity: 0.7; transform: scaleY(0.55); }
+          70%  { opacity: 1; transform: scaleY(1); }
+          100% { opacity: 1; transform: scaleY(1); }
         }
 
         .blg-sleeping {
           animation: blg-breathe 3.5s ease-in-out infinite;
+        }
+        .blg-sleeping .blg-eye-cover {
+          opacity: 1;
         }
         .blg-sleeping .blg-face-image {
           filter: brightness(0.72);
@@ -283,16 +341,18 @@ export default function BadgerLogo({
           35%, 65% { transform: translateY(-1.4px); }
         }
 
-        .blg-waking-up .blg-face-image {
-          animation: blg-image-wake 2.5s ease-in-out forwards;
+        .blg-waking-up .blg-eye-cover-left,
+        .blg-waking-up .blg-eye-cover-right {
+          opacity: 1;
+          animation: blg-eye-wake 2.5s ease-in-out forwards;
         }
-        @keyframes blg-image-wake {
-          0%   { transform: scale(0.97) translateY(1px); filter: brightness(0.72); }
-          36%  { transform: scale(0.99) translateY(0); filter: brightness(0.86); }
-          53%  { transform: scale(0.97) translateY(1px); filter: brightness(0.75); }
-          76%  { transform: scale(1.018) translateY(0); filter: brightness(1.04); }
-          86%  { transform: scale(0.99); filter: brightness(0.96); }
-          100% { transform: scale(1); filter: brightness(1); }
+        @keyframes blg-eye-wake {
+          0%   { opacity: 1; transform: scaleY(1); }
+          36%  { opacity: 0.85; transform: scaleY(0.5); }
+          53%  { opacity: 1; transform: scaleY(1); }
+          76%  { opacity: 0.4; transform: scaleY(0.2); }
+          86%  { opacity: 0.15; transform: scaleY(0.08); }
+          100% { opacity: 0; transform: scaleY(0.05); }
         }
 
         .blg-zzz {
@@ -306,7 +366,7 @@ export default function BadgerLogo({
           line-height: 1;
           opacity: 0;
           pointer-events: none;
-          text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
         .blg-z1 { left: 58%; top: 24%; }
         .blg-z2 { left: 68%; top: 9%; font-size: calc(var(--blg-size) * 0.35); }
