@@ -577,3 +577,17 @@ mtime_ms = 1789373401481
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/422107be-6a53-44e4-9ed0-98af169e83b0/7dca1065-489c-4a4e-8816-16a72a6ee5cd"
 storage_version_token = "1789373411767439"
 content_type = "image/png"
+
+[[outputs]]
+id = "B9FRE9Au98YNXMjo5UU3d"
+uri = "file://output/badger_head_black_white_only.png"
+type = "image"
+title = "Black-and-white badger head"
+description = "Transparent PNG using the supplied black-and-white head artwork only, with the grey outer body excluded."
+logical_id = "2a955cae-bd9b-437b-9866-729a6f03cfa3"
+content_hash = "sha256:195b8aa44dc149d44d02ba0b2d60a4c8dcbb8d34c3ceef228846b7be17c40dea"
+size = 137231
+mtime_ms = 1789373485786
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/2a955cae-bd9b-437b-9866-729a6f03cfa3/373d5aca-1433-4401-8e29-894f845ed728"
+storage_version_token = "1789373491202343"
+content_type = "image/png"
