@@ -535,3 +535,17 @@ mtime_ms = 1789368097911
 storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:a14793dc-4304-476e-981d-1c660d8606ca/dcb98747-9803-411d-93dd-f286049ae6d6/c0bdfbfa-d254-453a-b5f8-5527b22b4d78"
 storage_version_token = "1789368106576129"
 content_type = "image/png"
+
+[[outputs]]
+id = "zwmpSuKANPWfZJAMWqJfN"
+uri = "file://output/badger_head_final.png"
+type = "image"
+title = "Badger head with ears and rounded cheeks"
+description = "Clean transparent PNG cutout based on the supplied badger graphic, updated with symmetrical ears and fuller rounded cheeks."
+logical_id = "62d0c44b-a7ef-47f8-b084-9ea34e89c78b"
+content_hash = "sha256:e7de2a7f37fbbdde330ab9cd46c530faee3839af0e8109f72143d6f18403b59b"
+size = 477707
+mtime_ms = 1789372264598
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/62d0c44b-a7ef-47f8-b084-9ea34e89c78b/382352b0-e1f2-48cb-8d2e-c60d91065c45"
+storage_version_token = "1789372276666771"
+content_type = "image/png"
