@@ -10,6 +10,8 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 };
 
 const LOGO_SRC = "/badger-logo.png";
+const WINK_BASE_SRC = "/badger-logo-no-right-eye.png";
+const RIGHT_EYE_SRC = "/badger-right-eye.png";
 const NOSE_SRC = "/badger-nose-isolated.png";
 const NOSE_COVER_SRC = "/badger-nose-cover.png";
 // The supplied artwork is intentionally kept at its native aspect ratio.
@@ -160,6 +162,12 @@ export default function BadgerLogo({
             alt=""
             draggable={false}
           />
+          <img
+            className="blg-wink-base-image"
+            src={WINK_BASE_SRC}
+            alt=""
+            draggable={false}
+          />
 
           {/* These layers are positioned against the supplied artwork itself,
               so the existing personality animations act on the new face. */}
@@ -168,7 +176,7 @@ export default function BadgerLogo({
           <span className="blg-eye-overlay blg-eye-overlay-right" aria-hidden="true">
             <img
               className="blg-eye-overlay-image"
-              src={LOGO_SRC}
+              src={RIGHT_EYE_SRC}
               alt=""
               draggable={false}
             />
@@ -236,9 +244,28 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* During a wink, isolate the supplied right-eye artwork from the rest
-           of the face. The eye is the only animated layer: it compresses
-           horizontally in place instead of being replaced by a CSS eyelid. */
+        .badger-logo .blg-wink-base-image {
+          position: absolute;
+          inset: 0;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          opacity: 0;
+          user-select: none;
+          pointer-events: none;
+        }
+
+        /* During a wink, swap to the cheeks-preserving face base and animate
+           only the isolated right-eye artwork. */
+        .blg-wink .blg-face-image {
+          opacity: 0;
+        }
+        .blg-wink .blg-wink-base-image {
+          opacity: 1;
+        }
+
         .blg-eye-cover {
           position: absolute;
           top: 37.4%;
@@ -266,14 +293,20 @@ export default function BadgerLogo({
           z-index: 3;
           clip-path: ellipse(50% 50% at 50% 50%);
         }
-        .blg-eye-overlay-right { left: 61.8%; }
+        .blg-eye-overlay-right {
+          left: 58.8%;
+          top: 35.3%;
+          width: 21.4%;
+          height: 25%;
+          overflow: hidden;
+          clip-path: none;
+        }
         .blg-eye-overlay-image {
-          position: absolute;
-          top: -182.4%;
-          left: -351.1%;
-          width: 568.2%;
-          max-width: none;
-          height: auto;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
           user-select: none;
           pointer-events: none;
         }
@@ -303,6 +336,10 @@ export default function BadgerLogo({
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
+        .blg-wink .blg-eye-cover-right {
+          animation: none;
+          opacity: 0;
+        }
 
         @keyframes blg-wink-mask {
           0%, 100% { opacity: 0; }
@@ -311,32 +348,32 @@ export default function BadgerLogo({
 
         @keyframes blg-wink-eye {
           0%, 8% {
-            opacity: 0;
-            transform: scaleX(1);
+            opacity: 1;
+            transform: scaleY(1);
           }
           12% {
             opacity: 1;
-            transform: scaleX(1);
+            transform: scaleY(1);
           }
           28% {
             opacity: 1;
-            transform: scaleX(0.68);
+            transform: scaleY(0.68);
           }
           45% {
             opacity: 1;
-            transform: scaleX(0.24);
+            transform: scaleY(0.24);
           }
           55%, 66% {
             opacity: 1;
-            transform: scaleX(0.06);
+            transform: scaleY(0.06);
           }
           82% {
             opacity: 1;
-            transform: scaleX(0.36);
+            transform: scaleY(0.36);
           }
           92%, 100% {
-            opacity: 0;
-            transform: scaleX(1);
+            opacity: 1;
+            transform: scaleY(1);
           }
         }
 
