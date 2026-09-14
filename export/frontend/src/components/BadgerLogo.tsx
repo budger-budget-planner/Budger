@@ -165,6 +165,14 @@ export default function BadgerLogo({
               so the existing personality animations act on the new face. */}
           <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
           <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
+          <span className="blg-eye-overlay blg-eye-overlay-right" aria-hidden="true">
+            <img
+              className="blg-eye-overlay-image"
+              src={LOGO_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-nose-cover" aria-hidden="true">
             <img
               className="blg-nose-cover-image"
@@ -228,10 +236,10 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. During a wink, a small oval
-           patch covers only the baked-in eye. The rounded patch blends into the
-           black stripe, then resolves to the short horizontal eyelid line
-           shown in the approved reference instead of exposing a rectangle. */
+        /* The supplied image is the base face. During a wink, the baked-in
+           right eye is covered by the stripe and replaced with a clipped copy
+           of the original eye artwork. This preserves the white rim, pupil,
+           and highlight while the whole eye compresses vertically. */
         .blg-eye-cover {
           position: absolute;
           top: 38.5%;
@@ -240,13 +248,36 @@ export default function BadgerLogo({
           border-radius: 50%;
           background: #141413;
           opacity: 0;
-          transform: scaleY(0.05);
           transform-origin: center;
           pointer-events: none;
           z-index: 2;
         }
         .blg-eye-cover-left { left: 20.5%; }
         .blg-eye-cover-right { left: 58.5%; }
+
+        .blg-eye-overlay {
+          position: absolute;
+          top: 38.5%;
+          width: 18%;
+          height: 19%;
+          overflow: hidden;
+          opacity: 0;
+          transform-origin: center;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .blg-eye-overlay-right { left: 58.5%; }
+        .blg-eye-overlay-image {
+          position: absolute;
+          top: -202.6%;
+          left: -325%;
+          width: 555.56%;
+          max-width: none;
+          height: auto;
+          user-select: none;
+          pointer-events: none;
+        }
+
         .blg-eye-cover::after {
           content: "";
           position: absolute;
@@ -262,21 +293,51 @@ export default function BadgerLogo({
         }
 
         .blg-wink .blg-eye-cover-right {
-          animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+          animation: blg-wink-mask var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+          transform: none;
         }
         .blg-wink .blg-eye-cover-right::after {
-          animation: blg-wink-line var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+          opacity: 0;
         }
+
+        .blg-wink .blg-eye-overlay-right {
+          animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+        }
+
+        @keyframes blg-wink-mask {
+          0%, 100% { opacity: 0; }
+          8%, 92% { opacity: 1; }
+        }
+
         @keyframes blg-wink-eye {
-          0%, 100% { opacity: 0; transform: scaleY(0.05); }
-          12% { opacity: 1; transform: scaleY(0.05); }
-          28%, 82% { opacity: 1; transform: scaleY(1); }
-          92% { opacity: 0; transform: scaleY(0.05); }
-        }
-        @keyframes blg-wink-line {
-          0%, 28% { opacity: 0; transform: scaleX(0.15); }
-          40%, 82% { opacity: 1; transform: scaleX(1); }
-          92%, 100% { opacity: 0; transform: scaleX(0.15); }
+          0%, 8% {
+            opacity: 0;
+            transform: scaleY(1);
+          }
+          12% {
+            opacity: 1;
+            transform: scaleY(1);
+          }
+          28% {
+            opacity: 1;
+            transform: scaleY(0.68);
+          }
+          45% {
+            opacity: 1;
+            transform: scaleY(0.24);
+          }
+          55%, 66% {
+            opacity: 1;
+            transform: scaleY(0.06);
+          }
+          82% {
+            opacity: 1;
+            transform: scaleY(0.36);
+          }
+          92%, 100% {
+            opacity: 0;
+            transform: scaleY(1);
+          }
         }
 
         /* During sniff, the supplied artwork's original nose is covered by a
