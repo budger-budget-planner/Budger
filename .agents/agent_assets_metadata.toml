@@ -451,3 +451,17 @@ mtime_ms = 1789334372697
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/1c38028d-1a98-49ee-b6e0-ecc51e6babd8/e9b808a4-4eb0-4967-80a9-f59d9bf44c58"
 storage_version_token = "1789334379726943"
 content_type = "image/png"
+
+[[outputs]]
+id = "XCPK4TWh7I_dAUkEXnt4q"
+uri = "file://output/badger_approaching_original_head_locked.png"
+type = "image"
+title = "Badger approach with original head locked"
+description = "The original clean head is preserved unchanged, combined with a shorter illustrated quadrupedal body approaching the viewer on all fours."
+logical_id = "b5dbaeed-106b-4798-a3b0-1fad8f51102f"
+content_hash = "sha256:74f5ac9cc3c9151651918a40af0d48a7e11d06cae4b1415b17343d3ebb0d3734"
+size = 310362
+mtime_ms = 1789357690722
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/b5dbaeed-106b-4798-a3b0-1fad8f51102f/28781d6c-9956-4619-ad04-16e3a5e95ec1"
+storage_version_token = "1789357699515196"
+content_type = "image/png"
