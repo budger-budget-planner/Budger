@@ -236,41 +236,42 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* During a wink, hide the baked-in right eye with a featureless piece
-           of the existing black stripe and place the original eye artwork back
-           on top. Only that artwork is animated, so the wink is compression,
-           not a drawn eyelid. */
+        /* During a wink, isolate the supplied right-eye artwork from the rest
+           of the face. The eye is the only animated layer: it compresses
+           horizontally in place instead of being replaced by a CSS eyelid. */
         .blg-eye-cover {
           position: absolute;
-          top: 38.5%;
-          width: 18%;
-          height: 19%;
+          top: 37.4%;
+          width: 17.6%;
+          height: 20.5%;
           border-radius: 50%;
           background: #141413;
           opacity: 0;
           pointer-events: none;
           z-index: 2;
+          clip-path: ellipse(50% 50% at 50% 50%);
         }
-        .blg-eye-cover-left { left: 20.5%; }
-        .blg-eye-cover-right { left: 58.5%; }
+        .blg-eye-cover-left { left: 20.6%; }
+        .blg-eye-cover-right { left: 61.8%; }
 
         .blg-eye-overlay {
           position: absolute;
-          top: 38.5%;
-          width: 18%;
-          height: 19%;
+          top: 37.4%;
+          width: 17.6%;
+          height: 20.5%;
           overflow: hidden;
           opacity: 0;
           transform-origin: center;
           pointer-events: none;
           z-index: 3;
+          clip-path: ellipse(50% 50% at 50% 50%);
         }
-        .blg-eye-overlay-right { left: 58.5%; }
+        .blg-eye-overlay-right { left: 61.8%; }
         .blg-eye-overlay-image {
           position: absolute;
-          top: -202.6%;
-          left: -325%;
-          width: 555.56%;
+          top: -182.4%;
+          left: -351.1%;
+          width: 568.2%;
           max-width: none;
           height: auto;
           user-select: none;
@@ -311,31 +312,31 @@ export default function BadgerLogo({
         @keyframes blg-wink-eye {
           0%, 8% {
             opacity: 0;
-            transform: scaleY(1);
+            transform: scaleX(1);
           }
           12% {
             opacity: 1;
-            transform: scaleY(1);
+            transform: scaleX(1);
           }
           28% {
             opacity: 1;
-            transform: scaleY(0.68);
+            transform: scaleX(0.68);
           }
           45% {
             opacity: 1;
-            transform: scaleY(0.24);
+            transform: scaleX(0.24);
           }
           55%, 66% {
             opacity: 1;
-            transform: scaleY(0.06);
+            transform: scaleX(0.06);
           }
           82% {
             opacity: 1;
-            transform: scaleY(0.36);
+            transform: scaleX(0.36);
           }
           92%, 100% {
             opacity: 0;
-            transform: scaleY(1);
+            transform: scaleX(1);
           }
         }
 
