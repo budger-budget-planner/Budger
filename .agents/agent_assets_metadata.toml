@@ -773,3 +773,17 @@ mtime_ms = 1789381252745
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/83aad6cf-2092-4fb5-8c5c-91de3950d54a/f946d238-cb06-4719-84b3-9c64e5967cfc"
 storage_version_token = "1789381262052928"
 content_type = "image/png"
+
+[[outputs]]
+id = "kNfk0U17K8nLSNwLRDHkM"
+uri = "file://output/IMG_5539_head_on_logo_background.png"
+type = "image"
+title = "Recreated badger logo"
+description = "The supplied badger head has been centered and placed on the supplied rounded background, with the old placeholder artwork cleared and the frame preserved."
+logical_id = "3d63aafa-c15a-4bae-8cf0-aca079c190a6"
+content_hash = "sha256:811508dd685ced7df20c9d53c6c3d894c9f0920f7ce9d531843bbb533d574fc5"
+size = 913379
+mtime_ms = 1789381388289
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/3d63aafa-c15a-4bae-8cf0-aca079c190a6/cefd63ff-5696-4f05-9de2-2e17f7006f6c"
+storage_version_token = "1789381397472967"
+content_type = "image/png"
