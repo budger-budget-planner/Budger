@@ -70,14 +70,14 @@ self.addEventListener("push", (event) => {
   // Derive base-aware URLs from the SW's own scope so the app works
   // correctly under any BASE_PATH (e.g. /finance-app/).
   const scope = self.registration.scope; // e.g. "https://host/finance-app/"
-  const iconUrl   = data.icon  || new URL("favicon.svg", scope).href;
+  const iconUrl   = data.icon  || new URL("badger-logo-corrected.png", scope).href;
   const targetUrl = data.url   || new URL("?sheet=alerts", scope).href;
 
   const title = data.title || "Budger";
   const options = {
     body: data.body || "Time to log your spending.",
     icon: iconUrl,
-    badge: new URL("favicon.svg", scope).href,
+    badge: new URL("badger-logo-corrected.png", scope).href,
     tag: data.tag || "budger-reminder",
     renotify: true,
     requireInteraction: false,

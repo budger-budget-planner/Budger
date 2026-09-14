@@ -16,8 +16,8 @@ export async function showNotification(
   const { url, ...notifOptions } = options;
   const swOptions: NotificationOptions & { data?: { url?: string } } = {
     ...notifOptions,
-    icon: notifOptions.icon ?? "/favicon.svg",
-    badge: "/favicon.svg",
+    icon: notifOptions.icon ?? `${import.meta.env.BASE_URL}badger-logo-corrected.png`,
+    badge: `${import.meta.env.BASE_URL}badger-logo-corrected.png`,
     data: { url: url ?? "/" },
   };
 
