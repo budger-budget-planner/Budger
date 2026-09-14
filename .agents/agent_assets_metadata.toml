@@ -605,3 +605,17 @@ mtime_ms = 1789373870686
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/02995100-664b-4a4e-ab12-e7942c594d0d/9d3cb84c-cc4f-4088-82e8-5485c4897164"
 storage_version_token = "1789373881163409"
 content_type = "image/png"
+
+[[outputs]]
+id = "-BgGM6gRScsvbno_LxOSF"
+uri = "file://output/Untitled_head_only_final.png"
+type = "image"
+title = "Head-only cutout from updated PNG"
+description = "High-quality transparent PNG cut directly from the supplied updated artwork. The original head, ears, cheeks, face markings, and colors are preserved; lower body contents and white background are removed."
+logical_id = "02d8e91c-731e-4d58-92d9-d83338fc5183"
+content_hash = "sha256:f5df2ede11830b37c0d2027da0b6463b216eb102b02466597c28b7994eb53998"
+size = 385168
+mtime_ms = 1789374383269
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/02d8e91c-731e-4d58-92d9-d83338fc5183/e3f82e1b-0afb-4e4e-a48a-9118f628fb05"
+storage_version_token = "1789374394703571"
+content_type = "image/png"
