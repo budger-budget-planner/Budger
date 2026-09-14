@@ -731,3 +731,17 @@ mtime_ms = 1789380657250
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/756f75a6-c7cf-49c5-80db-d06074215e7f/d72157e1-1c1d-4607-9272-7dde2eae4d3c"
 storage_version_token = "1789380661667336"
 content_type = "image/png"
+
+[[outputs]]
+id = "SqTRAdK6XVCcd35VR-Qmo"
+uri = "file://output/IMG_5542_ears_all_offwhite.png"
+type = "image"
+title = "Badger with fully off-white ears"
+description = "The entire ears, including the inner ear areas, are now off-white. All other parts of the image remain unchanged."
+logical_id = "8cb0a974-5fc7-4579-a4e7-9001820a34ea"
+content_hash = "sha256:7a755c89c81c174675d7f3540a4d15ccaf128af153899dd374bc1c7dc52eab40"
+size = 1022581
+mtime_ms = 1789380892213
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/8cb0a974-5fc7-4579-a4e7-9001820a34ea/0b3566fe-d0dd-438b-b3cb-2aa9b7477a26"
+storage_version_token = "1789380911389522"
+content_type = "image/png"
