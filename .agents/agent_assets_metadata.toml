@@ -801,3 +801,17 @@ mtime_ms = 1789381480473
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/ea4c2635-65a9-406a-9f4b-d743d4578e28/132e4626-e241-40e4-a60b-854ec85478b2"
 storage_version_token = "1789381491478040"
 content_type = "image/png"
+
+[[outputs]]
+id = "196aZoQ9haoIR2cYLBRTm"
+uri = "file://output/IMG_5539_cheeks_over_border_logo.png"
+type = "image"
+title = "Logo with cheeks overlapping the border"
+description = "The head is layered in front of the gradient background and enlarged slightly so both cheeks visibly cross over the rounded border."
+logical_id = "15417fea-e24a-4bae-9677-8d6faef89240"
+content_hash = "sha256:873d6b5bc3b6721d02c0896255b52838f50e449e6bd1886c14f6138f085c62a4"
+size = 1264226
+mtime_ms = 1789381550358
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/15417fea-e24a-4bae-9677-8d6faef89240/92bfa811-c036-4f27-83c1-a0abd11c6ea2"
+storage_version_token = "1789381558446762"
+content_type = "image/png"
