@@ -242,10 +242,10 @@ export default function BadgerLogo({
            not a drawn eyelid. */
         .blg-eye-cover {
           position: absolute;
-          top: 36%;
-          width: 21%;
-          height: 24%;
-          border-radius: 0;
+          top: 38.5%;
+          width: 18%;
+          height: 19%;
+          border-radius: 50%;
           background: #141413;
           opacity: 0;
           pointer-events: none;
