@@ -563,3 +563,17 @@ mtime_ms = 1789373228517
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/a0d81230-81fa-4bfe-84ee-60388d41bb73/54eb64b8-8272-40a4-ad8e-93cbf156f2e5"
 storage_version_token = "1789373247785778"
 content_type = "image/png"
+
+[[outputs]]
+id = "p-rStKzeDob8wQ0EhvLLX"
+uri = "file://output/badger_head_clean.png"
+type = "image"
+title = "Clean badger head cutout"
+description = "Cleaned transparent PNG cut directly from the supplied badger artwork. Original face and colors preserved; only the cutoff and stray edge fragments were cleaned."
+logical_id = "422107be-6a53-44e4-9ed0-98af169e83b0"
+content_hash = "sha256:6000f613765ec17bef9a83ca7118f94fbc54c51b7908951feb1b2b5da3cf846b"
+size = 518422
+mtime_ms = 1789373401481
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/422107be-6a53-44e4-9ed0-98af169e83b0/7dca1065-489c-4a4e-8816-16a72a6ee5cd"
+storage_version_token = "1789373411767439"
+content_type = "image/png"
