@@ -479,3 +479,17 @@ mtime_ms = 1789357828796
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/c342fc19-b7b2-4f09-ab24-70fffc2e1ee5/d64fe96e-3c1e-431b-939b-f8fd0f38771f"
 storage_version_token = "1789357838975813"
 content_type = "image/png"
+
+[[outputs]]
+id = "511yB-DF_QpOgXaxBr5aZ"
+uri = "file://output/badger_smooth_head_top_clean.png"
+type = "image"
+title = "High-quality badger PNG"
+description = "Recreated badger graphic with a smooth upper head contour, cleaned edges, and transparent background."
+logical_id = "ffed2bf9-f1b5-4763-969e-a09bb8dc3875"
+content_hash = "sha256:00182b2c7959e4b4de02a04f6a6304062b005fba1806b12f1863a5ff81a531a2"
+size = 389609
+mtime_ms = 1789358618216
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ffed2bf9-f1b5-4763-969e-a09bb8dc3875/70568bf1-5db5-422c-a82a-24532408bc69"
+storage_version_token = "1789358682802619"
+content_type = "image/png"
