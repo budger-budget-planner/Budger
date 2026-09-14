@@ -10,7 +10,8 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 };
 
 const LOGO_SRC = "/badger-logo.png";
-const NOSE_SRC = "/badger-nose.png";
+const NOSE_SRC = "/badger-nose-isolated.png";
+const NOSE_COVER_SRC = "/badger-nose-cover.png";
 // The supplied artwork is intentionally kept at its native aspect ratio.
 const LOGO_ASPECT = 2048 / 2386;
 
@@ -164,7 +165,14 @@ export default function BadgerLogo({
               so the existing personality animations act on the new face. */}
           <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
           <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
-          <span className="blg-nose-cover" aria-hidden="true" />
+          <span className="blg-nose-cover" aria-hidden="true">
+            <img
+              className="blg-nose-cover-image"
+              src={NOSE_COVER_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-nose-overlay" aria-hidden="true">
             <img
               className="blg-nose-overlay-image"
@@ -220,57 +228,77 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. During a wink, the stripe-colored
-           mask removes the baked-in eye without forming a new eyelid shape.
-           Only the short horizontal line is visible. */
+        /* The supplied image is the base face. During a wink, a small oval
+           patch covers only the baked-in eye. The rounded patch blends into the
+           black stripe, then resolves to the short horizontal eyelid line
+           shown in the approved reference instead of exposing a rectangle. */
         .blg-eye-cover {
           position: absolute;
-          top: 36%;
-          width: 21%;
-          height: 24%;
-          border-radius: 0;
-          background: #151515;
+          top: 38.5%;
+          width: 18%;
+          height: 19%;
+          border-radius: 50%;
+          background: #141413;
           opacity: 0;
+          transform: scaleY(0.05);
           transform-origin: center;
           pointer-events: none;
+          z-index: 2;
         }
         .blg-eye-cover-left { left: 20.5%; }
         .blg-eye-cover-right { left: 58.5%; }
         .blg-eye-cover::after {
           content: "";
           position: absolute;
-          left: 12%;
-          top: 55%;
-          width: 76%;
-          height: max(1px, calc(var(--blg-size) * 0.026));
+          left: 15%;
+          top: 49%;
+          width: 70%;
+          height: max(1px, calc(var(--blg-size) * 0.012));
+          border-radius: 999px;
           background: #aaa7a0;
+          opacity: 0;
+          transform: scaleX(0.15);
+          transform-origin: center;
         }
 
         .blg-wink .blg-eye-cover-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
+        .blg-wink .blg-eye-cover-right::after {
+          animation: blg-wink-line var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+        }
         @keyframes blg-wink-eye {
-          0%, 100% { opacity: 0; }
-          15%, 82% { opacity: 1; }
+          0%, 100% { opacity: 0; transform: scaleY(0.05); }
+          12% { opacity: 1; transform: scaleY(0.05); }
+          28%, 82% { opacity: 1; transform: scaleY(1); }
+          92% { opacity: 0; transform: scaleY(0.05); }
+        }
+        @keyframes blg-wink-line {
+          0%, 28% { opacity: 0; transform: scaleX(0.15); }
+          40%, 82% { opacity: 1; transform: scaleX(1); }
+          92%, 100% { opacity: 0; transform: scaleX(0.15); }
         }
 
-        /* During sniff the supplied artwork's original nose is covered before
-           the moving replacement appears. This keeps a second stationary nose
-           from showing underneath the animation. */
+        /* During sniff, the supplied artwork's original nose is covered by a
+           pixel-accurate transparent-mask asset. It covers only the dark nose
+           silhouette, leaving the smile and muzzle completely stationary. */
         .blg-nose-cover {
           position: absolute;
-          left: 40.5%;
-          top: 60%;
-          width: 19%;
-          height: 17%;
-          border-radius: 50%;
-          background: radial-gradient(
-            ellipse at 50% 35%,
-            #f7f5ef 0%,
-            #efede7 72%,
-            #e5e2db 100%
-          );
+          left: 41.65%;
+          top: 61.33%;
+          width: 16.76%;
+          height: 15.38%;
           opacity: 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+        .blg-nose-cover-image {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          user-select: none;
           pointer-events: none;
         }
         .blg-sniff .blg-nose-cover {
@@ -287,6 +315,7 @@ export default function BadgerLogo({
           height: 15.38%;
           opacity: 0;
           pointer-events: none;
+          z-index: 2;
         }
         .blg-nose-overlay-image {
           position: absolute;
@@ -355,6 +384,10 @@ export default function BadgerLogo({
         .blg-falling-asleep .blg-eye-cover-right {
           animation-delay: 0.15s;
         }
+        .blg-falling-asleep .blg-eye-cover::after {
+          opacity: 1;
+          transform: scaleX(1);
+        }
         @keyframes blg-eye-close {
           0%   { opacity: 0; transform: scaleY(0.1); }
           35%  { opacity: 0.7; transform: scaleY(0.55); }
@@ -367,6 +400,11 @@ export default function BadgerLogo({
         }
         .blg-sleeping .blg-eye-cover {
           opacity: 1;
+          transform: scaleY(1);
+        }
+        .blg-sleeping .blg-eye-cover::after {
+          opacity: 1;
+          transform: scaleX(1);
         }
         .blg-sleeping .blg-face-image {
           filter: brightness(0.72);
@@ -380,6 +418,10 @@ export default function BadgerLogo({
         .blg-waking-up .blg-eye-cover-right {
           opacity: 1;
           animation: blg-eye-wake 2.5s ease-in-out forwards;
+        }
+        .blg-waking-up .blg-eye-cover::after {
+          opacity: 1;
+          animation: blg-wink-line 2.5s ease-in-out forwards;
         }
         @keyframes blg-eye-wake {
           0%   { opacity: 1; transform: scaleY(1); }
