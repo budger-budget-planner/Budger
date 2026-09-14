@@ -493,3 +493,17 @@ mtime_ms = 1789358618216
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/ffed2bf9-f1b5-4763-969e-a09bb8dc3875/70568bf1-5db5-422c-a82a-24532408bc69"
 storage_version_token = "1789358682802619"
 content_type = "image/png"
+
+[[outputs]]
+id = "CKaiLfh1LHWcQ3fhWz0mY"
+uri = "file://output/badger_rounded_back_high_quality.png"
+type = "image"
+title = "Badger with rounded back — high-quality PNG"
+description = "Transparent 2048×2048 PNG with the rear silhouette rounded to match the supplied reference graphic."
+logical_id = "ea9e8ce5-14e4-4718-92a7-a0a9588d20c7"
+content_hash = "sha256:9e3a8e23b4a43374912caf148db3bf4e53019727f163b374857c341df4c512ef"
+size = 907374
+mtime_ms = 1789365123081
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:a14793dc-4304-476e-981d-1c660d8606ca/ea9e8ce5-14e4-4718-92a7-a0a9588d20c7/f22ec368-ada9-4c0f-b9d5-aa07423308a6"
+storage_version_token = "1789365132360529"
+content_type = "image/png"
