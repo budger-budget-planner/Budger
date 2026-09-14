@@ -164,7 +164,14 @@ export default function BadgerLogo({
           <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
           <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
           <span className="blg-nose-cover" aria-hidden="true" />
-          <span className="blg-nose-overlay" aria-hidden="true" />
+          <span className="blg-nose-overlay" aria-hidden="true">
+            <img
+              className="blg-nose-overlay-image"
+              src={LOGO_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-tongue" aria-hidden="true" />
           <span className="blg-zzz blg-z1" aria-hidden="true">
             z
@@ -212,16 +219,15 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. The cover completely masks the
-           baked-in eye, then draws one small closed-lid line on top during
-           wink/sleep transitions. The solid stripe color prevents the open
-           eye from showing through the lid. */
+        /* The supplied image is the base face. During a wink, the stripe-colored
+           mask removes the baked-in eye without forming a new eyelid shape.
+           Only the short horizontal line is visible. */
         .blg-eye-cover {
           position: absolute;
           top: 36%;
           width: 21%;
           height: 24%;
-          border-radius: 50%;
+          border-radius: 0;
           background: #151515;
           opacity: 0;
           transform-origin: center;
@@ -232,23 +238,19 @@ export default function BadgerLogo({
         .blg-eye-cover::after {
           content: "";
           position: absolute;
-          left: 14%;
-          top: 52%;
-          width: 72%;
-          height: 16%;
-          border-top: max(1px, calc(var(--blg-size) * 0.026)) solid #aaa7a0;
-          border-radius: 50%;
-          transform: rotate(-3deg);
+          left: 12%;
+          top: 55%;
+          width: 76%;
+          height: max(1px, calc(var(--blg-size) * 0.026));
+          background: #aaa7a0;
         }
 
         .blg-wink .blg-eye-cover-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
         @keyframes blg-wink-eye {
-          0%, 100% { opacity: 0; transform: scaleY(0.1); }
-          15%      { opacity: 1; transform: scaleY(0.1); }
-          25%, 68% { opacity: 1; transform: scaleY(1); }
-          82%      { opacity: 0.25; transform: scaleY(0.35); }
+          0%, 100% { opacity: 0; }
+          15%, 82% { opacity: 1; }
         }
 
         /* During sniff the supplied artwork's original nose is covered before
@@ -274,30 +276,28 @@ export default function BadgerLogo({
           opacity: 1;
         }
 
-        /* The replacement nose is aligned to the supplied nose at its native
-           shape. Sniff only translates it vertically; it never scales or
-           reshapes the nose. */
+        /* Reuse the supplied artwork for the moving nose instead of drawing a
+           second approximation in CSS. The clipped duplicate preserves the
+           original nose shape, shading, and highlight exactly. */
         .blg-nose-overlay {
           position: absolute;
-          left: 42%;
-          top: 61.5%;
-          width: 16%;
-          height: 12%;
-          border-radius: 50%;
-          background: #111;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          clip-path: ellipse(8% 6% at 50% 67.5%);
           opacity: 0;
-          transform-origin: center;
           pointer-events: none;
         }
-        .blg-nose-overlay::before {
-          content: "";
+        .blg-nose-overlay-image {
           position: absolute;
-          left: 15%;
-          top: 14%;
-          width: 31%;
-          height: 29%;
-          border-radius: 50%;
-          background: #2c2c2c;
+          inset: 0;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          user-select: none;
+          pointer-events: none;
         }
         .blg-sniff .blg-nose-overlay {
           animation: blg-sniff-nose var(--blg-anim-dur, 1.4s) ease-in-out forwards;
