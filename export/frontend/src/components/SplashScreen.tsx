@@ -15,9 +15,9 @@ const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
 const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
-// sniff at 2× speed → lick at 2.25× speed → glide to destination
+// sniff at 2× speed → lick at ~1.8× speed → glide to destination
 const SNIFF_MS  = Math.round(1400 / 2);    //  700 ms (2× speed)
-const LICK_MS   = Math.round(2400 / 2.25); // 1 067 ms (2.25× speed)
+const LICK_MS   = Math.round(2400 / 1.8);  // 1 333 ms (~1.8× speed)
 const SETTLE_MS = 200;
 const GAP_MS    = 100;
 

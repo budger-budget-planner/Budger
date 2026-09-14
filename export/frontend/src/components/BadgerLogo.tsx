@@ -163,6 +163,7 @@ export default function BadgerLogo({
               so the existing personality animations act on the new face. */}
           <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
           <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
+          <span className="blg-nose-cover" aria-hidden="true" />
           <span className="blg-nose-overlay" aria-hidden="true" />
           <span className="blg-tongue" aria-hidden="true" />
           <span className="blg-zzz blg-z1" aria-hidden="true">
@@ -211,43 +212,66 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. The cover masks the matching
-           eye with the existing dark facial stripe, then draws one small
-           closed-lid line on top during wink/sleep transitions. Multiply
-           keeps the mask visually merged into the stripe instead of reading
-           as a new black eyelid shape. */
+        /* The supplied image is the base face. The cover completely masks the
+           baked-in eye, then draws one small closed-lid line on top during
+           wink/sleep transitions. The solid stripe color prevents the open
+           eye from showing through the lid. */
         .blg-eye-cover {
           position: absolute;
-          top: 38%;
-          width: 19%;
-          height: 20%;
+          top: 36%;
+          width: 21%;
+          height: 24%;
           border-radius: 50%;
           background: #151515;
-          mix-blend-mode: multiply;
           opacity: 0;
           transform-origin: center;
           pointer-events: none;
         }
-        .blg-eye-cover-left { left: 21.5%; }
-        .blg-eye-cover-right { left: 59.5%; }
+        .blg-eye-cover-left { left: 20.5%; }
+        .blg-eye-cover-right { left: 58.5%; }
         .blg-eye-cover::after {
           content: "";
           position: absolute;
-          left: 10%;
-          top: 50%;
-          width: 80%;
-          height: 0;
-          border-top: max(1px, calc(var(--blg-size) * 0.026)) solid #575757;
+          left: 14%;
+          top: 52%;
+          width: 72%;
+          height: 16%;
+          border-top: max(1px, calc(var(--blg-size) * 0.026)) solid #aaa7a0;
+          border-radius: 50%;
+          transform: rotate(-3deg);
         }
 
         .blg-wink .blg-eye-cover-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
         @keyframes blg-wink-eye {
-          0%, 100% { opacity: 0; }
-          15%, 52% { opacity: 1; }
-          72%      { opacity: 0.85; }
-          85%      { opacity: 0.35; }
+          0%, 100% { opacity: 0; transform: scaleY(0.1); }
+          15%      { opacity: 1; transform: scaleY(0.1); }
+          25%, 68% { opacity: 1; transform: scaleY(1); }
+          82%      { opacity: 0.25; transform: scaleY(0.35); }
+        }
+
+        /* During sniff the supplied artwork's original nose is covered before
+           the moving replacement appears. This keeps a second stationary nose
+           from showing underneath the animation. */
+        .blg-nose-cover {
+          position: absolute;
+          left: 37.5%;
+          top: 56%;
+          width: 25%;
+          height: 22%;
+          border-radius: 50%;
+          background: radial-gradient(
+            ellipse at 50% 35%,
+            #f7f5ef 0%,
+            #efede7 72%,
+            #e5e2db 100%
+          );
+          opacity: 0;
+          pointer-events: none;
+        }
+        .blg-sniff .blg-nose-cover {
+          opacity: 1;
         }
 
         /* The replacement nose is aligned to the supplied nose at its native
@@ -279,7 +303,7 @@ export default function BadgerLogo({
           animation: blg-sniff-nose var(--blg-anim-dur, 1.4s) ease-in-out forwards;
         }
         @keyframes blg-sniff-nose {
-          0%   { opacity: 0; transform: translateY(0); }
+          0%   { opacity: 1; transform: translateY(0); }
           15%  { opacity: 1; transform: translateY(-3.5px); }
           30%  { opacity: 1; transform: translateY(0); }
           45%  { opacity: 1; transform: translateY(-3.5px); }
