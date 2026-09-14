@@ -745,3 +745,17 @@ mtime_ms = 1789380892213
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/8cb0a974-5fc7-4579-a4e7-9001820a34ea/0b3566fe-d0dd-438b-b3cb-2aa9b7477a26"
 storage_version_token = "1789380911389522"
 content_type = "image/png"
+
+[[outputs]]
+id = "CDdQsQ8wJWwYnCOE1OSwL"
+uri = "file://output/IMG_5529_gradient_background.png"
+type = "image"
+title = "Rounded background with gray gradient"
+description = "The interior now keeps its original gray at the top and gradually darkens toward the bottom, ending in a visible dark gray that does not blend into black. The border and outer transparent area are unchanged."
+logical_id = "7e9512db-167c-485e-8f35-c939e20b7f95"
+content_hash = "sha256:9e1f1a6d201bf2e5274647f67ebb3e07e512bc3b75cf37c62904c8aa7fc397c9"
+size = 66340
+mtime_ms = 1789381171029
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/7e9512db-167c-485e-8f35-c939e20b7f95/9b0a2667-3c37-4f47-bf72-d2fe759511ae"
+storage_version_token = "1789381179475640"
+content_type = "image/png"
