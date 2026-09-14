@@ -705,7 +705,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             title={t("layout.badger_hint")}
           >
             <span data-splash-logo-home>
-              <BadgerLogo size={53} mode={badgerMode} />
+              <BadgerLogo size={66.25} mode={badgerMode} />
             </span>
           </button>
           <Link href="/" className="leading-none">

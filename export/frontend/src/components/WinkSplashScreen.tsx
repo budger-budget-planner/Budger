@@ -3,7 +3,7 @@ import BadgerLogo from "@/components/BadgerLogo";
 import BudgerWordmark from "@/components/BudgerWordmark";
 
 // Must match SplashScreen.tsx so the logo lands at the same size
-const SPLASH_SIZE = 120;
+const SPLASH_SIZE = 180;
 
 const STILL_MS   = 900;   // float before wink
 const WINK_MS    = 700;   // wink duration
@@ -60,7 +60,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
         // Fallback: header not mounted yet (rare). Y offset accounts for the
         // logo being ~36 px above viewport center in the group-centered layout.
         setTranslate("translate(calc(-50vw + 34px), calc(-50vh + 64px))");
-        setScale(0.35);
+        setScale(0.37);
       }
 
       setPhase("fly");

@@ -40,7 +40,7 @@ const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float
 const EXIT_MEASURE_TIMEOUT_MS = 1500;
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────
-const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
+const SPLASH_SIZE = 180; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 
 // Wordmark in float state: 38 px (matches BudgerWordmark default).
 // Login destination: 48 px (BudgerWordmark size={48} in Login.tsx).
@@ -48,9 +48,9 @@ const SPLASH_SIZE = 120; // px — must match <BadgerLogo size={SPLASH_SIZE} />
 const WORDMARK_SIZE = 38;
 
 // Y-shift to visually center the wordmark when the logo is invisible during bigText.
-// Group layout: logo 120 px + gap 22 px + text ~60 px = 202 px tall.
-// Text center is 172 px from group top → 71 px below group center → needs -71 px shift.
-const TEXT_INTRO_SHIFT_Y = 71; // px
+// Group layout: logo 180 px + gap 22 px + text ~60 px = 262 px tall.
+// Text center is 232 px from group top → 101 px below group center → needs -101 px shift.
+const TEXT_INTRO_SHIFT_Y = 101; // px
 
 // Scale for "Budger" text in bigText phase (matches the video scene value)
 const TEXT_INTRO_SCALE = 1.9375;
