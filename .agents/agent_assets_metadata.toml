@@ -787,3 +787,17 @@ mtime_ms = 1789381388289
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/3d63aafa-c15a-4bae-8cf0-aca079c190a6/cefd63ff-5696-4f05-9de2-2e17f7006f6c"
 storage_version_token = "1789381397472967"
 content_type = "image/png"
+
+[[outputs]]
+id = "xjObNfEkhVBARHT5kBfvr"
+uri = "file://output/IMG_5539_head_on_gradient_logo.png"
+type = "image"
+title = "Badger head on gray gradient background"
+description = "Merged directly from the two newly attached files: the supplied badger head is centered over the supplied smooth gray gradient background, with the rounded border preserved."
+logical_id = "ea4c2635-65a9-406a-9f4b-d743d4578e28"
+content_hash = "sha256:fc2621ec4616c7c83e1b17b6aecf73efb4a5ed314a3ad3b9c85649aa0af62587"
+size = 1281601
+mtime_ms = 1789381480473
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/ea4c2635-65a9-406a-9f4b-d743d4578e28/132e4626-e241-40e4-a60b-854ec85478b2"
+storage_version_token = "1789381491478040"
+content_type = "image/png"
