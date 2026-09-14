@@ -703,3 +703,17 @@ mtime_ms = 1789379080009
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/5202a613-6756-4bbd-8821-20e63bf32666/a42bd02f-bd5f-47d4-8631-0ced431d6b51"
 storage_version_token = "1789379091332110"
 content_type = "image/png"
+
+[[outputs]]
+id = "g1rAYT96iAqneZrw3Z0OI"
+uri = "file://output/IMG_5531_badger_with_ears.png"
+type = "image"
+title = "Badger side profile with ears"
+description = "Reimagined 1024×1024 PNG with proportionate rounded badger ears added to the side-profile head, while preserving the body, markings, pose, and transparent background."
+logical_id = "3c403c98-38e1-471e-89be-06a471bcf12f"
+content_hash = "sha256:ab1d6e71a6f57f28f52fbfd9713127fc3264149ee1eb39686ee5bc6623954e49"
+size = 1001590
+mtime_ms = 1789379206762
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/3c403c98-38e1-471e-89be-06a471bcf12f/5091f29b-c878-41d8-afbc-2162e5de7a89"
+storage_version_token = "1789379219646899"
+content_type = "image/png"
