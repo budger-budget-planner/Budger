@@ -521,3 +521,17 @@ mtime_ms = 1789366941092
 storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:a14793dc-4304-476e-981d-1c660d8606ca/d8f3c8fa-a447-4bfc-87bf-eb2636a49af9/05e122d4-a2d0-4ca3-9592-aeda3c1ce915"
 storage_version_token = "1789366950887651"
 content_type = "image/png"
+
+[[outputs]]
+id = "jc_nKVtTcB3FKTpslGkWE"
+uri = "file://output/budger_round_cheeks_ears_balanced_high_quality.png"
+type = "image"
+title = "Budger with round cheeks and ears"
+description = "High-quality transparent 2048×2048 PNG with matching circular ears and round cheek puffs."
+logical_id = "dcb98747-9803-411d-93dd-f286049ae6d6"
+content_hash = "sha256:0d623e7b58980d54071cd6100da1a317cbe965c984048d351ccc14d11082d0a6"
+size = 798228
+mtime_ms = 1789368097911
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:a14793dc-4304-476e-981d-1c660d8606ca/dcb98747-9803-411d-93dd-f286049ae6d6/c0bdfbfa-d254-453a-b5f8-5527b22b4d78"
+storage_version_token = "1789368106576129"
+content_type = "image/png"
