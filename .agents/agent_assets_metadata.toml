@@ -549,3 +549,17 @@ mtime_ms = 1789372264598
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/62d0c44b-a7ef-47f8-b084-9ea34e89c78b/382352b0-e1f2-48cb-8d2e-c60d91065c45"
 storage_version_token = "1789372276666771"
 content_type = "image/png"
+
+[[outputs]]
+id = "xwsTIprgjT-wdTsBHp2-7"
+uri = "file://output/badger_head_direct_cut.png"
+type = "image"
+title = "Badger head — direct cut from supplied image"
+description = "Pixel-preserving transparent PNG cut directly from the supplied full badger graphic. No redesigned or generated features were added."
+logical_id = "a0d81230-81fa-4bfe-84ee-60388d41bb73"
+content_hash = "sha256:2570e6cd888fe5f5298a98a09147592a7bab9bf169663118e4cdf0e3e45637d9"
+size = 593945
+mtime_ms = 1789373228517
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/a0d81230-81fa-4bfe-84ee-60388d41bb73/54eb64b8-8272-40a4-ad8e-93cbf156f2e5"
+storage_version_token = "1789373247785778"
+content_type = "image/png"
