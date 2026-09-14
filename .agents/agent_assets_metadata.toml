@@ -689,3 +689,17 @@ mtime_ms = 1789378867433
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/6bad3892-ddde-4e1c-8228-475ace02420e/8cdd27ee-520f-4fa9-8c35-8b6c7e988d21"
 storage_version_token = "1789378882994519"
 content_type = "image/png"
+
+[[outputs]]
+id = "vH9oh_BTO3peOoikAXYqs"
+uri = "file://output/IMG_5532_improved_head_replaced.png"
+type = "image"
+title = "Second badger graphic with improved head"
+description = "1024×1024 RGBA PNG with the cleaned head fitted to the second badger graphic, preserving the body and transparent background."
+logical_id = "5202a613-6756-4bbd-8821-20e63bf32666"
+content_hash = "sha256:b9b39096c7a11206154efe3c621f9678c64c0ec1dc880c0ec4fe7a0f694a61b7"
+size = 366047
+mtime_ms = 1789379080009
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/5202a613-6756-4bbd-8821-20e63bf32666/a42bd02f-bd5f-47d4-8631-0ced431d6b51"
+storage_version_token = "1789379091332110"
+content_type = "image/png"
