@@ -633,3 +633,17 @@ mtime_ms = 1789377574901
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/3ac303ed-89e0-4b29-8ce1-ea72bb9c4d8e/7544c47e-1485-41ba-9ce8-eaaa1395da21"
 storage_version_token = "1789377587000172"
 content_type = "image/png"
+
+[[outputs]]
+id = "lSS6scGik-biT2NFhur5l"
+uri = "file://output/badger_edges_cleaned_high_quality.png"
+type = "image"
+title = "Badger edges cleaned PNG"
+description = "Lossless 1128×724 RGBA PNG with the dark fringe removed from the off-white outer edges while preserving the internal artwork and transparency."
+logical_id = "4b927f19-5ee9-4006-a71c-6208ab14c822"
+content_hash = "sha256:41f989e597b76808a03fd0d288d9513b1463d2ccab8be5c730a81b8f2e9a170e"
+size = 481295
+mtime_ms = 1789378208578
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/4b927f19-5ee9-4006-a71c-6208ab14c822/e03b4d8f-0942-4faf-b061-f9d7c2713f21"
+storage_version_token = "1789378218456159"
+content_type = "image/png"
