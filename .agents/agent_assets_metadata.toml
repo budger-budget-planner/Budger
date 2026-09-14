@@ -465,3 +465,17 @@ mtime_ms = 1789357690722
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/b5dbaeed-106b-4798-a3b0-1fad8f51102f/28781d6c-9956-4619-ad04-16e3a5e95ec1"
 storage_version_token = "1789357699515196"
 content_type = "image/png"
+
+[[outputs]]
+id = "6f1ORul3mMx2hV5gIwgIv"
+uri = "file://output/badger_stocky_replaced_head_final.png"
+type = "image"
+title = "Stocky badger with supplied head cutoff"
+description = "The last stocky graphic with its generated head replaced by the provided clean cutoff; the body is otherwise unchanged."
+logical_id = "c342fc19-b7b2-4f09-ab24-70fffc2e1ee5"
+content_hash = "sha256:c883e133f2f168cb210bf5be9f1f568b174285529e864b8f691e3c472fbab350"
+size = 206763
+mtime_ms = 1789357828796
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:d6a1e6c5-34bc-4279-a023-2b90c08de84c/c342fc19-b7b2-4f09-ab24-70fffc2e1ee5/d64fe96e-3c1e-431b-939b-f8fd0f38771f"
+storage_version_token = "1789357838975813"
+content_type = "image/png"
