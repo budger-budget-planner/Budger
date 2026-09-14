@@ -211,51 +211,54 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. The cover replaces the
-           matching eye with the black facial stripe, then draws one small
-           closed-lid line on top during wink/sleep transitions. */
+        /* The supplied image is the base face. The cover masks the matching
+           eye with the existing dark facial stripe, then draws one small
+           closed-lid line on top during wink/sleep transitions. Multiply
+           keeps the mask visually merged into the stripe instead of reading
+           as a new black eyelid shape. */
         .blg-eye-cover {
           position: absolute;
           top: 38%;
-          width: 17%;
+          width: 19%;
           height: 20%;
           border-radius: 50%;
-          background: #171717;
+          background: #151515;
+          mix-blend-mode: multiply;
           opacity: 0;
           transform-origin: center;
           pointer-events: none;
         }
-        .blg-eye-cover-left { left: 26%; }
-        .blg-eye-cover-right { left: 57%; }
+        .blg-eye-cover-left { left: 21.5%; }
+        .blg-eye-cover-right { left: 59.5%; }
         .blg-eye-cover::after {
           content: "";
           position: absolute;
-          left: 14%;
+          left: 10%;
           top: 50%;
-          width: 72%;
-          height: 22%;
+          width: 80%;
+          height: 0;
           border-top: max(1px, calc(var(--blg-size) * 0.026)) solid #575757;
-          border-radius: 50%;
         }
 
         .blg-wink .blg-eye-cover-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
         }
         @keyframes blg-wink-eye {
-          0%, 100% { opacity: 0; transform: scaleY(0.1); }
-          15%, 52% { opacity: 1; transform: scaleY(1); }
-          72%      { opacity: 0.85; transform: scaleY(1.08); }
-          85%      { opacity: 0.35; transform: scaleY(0.7); }
+          0%, 100% { opacity: 0; }
+          15%, 52% { opacity: 1; }
+          72%      { opacity: 0.85; }
+          85%      { opacity: 0.35; }
         }
 
-        /* The replacement nose is aligned to the nose in the supplied image,
-           so sniff moves the visible nose rather than the entire face. */
+        /* The replacement nose is aligned to the supplied nose at its native
+           shape. Sniff only translates it vertically; it never scales or
+           reshapes the nose. */
         .blg-nose-overlay {
           position: absolute;
-          left: 40%;
+          left: 42%;
           top: 61.5%;
-          width: 20%;
-          height: 15%;
+          width: 16%;
+          height: 12%;
           border-radius: 50%;
           background: #111;
           opacity: 0;
@@ -276,15 +279,14 @@ export default function BadgerLogo({
           animation: blg-sniff-nose var(--blg-anim-dur, 1.4s) ease-in-out forwards;
         }
         @keyframes blg-sniff-nose {
-          0%, 100% { opacity: 0; transform: translateY(0) scaleX(1); }
-          15%, 45%, 75% {
-            opacity: 1;
-            transform: translateY(-3px) scaleX(1.09);
-          }
-          30%, 60%, 90% {
-            opacity: 1;
-            transform: translateY(0) scaleX(1);
-          }
+          0%   { opacity: 0; transform: translateY(0); }
+          15%  { opacity: 1; transform: translateY(-3.5px); }
+          30%  { opacity: 1; transform: translateY(0); }
+          45%  { opacity: 1; transform: translateY(-3.5px); }
+          60%  { opacity: 1; transform: translateY(0); }
+          75%  { opacity: 1; transform: translateY(-3.5px); }
+          90%  { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(0); }
         }
 
         /* The new artwork has a smile but no separate tongue node. This
@@ -308,8 +310,17 @@ export default function BadgerLogo({
         }
         @keyframes blg-tongue-lick {
           0%, 7%    { opacity: 0; transform: translate(-50%, -10%) scaleY(0.1); }
-          15%, 27%  { opacity: 0.95; transform: translate(-50%, 0) scaleY(1); }
-          58%       { opacity: 0.95; transform: translate(-42%, 2px) scaleX(0.75) scaleY(0.9) rotate(14deg); }
+          15%       { opacity: 0.95; transform: translate(-50%, 0) scaleY(1); }
+          27%       {
+            opacity: 0.95;
+            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * -0.12))
+              scaleX(0.75) scaleY(0.9) rotate(-14deg);
+          }
+          58%       {
+            opacity: 0.9;
+            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * 0.12))
+              scaleX(0.75) scaleY(0.9) rotate(14deg);
+          }
           78%       { opacity: 0.9; transform: translate(-50%, 0) scaleY(1); }
           90%, 100% { opacity: 0; transform: translate(-50%, -12%) scaleY(0.1); }
         }
