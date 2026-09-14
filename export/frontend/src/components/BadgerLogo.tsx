@@ -236,19 +236,18 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* The supplied image is the base face. During a wink, the baked-in
-           right eye is covered by the stripe and replaced with a clipped copy
-           of the original eye artwork. This preserves the white rim, pupil,
-           and highlight while the whole eye compresses vertically. */
+        /* During a wink, hide the baked-in right eye with a featureless piece
+           of the existing black stripe and place the original eye artwork back
+           on top. Only that artwork is animated, so the wink is compression,
+           not a drawn eyelid. */
         .blg-eye-cover {
           position: absolute;
-          top: 38.5%;
-          width: 18%;
-          height: 19%;
-          border-radius: 50%;
+          top: 36%;
+          width: 21%;
+          height: 24%;
+          border-radius: 0;
           background: #141413;
           opacity: 0;
-          transform-origin: center;
           pointer-events: none;
           z-index: 2;
         }
@@ -297,7 +296,7 @@ export default function BadgerLogo({
           transform: none;
         }
         .blg-wink .blg-eye-cover-right::after {
-          opacity: 0;
+          display: none;
         }
 
         .blg-wink .blg-eye-overlay-right {
@@ -338,6 +337,14 @@ export default function BadgerLogo({
             opacity: 0;
             transform: scaleY(1);
           }
+        }
+
+        /* Used only by the offline waking state. The wink never uses this
+           pseudo-element; it compresses the real eye artwork instead. */
+        @keyframes blg-wink-line {
+          0%, 28% { opacity: 0; transform: scaleX(0.15); }
+          40%, 82% { opacity: 1; transform: scaleX(1); }
+          92%, 100% { opacity: 0; transform: scaleX(0.15); }
         }
 
         /* During sniff, the supplied artwork's original nose is covered by a
