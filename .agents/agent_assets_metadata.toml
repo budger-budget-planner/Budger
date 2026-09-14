@@ -619,3 +619,17 @@ mtime_ms = 1789374383269
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/02d8e91c-731e-4d58-92d9-d83338fc5183/e3f82e1b-0afb-4e4e-a48a-9118f628fb05"
 storage_version_token = "1789374394703571"
 content_type = "image/png"
+
+[[outputs]]
+id = "VC1ostVIWwwRSbcu78t-r"
+uri = "file://output/budger_with_supplied_head_cutoff.png"
+type = "image"
+title = "Budger with supplied head cutoff"
+description = "Transparent PNG composite using the exact supplied ears-and-cheeks head cutoff placed onto the supplied Budger body."
+logical_id = "3ac303ed-89e0-4b29-8ce1-ea72bb9c4d8e"
+content_hash = "sha256:e64940891458a6dc39cdfa0e37ed41fd5006f2a77583058b991c45823a71942f"
+size = 376460
+mtime_ms = 1789377574901
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/3ac303ed-89e0-4b29-8ce1-ea72bb9c4d8e/7544c47e-1485-41ba-9ce8-eaaa1395da21"
+storage_version_token = "1789377587000172"
+content_type = "image/png"
