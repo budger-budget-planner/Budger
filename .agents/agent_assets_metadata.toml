@@ -675,3 +675,17 @@ mtime_ms = 1789378728101
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/1d9dfd3b-9184-42e9-9447-7f8b1500b0e3/6c52d70d-02a7-4715-8fc0-e00598e06828"
 storage_version_token = "1789378740209896"
 content_type = "image/png"
+
+[[outputs]]
+id = "nBnNn6yWmfZRsp28AKNcC"
+uri = "file://output/IMG_5533_improved_head_replaced_v2.png"
+type = "image"
+title = "Badger body with size-matched improved head"
+description = "1024×1024 PNG with the improved head enlarged and shifted upward slightly to fully cover the old head edge while preserving the body and checkerboard background."
+logical_id = "6bad3892-ddde-4e1c-8228-475ace02420e"
+content_hash = "sha256:13ff77917d92c94f0a1b6a4a60e928d98c36b848a310c6f6803b0b75e2780474"
+size = 633828
+mtime_ms = 1789378867433
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e652f03-ea80-482a-be3a-d099feab176a/6bad3892-ddde-4e1c-8228-475ace02420e/8cdd27ee-520f-4fa9-8c35-8b6c7e988d21"
+storage_version_token = "1789378882994519"
+content_type = "image/png"
