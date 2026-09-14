@@ -815,3 +815,17 @@ mtime_ms = 1789381550358
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/15417fea-e24a-4bae-9677-8d6faef89240/92bfa811-c036-4f27-83c1-a0abd11c6ea2"
 storage_version_token = "1789381558446762"
 content_type = "image/png"
+
+[[outputs]]
+id = "4HJjX5bSdJkEG10zM2qqk"
+uri = "file://output/IMG_5539_full_cheeks_over_border_logo.png"
+type = "image"
+title = "Logo with full cheek curves"
+description = "The head has been scaled to keep both cheek curves fully visible inside the canvas, while the cheeks still overlap the rounded frame."
+logical_id = "dcb4681c-aad7-4e89-8804-ef3fd4cb1547"
+content_hash = "sha256:1d65a9e7f646b6d47d4f77a78121bb252203f34debd0ec89dbb87a41c98bfe41"
+size = 1370720
+mtime_ms = 1789381605717
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/dcb4681c-aad7-4e89-8804-ef3fd4cb1547/88095457-bfec-4746-860b-86ba800d90ea"
+storage_version_token = "1789381615932852"
+content_type = "image/png"
