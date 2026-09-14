@@ -591,3 +591,17 @@ mtime_ms = 1789373485786
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/2a955cae-bd9b-437b-9866-729a6f03cfa3/373d5aca-1433-4401-8e29-894f845ed728"
 storage_version_token = "1789373491202343"
 content_type = "image/png"
+
+[[outputs]]
+id = "Ht7mpP8qNULWzQSLpxAdg"
+uri = "file://output/badger_head_complete_ears_rounded_cheeks_transparent.png"
+type = "image"
+title = "Complete badger head with ears and rounded cheeks"
+description = "Finished transparent PNG based on the supplied face artwork, with clearly visible ears, full rounded cheeks, clean edges, and no grey outer body."
+logical_id = "02995100-664b-4a4e-ab12-e7942c594d0d"
+content_hash = "sha256:b50280c80c3816f83d0eb0922cc72eda2a4c85fa5351e458a3d6b2048bbd79aa"
+size = 429635
+mtime_ms = 1789373870686
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:da8bd115-2bb9-4839-84df-2890086b9037/02995100-664b-4a4e-ab12-e7942c594d0d/9d3cb84c-cc4f-4088-82e8-5485c4897164"
+storage_version_token = "1789373881163409"
+content_type = "image/png"
