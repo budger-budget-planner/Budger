@@ -829,3 +829,17 @@ mtime_ms = 1789381605717
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/dcb4681c-aad7-4e89-8804-ef3fd4cb1547/88095457-bfec-4746-860b-86ba800d90ea"
 storage_version_token = "1789381615932852"
 content_type = "image/png"
+
+[[outputs]]
+id = "WBhk7fJmA6N0pHmF-mNCj"
+uri = "file://output/IMG_5539_old_size_full_cheeks.png"
+type = "image"
+title = "Logo with old-size head and full cheeks"
+description = "The head keeps the previous large scale and placement relative to the frame. The canvas was extended horizontally so both cheek curves extend outside the rounded frame without being clipped."
+logical_id = "82b413bc-ba50-4969-8a5c-200dd5bb7f52"
+content_hash = "sha256:a8b35baf573b5b1c860465d8dbb13a88d8b49e8aaab9efcf25d95f60ecd1216e"
+size = 1332941
+mtime_ms = 1789381814949
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/82b413bc-ba50-4969-8a5c-200dd5bb7f52/57c6079d-258e-4ded-b80f-40fd3cc923e2"
+storage_version_token = "1789381826049251"
+content_type = "image/png"
