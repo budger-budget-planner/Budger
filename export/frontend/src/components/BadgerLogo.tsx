@@ -203,7 +203,10 @@ export default function BadgerLogo({
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: fill;
+          /* Contain is intentional: the supplied cheek silhouettes must
+             remain exactly as delivered and never be cropped by a wrapper. */
+          object-fit: contain;
+          object-position: center;
           user-select: none;
           pointer-events: none;
         }
@@ -214,7 +217,7 @@ export default function BadgerLogo({
         .blg-eye-cover {
           position: absolute;
           top: 38%;
-          width: 19%;
+          width: 17%;
           height: 20%;
           border-radius: 50%;
           background: #171717;
@@ -222,8 +225,8 @@ export default function BadgerLogo({
           transform-origin: center;
           pointer-events: none;
         }
-        .blg-eye-cover-left { left: 25%; }
-        .blg-eye-cover-right { left: 58%; }
+        .blg-eye-cover-left { left: 26%; }
+        .blg-eye-cover-right { left: 57%; }
         .blg-eye-cover::after {
           content: "";
           position: absolute;
