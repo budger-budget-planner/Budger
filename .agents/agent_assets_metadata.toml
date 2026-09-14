@@ -759,3 +759,17 @@ mtime_ms = 1789381171029
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/7e9512db-167c-485e-8f35-c939e20b7f95/9b0a2667-3c37-4f47-bf72-d2fe759511ae"
 storage_version_token = "1789381179475640"
 content_type = "image/png"
+
+[[outputs]]
+id = "exRrdVg2QJULHfT0Wtrb5"
+uri = "file://output/IMG_5529_gradient_smoother_darker.png"
+type = "image"
+title = "Smoother darker gray gradient"
+description = "The horizontal banding has been reduced with a smoother dithered gradient, and the bottom now reaches a deeper dark gray while remaining distinguishable from black. The border and outer area are unchanged."
+logical_id = "83aad6cf-2092-4fb5-8c5c-91de3950d54a"
+content_hash = "sha256:9f251d4978d1fd90762322dcb07f59cd3d9108ea7881a7e713c685fcfd099634"
+size = 1080228
+mtime_ms = 1789381252745
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/83aad6cf-2092-4fb5-8c5c-91de3950d54a/f946d238-cb06-4719-84b3-9c64e5967cfc"
+storage_version_token = "1789381262052928"
+content_type = "image/png"
