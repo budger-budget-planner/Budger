@@ -4,7 +4,7 @@ type Anim = "wink" | "sniff" | "lick" | null;
 export type BadgerMode = "awake" | "falling-asleep" | "sleeping" | "waking-up";
 
 const ANIM_MS: Record<NonNullable<Anim>, number> = {
-  wink: 700,
+  wink: 490,
   sniff: 1400,
   lick: 2400,
 };
@@ -336,7 +336,7 @@ export default function BadgerLogo({
         }
 
         .blg-wink .blg-eye-cover-right {
-          animation: blg-wink-mask var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+          animation: blg-wink-mask var(--blg-anim-dur, 0.49s) ease-in-out forwards;
           transform: none;
         }
         .blg-wink .blg-eye-cover-right::after {
@@ -344,7 +344,7 @@ export default function BadgerLogo({
         }
 
         .blg-wink .blg-eye-overlay-right {
-          animation: blg-wink-eye var(--blg-anim-dur, 0.7s) ease-in-out forwards;
+          animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
         }
         .blg-wink .blg-eye-cover-right {
           animation: none;

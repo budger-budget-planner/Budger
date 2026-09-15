@@ -6,7 +6,7 @@ import BudgerWordmark from "@/components/BudgerWordmark";
 const SPLASH_SIZE = 180;
 
 const STILL_MS   = 900;   // float before wink
-const WINK_MS    = 700;   // wink duration
+const WINK_MS    = 490;   // wink duration (30% faster)
 const FLY_MS     = 1240;  // translate+scale transition — matches SplashScreen exactly
 const FADE_DELAY = 1050;  // start fading this far into the fly (ms) — logo nearly arrived
 const FADE_MS    = 250;   // overlay fade-out duration
