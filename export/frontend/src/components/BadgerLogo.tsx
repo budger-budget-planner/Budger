@@ -273,7 +273,7 @@ export default function BadgerLogo({
            * Outside this ellipse the original face is always the only
            * visible artwork, so the head cannot change during the wink.
            */
-          clip-path: ellipse(8.8% 10.25% at 70.6% 47.65%);
+          clip-path: ellipse(10.7% 12.5% at 69.5% 47.8%);
         }
 
         .blg-eye-cover {
