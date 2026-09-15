@@ -257,13 +257,23 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        /* During a wink, swap to the cheeks-preserving face base and animate
-           only the isolated right-eye artwork. */
-        .blg-wink .blg-face-image {
-          opacity: 0;
-        }
+        /*
+         * During a wink, keep the original face mounted and stationary.
+         * The no-right-eye artwork is only a small cleanup patch inside the
+         * eye socket. Swapping the complete alternate image here makes its
+         * independently edited ear, cheek, stripe, and muzzle geometry jump
+         * as soon as the wink starts.
+         */
         .blg-wink .blg-wink-base-image {
           opacity: 1;
+        }
+        .blg-wink-base-image {
+          /*
+           * The source patch is deliberately clipped to the eye socket.
+           * Outside this ellipse the original face is always the only
+           * visible artwork, so the head cannot change during the wink.
+           */
+          clip-path: ellipse(8.8% 10.25% at 70.6% 47.65%);
         }
 
         .blg-eye-cover {
