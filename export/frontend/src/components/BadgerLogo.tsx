@@ -197,6 +197,11 @@ export default function BadgerLogo({
           </span>
           <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
           <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
+          <span className="blg-yawn" aria-hidden="true">
+            <span className="blg-yawn-cavity" />
+            <span className="blg-yawn-teeth" />
+            <span className="blg-yawn-tongue" />
+          </span>
           <span className="blg-nose-cover" aria-hidden="true">
             <img
               className="blg-nose-cover-image"
@@ -343,6 +348,47 @@ export default function BadgerLogo({
         .blg-sleep-line-left { left: 23%; }
         .blg-sleep-line-right { left: 63.2%; }
 
+        /* A yawn starts the offline transition before the eye artwork closes. */
+        .blg-yawn {
+          position: absolute;
+          left: 50%;
+          top: 71.8%;
+          width: 23%;
+          height: 15.5%;
+          opacity: 0;
+          transform: translate(-50%, -4%) scaleY(0);
+          transform-origin: 50% 0%;
+          pointer-events: none;
+          z-index: 4;
+        }
+        .blg-yawn-cavity {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: #1a1a1a;
+          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+        }
+        .blg-yawn-teeth {
+          position: absolute;
+          left: 15%;
+          top: 10%;
+          width: 70%;
+          height: 19%;
+          border-radius: 999px;
+          background: #eeeae2;
+          opacity: 0.9;
+        }
+        .blg-yawn-tongue {
+          position: absolute;
+          left: 20%;
+          bottom: 7%;
+          width: 60%;
+          height: 39%;
+          border-radius: 50% 50% 46% 46%;
+          background: linear-gradient(180deg, #ed7899 0%, #c94c70 100%);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        }
+
         /*
          * The wink uses the same isolated right-eye artwork, but the cleanup
          * patch stays clipped to that socket so the face never jumps.
@@ -401,10 +447,20 @@ export default function BadgerLogo({
 
         .blg-falling-asleep .blg-eye-overlay {
           opacity: 1;
-          animation: blg-sleep-eye-close 1.6s ease-in-out forwards;
+          animation: blg-sleep-eye-close 1.1s ease-in-out 0.9s forwards;
         }
         .blg-falling-asleep .blg-sleep-line {
-          animation: blg-sleep-line-in 1.6s ease-in-out forwards;
+          animation: blg-sleep-line-in 1.1s ease-in-out 0.9s forwards;
+        }
+        .blg-falling-asleep .blg-yawn {
+          animation: blg-yawn-open 1s ease-in-out forwards;
+        }
+        @keyframes blg-yawn-open {
+          0%, 8%   { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
+          18%      { opacity: 1; transform: translate(-50%, -4%) scaleY(0.42); }
+          34%, 62% { opacity: 1; transform: translate(-50%, -4%) scaleY(1); }
+          78%      { opacity: 0.72; transform: translate(-50%, -4%) scaleY(0.22); }
+          100%     { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
         }
         @keyframes blg-sleep-eye-close {
           0%   { opacity: 1; transform: scaleY(1); }
