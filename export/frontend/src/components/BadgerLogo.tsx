@@ -178,9 +178,7 @@ export default function BadgerLogo({
           />
 
           {/* These layers are positioned against the supplied artwork itself,
-              so the existing personality animations act on the new face. */}
-          <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
-          <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
+              so every eye animation can move only the eye artwork. */}
           <span className="blg-eye-overlay blg-eye-overlay-left" aria-hidden="true">
             <img
               className="blg-eye-overlay-image"
@@ -197,6 +195,8 @@ export default function BadgerLogo({
               draggable={false}
             />
           </span>
+          <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
+          <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
           <span className="blg-nose-cover" aria-hidden="true">
             <img
               className="blg-nose-cover-image"
@@ -260,7 +260,8 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        .badger-logo .blg-wink-base-image {
+        .badger-logo .blg-wink-base-image,
+        .badger-logo .blg-sleep-left-base-image {
           position: absolute;
           inset: 0;
           display: block;
@@ -291,21 +292,9 @@ export default function BadgerLogo({
            */
           clip-path: ellipse(10.7% 12.5% at 69.5% 47.8%);
         }
-
-        .blg-eye-cover {
-          position: absolute;
-          top: 37.4%;
-          width: 17.6%;
-          height: 20.5%;
-          border-radius: 50%;
-          background: #141413;
-          opacity: 0;
-          pointer-events: none;
-          z-index: 2;
-          clip-path: ellipse(50% 50% at 50% 50%);
+        .blg-sleep-left-base-image {
+          clip-path: ellipse(10.7% 12.5% at 30.5% 47.8%);
         }
-        .blg-eye-cover-left { left: 20.6%; }
-        .blg-eye-cover-right { left: 61.8%; }
 
         .blg-eye-overlay {
           position: absolute;
@@ -338,39 +327,31 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        .blg-eye-cover::after {
-          content: "";
+        .blg-sleep-line {
           position: absolute;
-          left: 15%;
-          top: 49%;
-          width: 70%;
+          top: 47.8%;
+          width: 12.7%;
           height: max(1px, calc(var(--blg-size) * 0.012));
           border-radius: 999px;
-          background: #aaa7a0;
+          background: #686761;
           opacity: 0;
-          transform: scaleX(0.15);
+          transform: scaleX(0.7);
           transform-origin: center;
+          pointer-events: none;
+          z-index: 4;
         }
+        .blg-sleep-line-left { left: 23%; }
+        .blg-sleep-line-right { left: 63.2%; }
 
-        .blg-wink .blg-eye-cover-right {
-          animation: blg-wink-mask var(--blg-anim-dur, 0.49s) ease-in-out forwards;
-          transform: none;
-        }
-        .blg-wink .blg-eye-cover-right::after {
-          display: none;
-        }
-
+        /*
+         * The wink uses the same isolated right-eye artwork, but the cleanup
+         * patch stays clipped to that socket so the face never jumps.
+         */
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
         }
-        .blg-wink .blg-eye-cover-right {
-          animation: none;
+        .blg-wink .blg-eye-overlay-left {
           opacity: 0;
-        }
-
-        @keyframes blg-wink-mask {
-          0%, 100% { opacity: 0; }
-          8%, 92% { opacity: 1; }
         }
 
         @keyframes blg-wink-eye {
@@ -404,12 +385,67 @@ export default function BadgerLogo({
           }
         }
 
-        /* Used only by the offline waking state. The wink never uses this
-           pseudo-element; it compresses the real eye artwork instead. */
-        @keyframes blg-wink-line {
-          0%, 28% { opacity: 0; transform: scaleX(0.15); }
-          40%, 82% { opacity: 1; transform: scaleX(1); }
-          92%, 100% { opacity: 0; transform: scaleX(0.15); }
+        /*
+         * Offline transitions use the exact same vertical eye compression as
+         * the wink. There are no eyelid shapes: the eye artwork disappears
+         * into a small dark-grey line, then opens again from that line.
+         */
+        .blg-falling-asleep .blg-wink-base-image,
+        .blg-falling-asleep .blg-sleep-left-base-image,
+        .blg-sleeping .blg-wink-base-image,
+        .blg-sleeping .blg-sleep-left-base-image,
+        .blg-waking-up .blg-wink-base-image,
+        .blg-waking-up .blg-sleep-left-base-image {
+          opacity: 1;
+        }
+
+        .blg-falling-asleep .blg-eye-overlay {
+          opacity: 1;
+          animation: blg-sleep-eye-close 1.6s ease-in-out forwards;
+        }
+        .blg-falling-asleep .blg-sleep-line {
+          animation: blg-sleep-line-in 1.6s ease-in-out forwards;
+        }
+        @keyframes blg-sleep-eye-close {
+          0%   { opacity: 1; transform: scaleY(1); }
+          35%  { opacity: 1; transform: scaleY(0.68); }
+          62%  { opacity: 1; transform: scaleY(0.24); }
+          82%  { opacity: 1; transform: scaleY(0.06); }
+          100% { opacity: 0; transform: scaleY(0.06); }
+        }
+        @keyframes blg-sleep-line-in {
+          0%, 65% { opacity: 0; transform: scaleX(0.7); }
+          82%     { opacity: 1; transform: scaleX(0.9); }
+          100%    { opacity: 1; transform: scaleX(1); }
+        }
+
+        .blg-sleeping .blg-eye-overlay {
+          opacity: 0;
+          transform: scaleY(0.06);
+        }
+        .blg-sleeping .blg-sleep-line {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+
+        .blg-waking-up .blg-eye-overlay {
+          opacity: 1;
+          animation: blg-sleep-eye-open 2.5s ease-in-out forwards;
+        }
+        .blg-waking-up .blg-sleep-line {
+          animation: blg-sleep-line-out 2.5s ease-in-out forwards;
+        }
+        @keyframes blg-sleep-eye-open {
+          0%, 12% { opacity: 0; transform: scaleY(0.06); }
+          28%     { opacity: 1; transform: scaleY(0.06); }
+          58%     { opacity: 1; transform: scaleY(0.24); }
+          78%     { opacity: 1; transform: scaleY(0.68); }
+          100%    { opacity: 1; transform: scaleY(1); }
+        }
+        @keyframes blg-sleep-line-out {
+          0%, 30% { opacity: 1; transform: scaleX(1); }
+          72%     { opacity: 1; transform: scaleX(0.9); }
+          100%    { opacity: 0; transform: scaleX(0.7); }
         }
 
         /* During sniff, the supplied artwork's original nose is covered by a
@@ -508,36 +544,8 @@ export default function BadgerLogo({
           90%, 100% { opacity: 0; transform: translate(-50%, -12%) scaleY(0.1); }
         }
 
-        /* Offline sleep state: close the eyes over the supplied illustration,
-           then use the same overlays for the sleeping and waking states. */
-        .blg-falling-asleep .blg-eye-cover-left,
-        .blg-falling-asleep .blg-eye-cover-right {
-          animation: blg-eye-close 1.6s ease-in-out forwards;
-        }
-        .blg-falling-asleep .blg-eye-cover-right {
-          animation-delay: 0.15s;
-        }
-        .blg-falling-asleep .blg-eye-cover::after {
-          opacity: 1;
-          transform: scaleX(1);
-        }
-        @keyframes blg-eye-close {
-          0%   { opacity: 0; transform: scaleY(0.1); }
-          35%  { opacity: 0.7; transform: scaleY(0.55); }
-          70%  { opacity: 1; transform: scaleY(1); }
-          100% { opacity: 1; transform: scaleY(1); }
-        }
-
         .blg-sleeping {
           animation: blg-breathe 3.5s ease-in-out infinite;
-        }
-        .blg-sleeping .blg-eye-cover {
-          opacity: 1;
-          transform: scaleY(1);
-        }
-        .blg-sleeping .blg-eye-cover::after {
-          opacity: 1;
-          transform: scaleX(1);
         }
         .blg-sleeping .blg-face-image {
           filter: brightness(0.72);
@@ -545,24 +553,6 @@ export default function BadgerLogo({
         @keyframes blg-breathe {
           0%, 100% { transform: translateY(0); }
           35%, 65% { transform: translateY(-1.4px); }
-        }
-
-        .blg-waking-up .blg-eye-cover-left,
-        .blg-waking-up .blg-eye-cover-right {
-          opacity: 1;
-          animation: blg-eye-wake 2.5s ease-in-out forwards;
-        }
-        .blg-waking-up .blg-eye-cover::after {
-          opacity: 1;
-          animation: blg-wink-line 2.5s ease-in-out forwards;
-        }
-        @keyframes blg-eye-wake {
-          0%   { opacity: 1; transform: scaleY(1); }
-          36%  { opacity: 0.85; transform: scaleY(0.5); }
-          53%  { opacity: 1; transform: scaleY(1); }
-          76%  { opacity: 0.4; transform: scaleY(0.2); }
-          86%  { opacity: 0.15; transform: scaleY(0.08); }
-          100% { opacity: 0; transform: scaleY(0.05); }
         }
 
         .blg-zzz {
