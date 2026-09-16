@@ -41,3 +41,4 @@
 - [Programmatic contour cleanup](programmatic-contour-cleanup.md) — rebuild only marked masks; use supersampling and premultiplied alpha, never global opaque-gap filling
 - [Wink eye axis](wink-eye-axis.md) — squeeze the isolated right eye vertically with scaleY so the wink becomes a horizontal line
 - [Render startup port binding](render-startup-port-binding.md) — bind the web port before slow Neon migrations or Render reports a port-scan timeout
+- [Alternative badger icon source](alternative-badger-icon-source.md) — keep the home-screen badger coherent with the established logo face, ears, and graphite gradient
