@@ -11,6 +11,8 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 
 const LOGO_SRC = "/badger-logo.png";
 const WINK_BASE_SRC = "/badger-logo-no-right-eye.png";
+const SLEEP_LEFT_BASE_SRC = "/badger-logo-no-left-eye.png";
+const LEFT_EYE_SRC = "/badger-left-eye.png";
 const RIGHT_EYE_SRC = "/badger-right-eye.png";
 const NOSE_SRC = "/badger-nose-isolated.png";
 const NOSE_COVER_SRC = "/badger-nose-cover.png";
@@ -168,11 +170,25 @@ export default function BadgerLogo({
             alt=""
             draggable={false}
           />
+          <img
+            className="blg-sleep-left-base-image"
+            src={SLEEP_LEFT_BASE_SRC}
+            alt=""
+            draggable={false}
+          />
 
           {/* These layers are positioned against the supplied artwork itself,
               so the existing personality animations act on the new face. */}
           <span className="blg-eye-cover blg-eye-cover-left" aria-hidden="true" />
           <span className="blg-eye-cover blg-eye-cover-right" aria-hidden="true" />
+          <span className="blg-eye-overlay blg-eye-overlay-left" aria-hidden="true">
+            <img
+              className="blg-eye-overlay-image"
+              src={LEFT_EYE_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-eye-overlay blg-eye-overlay-right" aria-hidden="true">
             <img
               className="blg-eye-overlay-image"
