@@ -171,7 +171,13 @@ export default function BadgerLogo({
             draggable={false}
           />
           <img
-            className="blg-sleep-base-image"
+            className="blg-sleep-eye-cover blg-sleep-eye-cover-left"
+            src={SLEEP_BASE_SRC}
+            alt=""
+            draggable={false}
+          />
+          <img
+            className="blg-sleep-eye-cover blg-sleep-eye-cover-right"
             src={SLEEP_BASE_SRC}
             alt=""
             draggable={false}
@@ -197,6 +203,22 @@ export default function BadgerLogo({
           </span>
           <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
           <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
+          <span className="blg-yawn-muzzle-cover" aria-hidden="true">
+            <img
+              className="blg-yawn-muzzle-cover-image"
+              src={NOSE_COVER_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
+          <span className="blg-yawn-nose" aria-hidden="true">
+            <img
+              className="blg-yawn-nose-image"
+              src={NOSE_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-yawn" aria-hidden="true">
             <span className="blg-yawn-cavity" />
             <span className="blg-yawn-teeth" />
@@ -297,7 +319,12 @@ export default function BadgerLogo({
           clip-path: ellipse(9.65% 11.5% at 69.58% 47.85%);
         }
 
-        .blg-sleep-base-image {
+        /*
+         * The no-eyes artwork is used only as a pair of socket-sized cleanup
+         * patches. Mounting the complete alternate face here changes the
+         * cheeks, muzzle, and smile during sleep transitions.
+         */
+        .blg-sleep-eye-cover {
           position: absolute;
           inset: 0;
           display: block;
@@ -308,6 +335,11 @@ export default function BadgerLogo({
           opacity: 0;
           user-select: none;
           pointer-events: none;
+          z-index: 2;
+          clip-path: ellipse(9.65% 11.5% at 30.42% 47.85%);
+        }
+        .blg-sleep-eye-cover-right {
+          clip-path: ellipse(9.65% 11.5% at 69.58% 47.85%);
         }
 
         .blg-eye-overlay {
@@ -358,6 +390,43 @@ export default function BadgerLogo({
         .blg-sleep-line-left { left: 26.65%; }
         .blg-sleep-line-right { left: 63.2%; }
 
+        /*
+         * Yawn artwork replaces the original nose/smile only for the duration
+         * of the yawn. Reuse the exact white muzzle cover and put the isolated
+         * nose back on top so the source smile cannot show through as a second
+         * mouth.
+         */
+        .blg-yawn-muzzle-cover,
+        .blg-yawn-nose {
+          position: absolute;
+          pointer-events: none;
+          opacity: 0;
+        }
+        .blg-yawn-muzzle-cover {
+          left: 36.2%;
+          top: 59.2%;
+          width: 27.6%;
+          height: 26.2%;
+          z-index: 3;
+        }
+        .blg-yawn-muzzle-cover-image,
+        .blg-yawn-nose-image {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          user-select: none;
+          pointer-events: none;
+        }
+        .blg-yawn-nose {
+          left: 41.65%;
+          top: 61.33%;
+          width: 16.76%;
+          height: 15.38%;
+          z-index: 4;
+        }
+
         /* A yawn starts the offline transition before the eye artwork closes. */
         .blg-yawn {
           position: absolute;
@@ -369,7 +438,7 @@ export default function BadgerLogo({
           transform: translate(-50%, -4%) scaleY(0);
           transform-origin: 50% 0%;
           pointer-events: none;
-          z-index: 4;
+          z-index: 5;
         }
         .blg-yawn-cavity {
           position: absolute;
@@ -446,9 +515,12 @@ export default function BadgerLogo({
          * the wink. There are no eyelid shapes: the eye artwork disappears
          * into a small dark-grey line, then opens again from that line.
          */
-        .blg-falling-asleep .blg-sleep-base-image,
-        .blg-sleeping .blg-sleep-base-image,
-        .blg-waking-up .blg-sleep-base-image {
+        .blg-falling-asleep .blg-sleep-eye-cover-left,
+        .blg-falling-asleep .blg-sleep-eye-cover-right,
+        .blg-sleeping .blg-sleep-eye-cover-left,
+        .blg-sleeping .blg-sleep-eye-cover-right,
+        .blg-waking-up .blg-sleep-eye-cover-left,
+        .blg-waking-up .blg-sleep-eye-cover-right {
           opacity: 1;
         }
 
@@ -461,6 +533,15 @@ export default function BadgerLogo({
         }
         .blg-falling-asleep .blg-yawn {
           animation: blg-yawn-open 1s ease-in-out forwards;
+        }
+        .blg-falling-asleep .blg-yawn-muzzle-cover,
+        .blg-falling-asleep .blg-yawn-nose {
+          animation: blg-yawn-face 1s ease-in-out forwards;
+        }
+        @keyframes blg-yawn-face {
+          0%, 8%   { opacity: 0; }
+          18%, 78% { opacity: 1; }
+          100%     { opacity: 0; }
         }
         @keyframes blg-yawn-open {
           0%, 8%   { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
