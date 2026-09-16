@@ -857,3 +857,17 @@ mtime_ms = 1789556864800
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:8b5d028c-31e7-4f51-85fb-a73ae461781f/46eab530-75c5-4e9f-a318-08eb370d6d7c/edfa7a93-a3e5-4536-b10a-8a874f2d03a7"
 storage_version_token = "1789556872282710"
 content_type = "image/png"
+
+[[outputs]]
+id = "QFfL0Rj94km-O9lgx3Qe1"
+uri = "file://output/icon-badger-splash-ratio-cheeks-overlap.png"
+type = "image"
+title = "Badger icon preview — cheeks overlap border stroke"
+description = "Preview only. The exact splash-screen face overlaps the frame by the border stroke width, without extending beyond the outer frame. Production has not been changed or pushed."
+logical_id = "83f14192-41ae-403d-a590-47048cb90587"
+content_hash = "sha256:1ec1c56356419867fad3eddb69c3cafc1712ca392da02fe5f35b073ab49b5338"
+size = 777379
+mtime_ms = 1789556937431
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:8b5d028c-31e7-4f51-85fb-a73ae461781f/83f14192-41ae-403d-a590-47048cb90587/4f5b9277-d721-42a3-96b0-7f3a1e6ef5b9"
+storage_version_token = "1789556944123174"
+content_type = "image/png"
