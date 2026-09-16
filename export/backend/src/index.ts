@@ -200,12 +200,10 @@ async function ensureDbSchema(): Promise<void> {
 }
 
 async function start() {
-  // ── 1. Ensure schema exists (critical for fresh databases after remix / deploy) ──
-  await ensureDbSchema();
-
-  // Sessions table is now created via migration 0004_sessions_table.sql —
-  // no separate runtime DDL needed.
-
+  // Bind the HTTP port before doing any database work. Render determines
+  // whether a web service started successfully by scanning for an open port;
+  // waiting for Neon migrations first can make a healthy process look dead
+  // during a slow connection or a migration lock.
   const server = app.listen(port, (err?: Error) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
@@ -253,6 +251,18 @@ async function start() {
     logger.error({ err }, "Uncaught exception — process state may be corrupt, exiting");
     setTimeout(() => process.exit(1), 500).unref();
   });
+
+  // ── Ensure schema exists after the port is bound ──────────────────────────
+  // Sessions table is created by migration 0004_sessions_table.sql; no
+  // separate runtime DDL is needed.
+  try {
+    await ensureDbSchema();
+  } catch (err) {
+    logger.error({ err }, "Fatal startup error while applying DB migrations");
+    server.close(() => {
+      void pool.end().finally(() => process.exit(1));
+    });
+  }
 }
 
 start().catch((err) => {
