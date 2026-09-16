@@ -431,18 +431,22 @@ export default function BadgerLogo({
             transform: scaleY(0.68);
           }
           45% {
-            opacity: 1;
+            opacity: 0;
             transform: scaleY(0.24);
           }
-          55%, 66% {
-            opacity: 1;
+          48%, 72% {
+            opacity: 0;
             transform: scaleY(0.06);
           }
           82% {
-            opacity: 1;
+            opacity: 0.38;
             transform: scaleY(0.36);
           }
-          92%, 100% {
+          92% {
+            opacity: 1;
+            transform: scaleY(1);
+          }
+          100% {
             opacity: 1;
             transform: scaleY(1);
           }
