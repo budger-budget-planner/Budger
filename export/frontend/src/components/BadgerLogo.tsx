@@ -11,7 +11,7 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
 
 const LOGO_SRC = "/badger-logo.png";
 const WINK_BASE_SRC = "/badger-logo-no-right-eye.png";
-const SLEEP_LEFT_BASE_SRC = "/badger-logo-no-left-eye.png";
+const SLEEP_BASE_SRC = "/badger-logo-no-eyes.png";
 const LEFT_EYE_SRC = "/badger-left-eye.png";
 const RIGHT_EYE_SRC = "/badger-right-eye.png";
 const NOSE_SRC = "/badger-nose-isolated.png";
@@ -171,8 +171,8 @@ export default function BadgerLogo({
             draggable={false}
           />
           <img
-            className="blg-sleep-left-base-image"
-            src={SLEEP_LEFT_BASE_SRC}
+            className="blg-sleep-base-image"
+            src={SLEEP_BASE_SRC}
             alt=""
             draggable={false}
           />
@@ -265,8 +265,7 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
-        .badger-logo .blg-wink-base-image,
-        .badger-logo .blg-sleep-left-base-image {
+        .badger-logo .blg-wink-base-image {
           position: absolute;
           inset: 0;
           display: block;
@@ -295,32 +294,43 @@ export default function BadgerLogo({
            * Outside this ellipse the original face is always the only
            * visible artwork, so the head cannot change during the wink.
            */
-          clip-path: ellipse(10.7% 12.5% at 69.5% 47.8%);
+          clip-path: ellipse(9.65% 11.5% at 69.58% 47.85%);
         }
-        .blg-sleep-left-base-image {
-          clip-path: ellipse(10.7% 12.5% at 30.5% 47.8%);
+
+        .blg-sleep-base-image {
+          position: absolute;
+          inset: 0;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          opacity: 0;
+          user-select: none;
+          pointer-events: none;
         }
 
         .blg-eye-overlay {
           position: absolute;
-          top: 37.4%;
-          width: 17.6%;
-          height: 20.5%;
+          left: 22.3%;
+          top: 35.35%;
+          width: 21.4%;
+          height: 25%;
           overflow: hidden;
           opacity: 0;
           transform-origin: center;
           pointer-events: none;
           z-index: 3;
-          clip-path: ellipse(50% 50% at 50% 50%);
+          clip-path: none;
         }
         .blg-eye-overlay-right {
-          left: 58.8%;
+          left: 58.84%;
           top: 35.3%;
           width: 21.4%;
           height: 25%;
           overflow: hidden;
           clip-path: none;
-          transform-origin: 50% 53.5%;
+          transform-origin: 50% 50%;
         }
         .blg-eye-overlay-image {
           display: block;
@@ -345,7 +355,7 @@ export default function BadgerLogo({
           pointer-events: none;
           z-index: 4;
         }
-        .blg-sleep-line-left { left: 23%; }
+        .blg-sleep-line-left { left: 26.65%; }
         .blg-sleep-line-right { left: 63.2%; }
 
         /* A yawn starts the offline transition before the eye artwork closes. */
@@ -436,12 +446,9 @@ export default function BadgerLogo({
          * the wink. There are no eyelid shapes: the eye artwork disappears
          * into a small dark-grey line, then opens again from that line.
          */
-        .blg-falling-asleep .blg-wink-base-image,
-        .blg-falling-asleep .blg-sleep-left-base-image,
-        .blg-sleeping .blg-wink-base-image,
-        .blg-sleeping .blg-sleep-left-base-image,
-        .blg-waking-up .blg-wink-base-image,
-        .blg-waking-up .blg-sleep-left-base-image {
+        .blg-falling-asleep .blg-sleep-base-image,
+        .blg-sleeping .blg-sleep-base-image,
+        .blg-waking-up .blg-sleep-base-image {
           opacity: 1;
         }
 
