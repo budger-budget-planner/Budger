@@ -310,6 +310,7 @@ export default function BadgerLogo({
           height: 25%;
           overflow: hidden;
           clip-path: none;
+          transform-origin: 50% 53.5%;
         }
         .blg-eye-overlay-image {
           display: block;
