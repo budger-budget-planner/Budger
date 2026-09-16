@@ -40,3 +40,4 @@
 - [GitHub push authentication](github-push-auth.md) — HTTPS pushes may require x-access-token Basic auth; a Bearer header can fail despite a valid secret
 - [Programmatic contour cleanup](programmatic-contour-cleanup.md) — rebuild only marked masks; use supersampling and premultiplied alpha, never global opaque-gap filling
 - [Wink eye axis](wink-eye-axis.md) — squeeze the isolated right eye vertically with scaleY so the wink becomes a horizontal line
+- [Render startup port binding](render-startup-port-binding.md) — bind the web port before slow Neon migrations or Render reports a port-scan timeout
