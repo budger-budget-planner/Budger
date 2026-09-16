@@ -843,3 +843,17 @@ mtime_ms = 1789381814949
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:2bbee1dd-86e2-4395-800c-d8d281ad1ff3/82b413bc-ba50-4969-8a5c-200dd5bb7f52/57c6079d-258e-4ded-b80f-40fd3cc923e2"
 storage_version_token = "1789381826049251"
 content_type = "image/png"
+
+[[outputs]]
+id = "8aXxOMGMD9XK1uMdGpgQN"
+uri = "file://output/icon-badger-splash-ratio-cheek-clipped.png"
+type = "image"
+title = "Badger icon preview — splash ratio, clipped cheeks"
+description = "Preview only. This variant uses the splash-screen face ratio and clips the cheeks at the inner frame edge. Production has not been changed or pushed."
+logical_id = "46eab530-75c5-4e9f-a318-08eb370d6d7c"
+content_hash = "sha256:f009696dd215933d3db666ee8bd0b945b619fa547d573647e6eed717faa2ab69"
+size = 761715
+mtime_ms = 1789556253380
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:8b5d028c-31e7-4f51-85fb-a73ae461781f/46eab530-75c5-4e9f-a318-08eb370d6d7c/9fea2f5a-67b8-43f4-b448-8e8405a0a690"
+storage_version_token = "1789556261032350"
+content_type = "image/png"
