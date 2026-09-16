@@ -164,12 +164,19 @@ export default function BadgerLogo({
             alt=""
             draggable={false}
           />
-          <img
-            className="blg-wink-base-image"
-            src={WINK_BASE_SRC}
-            alt=""
-            draggable={false}
-          />
+          {/*
+           * This is a socket-sized cleanup patch, not a second full-face
+           * layer. Keeping the source image inside the clipped socket prevents
+           * its frame/cheeks from ever being composited underneath the logo.
+           */}
+          <span className="blg-wink-eye-cover" aria-hidden="true">
+            <img
+              className="blg-wink-eye-cover-image"
+              src={WINK_BASE_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <img
             className="blg-sleep-base-image"
             src={SLEEP_BASE_SRC}
@@ -280,21 +287,34 @@ export default function BadgerLogo({
 
         /*
          * During a wink, keep the original face mounted and stationary.
-         * The no-right-eye artwork is only a small cleanup patch inside the
-         * eye socket. Swapping the complete alternate image here makes its
-         * independently edited ear, cheek, stripe, and muzzle geometry jump
-         * as soon as the wink starts.
+         * The no-right-eye artwork is cropped into the right socket so the
+         * alternate asset can never contribute a second frame, cheek, stripe,
+         * or muzzle underneath the logo.
          */
-        .blg-wink .blg-wink-base-image {
+        .blg-wink-eye-cover {
+          position: absolute;
+          left: 58.84%;
+          top: 35.3%;
+          width: 21.4%;
+          height: 25%;
+          overflow: hidden;
+          opacity: 0;
+          pointer-events: none;
+          z-index: 2;
+        }
+        .blg-wink .blg-wink-eye-cover {
           opacity: 1;
         }
-        .blg-wink-base-image {
-          /*
-           * The source patch is deliberately clipped to the eye socket.
-           * Outside this ellipse the original face is always the only
-           * visible artwork, so the head cannot change during the wink.
-           */
-          clip-path: ellipse(9.65% 11.5% at 69.58% 47.85%);
+        .blg-wink-eye-cover-image {
+          position: absolute;
+          left: -274.953%;
+          top: -141.2%;
+          width: 467.29%;
+          height: 400%;
+          display: block;
+          object-fit: fill;
+          user-select: none;
+          pointer-events: none;
         }
 
         .blg-sleep-base-image {
@@ -400,8 +420,8 @@ export default function BadgerLogo({
         }
 
         /*
-         * The wink uses the same isolated right-eye artwork, but the cleanup
-         * patch stays clipped to that socket so the face never jumps.
+         * The wink uses the same isolated right-eye artwork. The original
+         * face remains stationary and only this eye crop is animated.
          */
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
