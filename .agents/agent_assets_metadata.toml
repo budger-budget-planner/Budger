@@ -941,3 +941,17 @@ mtime_ms = 1789607009187
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:5c02fde2-6e12-467c-be60-ab6de0db6f37/42a1cb7a-0140-4863-a04b-1dc514a9e312/7316b6f5-720a-412e-b6e6-cefcdadf0253"
 storage_version_token = "1789607017232313"
 content_type = "image/png"
+
+[[outputs]]
+id = "AW2qoo3KppCZNTTqPDv7_"
+uri = "file://output/full_logo_no_left_eye_2048.png"
+type = "image"
+title = "Full logo without left eye"
+description = "Print-ready 2048×2048 RGBA PNG. The left eye is removed, the full face and light-grey bordered dark-grey enclosure are preserved, and the outside area is transparent."
+logical_id = "add649af-9152-4395-aba4-2bcd8f52fd5c"
+content_hash = "sha256:ef47a99e80170137f2abad2fe7cadc91ccc179544ae1cce5fa6e692e70a12b10"
+size = 1826591
+mtime_ms = 1789607371768
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:5c02fde2-6e12-467c-be60-ab6de0db6f37/add649af-9152-4395-aba4-2bcd8f52fd5c/140768ab-cfe4-4513-a827-ea2a6de7cc3d"
+storage_version_token = "1789607380548341"
+content_type = "image/png"
