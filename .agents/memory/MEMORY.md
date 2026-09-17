@@ -43,3 +43,4 @@
 - [Wink face compositing](wink-face-compositing.md) — use the complete no-right-eye face during wink; clipped cleanup patches leave the source eye rim or stripe seams
 - [Render startup port binding](render-startup-port-binding.md) — bind the web port before slow Neon migrations or Render reports a port-scan timeout
 - [Alternative badger icon source](alternative-badger-icon-source.md) — keep the home-screen badger coherent with the established logo face, ears, and graphite gradient
+- [Logo animation base images](logo-animation-base-images.md) — treat the six files as immutable animation sources; always copy before editing or compositing
