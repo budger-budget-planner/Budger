@@ -955,3 +955,17 @@ mtime_ms = 1789607371768
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:5c02fde2-6e12-467c-be60-ab6de0db6f37/add649af-9152-4395-aba4-2bcd8f52fd5c/140768ab-cfe4-4513-a827-ea2a6de7cc3d"
 storage_version_token = "1789607380548341"
 content_type = "image/png"
+
+[[outputs]]
+id = "QZPNfh4H8d--a14dwJEeq"
+uri = "file://output/full_logo_no_left_eye_no_mouth_2048.png"
+type = "image"
+title = "Full logo without eyes or mouth"
+description = "Print-ready 2048×2048 RGBA PNG with the mouth removed, the nose preserved, and the transparent outer area retained."
+logical_id = "9e0f2fa9-c66a-4e96-a9ea-6c630915f568"
+content_hash = "sha256:95647a642012333367bed6ff349378d7443469175bd852fb49dd44edbe3a5894"
+size = 1808399
+mtime_ms = 1789607467435
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:5c02fde2-6e12-467c-be60-ab6de0db6f37/9e0f2fa9-c66a-4e96-a9ea-6c630915f568/22d568b5-372d-4896-ad43-02cdd37d1e51"
+storage_version_token = "1789607476325228"
+content_type = "image/png"
