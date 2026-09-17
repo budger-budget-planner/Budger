@@ -9,11 +9,11 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
   lick: 2400,
 };
 
-const LOGO_SRC = "/badger-logo.png";
-const WINK_BASE_SRC = "/badger-logo-no-right-eye.png";
+const LOGO_SRC = "/animation/base_full_face.png";
+const WINK_BASE_SRC = "/animation/base_no_right_eye_aligned.png";
 const SLEEP_BASE_SRC = "/badger-logo-no-eyes.png";
 const LEFT_EYE_SRC = "/badger-left-eye.png";
-const RIGHT_EYE_SRC = "/badger-right-eye.png";
+const RIGHT_EYE_SRC = "/animation/base_right_eye.png";
 const NOSE_SRC = "/badger-nose-isolated.png";
 const NOSE_COVER_SRC = "/badger-nose-cover.png";
 // The supplied artwork is intentionally kept at its native aspect ratio.
@@ -171,12 +171,6 @@ export default function BadgerLogo({
             draggable={false}
           />
           <img
-            className="blg-wink-cheek-image"
-            src={LOGO_SRC}
-            alt=""
-            draggable={false}
-          />
-          <img
             className="blg-sleep-base-image"
             src={SLEEP_BASE_SRC}
             alt=""
@@ -285,9 +279,9 @@ export default function BadgerLogo({
         }
 
         /*
-         * During a wink, use the supplied no-right-eye artwork as the single
-         * face layer. A clipped patch over the original face leaves the
-         * source eye rim behind and breaks the continuous stripe.
+         * During a wink, use the derived no-right-eye artwork as the single
+         * face layer. It is aligned to the full-face reference, so the cheek
+         * silhouette and stripe remain continuous without a clipped patch.
          */
         .blg-wink-base-image {
           position: absolute;
@@ -308,29 +302,6 @@ export default function BadgerLogo({
         .blg-wink .blg-wink-base-image {
           opacity: 1;
         }
-        .blg-wink-cheek-image {
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
-          opacity: 0;
-          user-select: none;
-          pointer-events: none;
-          z-index: 2;
-          /*
-           * The no-right-eye source has a flat outer cheek edge. Restore only
-           * the original cheek's outer silhouette; starting at 84% stays
-           * outside the source eye and avoids exposing its rim.
-           */
-          clip-path: polygon(84% 30%, 100% 30%, 100% 78%, 84% 78%);
-        }
-        .blg-wink .blg-wink-cheek-image {
-          opacity: 1;
-        }
-
         .blg-sleep-base-image {
           position: absolute;
           inset: 0;
@@ -346,10 +317,10 @@ export default function BadgerLogo({
 
         .blg-eye-overlay {
           position: absolute;
-          left: 22.3%;
-          top: 35.35%;
-          width: 21.4%;
-          height: 25%;
+          left: 19.9%;
+          top: 36%;
+          width: 21.9%;
+          height: 25.5%;
           overflow: hidden;
           opacity: 0;
           transform-origin: center;
@@ -358,10 +329,10 @@ export default function BadgerLogo({
           clip-path: none;
         }
         .blg-eye-overlay-right {
-          left: 58.84%;
-          top: 35.3%;
-          width: 21.4%;
-          height: 25%;
+          left: 58.2%;
+          top: 36%;
+          width: 21.9%;
+          height: 25.5%;
           overflow: hidden;
           clip-path: none;
           transform-origin: 50% 50%;
@@ -434,8 +405,9 @@ export default function BadgerLogo({
         }
 
         /*
-         * The wink uses the isolated right-eye artwork above the complete
-         * no-right-eye face layer.
+         * The wink uses the supplied right-eye artwork above the complete
+         * no-right-eye face layer. The eye stays visible while it compresses
+         * into a line, then expands back to its original geometry.
          */
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
@@ -445,38 +417,13 @@ export default function BadgerLogo({
         }
 
         @keyframes blg-wink-eye {
-          0%, 8% {
-            opacity: 1;
-            transform: scaleY(1);
-          }
-          12% {
-            opacity: 1;
-            transform: scaleY(1);
-          }
-          28% {
-            opacity: 1;
-            transform: scaleY(0.68);
-          }
-          45% {
-            opacity: 0;
-            transform: scaleY(0.24);
-          }
-          48%, 72% {
-            opacity: 0;
-            transform: scaleY(0.06);
-          }
-          82% {
-            opacity: 0.38;
-            transform: scaleY(0.36);
-          }
-          92% {
-            opacity: 1;
-            transform: scaleY(1);
-          }
-          100% {
-            opacity: 1;
-            transform: scaleY(1);
-          }
+          0%, 10% { opacity: 1; transform: scaleY(1); }
+          30%     { opacity: 1; transform: scaleY(0.62); }
+          46%     { opacity: 1; transform: scaleY(0.08); }
+          62%     { opacity: 1; transform: scaleY(0.04); }
+          78%     { opacity: 1; transform: scaleY(0.38); }
+          92%     { opacity: 1; transform: scaleY(0.86); }
+          100%    { opacity: 1; transform: scaleY(1); }
         }
 
         /*
