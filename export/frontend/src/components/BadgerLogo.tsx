@@ -279,11 +279,9 @@ export default function BadgerLogo({
         }
 
         /*
-         * During a wink, keep the original face mounted and stationary.
-         * The same-size no-right-eye artwork is used only as a precise
-         * socket cleanup patch. Its clip-path is in the source image's
-         * coordinate system, so the original right eye is fully covered
-         * before the animated eye is painted above it.
+         * During a wink, use the supplied no-right-eye artwork as the single
+         * face layer. A clipped patch over the original face leaves the
+         * source eye rim behind and breaks the continuous stripe.
          */
         .blg-wink-base-image {
           position: absolute;
@@ -296,12 +294,13 @@ export default function BadgerLogo({
           opacity: 0;
           user-select: none;
           pointer-events: none;
+          z-index: 1;
+        }
+        .blg-wink .blg-face-image {
+          opacity: 0;
         }
         .blg-wink .blg-wink-base-image {
           opacity: 1;
-        }
-        .blg-wink-base-image {
-          clip-path: ellipse(9.65% 11.5% at 69.58% 47.85%);
         }
 
         .blg-sleep-base-image {
@@ -407,8 +406,8 @@ export default function BadgerLogo({
         }
 
         /*
-         * The wink uses the same isolated right-eye artwork, while the
-         * cleanup patch stays clipped to that socket.
+         * The wink uses the isolated right-eye artwork above the complete
+         * no-right-eye face layer.
          */
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
