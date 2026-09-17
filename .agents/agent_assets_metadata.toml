@@ -899,3 +899,17 @@ mtime_ms = 1789605428176
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/a5fa402f-abb5-4c67-9f36-dcf621931bf2/cbee9fb5-0bca-4434-9e3b-92dad5fd4fdc"
 storage_version_token = "1789605447286934"
 content_type = "image/png"
+
+[[outputs]]
+id = "rc-NV-kud0EnB3TQJd0Wr"
+uri = "file://output/left-eye_isolated.png"
+type = "image"
+title = "Isolated left eye PNG"
+description = "A tight transparent PNG containing only the left eye, including its white ring, black pupil, and white highlight; surrounding pixels are transparent."
+logical_id = "b71f83a4-4c26-491a-9c39-bed7337d976e"
+content_hash = "sha256:2fa9f5cca5d003d5b115dc455947cb35e8902653d0ef7e298a070673d0ea2e1e"
+size = 114030
+mtime_ms = 1789605570059
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/b71f83a4-4c26-491a-9c39-bed7337d976e/b2593a89-9964-47f0-9573-59465b1b13c3"
+storage_version_token = "1789605582536188"
+content_type = "image/png"
