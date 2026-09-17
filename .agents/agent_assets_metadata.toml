@@ -913,3 +913,17 @@ mtime_ms = 1789605570059
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/b71f83a4-4c26-491a-9c39-bed7337d976e/b2593a89-9964-47f0-9573-59465b1b13c3"
 storage_version_token = "1789605582536188"
 content_type = "image/png"
+
+[[outputs]]
+id = "--jfnvkAQSb3lKkCbUKHh"
+uri = "file://output/right-eye_isolated.png"
+type = "image"
+title = "Isolated right eye PNG"
+description = "The isolated left eye mirrored horizontally into a separate transparent right-eye PNG."
+logical_id = "8c2e2359-5599-4b18-a145-65f312d03b7e"
+content_hash = "sha256:e5eb76b1a498c65f6dcd6f51967aebda6792458b3986dd84118ed2830bd5c2d3"
+size = 119187
+mtime_ms = 1789605643355
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/8c2e2359-5599-4b18-a145-65f312d03b7e/7cf56b49-d8b0-47a3-b412-348e81d107fd"
+storage_version_token = "1789605646785121"
+content_type = "image/png"
