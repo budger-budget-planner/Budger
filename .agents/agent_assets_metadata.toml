@@ -885,3 +885,17 @@ mtime_ms = 1789605220647
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/e23649d9-a9ed-4230-9433-9407537a209d/d74ff495-cb3b-4a34-8300-e757d3b9aeb2"
 storage_version_token = "1789605223859515"
 content_type = "image/png"
+
+[[outputs]]
+id = "_NeVY3ncqoj812GGGR3He"
+uri = "file://output/IMG_5637_2048_transparent.png"
+type = "image"
+title = "Transparent badger PNG — 2048×2048"
+description = "2048×2048 PNG with the outer black background and light grey border removed, preserving the badger artwork and dark facial markings."
+logical_id = "a5fa402f-abb5-4c67-9f36-dcf621931bf2"
+content_hash = "sha256:487b46a6b9a70eeb3bf961cde2a76c5efabff5a264d4c30bd62e003f9e4c9735"
+size = 1350772
+mtime_ms = 1789605428176
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/a5fa402f-abb5-4c67-9f36-dcf621931bf2/cbee9fb5-0bca-4434-9e3b-92dad5fd4fdc"
+storage_version_token = "1789605447286934"
+content_type = "image/png"
