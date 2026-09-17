@@ -171,6 +171,12 @@ export default function BadgerLogo({
             draggable={false}
           />
           <img
+            className="blg-wink-cheek-image"
+            src={LOGO_SRC}
+            alt=""
+            draggable={false}
+          />
+          <img
             className="blg-sleep-base-image"
             src={SLEEP_BASE_SRC}
             alt=""
@@ -300,6 +306,28 @@ export default function BadgerLogo({
           opacity: 0;
         }
         .blg-wink .blg-wink-base-image {
+          opacity: 1;
+        }
+        .blg-wink-cheek-image {
+          position: absolute;
+          inset: 0;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          opacity: 0;
+          user-select: none;
+          pointer-events: none;
+          z-index: 2;
+          /*
+           * The no-right-eye source has a flat outer cheek edge. Restore only
+           * the original cheek's outer silhouette; starting at 84% stays
+           * outside the source eye and avoids exposing its rim.
+           */
+          clip-path: polygon(84% 30%, 100% 30%, 100% 78%, 84% 78%);
+        }
+        .blg-wink .blg-wink-cheek-image {
           opacity: 1;
         }
 
