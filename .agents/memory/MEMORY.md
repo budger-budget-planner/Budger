@@ -40,5 +40,6 @@
 - [GitHub push authentication](github-push-auth.md) — HTTPS pushes may require x-access-token Basic auth; a Bearer header can fail despite a valid secret
 - [Programmatic contour cleanup](programmatic-contour-cleanup.md) — rebuild only marked masks; use supersampling and premultiplied alpha, never global opaque-gap filling
 - [Wink eye axis](wink-eye-axis.md) — squeeze the isolated right eye vertically with scaleY so the wink becomes a horizontal line
+- [Wink face compositing](wink-face-compositing.md) — use the complete no-right-eye face during wink; clipped cleanup patches leave the source eye rim or stripe seams
 - [Render startup port binding](render-startup-port-binding.md) — bind the web port before slow Neon migrations or Render reports a port-scan timeout
 - [Alternative badger icon source](alternative-badger-icon-source.md) — keep the home-screen badger coherent with the established logo face, ears, and graphite gradient
