@@ -871,3 +871,17 @@ mtime_ms = 1789556937431
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:8b5d028c-31e7-4f51-85fb-a73ae461781f/83f14192-41ae-403d-a590-47048cb90587/4f5b9277-d721-42a3-96b0-7f3a1e6ef5b9"
 storage_version_token = "1789556944123174"
 content_type = "image/png"
+
+[[outputs]]
+id = "ziL8Q1EKN15h8ssUzqHWe"
+uri = "file://output/IMG_5637_2048x2048.png"
+type = "image"
+title = "Upscaled PNG — 2048×2048"
+description = "The attached image upscaled from 1024×1024 to 2048×2048 in PNG format."
+logical_id = "e23649d9-a9ed-4230-9433-9407537a209d"
+content_hash = "sha256:ec8cd0808e2a01104145e3a487fdf52c20d06902d48c3db54eb4f7258403d458"
+size = 1549327
+mtime_ms = 1789605220647
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:f2b07712-1510-4c4e-a8df-6d026ff255b1/e23649d9-a9ed-4230-9433-9407537a209d/d74ff495-cb3b-4a34-8300-e757d3b9aeb2"
+storage_version_token = "1789605223859515"
+content_type = "image/png"
