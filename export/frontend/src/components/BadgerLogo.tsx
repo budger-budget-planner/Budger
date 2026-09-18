@@ -9,15 +9,13 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
   lick: 2400,
 };
 
-const LOGO_SRC = "/animation/base_full_face.png";
-const WINK_BASE_SRC = "/animation/base_no_right_eye_aligned.png";
-const SLEEP_BASE_SRC = "/badger-logo-no-eyes.png";
-const LEFT_EYE_SRC = "/badger-left-eye.png";
+const BASE_SRC = "/animation/base_no_eyes.png";
+const LEFT_EYE_SRC = "/animation/base_left_eye.png";
 const RIGHT_EYE_SRC = "/animation/base_right_eye.png";
 const NOSE_SRC = "/badger-nose-isolated.png";
 const NOSE_COVER_SRC = "/badger-nose-cover.png";
-// The supplied artwork is intentionally kept at its native aspect ratio.
-const LOGO_ASPECT = 2048 / 2386;
+// The no-eyes artwork is the canonical square face for every state.
+const LOGO_ASPECT = 1;
 
 interface BadgerLogoProps {
   size?: number;
@@ -131,8 +129,8 @@ export default function BadgerLogo({
         ? "blg-grow-lick"
         : "blg-grow";
 
-  // `size` remains the width used by splash measurement and destination
-  // matching. The height follows the supplied image rather than cropping it.
+  // `size` is both dimensions of the canonical square face. Keeping one
+  // square base mounted prevents any face geometry from changing mid-animation.
   const logoStyle = {
     "--blg-size": `${size}px`,
     ...(forceAnimDurationMs != null
@@ -160,25 +158,12 @@ export default function BadgerLogo({
         <span className={`blg-face ${faceClass}`}>
           <img
             className="blg-face-image"
-            src={LOGO_SRC}
-            alt=""
-            draggable={false}
-          />
-          <img
-            className="blg-wink-base-image"
-            src={WINK_BASE_SRC}
-            alt=""
-            draggable={false}
-          />
-          <img
-            className="blg-sleep-base-image"
-            src={SLEEP_BASE_SRC}
+            src={BASE_SRC}
             alt=""
             draggable={false}
           />
 
-          {/* These layers are positioned against the supplied artwork itself,
-              so every eye animation can move only the eye artwork. */}
+          {/* The face never changes. Only these independent eye layers animate. */}
           <span className="blg-eye-overlay blg-eye-overlay-left" aria-hidden="true">
             <img
               className="blg-eye-overlay-image"
@@ -257,82 +242,30 @@ export default function BadgerLogo({
           display: block;
           width: 100%;
           height: 100%;
-          /* Contain is intentional: the supplied cheek silhouettes must
-             remain exactly as delivered and never be cropped by a wrapper. */
-          object-fit: contain;
+          object-fit: fill;
           object-position: center;
-          user-select: none;
-          pointer-events: none;
-        }
-
-        .badger-logo .blg-wink-base-image {
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
-          opacity: 0;
-          user-select: none;
-          pointer-events: none;
-        }
-
-        /*
-         * During a wink, use the derived no-right-eye artwork as the single
-         * face layer. It is aligned to the full-face reference, so the cheek
-         * silhouette and stripe remain continuous without a clipped patch.
-         */
-        .blg-wink-base-image {
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
-          opacity: 0;
-          user-select: none;
-          pointer-events: none;
-          z-index: 1;
-        }
-        .blg-wink .blg-face-image {
-          opacity: 0;
-        }
-        .blg-wink .blg-wink-base-image {
-          opacity: 1;
-        }
-        .blg-sleep-base-image {
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
-          opacity: 0;
           user-select: none;
           pointer-events: none;
         }
 
         .blg-eye-overlay {
           position: absolute;
-          left: 19.9%;
-          top: 36%;
-          width: 21.9%;
-          height: 25.5%;
+          left: 18.75%;
+          top: 34.277%;
+          width: 22.607%;
+          height: 22.607%;
           overflow: hidden;
-          opacity: 0;
+          opacity: 1;
           transform-origin: center;
           pointer-events: none;
           z-index: 3;
           clip-path: none;
         }
         .blg-eye-overlay-right {
-          left: 58.2%;
-          top: 36%;
-          width: 21.9%;
-          height: 25.5%;
+          left: 58.643%;
+          top: 34.277%;
+          width: 22.607%;
+          height: 22.607%;
           overflow: hidden;
           clip-path: none;
           transform-origin: 50% 50%;
@@ -405,15 +338,11 @@ export default function BadgerLogo({
         }
 
         /*
-         * The wink uses the supplied right-eye artwork above the complete
-         * no-right-eye face layer. The eye stays visible while it compresses
-         * into a line, then expands back to its original geometry.
+         * The wink leaves the canonical face and left eye untouched. Only the
+         * independent right-eye layer compresses into a line and reopens.
          */
         .blg-wink .blg-eye-overlay-right {
           animation: blg-wink-eye var(--blg-anim-dur, 0.49s) ease-in-out forwards;
-        }
-        .blg-wink .blg-eye-overlay-left {
-          opacity: 0;
         }
 
         @keyframes blg-wink-eye {
@@ -431,12 +360,6 @@ export default function BadgerLogo({
          * the wink. There are no eyelid shapes: the eye artwork disappears
          * into a small dark-grey line, then opens again from that line.
          */
-        .blg-falling-asleep .blg-sleep-base-image,
-        .blg-sleeping .blg-sleep-base-image,
-        .blg-waking-up .blg-sleep-base-image {
-          opacity: 1;
-        }
-
         .blg-falling-asleep .blg-eye-overlay {
           opacity: 1;
           animation: blg-sleep-eye-close 1.1s ease-in-out 0.9s forwards;

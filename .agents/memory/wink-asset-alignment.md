@@ -1,10 +1,10 @@
 ---
 name: Wink asset alignment
-description: Align the square no-right-eye source to the full-face reference by eye geometry before deriving the production wink base.
+description: Keep the no-eyes face fixed and animate independent eye layers for all wink states.
 ---
 
-The square no-right-eye artwork is not a pixel-size match for the 2386×2048 full-face reference. Use one no-eyes face as the canonical square base for eye variants; for the production-sized wink, match the eye geometry and use only the transformed right-eye repair region. Centering the whole square creates visible cheek seams and stripe-width drift.
+The no-eyes face is the absolute animation base. Render the supplied left and right eyes as separate layers at fixed positions, and animate only the relevant eye layer. Never swap in a full-face, no-right-eye, or sleep-face image during a wink.
 
-**Why:** The source artwork has a different crop and scale even though it depicts the same face. A full-canvas square overlay cuts the outer cheek silhouettes at the square’s vertical edges.
+**Why:** Switching between independently rendered face images changes the stripe, muzzle, and cheek pixels underneath the eye and makes the wink visibly alter the face.
 
-**How to apply:** Keep the immutable source files untouched. Generate square variants by compositing the supplied eye copies onto the no-eyes copy. For the production wink, use the full-face image as the canvas, limit the no-right-eye replacement to the aligned right-eye area with a feathered mask, and position the animated right-eye layer against the full-face reference.
+**How to apply:** Keep the immutable source files untouched. Use a working copy of `base_no_eyes.png` as the only face layer, place `base_left_eye.png` and `base_right_eye.png` using the canonical square geometry, and apply wink transforms only to the right-eye layer.
