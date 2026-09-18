@@ -9,12 +9,12 @@ const ANIM_MS: Record<NonNullable<Anim>, number> = {
   lick: 2400,
 };
 
-const BASE_SRC = "/animation/base_no_eyes.png";
+const BASE_SRC = "/animation/base_no_eyes_no_mouth_no_nose.png";
 const LEFT_EYE_SRC = "/animation/base_left_eye.png";
 const RIGHT_EYE_SRC = "/animation/base_right_eye.png";
-const NOSE_SRC = "/badger-nose-isolated.png";
-const NOSE_COVER_SRC = "/badger-nose-cover.png";
-// The no-eyes artwork is the canonical square face for every state.
+const MOUTH_SRC = "/animation/base_mouth.png";
+const NOSE_SRC = "/animation/base_nose.png";
+// The no-eyes/no-mouth/no-nose artwork is the stationary square face for every state.
 const LOGO_ASPECT = 1;
 
 interface BadgerLogoProps {
@@ -163,7 +163,8 @@ export default function BadgerLogo({
             draggable={false}
           />
 
-          {/* The face never changes. Only these independent eye layers animate. */}
+          {/* The face never changes. Features are independent layers so each
+              animation can move only the artwork it owns. */}
           <span className="blg-eye-overlay blg-eye-overlay-left" aria-hidden="true">
             <img
               className="blg-eye-overlay-image"
@@ -180,20 +181,20 @@ export default function BadgerLogo({
               draggable={false}
             />
           </span>
+          <span className="blg-mouth-overlay" aria-hidden="true">
+            <img
+              className="blg-mouth-overlay-image"
+              src={MOUTH_SRC}
+              alt=""
+              draggable={false}
+            />
+          </span>
           <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
           <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
           <span className="blg-yawn" aria-hidden="true">
             <span className="blg-yawn-cavity" />
             <span className="blg-yawn-teeth" />
             <span className="blg-yawn-tongue" />
-          </span>
-          <span className="blg-nose-cover" aria-hidden="true">
-            <img
-              className="blg-nose-cover-image"
-              src={NOSE_COVER_SRC}
-              alt=""
-              draggable={false}
-            />
           </span>
           <span className="blg-nose-overlay" aria-hidden="true">
             <img
@@ -419,20 +420,21 @@ export default function BadgerLogo({
           100%    { opacity: 0; transform: scaleX(0.7); }
         }
 
-        /* During sniff, the supplied artwork's original nose is covered by a
-           pixel-accurate transparent-mask asset. It covers only the dark nose
-           silhouette, leaving the smile and muzzle completely stationary. */
-        .blg-nose-cover {
+        /*
+         * The base face has no eyes, mouth, or nose. These exact feature crops
+         * restore the still face at the canonical square-face coordinates.
+         */
+        .blg-mouth-overlay {
           position: absolute;
-          left: 41.65%;
-          top: 61.33%;
-          width: 16.76%;
-          height: 15.38%;
-          opacity: 0;
+          left: 39.8%;
+          top: 68.55%;
+          width: 20.7%;
+          height: 7.76%;
+          opacity: 1;
           pointer-events: none;
-          z-index: 1;
+          z-index: 2;
         }
-        .blg-nose-cover-image {
+        .blg-mouth-overlay-image {
           display: block;
           width: 100%;
           height: 100%;
@@ -441,21 +443,18 @@ export default function BadgerLogo({
           user-select: none;
           pointer-events: none;
         }
-        .blg-sniff .blg-nose-cover {
-          opacity: 1;
-        }
 
-        /* This is a transparent crop of the supplied artwork's original nose.
-           Only this exact crop moves; no replacement shape is drawn in CSS. */
+        /* Only the isolated nose moves during sniff. The mouth and face stay
+           still, so there is no replacement or cover layer to reveal. */
         .blg-nose-overlay {
           position: absolute;
-          left: 41.65%;
-          top: 61.33%;
-          width: 16.76%;
-          height: 15.38%;
-          opacity: 0;
+          left: 41%;
+          top: 57.2%;
+          width: 18.28%;
+          height: 14.66%;
+          opacity: 1;
           pointer-events: none;
-          z-index: 2;
+          z-index: 4;
         }
         .blg-nose-overlay-image {
           position: absolute;
