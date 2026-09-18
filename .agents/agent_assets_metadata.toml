@@ -969,3 +969,17 @@ mtime_ms = 1789607467435
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:5c02fde2-6e12-467c-be60-ab6de0db6f37/9e0f2fa9-c66a-4e96-a9ea-6c630915f568/22d568b5-372d-4896-ad43-02cdd37d1e51"
 storage_version_token = "1789607476325228"
 content_type = "image/png"
+
+[[outputs]]
+id = "mtSNbmptksVt249bBZSed"
+uri = "file://logo_animation_base_images/base_no_eyes_no_mouth_no_nose.png"
+type = "image"
+title = "Budger base — no eyes, no mouth, no nose"
+description = "Static 2048×2048 RGBA PNG added to the logo base-image catalogue. The original no-eyes/no-mouth source remains unchanged."
+logical_id = "2e18c929-1d33-4885-b7d1-cbe94a114f47"
+content_hash = "sha256:dca4355fa787dba6081b5af8e1936a2d2d326694a76d86b2974cf14e39c0b4a3"
+size = 1599944
+mtime_ms = 1789711770992
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2a1f2a00-6766-4f77-9a84-93ec24fe5b65/2e18c929-1d33-4885-b7d1-cbe94a114f47/5a68e5dd-3a95-4671-b079-0f183c44e7d7"
+storage_version_token = "1789711796060729"
+content_type = "image/png"
