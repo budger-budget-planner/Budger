@@ -983,3 +983,31 @@ mtime_ms = 1789711770992
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2a1f2a00-6766-4f77-9a84-93ec24fe5b65/2e18c929-1d33-4885-b7d1-cbe94a114f47/5a68e5dd-3a95-4671-b079-0f183c44e7d7"
 storage_version_token = "1789711796060729"
 content_type = "image/png"
+
+[[outputs]]
+id = "XjTciBvlO3Na_SgYM0azJ"
+uri = "file://logo_animation_base_images/base_nose.png"
+type = "image"
+title = "Budger base — isolated nose"
+description = "Transparent RGBA nose overlay extracted from base_full_face.png."
+logical_id = "7923d02d-9a47-4280-8d92-deb8cb5e3c76"
+content_hash = "sha256:ad494d0485d30f9ecdb2e71d2e751a611a2dde5211b87d4b4572a10f3f553007"
+size = 53986
+mtime_ms = 1789711987769
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2a1f2a00-6766-4f77-9a84-93ec24fe5b65/7923d02d-9a47-4280-8d92-deb8cb5e3c76/d267fd3f-7106-468b-bc83-227379b11835"
+storage_version_token = "1789711999209160"
+content_type = "image/png"
+
+[[outputs]]
+id = "MJgC79rsw1lsqsZJcaq75"
+uri = "file://logo_animation_base_images/base_mouth.png"
+type = "image"
+title = "Budger base — isolated mouth"
+description = "Transparent RGBA mouth overlay extracted from base_full_face.png."
+logical_id = "b495f358-8e4d-4384-9931-0508cec67fdd"
+content_hash = "sha256:ab8c53bb8b8770bef5da5680f0e776ddba9ac00b2c35372a0b176140ac6ea635"
+size = 35521
+mtime_ms = 1789711987833
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:2a1f2a00-6766-4f77-9a84-93ec24fe5b65/b495f358-8e4d-4384-9931-0508cec67fdd/3a3a5ee3-6bd8-4277-b6a1-6a06556f373f"
+storage_version_token = "1789711999758423"
+content_type = "image/png"
