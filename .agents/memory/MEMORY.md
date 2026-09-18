@@ -44,3 +44,4 @@
 - [Render startup port binding](render-startup-port-binding.md) — bind the web port before slow Neon migrations or Render reports a port-scan timeout
 - [Alternative badger icon source](alternative-badger-icon-source.md) — keep the home-screen badger coherent with the established logo face, ears, and graphite gradient
 - [Logo animation base images](logo-animation-base-images.md) — treat the six files as immutable animation sources; always copy before editing or compositing
+- [Wink asset alignment](wink-asset-alignment.md) — match square no-right-eye art to the full-face reference by eye geometry; whole-canvas centering creates cheek seams
