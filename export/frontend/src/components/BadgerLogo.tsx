@@ -484,7 +484,7 @@ export default function BadgerLogo({
           position: absolute;
           left: 50%;
           top: 73%;
-          width: 13%;
+          width: 10%;
           height: 11%;
           border-radius: 50% 50% 48% 48%;
           background: linear-gradient(180deg, #f080a2 0%, #d95379 100%);
@@ -502,12 +502,12 @@ export default function BadgerLogo({
           15%       { opacity: 0.95; transform: translate(-50%, 0) scaleY(1); }
           27%       {
             opacity: 0.95;
-            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * -0.12))
+            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * -0.05))
               scaleX(0.75) scaleY(0.9) rotate(-14deg);
           }
           58%       {
             opacity: 0.9;
-            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * 0.12))
+            transform: translate(-50%, 2px) translateX(calc(var(--blg-size) * 0.05))
               scaleX(0.75) scaleY(0.9) rotate(14deg);
           }
           78%       { opacity: 0.9; transform: translate(-50%, 0) scaleY(1); }
