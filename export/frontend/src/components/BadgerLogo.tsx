@@ -484,7 +484,7 @@ export default function BadgerLogo({
           position: absolute;
           left: 50%;
           top: 73%;
-          width: 10%;
+          width: 11%;
           height: 8%;
           border-radius: 50% 50% 48% 48%;
           background: linear-gradient(180deg, #f080a2 0%, #d95379 100%);
