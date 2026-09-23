@@ -298,42 +298,48 @@ export default function BadgerLogo({
         .blg-sleep-line-left { left: 23.7%; }
         .blg-sleep-line-right { left: 63.6%; }
 
-        /* A yawn starts the offline transition before the eye artwork closes. */
+        /*
+         * The yawn is a small, lower open-mouth shape inside the muzzle. It is
+         * deliberately narrower than the smile and sits below the nose, so it
+         * reads as a yawn rather than a second horizontal mouth attached to it.
+         */
         .blg-yawn {
           position: absolute;
           left: 50%;
-          top: 64.8%;
-          width: 23%;
-          height: 14.2%;
+          top: 72.1%;
+          width: 17.5%;
+          height: 12.8%;
           opacity: 0;
-          transform: translate(-50%, -4%) scaleY(0);
+          transform: translate(-50%, 0) scaleY(0);
           transform-origin: 50% 0%;
           pointer-events: none;
-          z-index: 4;
+          z-index: 3;
         }
         .blg-yawn-cavity {
           position: absolute;
           inset: 0;
-          border-radius: 50%;
+          border-radius: 48% 48% 50% 50%;
           background: #1a1a1a;
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+          box-shadow:
+            inset 0 1px 1px rgba(255, 255, 255, 0.1),
+            0 1px 1px rgba(0, 0, 0, 0.12);
         }
         .blg-yawn-teeth {
           position: absolute;
-          left: 15%;
-          top: 10%;
-          width: 70%;
-          height: 19%;
-          border-radius: 999px;
+          left: 17%;
+          top: 8%;
+          width: 66%;
+          height: 15%;
+          border-radius: 50%;
           background: #eeeae2;
-          opacity: 0.9;
+          opacity: 0.92;
         }
         .blg-yawn-tongue {
           position: absolute;
-          left: 20%;
-          bottom: 7%;
-          width: 60%;
-          height: 39%;
+          left: 21%;
+          bottom: 6%;
+          width: 58%;
+          height: 37%;
           border-radius: 50% 50% 46% 46%;
           background: linear-gradient(180deg, #ed7899 0%, #c94c70 100%);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -370,37 +376,30 @@ export default function BadgerLogo({
           animation: blg-sleep-line-in 1.1s ease-in-out 0.9s forwards;
         }
         .blg-falling-asleep .blg-yawn {
-          animation: blg-yawn-open 1s ease-in-out forwards;
+          animation: blg-yawn-open 2s ease-in-out forwards;
         }
         /*
-         * The yawn replaces the smile rather than appearing underneath it.
-         * Cross-fading the two layers keeps the mouth transition natural while
-         * the nose lifts slightly to leave the yawn room inside the muzzle.
+         * Replace the smile in two stages: it closes first, the yawn opens
+         * from the lower muzzle, then the smile returns before the transition
+         * enters the steady sleeping state.
          */
         .blg-falling-asleep .blg-mouth-overlay {
-          animation: blg-smile-to-yawn 1s ease-in-out forwards;
-        }
-        .blg-falling-asleep .blg-nose-overlay {
-          animation: blg-yawn-nose-lift 1s ease-in-out forwards;
+          animation: blg-smile-yawn-transition 2s ease-in-out forwards;
         }
         @keyframes blg-yawn-open {
-          0%, 8%   { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
-          18%      { opacity: 1; transform: translate(-50%, -4%) scaleY(0.42); }
-          34%, 62% { opacity: 1; transform: translate(-50%, -4%) scaleY(1); }
-          78%      { opacity: 0.72; transform: translate(-50%, -4%) scaleY(0.22); }
-          100%     { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
+          0%, 14%   { opacity: 0; transform: translate(-50%, 0) scaleY(0); }
+          24%       { opacity: 0.55; transform: translate(-50%, 0) scaleY(0.34); }
+          38%, 68%  { opacity: 1; transform: translate(-50%, 0) scaleY(1); }
+          80%       { opacity: 0.72; transform: translate(-50%, 0) scaleY(0.42); }
+          92%, 100% { opacity: 0; transform: translate(-50%, 0) scaleY(0); }
         }
-        @keyframes blg-smile-to-yawn {
-          0%, 8%   { opacity: 1; transform: translateY(0) scale(1); }
-          20%      { opacity: 0.86; transform: translateY(-0.5px) scale(1, 0.9); }
-          34%      { opacity: 0.28; transform: translateY(-1px) scale(1, 0.55); }
-          46%, 100% { opacity: 0; transform: translateY(-1px) scale(1, 0.2); }
-        }
-        @keyframes blg-yawn-nose-lift {
-          0%, 10% { transform: translateY(0); }
-          30%     { transform: translateY(calc(var(--blg-size) * -0.035)); }
-          62%     { transform: translateY(calc(var(--blg-size) * -0.035)); }
-          84%, 100% { transform: translateY(0); }
+        @keyframes blg-smile-yawn-transition {
+          0%, 10%   { opacity: 1; transform: translateY(0) scaleY(1); }
+          24%       { opacity: 0.8; transform: translateY(0) scaleY(0.86); }
+          38%, 68%  { opacity: 0; transform: translateY(0) scaleY(0.25); }
+          82%       { opacity: 0.34; transform: translateY(0) scaleY(0.58); }
+          94%       { opacity: 0.86; transform: translateY(0) scaleY(0.94); }
+          100%      { opacity: 1; transform: translateY(0) scaleY(1); }
         }
         @keyframes blg-sleep-eye-close {
           0%   { opacity: 1; transform: scaleY(1); }
@@ -425,6 +424,23 @@ export default function BadgerLogo({
         .blg-sleeping .blg-sleep-line {
           opacity: 1;
           transform: scaleX(1);
+        }
+        /*
+         * The transition animation runs with forwards, so explicitly
+         * restore the steady-state mouth when the mode changes. This prevents
+         * the smile from remaining at opacity: 0 after the yawn closes.
+         */
+        .blg-sleeping .blg-mouth-overlay,
+        .blg-waking-up .blg-mouth-overlay {
+          opacity: 1;
+          transform: none;
+          animation: none;
+        }
+        .blg-sleeping .blg-yawn,
+        .blg-waking-up .blg-yawn {
+          opacity: 0;
+          transform: translate(-50%, 0) scaleY(0);
+          animation: none;
         }
 
         .blg-waking-up .blg-eye-overlay {
