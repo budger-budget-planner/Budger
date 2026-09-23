@@ -301,9 +301,9 @@ export default function BadgerLogo({
         .blg-yawn {
           position: absolute;
           left: 50%;
-          top: 71.8%;
+          top: 64.8%;
           width: 23%;
-          height: 15.5%;
+          height: 14.2%;
           opacity: 0;
           transform: translate(-50%, -4%) scaleY(0);
           transform-origin: 50% 0%;
@@ -371,12 +371,35 @@ export default function BadgerLogo({
         .blg-falling-asleep .blg-yawn {
           animation: blg-yawn-open 1s ease-in-out forwards;
         }
+        /*
+         * The yawn replaces the smile rather than appearing underneath it.
+         * Cross-fading the two layers keeps the mouth transition natural while
+         * the nose lifts slightly to leave the yawn room inside the muzzle.
+         */
+        .blg-falling-asleep .blg-mouth-overlay {
+          animation: blg-smile-to-yawn 1s ease-in-out forwards;
+        }
+        .blg-falling-asleep .blg-nose-overlay {
+          animation: blg-yawn-nose-lift 1s ease-in-out forwards;
+        }
         @keyframes blg-yawn-open {
           0%, 8%   { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
           18%      { opacity: 1; transform: translate(-50%, -4%) scaleY(0.42); }
           34%, 62% { opacity: 1; transform: translate(-50%, -4%) scaleY(1); }
           78%      { opacity: 0.72; transform: translate(-50%, -4%) scaleY(0.22); }
           100%     { opacity: 0; transform: translate(-50%, -4%) scaleY(0); }
+        }
+        @keyframes blg-smile-to-yawn {
+          0%, 8%   { opacity: 1; transform: translateY(0) scale(1); }
+          20%      { opacity: 0.86; transform: translateY(-0.5px) scale(1, 0.9); }
+          34%      { opacity: 0.28; transform: translateY(-1px) scale(1, 0.55); }
+          46%, 100% { opacity: 0; transform: translateY(-1px) scale(1, 0.2); }
+        }
+        @keyframes blg-yawn-nose-lift {
+          0%, 10% { transform: translateY(0); }
+          30%     { transform: translateY(calc(var(--blg-size) * -0.035)); }
+          62%     { transform: translateY(calc(var(--blg-size) * -0.035)); }
+          84%, 100% { transform: translateY(0); }
         }
         @keyframes blg-sleep-eye-close {
           0%   { opacity: 1; transform: scaleY(1); }
