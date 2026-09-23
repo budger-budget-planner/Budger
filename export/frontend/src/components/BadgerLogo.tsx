@@ -283,7 +283,7 @@ export default function BadgerLogo({
 
         .blg-sleep-line {
           position: absolute;
-          top: 47.8%;
+          top: 45.1%;
           width: 12.7%;
           height: max(1px, calc(var(--blg-size) * 0.012));
           border-radius: 999px;
@@ -294,8 +294,9 @@ export default function BadgerLogo({
           pointer-events: none;
           z-index: 4;
         }
-        .blg-sleep-line-left { left: 26.65%; }
-        .blg-sleep-line-right { left: 63.2%; }
+        /* Center each replacement line on the eye it inherits from. */
+        .blg-sleep-line-left { left: 23.7%; }
+        .blg-sleep-line-right { left: 63.6%; }
 
         /* A yawn starts the offline transition before the eye artwork closes. */
         .blg-yawn {
@@ -404,14 +405,17 @@ export default function BadgerLogo({
         @keyframes blg-sleep-eye-close {
           0%   { opacity: 1; transform: scaleY(1); }
           35%  { opacity: 1; transform: scaleY(0.68); }
-          62%  { opacity: 1; transform: scaleY(0.24); }
-          82%  { opacity: 1; transform: scaleY(0.06); }
-          100% { opacity: 0; transform: scaleY(0.06); }
+          58%  { opacity: 0.98; transform: scaleY(0.32); }
+          72%  { opacity: 0.72; transform: scaleY(0.14); }
+          84%  { opacity: 0.2; transform: scaleY(0.06); }
+          92%, 100% { opacity: 0; transform: scaleY(0.06); }
         }
         @keyframes blg-sleep-line-in {
-          0%, 65% { opacity: 0; transform: scaleX(0.7); }
-          82%     { opacity: 1; transform: scaleX(0.9); }
-          100%    { opacity: 1; transform: scaleX(1); }
+          0%, 55% { opacity: 0; transform: scaleX(0.7); }
+          68%     { opacity: 0.08; transform: scaleX(0.75); }
+          78%     { opacity: 0.35; transform: scaleX(0.85); }
+          88%     { opacity: 0.82; transform: scaleX(0.96); }
+          94%, 100% { opacity: 1; transform: scaleX(1); }
         }
 
         .blg-sleeping .blg-eye-overlay {
