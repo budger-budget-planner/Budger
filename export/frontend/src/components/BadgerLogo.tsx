@@ -307,7 +307,7 @@ export default function BadgerLogo({
           position: absolute;
           left: 50%;
           top: 72.1%;
-          width: 17.5%;
+          width: 19.5%;
           height: 12.8%;
           opacity: 0;
           transform: translate(-50%, 0) scaleY(0);
@@ -376,7 +376,7 @@ export default function BadgerLogo({
           animation: blg-sleep-line-in 1.1s ease-in-out 0.9s forwards;
         }
         .blg-falling-asleep .blg-yawn {
-          animation: blg-yawn-open 2s ease-in-out forwards;
+          animation: blg-yawn-open 1.1s ease-in-out 0.9s forwards;
         }
         /*
          * Replace the smile in two stages: it closes first, the yawn opens
@@ -384,7 +384,7 @@ export default function BadgerLogo({
          * enters the steady sleeping state.
          */
         .blg-falling-asleep .blg-mouth-overlay {
-          animation: blg-smile-yawn-transition 2s ease-in-out forwards;
+          animation: blg-smile-yawn-transition 1.1s ease-in-out 0.9s forwards;
         }
         @keyframes blg-yawn-open {
           0%, 14%   { opacity: 0; transform: translate(-50%, 0) scaleY(0); }
