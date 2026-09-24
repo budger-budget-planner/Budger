@@ -590,8 +590,15 @@ export default function BadgerLogo({
           z-index: 2;
         }
         .blg-happy .blg-mouth-overlay {
-          left: 40.75%;
-          width: 18.5%;
+          transform-origin: center;
+          animation: blg-happy-mouth-smile var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
+        @keyframes blg-happy-mouth-smile {
+          0%, 8%   { transform: scaleX(1); }
+          18%      { transform: scaleX(1.03); }
+          28%, 78% { transform: scaleX(1.06); }
+          90%      { transform: scaleX(1.03); }
+          100%     { transform: scaleX(1); }
         }
         .blg-mouth-overlay-image {
           display: block;
