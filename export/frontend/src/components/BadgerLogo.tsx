@@ -295,19 +295,17 @@ export default function BadgerLogo({
         }
 
         /*
-         * Kawaii happy eyes keep the regular white sclera but use a slightly
-         * larger pupil and two small highlights for a softer expression.
+         * Kawaii happy eyes reuse the regular eye underneath and add only a
+         * slightly larger pupil with two small highlights. Keeping the sclera
+         * mounted avoids a visible edge jump during the transition.
          */
         .blg-happy-eye {
           position: absolute;
           top: 34.277%;
           width: 22.607%;
           height: 22.607%;
-          border-radius: 50%;
-          background: #f7f5f0;
-          box-shadow: inset 0 0 0 1px rgba(18, 18, 18, 0.08);
           opacity: 0;
-          transform: scale(0.72);
+          transform: scale(1);
           transform-origin: center;
           pointer-events: none;
           z-index: 3;
@@ -429,31 +427,22 @@ export default function BadgerLogo({
         }
 
         /*
-         * The happy state swaps the normal feature crops for a short kawaii
-         * expression, then fades back to the canonical face before reset.
+         * The happy state leaves the regular eye crops mounted and fades only
+         * the pupil/highlight layer over them, then fades that layer back out.
          */
-        .blg-happy .blg-eye-overlay {
-          animation: blg-happy-normal-eye-out var(--blg-anim-dur, 1.8s) ease-in-out forwards;
-        }
         .blg-happy .blg-happy-eye {
           animation: blg-happy-eye-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
         .blg-happy .blg-happy-eye-highlight-small {
           animation: blg-happy-second-highlight var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
-        @keyframes blg-happy-normal-eye-out {
-          0%, 8%   { opacity: 1; transform: scale(1); }
-          20%      { opacity: 0.36; transform: scale(1.01); }
-          28%      { opacity: 0; transform: scale(0.98); }
-          100%     { opacity: 0; transform: scale(0.98); }
-        }
         @keyframes blg-happy-eye-pop {
-          0%, 8%   { opacity: 0; transform: scale(0.98); }
-          18%      { opacity: 0.48; transform: scale(1.01); }
+          0%, 8%   { opacity: 0; transform: scale(1); }
+          18%      { opacity: 0.45; transform: scale(1.005); }
           28%      { opacity: 1; transform: scale(1); }
           34%, 78% { opacity: 1; transform: scale(1); }
-          90%      { opacity: 0.8; transform: scale(0.9); }
-          100%     { opacity: 0; transform: scale(0.98); }
+          90%      { opacity: 0.72; transform: scale(0.995); }
+          100%     { opacity: 0; transform: scale(1); }
         }
         @keyframes blg-happy-second-highlight {
           0%, 24%  { opacity: 0; }
@@ -575,6 +564,10 @@ export default function BadgerLogo({
           opacity: 1;
           pointer-events: none;
           z-index: 2;
+        }
+        .blg-happy .blg-mouth-overlay {
+          left: 40.75%;
+          width: 18.5%;
         }
         .blg-mouth-overlay-image {
           display: block;
