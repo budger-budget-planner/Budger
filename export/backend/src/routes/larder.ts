@@ -3,20 +3,23 @@ import { db, larderEntriesTable, goalsTable, goalContributionsTable, transaction
 import { eq, and, ne, desc, sql } from "drizzle-orm";
 import { fetchRates, convertAmount } from "../lib/rates";
 import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
+import {
+  BucketDefinitionError,
+  createPersonalBucket,
+  getPersonalBuckets,
+  MAX_CUSTOM_BUCKETS,
+  personalBucketExists,
+  renamePersonalBucket,
+} from "../lib/larder-buckets";
 
 const router: IRouter = Router();
 
-export const LARDER_BUCKETS = ["soft_savings", "hard_savings", "investments"] as const;
-type LarderBucket = typeof LARDER_BUCKETS[number];
-
-function parseBucket(value: unknown): LarderBucket | null {
+function parseBucket(value: unknown): string | null {
   if (value == null || value === "") return null;
-  return typeof value === "string" && (LARDER_BUCKETS as readonly string[]).includes(value)
-    ? value as LarderBucket
-    : null;
+  return typeof value === "string" && value.length <= 100 ? value : null;
 }
 
-function bucketFromBody(value: unknown): { bucket: LarderBucket | null; valid: boolean } {
+function bucketFromBody(value: unknown): { bucket: string | null; valid: boolean } {
   if (value === undefined) return { bucket: null, valid: true };
   const bucket = parseBucket(value);
   return { bucket, valid: value == null || value === "" || bucket !== null };
@@ -134,6 +137,7 @@ router.get("/larder", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const currency = user?.currency ?? "USD";
   const glPercent = user?.larderGlPercent ?? null;
+  const bucketDefinitions = await getPersonalBuckets(userId);
 
   const entries = await db.select().from(larderEntriesTable)
     .where(eq(larderEntriesTable.userId, userId))
@@ -165,13 +169,16 @@ router.get("/larder", async (req, res): Promise<void> => {
   // balance is always computed from all entries regardless of visibility.
   const visibleEntries = entries.filter(e => !e.hidden);
   const bucketMaps = bucketCurrencyBreakdown(entries, currency);
-  const buckets = await Promise.all(LARDER_BUCKETS.map(async bucket => {
-    const map = bucketMaps.get(bucket) ?? new Map<string, number>();
+  const buckets = await Promise.all(bucketDefinitions.map(async definition => {
+    const map = bucketMaps.get(definition.key) ?? new Map<string, number>();
     const bucketTotal = Array.from(map.entries()).reduce(
       (sum, [curr, amt]) => sum + convertAmount(amt, curr, currency, rates), 0,
     );
     return {
-      bucket,
+      bucket: definition.key,
+      name: definition.name,
+      isDefault: definition.isDefault,
+      sortOrder: definition.sortOrder,
       total: parseFloat(bucketTotal.toFixed(2)),
       currencyBreakdown: Array.from(map.entries())
         .filter(([, amt]) => Math.abs(amt) >= 0.005)
@@ -191,6 +198,8 @@ router.get("/larder", async (req, res): Promise<void> => {
     glRuleSynced,
     currencyBreakdown,
     buckets,
+    customBucketCount: bucketDefinitions.filter(bucket => !bucket.isDefault).length,
+    customBucketLimit: MAX_CUSTOM_BUCKETS,
     unassigned: {
       total: parseFloat(unassignedTotal.toFixed(2)),
       currencyBreakdown: Array.from(unassignedMap.entries())
@@ -198,6 +207,39 @@ router.get("/larder", async (req, res): Promise<void> => {
         .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) })),
     },
   });
+});
+
+// POST /larder/buckets — create a personal custom bucket.
+router.post("/larder/buckets", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  try {
+    const bucket = await createPersonalBucket(userId, req.body?.name);
+    res.status(201).json(bucket);
+  } catch (err) {
+    if (err instanceof BucketDefinitionError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+});
+
+// PATCH /larder/buckets/:key — rename a personal bucket without changing its stable key.
+router.patch("/larder/buckets/:key", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  try {
+    const bucket = await renamePersonalBucket(userId, req.params.key, req.body?.name);
+    if (!bucket) { res.status(404).json({ error: "Bucket not found" }); return; }
+    res.json(bucket);
+  } catch (err) {
+    if (err instanceof BucketDefinitionError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 // POST /larder/assign — atomically move money from the Unassigned waiting room
@@ -208,6 +250,9 @@ router.post("/larder/assign", async (req, res): Promise<void> => {
   const { amount, currency, bucket: rawBucket } = req.body;
   const { bucket, valid } = bucketFromBody(rawBucket);
   if (!valid || !bucket) { res.status(400).json({ error: "A valid bucket is required" }); return; }
+  if (!(await personalBucketExists(userId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Larder" }); return;
+  }
   if (typeof amount !== "number" || amount <= 0 || !isFinite(amount)) {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
@@ -401,6 +446,9 @@ router.post("/larder/dedicate-to-goal", async (req, res): Promise<void> => {
   const { goalId, amount, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
+  if (bucket !== null && !(await personalBucketExists(userId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Larder" }); return;
+  }
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }
@@ -490,6 +538,9 @@ router.post("/larder/spend", async (req, res): Promise<void> => {
   const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
+  if (bucket !== null && !(await personalBucketExists(userId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Larder" }); return;
+  }
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }

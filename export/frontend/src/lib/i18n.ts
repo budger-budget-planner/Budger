@@ -41,6 +41,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.off":         { en: "Off",        pl: "Wyłączone"  },
   "common.cancel":      { en: "Cancel",     pl: "Anuluj"     },
   "common.save":        { en: "Save",       pl: "Zapisz"     },
+  "common.close":       { en: "Close",      pl: "Zamknij"    },
   "common.saving":      { en: "Saving…",    pl: "Zapisywanie…"},
   "common.delete":      { en: "Delete",     pl: "Usuń"       },
   "common.deleting":    { en: "Deleting…",  pl: "Usuwanie…"  },
@@ -1293,6 +1294,11 @@ const translations: Record<string, Record<Lang, string>> = {
   "larder.assign_to":         { en: "Assign to",                       pl: "Przypisz do"                      },
   "larder.assign":             { en: "Assign funds",                    pl: "Przypisz środki"                  },
   "larder.assign_success":     { en: "Funds assigned",                  pl: "Środki przypisane"                },
+  "larder.manage_buckets":     { en: "Manage buckets",                   pl: "Zarządzaj koszykami"              },
+  "larder.manage_buckets_desc":{ en: "Create up to 3 personal buckets and rename any bucket.", pl: "Utwórz do 3 własnych koszyków i zmień nazwę dowolnego koszyka." },
+  "larder.add_bucket":          { en: "Add bucket",                       pl: "Dodaj koszyk"                     },
+  "larder.new_bucket_placeholder": { en: "New bucket name",               pl: "Nazwa nowego koszyka"             },
+  "larder.custom_buckets_remaining": { en: "{n} custom buckets remaining", pl: "Pozostało własnych koszyków: {n}" },
 
   // ── Great Larder (Wielka Spiżarnia) ──
   "gl.title":                { en: "Great Larder",                    pl: "Wielka Spiżarnia"                   },

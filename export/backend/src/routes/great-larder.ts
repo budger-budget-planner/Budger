@@ -10,20 +10,23 @@ import { fetchRates, convertAmount } from "../lib/rates";
 import { currencyBalances, resolveAssetCurrency, round2, assertSufficientAssetBalance, AssetSelectionError } from "../lib/larder-allocation";
 import { sendPushToUser } from "../lib/push-sender";
 import { getUnreadNotificationCount } from "../lib/notification-counts";
+import {
+  BucketDefinitionError,
+  createGreatLarderBucket,
+  getGreatLarderBuckets,
+  greatLarderBucketExists,
+  MAX_CUSTOM_BUCKETS,
+  renameGreatLarderBucket,
+} from "../lib/larder-buckets";
 
 const router: IRouter = Router();
 
-export const GREAT_LARDER_BUCKETS = ["soft_savings", "hard_savings", "investments"] as const;
-type GreatLarderBucket = typeof GREAT_LARDER_BUCKETS[number];
-
-function parseBucket(value: unknown): GreatLarderBucket | null {
+function parseBucket(value: unknown): string | null {
   if (value == null || value === "") return null;
-  return typeof value === "string" && (GREAT_LARDER_BUCKETS as readonly string[]).includes(value)
-    ? value as GreatLarderBucket
-    : null;
+  return typeof value === "string" && value.length <= 100 ? value : null;
 }
 
-function bucketFromBody(value: unknown): { bucket: GreatLarderBucket | null; valid: boolean } {
+function bucketFromBody(value: unknown): { bucket: string | null; valid: boolean } {
   if (value === undefined) return { bucket: null, valid: true };
   const bucket = parseBucket(value);
   return { bucket, valid: value == null || value === "" || bucket !== null };
@@ -87,6 +90,7 @@ router.get("/great-larder", async (req, res): Promise<void> => {
   }
 
   const currency = user.currency ?? "USD";
+  const bucketDefinitions = await getGreatLarderBuckets(user.householdId);
 
   const entries = await db.select().from(greatLarderEntriesTable)
     .where(eq(greatLarderEntriesTable.householdId, user.householdId))
@@ -120,8 +124,8 @@ router.get("/great-larder", async (req, res): Promise<void> => {
     .map(([c, rawTotal]) => ({ currency: c, rawTotal: parseFloat(rawTotal.toFixed(2)) }));
 
   const pendingCount = entries.filter(e => e.status === "pending").length;
-  const buckets = GREAT_LARDER_BUCKETS.map(bucket => {
-    const bucketEntries = approved.filter(e => e.bucket === bucket);
+  const buckets = bucketDefinitions.map(definition => {
+    const bucketEntries = approved.filter(e => e.bucket === definition.key);
     const map = new Map<string, number>();
     for (const e of bucketEntries) {
       const c = e.currency || currency;
@@ -131,7 +135,10 @@ router.get("/great-larder", async (req, res): Promise<void> => {
       (sum, [curr, amount]) => sum + convertAmount(amount, curr, currency, rates), 0,
     );
     return {
-      bucket,
+      bucket: definition.key,
+      name: definition.name,
+      isDefault: definition.isDefault,
+      sortOrder: definition.sortOrder,
       total: parseFloat(total.toFixed(2)),
       currencyBreakdown: Array.from(map.entries())
         .filter(([, amount]) => Math.abs(amount) >= 0.005)
@@ -153,6 +160,8 @@ router.get("/great-larder", async (req, res): Promise<void> => {
     pendingCount,
     currencyBreakdown,
     buckets,
+    customBucketCount: bucketDefinitions.filter(bucket => !bucket.isDefault).length,
+    customBucketLimit: MAX_CUSTOM_BUCKETS,
     unassigned: {
       total: parseFloat(unassignedTotal.toFixed(2)),
       currencyBreakdown: Array.from(unassignedMap.entries())
@@ -161,6 +170,51 @@ router.get("/great-larder", async (req, res): Promise<void> => {
     },
     entries: entries.map(e => fmtEntry(e, nameMap.get(e.contributedByUserId) ?? "Unknown")),
   });
+});
+
+// POST /great-larder/buckets — create a household bucket; head-only.
+router.post("/great-larder/buckets", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const membership = await getMembership(userId, user.householdId);
+  if (!membership || !isHead(membership.role)) {
+    res.status(403).json({ error: "Only the head can manage Great Larder buckets" }); return;
+  }
+  try {
+    const bucket = await createGreatLarderBucket(user.householdId, req.body?.name);
+    res.status(201).json(bucket);
+  } catch (err) {
+    if (err instanceof BucketDefinitionError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+});
+
+// PATCH /great-larder/buckets/:key — head-only rename.
+router.patch("/great-larder/buckets/:key", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthenticated" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user?.householdId) { res.status(400).json({ error: "Not in a household" }); return; }
+  const membership = await getMembership(userId, user.householdId);
+  if (!membership || !isHead(membership.role)) {
+    res.status(403).json({ error: "Only the head can manage Great Larder buckets" }); return;
+  }
+  try {
+    const bucket = await renameGreatLarderBucket(user.householdId, req.params.key, req.body?.name);
+    if (!bucket) { res.status(404).json({ error: "Bucket not found" }); return; }
+    res.json(bucket);
+  } catch (err) {
+    if (err instanceof BucketDefinitionError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 // POST /great-larder/assign — head-only, atomic assignment from the waiting room.
@@ -177,6 +231,9 @@ router.post("/great-larder/assign", async (req, res): Promise<void> => {
   const { amount, currency, bucket: rawBucket } = req.body;
   const { bucket, valid } = bucketFromBody(rawBucket);
   if (!valid || !bucket) { res.status(400).json({ error: "A valid bucket is required" }); return; }
+  if (!(await greatLarderBucketExists(user.householdId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Great Larder" }); return;
+  }
   if (typeof amount !== "number" || amount <= 0 || !isFinite(amount)) {
     res.status(400).json({ error: "amount must be a positive number" }); return;
   }
@@ -232,6 +289,9 @@ router.post("/great-larder/send", async (req, res): Promise<void> => {
   const { amount: rawAmount, percent, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
+  if (bucket !== null && !(await greatLarderBucketExists(user.householdId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Great Larder" }); return;
+  }
 
   if (typeof percent === "number" && (percent <= 0 || percent > 100)) {
     res.status(400).json({ error: "percent must be between 1 and 100" }); return;
@@ -546,6 +606,9 @@ router.post("/great-larder/spend", async (req, res): Promise<void> => {
   const { description, amount, categoryId, date, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
+  if (bucket !== null && !(await greatLarderBucketExists(user.householdId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Great Larder" }); return;
+  }
   if (!description || typeof description !== "string" || !description.trim()) {
     res.status(400).json({ error: "description is required" }); return;
   }
@@ -680,6 +743,9 @@ router.post("/great-larder/dedicate-to-goal", async (req, res): Promise<void> =>
   const { goalId, amount, assetCurrency: assetCurrencyInput, bucket: rawBucket } = req.body;
   const { bucket, valid: bucketValid } = bucketFromBody(rawBucket);
   if (!bucketValid) { res.status(400).json({ error: "Invalid bucket" }); return; }
+  if (bucket !== null && !(await greatLarderBucketExists(user.householdId, bucket))) {
+    res.status(400).json({ error: "Bucket does not belong to this Great Larder" }); return;
+  }
   if (!goalId || typeof goalId !== "number") {
     res.status(400).json({ error: "goalId is required" }); return;
   }

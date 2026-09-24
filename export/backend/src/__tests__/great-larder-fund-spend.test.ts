@@ -15,6 +15,10 @@ const fixtures = vi.hoisted(() => {
       id: { table: "entries", field: "id" },
       householdId: { table: "entries", field: "householdId" },
     },
+    greatLarderBucketsTable: {
+      householdId: { table: "buckets", field: "householdId" },
+      bucketKey: { table: "buckets", field: "bucketKey" },
+    },
     larderEntriesTable: {},
     notificationItemsTable: {},
     goalsTable: {},
@@ -27,6 +31,7 @@ const fixtures = vi.hoisted(() => {
     categories: [] as Record<string, any>[],
     transactions: [] as Record<string, any>[],
     entries: [] as Record<string, any>[],
+    buckets: [] as Record<string, any>[],
     nextTransactionId: 1,
     nextEntryId: 1,
     failLedgerWrite: false,
@@ -41,6 +46,7 @@ const fixtures = vi.hoisted(() => {
     state.categories = snapshot.categories;
     state.transactions = snapshot.transactions;
     state.entries = snapshot.entries;
+    state.buckets = snapshot.buckets;
     state.nextTransactionId = snapshot.nextTransactionId;
     state.nextEntryId = snapshot.nextEntryId;
     state.failLedgerWrite = snapshot.failLedgerWrite;
@@ -52,6 +58,7 @@ const fixtures = vi.hoisted(() => {
     if (table === tables.categoriesTable) return state.categories;
     if (table === tables.transactionsTable) return state.transactions;
     if (table === tables.greatLarderEntriesTable) return state.entries;
+    if (table === tables.greatLarderBucketsTable) return state.buckets;
     return [];
   };
 
@@ -148,6 +155,11 @@ const fixtures = vi.hoisted(() => {
         note: "seed",
         createdAt: new Date(),
       }];
+      state.buckets = [
+        { id: 1, householdId: 10, bucketKey: "soft_savings", name: "Soft Savings", isDefault: true },
+        { id: 2, householdId: 10, bucketKey: "hard_savings", name: "Hard Savings", isDefault: true },
+        { id: 3, householdId: 10, bucketKey: "investments", name: "Investments", isDefault: true },
+      ];
       state.nextTransactionId = 1;
       state.nextEntryId = 2;
       state.failLedgerWrite = false;
@@ -167,6 +179,7 @@ vi.mock("../db", () => ({
   notificationItemsTable: fixtures.tables.notificationItemsTable,
   goalsTable: fixtures.tables.goalsTable,
   goalContributionsTable: fixtures.tables.goalContributionsTable,
+  greatLarderBucketsTable: fixtures.tables.greatLarderBucketsTable,
 }));
 
 vi.mock("drizzle-orm", async () => {

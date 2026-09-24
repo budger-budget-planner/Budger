@@ -52,8 +52,15 @@ import {
   SavingsBucketStack,
   type SavingsBucket,
 } from "@/components/SavingsBucketStack";
+import { LarderBucketManager } from "@/components/LarderBucketManager";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+
+const defaultBucketNames: Record<string, string> = {
+  soft_savings: "Soft Savings",
+  hard_savings: "Hard Savings",
+  investments: "Investments",
+};
 
 function GlSheet({
   title, open, onClose, children,
@@ -740,6 +747,7 @@ export default function HouseholdPage() {
   const [glAssignAmount,    setGlAssignAmount]   = useState("");
   const [glAssignCurrency,  setGlAssignCurrency] = useState("");
   const [glAssignLoading,   setGlAssignLoading]  = useState(false);
+  const [bucketManagerOpen, setBucketManagerOpen] = useState(false);
 
   const greatLarderRef = useRef<HTMLDivElement>(null);
   const [glVisible, setGlVisible] = useState(false);
@@ -751,6 +759,13 @@ export default function HouseholdPage() {
   const glFundAssetBalance = glAssetOpts.find(a => a.currency === glFundAsset)?.rawTotal ?? (glActiveSummary?.total ?? 0);
   const glDedicateAssetBalance = glAssetOpts.find(a => a.currency === glDedicateAsset)?.rawTotal ?? (glActiveSummary?.total ?? 0);
   const glAssignAssetBalance = glUnassignedAssetOpts.find(a => a.currency === glAssignCurrency)?.rawTotal ?? 0;
+
+  useEffect(() => {
+    const firstBucket = glBucketSummaries[0]?.bucket;
+    if (!firstBucket) return;
+    if (!glBucketSummaries.some((bucket: any) => bucket.bucket === glActiveBucket)) setGlActiveBucket(firstBucket);
+    if (!glBucketSummaries.some((bucket: any) => bucket.bucket === glAssignBucket)) setGlAssignBucket(firstBucket);
+  }, [glBucketSummaries, glActiveBucket, glAssignBucket]);
 
   useEffect(() => {
     if (glFundOpen && glAssetOpts.length > 0 && !glAssetOpts.some(a => a.currency === glFundAsset)) {
@@ -1751,22 +1766,35 @@ export default function HouseholdPage() {
           {/* ── Great Larder (Wielka Spiżarnia) — head + parent only ── */}
           {canSeeGreatLarder && (
             <>
-            <button
-              type="button"
-              onClick={() => setGlAssignOpen(true)}
-              disabled={!iAmHead || !greatLarder || (greatLarder.unassigned?.total ?? 0) <= 0}
-              className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
-            >
-              <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
-              <p className="text-[11px] text-white/35">
-                {orderedBreakdown(greatLarder?.unassigned?.currencyBreakdown ?? [], greatLarder?.currency ?? prefs.currency, prefs.language)
-                  .map(asset => fmtAmt(asset.rawTotal, asset.currency))
-                  .join(" · ")}
-                {(greatLarder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
-                ≈ {fmtAmt(Math.max(0, greatLarder?.unassigned?.total ?? 0), greatLarder?.currency ?? prefs.currency)} ·{" "}
-                {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
-              </p>
-            </button>
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setGlAssignOpen(true)}
+                disabled={!iAmHead || !greatLarder || (greatLarder.unassigned?.total ?? 0) <= 0}
+                className="min-w-0 flex-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+              >
+                <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+                <p className="text-[11px] text-white/35">
+                  {orderedBreakdown(greatLarder?.unassigned?.currencyBreakdown ?? [], greatLarder?.currency ?? prefs.currency, prefs.language)
+                    .map(asset => fmtAmt(asset.rawTotal, asset.currency))
+                    .join(" · ")}
+                  {(greatLarder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
+                  ≈ {fmtAmt(Math.max(0, greatLarder?.unassigned?.total ?? 0), greatLarder?.currency ?? prefs.currency)} ·{" "}
+                  {iAmHead ? t("larder.assign_hint") : t("larder.head_assigns_hint")}
+                </p>
+              </button>
+              {iAmHead && (
+                <button
+                  type="button"
+                  aria-label={t("larder.add_bucket")}
+                  onClick={() => setBucketManagerOpen(true)}
+                  disabled={!greatLarder}
+                  className="flex w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 transition active:scale-95 disabled:opacity-35"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              )}
+            </div>
             <LarderStackSurface ref={greatLarderRef}>
             <div className="relative overflow-hidden rounded-3xl touch-pan-y"
               style={{
@@ -1847,6 +1875,14 @@ export default function HouseholdPage() {
               </div>
             </div>
             </LarderStackSurface>
+            <LarderBucketManager
+              open={bucketManagerOpen}
+              scope="great"
+              buckets={glBucketSummaries}
+              customBucketLimit={greatLarder?.customBucketLimit ?? 3}
+              onClose={() => setBucketManagerOpen(false)}
+              onChanged={refetchGL}
+            />
             {/* Actions and approvals stay below the Great Larder card. */}
             <div className={`mt-3 grid gap-2 ${iAmHead ? "grid-cols-2" : "grid-cols-1"}`}>
               <button
@@ -2188,8 +2224,13 @@ export default function HouseholdPage() {
         <form onSubmit={handleGlAssign} className="space-y-4">
           <div className="space-y-2">
             <label className={glLabelCls}>{t("larder.assign_to")}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["soft_savings", "hard_savings", "investments"] as const).map(bucket => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {glBucketSummaries.map((bucketSummary: any) => {
+                const bucket = bucketSummary.bucket as SavingsBucket;
+                const label = bucketSummary.name && (!bucketSummary.isDefault || bucketSummary.name !== defaultBucketNames[bucket])
+                  ? bucketSummary.name
+                  : t(`larder.bucket_${bucket}`);
+                return (
                 <button
                   key={bucket}
                   type="button"
@@ -2200,9 +2241,10 @@ export default function HouseholdPage() {
                       : "border-white/10 bg-white/3 text-white/45"
                   }`}
                 >
-                  {t(`larder.bucket_${bucket}`)}
+                  {label}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
           <AssetSelect options={glUnassignedAssetOpts} value={glAssignCurrency} onChange={setGlAssignCurrency} />

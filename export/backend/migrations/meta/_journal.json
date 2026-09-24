@@ -148,6 +148,13 @@
       "when": 1787224000000,
       "tag": "0021_great_larder_recurring_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787225000000,
+      "tag": "0022_custom_larder_buckets",
+      "breakpoints": true
     }
   ]
 }

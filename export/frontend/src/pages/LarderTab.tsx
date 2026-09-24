@@ -9,6 +9,7 @@ import {
   LarderStackSurface,
   SavingsBucketStack,
 } from "@/components/SavingsBucketStack";
+import { LarderBucketManager } from "@/components/LarderBucketManager";
 import { fetchRates, convertAmount } from "@/lib/rates";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -31,8 +32,15 @@ type LarderEntry = {
   createdAt: string;
 };
 
-type LarderBucket = "soft_savings" | "hard_savings" | "investments";
-type BucketSummary = { bucket: LarderBucket; total: number; currencyBreakdown: CurrencySubtotal[] };
+type LarderBucket = string;
+type BucketSummary = {
+  bucket: LarderBucket;
+  name?: string;
+  isDefault?: boolean;
+  sortOrder?: number;
+  total: number;
+  currencyBreakdown: CurrencySubtotal[];
+};
 
 type CurrencySubtotal = {
   currency: string;
@@ -47,11 +55,10 @@ type LarderSummary = {
   glRuleSynced: number;
   currencyBreakdown?: CurrencySubtotal[];
   buckets?: BucketSummary[];
+  customBucketCount?: number;
+  customBucketLimit?: number;
   unassigned?: { total: number; currencyBreakdown: CurrencySubtotal[] };
 };
-
-const BUCKETS: LarderBucket[] = ["soft_savings", "hard_savings", "investments"];
-const bucketLabel = (bucket: LarderBucket) => t(`larder.bucket_${bucket}`);
 
 /** Order breakdown items: account currency first, then language-based order. */
 function orderedBreakdown(
@@ -177,6 +184,11 @@ function Sheet({
 
 const inputCls = "w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/20 placeholder:text-white/25";
 const labelCls = "text-xs text-white/40 font-medium";
+const defaultBucketNames: Record<string, string> = {
+  soft_savings: "Soft Savings",
+  hard_savings: "Hard Savings",
+  investments: "Investments",
+};
 
 const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ revealed = false }, ref) => {
   const prefs = loadPrefs();
@@ -284,6 +296,7 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const [assignAmount, setAssignAmount] = useState("");
   const [assignCurrency, setAssignCurrency] = useState("");
   const [assignLoading, setAssignLoading] = useState(false);
+  const [bucketManagerOpen, setBucketManagerOpen] = useState(false);
 
   const { data: me } = useGetMe();
   const inHousehold = !!(me as any)?.householdId;
@@ -338,6 +351,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
   const sendGlAssetBalance = assetOpts.find(a => a.currency === sendGlAsset)?.rawTotal ?? activeTotal;
   const dedAssetBalance = assetOpts.find(a => a.currency === dedAsset)?.rawTotal ?? activeTotal;
   const assignAssetBalance = unassignedAssetOpts.find(a => a.currency === assignCurrency)?.rawTotal ?? 0;
+
+  useEffect(() => {
+    const firstBucket = bucketSummaries[0]?.bucket;
+    if (!firstBucket) return;
+    if (!bucketSummaries.some(bucket => bucket.bucket === activeBucket)) setActiveBucket(firstBucket);
+    if (!bucketSummaries.some(bucket => bucket.bucket === assignBucket)) setAssignBucket(firstBucket);
+  }, [bucketSummaries, activeBucket, assignBucket]);
 
   useEffect(() => {
     if (spendOpen && assetOpts.length > 0 && !assetOpts.some(a => a.currency === spendAsset)) {
@@ -543,21 +563,32 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         @keyframes larderEdge2 { 0%{transform:translateX(100vw);opacity:0} 15%{opacity:0.85} 85%{opacity:0.85} 100%{transform:translateX(-80px);opacity:0} }
         @keyframes larderEdge3 { 0%{transform:translateX(10%);opacity:0.45} 40%{opacity:0.95;transform:translateX(60%)} 100%{transform:translateX(10%);opacity:0.45} }
       `}</style>
-      <button
-        type="button"
-        onClick={() => setAssignOpen(true)}
-        disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
-        className="mb-3 w-full rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
-      >
-        <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
-        <p className="text-[11px] text-white/35">
-          {orderedBreakdown(larder?.unassigned?.currencyBreakdown ?? [], prefs.currency, prefs.language)
-            .map(asset => fmtAmt(asset.rawTotal, asset.currency))
-            .join(" · ")}
-          {(larder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
-          ≈ {fmtAmt(Math.max(0, larder?.unassigned?.total ?? 0), prefs.currency)} · {t("larder.assign_hint")}
-        </p>
-      </button>
+      <div className="mb-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setAssignOpen(true)}
+          disabled={!isOnline || (larder?.unassigned?.total ?? 0) <= 0}
+          className="min-w-0 flex-1 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-3 py-2.5 text-left transition disabled:opacity-35"
+        >
+          <p className="text-xs font-semibold text-white/65">{t("larder.unassigned")}</p>
+          <p className="text-[11px] text-white/35">
+            {orderedBreakdown(larder?.unassigned?.currencyBreakdown ?? [], prefs.currency, prefs.language)
+              .map(asset => fmtAmt(asset.rawTotal, asset.currency))
+              .join(" · ")}
+            {(larder?.unassigned?.currencyBreakdown?.length ?? 0) > 0 && " · "}
+            ≈ {fmtAmt(Math.max(0, larder?.unassigned?.total ?? 0), prefs.currency)} · {t("larder.assign_hint")}
+          </p>
+        </button>
+        <button
+          type="button"
+          aria-label={t("larder.add_bucket")}
+          onClick={() => setBucketManagerOpen(true)}
+          disabled={!isOnline}
+          className="flex w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 transition active:scale-95 disabled:opacity-35"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </div>
       <LarderStackSurface ref={ref}>
       <div
         className="relative overflow-hidden rounded-3xl touch-pan-y"
@@ -718,6 +749,15 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         </div>
       </div>
       </LarderStackSurface>
+
+      <LarderBucketManager
+        open={bucketManagerOpen}
+        scope="personal"
+        buckets={bucketSummaries}
+        customBucketLimit={larder?.customBucketLimit ?? 3}
+        onClose={() => setBucketManagerOpen(false)}
+        onChanged={invalidate}
+      />
 
       {/* Actions stay below the savings card; the card surface remains focused on balances. */}
       <div className={`mt-3 grid gap-2.5 ${inHousehold ? "grid-cols-4" : "grid-cols-3"}`}>
@@ -974,8 +1014,13 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
         <form onSubmit={handleAssign} className="space-y-4">
           <div className="space-y-2">
             <label className={labelCls}>{t("larder.assign_to")}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["soft_savings", "hard_savings", "investments"] as const).map(bucket => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {bucketSummaries.map(bucketSummary => {
+                const bucket = bucketSummary.bucket;
+                const label = bucketSummary.name && (!bucketSummary.isDefault || bucketSummary.name !== defaultBucketNames[bucket])
+                  ? bucketSummary.name
+                  : t(`larder.bucket_${bucket}`);
+                return (
                 <button
                   key={bucket}
                   type="button"
@@ -986,9 +1031,10 @@ const LarderCard = forwardRef<HTMLDivElement, { revealed?: boolean }>(({ reveale
                       : "border-white/10 bg-white/3 text-white/45"
                   }`}
                 >
-                  {t(`larder.bucket_${bucket}`)}
+                  {label}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
           <AssetSelect options={unassignedAssetOpts} value={assignCurrency} onChange={setAssignCurrency} />

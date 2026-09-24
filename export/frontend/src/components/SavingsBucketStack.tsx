@@ -4,10 +4,13 @@ import { t } from "@/lib/i18n";
 import { fmtAmt } from "@/lib/prefs";
 import { AmtHero } from "@/components/AmtHero";
 
-export type SavingsBucket = "soft_savings" | "hard_savings" | "investments";
+export type SavingsBucket = string;
 
 export type SavingsBucketSummary = {
   bucket: SavingsBucket;
+  name?: string;
+  isDefault?: boolean;
+  sortOrder?: number;
   total: number;
   currencyBreakdown?: { currency: string; rawTotal: number }[];
 };
@@ -90,14 +93,24 @@ type SavingsBucketStackProps = {
   className?: string;
 };
 
-const BUCKETS: SavingsBucket[] = ["soft_savings", "hard_savings", "investments"];
+const DEFAULT_BUCKETS: SavingsBucket[] = ["soft_savings", "hard_savings", "investments"];
+const DEFAULT_BUCKET_NAMES: Record<string, string> = {
+  soft_savings: "Soft Savings",
+  hard_savings: "Hard Savings",
+  investments: "Investments",
+};
 
-function bucketLabel(bucket: SavingsBucket): string {
-  return t(`larder.bucket_${bucket}`);
+function bucketLabel(bucket: SavingsBucket, summaries: SavingsBucketSummary[]): string {
+  const summary = summaries.find(item => item.bucket === bucket);
+  if (summary?.name && (!summary.isDefault || summary.name !== DEFAULT_BUCKET_NAMES[bucket])) return summary.name;
+  const translated = t(`larder.bucket_${bucket}`);
+  return translated === `larder.bucket_${bucket}` ? (summary?.name ?? bucket) : translated;
 }
 
-export function nextSavingsBucket(bucket: SavingsBucket): SavingsBucket {
-  return BUCKETS[(BUCKETS.indexOf(bucket) + 1) % BUCKETS.length];
+export function nextSavingsBucket(bucket: SavingsBucket, buckets: SavingsBucket[] = DEFAULT_BUCKETS): SavingsBucket {
+  if (buckets.length === 0) return bucket;
+  const index = buckets.indexOf(bucket);
+  return buckets[(index < 0 ? 0 : index + 1) % buckets.length];
 }
 
 function BucketCardContent({
@@ -117,7 +130,7 @@ function BucketCardContent({
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">{bucketLabel(bucket)}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">{bucketLabel(bucket, summaries)}</p>
           <p className="mt-2 text-3xl font-bold tabular-nums text-white">
             <AmtHero amount={total} currency={currency} />
           </p>
@@ -132,8 +145,8 @@ function BucketCardContent({
         </span>
       </div>
       <div className="mt-3 flex items-center justify-center gap-1.5" aria-hidden="true">
-        {BUCKETS.map(item => (
-          <span key={item} className={`h-1.5 rounded-full ${item === bucket ? "w-5 bg-white/75" : "w-1.5 bg-white/20"}`} />
+        {summaries.map(item => (
+          <span key={item.bucket} className={`h-1.5 rounded-full ${item.bucket === bucket ? "w-5 bg-white/75" : "w-1.5 bg-white/20"}`} />
         ))}
       </div>
     </>
@@ -148,6 +161,8 @@ export function SavingsBucketStack({
   className = "",
 }: SavingsBucketStackProps) {
   const stackMotion = useContext(LarderStackMotionContext);
+  const bucketKeys = summaries.length > 0 ? summaries.map(summary => summary.bucket) : DEFAULT_BUCKETS;
+  const initialBucket = bucketKeys.includes(activeBucket) ? activeBucket : bucketKeys[0];
   const [visibleBucket, setVisibleBucket] = useState<SavingsBucket>(activeBucket);
   const [localTransitionBucket, setLocalTransitionBucket] = useState<SavingsBucket | null>(null);
   const [localPhase, setLocalPhase] = useState<"idle" | "crossfade">("idle");
@@ -160,11 +175,11 @@ export function SavingsBucketStack({
   const bucketForSurface = stackMotion?.incomingSurface ? transitionBucket ?? activeBucket : visibleBucket;
 
   useEffect(() => {
-    if (phase === "idle" && activeBucket !== currentBucket.current) {
-      currentBucket.current = activeBucket;
-      setVisibleBucket(activeBucket);
+    if (phase === "idle" && initialBucket !== currentBucket.current) {
+      currentBucket.current = initialBucket;
+      setVisibleBucket(initialBucket);
     }
-  }, [activeBucket, phase]);
+  }, [initialBucket, phase]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -172,7 +187,7 @@ export function SavingsBucketStack({
 
   function flipToNext() {
     if (phase !== "idle") return;
-    const nextBucket = nextSavingsBucket(currentBucket.current);
+    const nextBucket = nextSavingsBucket(currentBucket.current, bucketKeys);
     currentBucket.current = nextBucket;
     if (timer.current) clearTimeout(timer.current);
     setTransitionBucket(nextBucket);
@@ -186,7 +201,7 @@ export function SavingsBucketStack({
     }, 540);
   }
 
-  const nextBucket = nextSavingsBucket(currentBucket.current);
+  const nextBucket = nextSavingsBucket(currentBucket.current, bucketKeys);
   const bucketContent = <BucketCardContent bucket={bucketForSurface} summaries={summaries} currency={currency} />;
 
   return (
@@ -219,7 +234,7 @@ export function SavingsBucketStack({
       <button
         type="button"
         onClick={flipToNext}
-        aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket)}`}
+        aria-label={`${t("larder.flip_stack")}: ${bucketLabel(nextBucket, summaries)}`}
         className="group relative col-start-1 row-start-1 grid w-full text-left"
       >
         {stackMotion ? bucketContent : (
