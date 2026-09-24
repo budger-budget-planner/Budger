@@ -429,7 +429,11 @@ export default function BadgerLogo({
         /*
          * The happy state leaves the regular eye crops mounted and fades only
          * the pupil/highlight layer over them, then fades that layer back out.
+         * The full eye artwork also grows together for the kawaii expression.
          */
+        .blg-happy .blg-eye-overlay {
+          animation: blg-happy-whole-eye var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
         .blg-happy .blg-happy-eye {
           animation: blg-happy-eye-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
@@ -453,6 +457,13 @@ export default function BadgerLogo({
           90%      { opacity: 0.72; transform: scale(0.995); }
           100%     { opacity: 0; transform: scale(1); }
         }
+         @keyframes blg-happy-whole-eye {
+           0%, 8%   { transform: scale(1); }
+           18%      { transform: scale(1.075); }
+           28%, 78% { transform: scale(1.15); }
+           90%      { transform: scale(1.075); }
+           100%     { transform: scale(1); }
+         }
          @keyframes blg-happy-pupil-left {
            0%, 18% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; }
            28%, 78% { left: 22%; top: 22%; width: 64%; height: 64%; }
