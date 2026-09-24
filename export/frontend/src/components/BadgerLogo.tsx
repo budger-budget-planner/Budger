@@ -610,11 +610,11 @@ export default function BadgerLogo({
           animation: blg-happy-mouth-smile var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
         @keyframes blg-happy-mouth-smile {
-          0%, 8%   { transform: scaleX(1); }
-          18%      { transform: scaleX(1.03); }
-          28%, 78% { transform: scaleX(1.06); }
-          90%      { transform: scaleX(1.03); }
-          100%     { transform: scaleX(1); }
+          0%, 8%   { transform: scaleX(0.75); }
+          18%      { transform: scaleX(0.7725); }
+          28%, 78% { transform: scaleX(0.795); }
+          90%      { transform: scaleX(0.7725); }
+          100%     { transform: scaleX(0.75); }
         }
         .blg-mouth-overlay-image {
           display: block;
