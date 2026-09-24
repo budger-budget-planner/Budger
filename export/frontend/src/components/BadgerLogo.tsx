@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-type Anim = "wink" | "sniff" | "lick" | null;
+type Anim = "wink" | "sniff" | "lick" | "happy" | null;
 export type BadgerMode = "awake" | "falling-asleep" | "sleeping" | "waking-up";
 
 const ANIM_MS: Record<NonNullable<Anim>, number> = {
   wink: 490,
   sniff: 1400,
   lick: 2400,
+  happy: 1800,
 };
 
 const BASE_SRC = "/animation/base_no_eyes_no_mouth_no_nose.png";
@@ -29,14 +30,14 @@ interface BadgerLogoProps {
   forceAnimDurationMs?: number;
   /**
    * Sleep-state machine driven by the caller (Layout) based on network status.
-   *   "awake"         — normal idle with wink/sniff/lick animations
+   *   "awake"         — normal idle with wink/sniff/lick/happy animations
    *   "falling-asleep"— transition into the offline sleep state
    *   "sleeping"      — looping: gentle breathing and Zzz rising
    *   "waking-up"     — transition back to the awake state
    */
   mode?: BadgerMode;
   /**
-   * When true, suppresses the internal random idle animations (wink/sniff/lick)
+   * When true, suppresses the internal random idle animations (wink/sniff/lick/happy)
    * so the caller has full control over what plays. forceAnim still works.
    */
   pauseIdleAnimations?: boolean;
@@ -77,7 +78,7 @@ export default function BadgerLogo({
     intervalRef.current = setInterval(() => {
       if (modeRef.current !== "awake" || pauseRef.current) return;
 
-      const all: NonNullable<Anim>[] = ["wink", "sniff", "lick"];
+      const all: NonNullable<Anim>[] = ["wink", "sniff", "lick", "happy"];
       const filtered =
         consecutiveRef.current >= 2
           ? all.filter((candidate) => candidate !== lastAnimRef.current)
@@ -181,6 +182,16 @@ export default function BadgerLogo({
               draggable={false}
             />
           </span>
+          <span className="blg-happy-eye blg-happy-eye-left" aria-hidden="true">
+            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
+            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+          </span>
+          <span className="blg-happy-eye blg-happy-eye-right" aria-hidden="true">
+            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
+            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+          </span>
+          <span className="blg-happy-cheek blg-happy-cheek-left" aria-hidden="true" />
+          <span className="blg-happy-cheek blg-happy-cheek-right" aria-hidden="true" />
           <span className="blg-mouth-overlay" aria-hidden="true">
             <img
               className="blg-mouth-overlay-image"
@@ -188,6 +199,10 @@ export default function BadgerLogo({
               alt=""
               draggable={false}
             />
+          </span>
+          <span className="blg-happy-mouth" aria-hidden="true">
+            <span className="blg-happy-mouth-teeth" />
+            <span className="blg-happy-mouth-tongue" />
           </span>
           <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
           <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
@@ -281,6 +296,67 @@ export default function BadgerLogo({
           pointer-events: none;
         }
 
+        /*
+         * Kawaii happy eyes are drawn as a separate layer because the normal
+         * eye crops include a white sclera. Two highlights keep the large
+         * black eyes readable at the small in-app logo sizes.
+         */
+        .blg-happy-eye {
+          position: absolute;
+          top: 34.277%;
+          width: 22.607%;
+          height: 22.607%;
+          border-radius: 50%;
+          background: #101010;
+          box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+          opacity: 0;
+          transform: scale(0.72);
+          transform-origin: center;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .blg-happy-eye-left { left: 18.75%; }
+        .blg-happy-eye-right { left: 58.643%; }
+        .blg-happy-eye-highlight {
+          position: absolute;
+          border-radius: 50%;
+          background: #fff;
+          pointer-events: none;
+        }
+        .blg-happy-eye-highlight-large {
+          top: 17%;
+          right: 17%;
+          width: 28%;
+          height: 28%;
+        }
+        .blg-happy-eye-highlight-small {
+          left: 19%;
+          bottom: 19%;
+          width: 20%;
+          height: 20%;
+        }
+        .blg-happy-cheek {
+          position: absolute;
+          top: 55.5%;
+          width: 13.5%;
+          height: 8.5%;
+          border-radius: 50%;
+          background: rgba(240, 119, 161, 0.86);
+          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16);
+          opacity: 0;
+          transform: scale(0.7);
+          pointer-events: none;
+          z-index: 3;
+        }
+        .blg-happy-cheek-left {
+          left: 14.5%;
+          transform: rotate(-18deg) scale(0.7);
+        }
+        .blg-happy-cheek-right {
+          left: 72%;
+          transform: rotate(18deg) scale(0.7);
+        }
+
         .blg-sleep-line {
           position: absolute;
           top: 45.1%;
@@ -361,6 +437,49 @@ export default function BadgerLogo({
           78%     { opacity: 1; transform: scaleY(0.38); }
           92%     { opacity: 1; transform: scaleY(0.86); }
           100%    { opacity: 1; transform: scaleY(1); }
+        }
+
+        /*
+         * The happy state swaps the normal feature crops for a short kawaii
+         * expression, then fades back to the canonical face before reset.
+         */
+        .blg-happy .blg-eye-overlay,
+        .blg-happy .blg-mouth-overlay {
+          animation: blg-happy-normal-out var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
+        .blg-happy .blg-happy-eye {
+          animation: blg-happy-eye-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
+        .blg-happy .blg-happy-cheek {
+          animation: blg-happy-cheek-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
+        .blg-happy .blg-happy-mouth {
+          animation: blg-happy-mouth-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        }
+        @keyframes blg-happy-normal-out {
+          0%, 8%   { opacity: 1; transform: scale(1); }
+          18%      { opacity: 0; transform: scale(0.82); }
+          100%     { opacity: 0; transform: scale(0.82); }
+        }
+        @keyframes blg-happy-eye-pop {
+          0%, 10%  { opacity: 0; transform: scale(0.72); }
+          24%      { opacity: 1; transform: scale(1.08); }
+          34%, 78% { opacity: 1; transform: scale(1); }
+          90%      { opacity: 0.8; transform: scale(0.9); }
+          100%     { opacity: 0; transform: scale(0.72); }
+        }
+        @keyframes blg-happy-cheek-pop {
+          0%, 12%  { opacity: 0; }
+          25%      { opacity: 0.86; }
+          78%      { opacity: 0.86; }
+          100%     { opacity: 0; }
+        }
+        @keyframes blg-happy-mouth-pop {
+          0%, 12%  { opacity: 0; transform: translateY(2px) scale(0.62, 0.3); }
+          26%      { opacity: 1; transform: translateY(0) scale(1.06, 1); }
+          36%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+          90%      { opacity: 0.75; transform: translateY(1px) scale(0.86, 0.78); }
+          100%     { opacity: 0; transform: translateY(2px) scale(0.62, 0.3); }
         }
 
         /*
@@ -485,6 +604,44 @@ export default function BadgerLogo({
           object-position: center;
           user-select: none;
           pointer-events: none;
+        }
+
+        .blg-happy-mouth {
+          position: absolute;
+          left: 38.25%;
+          top: 72%;
+          width: 23.5%;
+          height: 11.5%;
+          border-radius: 44% 44% 50% 50%;
+          background: #151515;
+          box-shadow:
+            inset 0 1px 1px rgba(255, 255, 255, 0.1),
+            0 1px 1px rgba(0, 0, 0, 0.14);
+          opacity: 0;
+          transform: translateY(2px) scale(0.62, 0.3);
+          transform-origin: center top;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .blg-happy-mouth-teeth {
+          position: absolute;
+          left: 16%;
+          top: 7%;
+          width: 68%;
+          height: 18%;
+          border-radius: 50%;
+          background: #eeeae2;
+          opacity: 0.94;
+        }
+        .blg-happy-mouth-tongue {
+          position: absolute;
+          left: 18%;
+          bottom: 5%;
+          width: 64%;
+          height: 39%;
+          border-radius: 50% 50% 46% 46%;
+          background: linear-gradient(180deg, #f080a2 0%, #d95379 100%);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
         }
 
         /* Only the isolated nose moves during sniff. The mouth and face stay
