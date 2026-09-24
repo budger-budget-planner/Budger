@@ -194,8 +194,6 @@ export default function BadgerLogo({
               <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
             </span>
           </span>
-          <span className="blg-happy-cheek blg-happy-cheek-left" aria-hidden="true" />
-          <span className="blg-happy-cheek blg-happy-cheek-right" aria-hidden="true" />
           <span className="blg-mouth-overlay" aria-hidden="true">
             <img
               className="blg-mouth-overlay-image"
@@ -203,10 +201,6 @@ export default function BadgerLogo({
               alt=""
               draggable={false}
             />
-          </span>
-          <span className="blg-happy-mouth" aria-hidden="true">
-            <span className="blg-happy-mouth-teeth" />
-            <span className="blg-happy-mouth-tongue" />
           </span>
           <span className="blg-sleep-line blg-sleep-line-left" aria-hidden="true" />
           <span className="blg-sleep-line blg-sleep-line-right" aria-hidden="true" />
@@ -322,14 +316,16 @@ export default function BadgerLogo({
         .blg-happy-eye-right { left: 58.643%; }
         .blg-happy-eye-pupil {
           position: absolute;
-          left: 11%;
-          top: 11%;
-          width: 78%;
-          height: 78%;
+          left: 18%;
+          top: 22%;
+          width: 64%;
+          height: 64%;
           border-radius: 50%;
           background: #101010;
           pointer-events: none;
         }
+        .blg-happy-eye-left .blg-happy-eye-pupil { left: 22%; }
+        .blg-happy-eye-right .blg-happy-eye-pupil { left: 14%; }
         .blg-happy-eye-highlight {
           position: absolute;
           border-radius: 50%;
@@ -337,37 +333,17 @@ export default function BadgerLogo({
           pointer-events: none;
         }
         .blg-happy-eye-highlight-large {
-          top: 18%;
-          right: 18%;
-          width: 21%;
-          height: 21%;
+          left: 56%;
+          top: 25%;
+          width: 22%;
+          height: 22%;
         }
         .blg-happy-eye-highlight-small {
           left: 19%;
-          bottom: 20%;
+          bottom: 18%;
           width: 14%;
           height: 14%;
-        }
-        .blg-happy-cheek {
-          position: absolute;
-          top: 55.5%;
-          width: 13.5%;
-          height: 8.5%;
-          border-radius: 50%;
-          background: rgba(240, 119, 161, 0.86);
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16);
           opacity: 0;
-          transform: scale(0.7);
-          pointer-events: none;
-          z-index: 3;
-        }
-        .blg-happy-cheek-left {
-          left: 14.5%;
-          transform: rotate(-18deg) scale(0.7);
-        }
-        .blg-happy-cheek-right {
-          left: 72%;
-          transform: rotate(18deg) scale(0.7);
         }
 
         .blg-sleep-line {
@@ -456,43 +432,34 @@ export default function BadgerLogo({
          * The happy state swaps the normal feature crops for a short kawaii
          * expression, then fades back to the canonical face before reset.
          */
-        .blg-happy .blg-eye-overlay,
-        .blg-happy .blg-mouth-overlay {
-          animation: blg-happy-normal-out var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        .blg-happy .blg-eye-overlay {
+          animation: blg-happy-normal-eye-out var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
         .blg-happy .blg-happy-eye {
           animation: blg-happy-eye-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
-        .blg-happy .blg-happy-cheek {
-          animation: blg-happy-cheek-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+        .blg-happy .blg-happy-eye-highlight-small {
+          animation: blg-happy-second-highlight var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
-        .blg-happy .blg-happy-mouth {
-          animation: blg-happy-mouth-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
-        }
-        @keyframes blg-happy-normal-out {
+        @keyframes blg-happy-normal-eye-out {
           0%, 8%   { opacity: 1; transform: scale(1); }
-          18%      { opacity: 0; transform: scale(0.82); }
-          100%     { opacity: 0; transform: scale(0.82); }
+          20%      { opacity: 0.36; transform: scale(1.01); }
+          28%      { opacity: 0; transform: scale(0.98); }
+          100%     { opacity: 0; transform: scale(0.98); }
         }
         @keyframes blg-happy-eye-pop {
-          0%, 10%  { opacity: 0; transform: scale(0.72); }
-          24%      { opacity: 1; transform: scale(1.08); }
+          0%, 8%   { opacity: 0; transform: scale(0.98); }
+          18%      { opacity: 0.48; transform: scale(1.01); }
+          28%      { opacity: 1; transform: scale(1); }
           34%, 78% { opacity: 1; transform: scale(1); }
           90%      { opacity: 0.8; transform: scale(0.9); }
-          100%     { opacity: 0; transform: scale(0.72); }
+          100%     { opacity: 0; transform: scale(0.98); }
         }
-        @keyframes blg-happy-cheek-pop {
-          0%, 12%  { opacity: 0; }
-          25%      { opacity: 0.86; }
-          78%      { opacity: 0.86; }
+        @keyframes blg-happy-second-highlight {
+          0%, 24%  { opacity: 0; }
+          30%      { opacity: 1; }
+          78%      { opacity: 1; }
           100%     { opacity: 0; }
-        }
-        @keyframes blg-happy-mouth-pop {
-          0%, 12%  { opacity: 0; transform: translateY(2px) scale(0.62, 0.3); }
-          26%      { opacity: 1; transform: translateY(0) scale(1.06, 1); }
-          36%, 78% { opacity: 1; transform: translateY(0) scale(1); }
-          90%      { opacity: 0.75; transform: translateY(1px) scale(0.86, 0.78); }
-          100%     { opacity: 0; transform: translateY(2px) scale(0.62, 0.3); }
         }
 
         /*
@@ -617,44 +584,6 @@ export default function BadgerLogo({
           object-position: center;
           user-select: none;
           pointer-events: none;
-        }
-
-        .blg-happy-mouth {
-          position: absolute;
-          left: 38.25%;
-          top: 72%;
-          width: 23.5%;
-          height: 11.5%;
-          border-radius: 44% 44% 50% 50%;
-          background: #151515;
-          box-shadow:
-            inset 0 1px 1px rgba(255, 255, 255, 0.1),
-            0 1px 1px rgba(0, 0, 0, 0.14);
-          opacity: 0;
-          transform: translateY(2px) scale(0.62, 0.3);
-          transform-origin: center top;
-          pointer-events: none;
-          z-index: 3;
-        }
-        .blg-happy-mouth-teeth {
-          position: absolute;
-          left: 16%;
-          top: 7%;
-          width: 68%;
-          height: 18%;
-          border-radius: 50%;
-          background: #eeeae2;
-          opacity: 0.94;
-        }
-        .blg-happy-mouth-tongue {
-          position: absolute;
-          left: 18%;
-          bottom: 5%;
-          width: 64%;
-          height: 39%;
-          border-radius: 50% 50% 46% 46%;
-          background: linear-gradient(180deg, #f080a2 0%, #d95379 100%);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
         }
 
         /* Only the isolated nose moves during sniff. The mouth and face stay
