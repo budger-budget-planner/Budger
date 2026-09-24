@@ -320,6 +320,7 @@ export default function BadgerLogo({
            height: 58.6%;
           border-radius: 50%;
           background: #101010;
+           transform-origin: center;
           pointer-events: none;
         }
          .blg-happy-eye-left .blg-happy-eye-pupil { left: 24.6%; }
@@ -465,14 +466,18 @@ export default function BadgerLogo({
            100%     { transform: scale(1); }
          }
          @keyframes blg-happy-pupil-left {
-           0%, 18% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; }
-           28%, 78% { left: 22%; top: 22%; width: 64%; height: 64%; }
-           100% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; }
+           0%, 8%   { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1); }
+           18%      { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.075); }
+           28%, 78% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.15); }
+           90%      { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.075); }
+           100%     { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1); }
          }
          @keyframes blg-happy-pupil-right {
-           0%, 18% { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; }
-           28%, 78% { left: 14%; top: 22%; width: 64%; height: 64%; }
-           100% { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; }
+           0%, 8%   { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1); }
+           18%      { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.075); }
+           28%, 78% { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.15); }
+           90%      { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1.075); }
+           100%     { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; transform: scale(1); }
          }
          @keyframes blg-happy-first-highlight {
            0%, 18% { left: 50%; top: 18%; width: 35%; height: 35%; }
