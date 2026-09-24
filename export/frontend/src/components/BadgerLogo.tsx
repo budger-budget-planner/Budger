@@ -183,12 +183,16 @@ export default function BadgerLogo({
             />
           </span>
           <span className="blg-happy-eye blg-happy-eye-left" aria-hidden="true">
-            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
-            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+            <span className="blg-happy-eye-pupil">
+              <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
+              <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+            </span>
           </span>
           <span className="blg-happy-eye blg-happy-eye-right" aria-hidden="true">
-            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
-            <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+            <span className="blg-happy-eye-pupil">
+              <span className="blg-happy-eye-highlight blg-happy-eye-highlight-large" />
+              <span className="blg-happy-eye-highlight blg-happy-eye-highlight-small" />
+            </span>
           </span>
           <span className="blg-happy-cheek blg-happy-cheek-left" aria-hidden="true" />
           <span className="blg-happy-cheek blg-happy-cheek-right" aria-hidden="true" />
@@ -297,9 +301,8 @@ export default function BadgerLogo({
         }
 
         /*
-         * Kawaii happy eyes are drawn as a separate layer because the normal
-         * eye crops include a white sclera. Two highlights keep the large
-         * black eyes readable at the small in-app logo sizes.
+         * Kawaii happy eyes keep the regular white sclera but use a slightly
+         * larger pupil and two small highlights for a softer expression.
          */
         .blg-happy-eye {
           position: absolute;
@@ -307,8 +310,8 @@ export default function BadgerLogo({
           width: 22.607%;
           height: 22.607%;
           border-radius: 50%;
-          background: #101010;
-          box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+          background: #f7f5f0;
+          box-shadow: inset 0 0 0 1px rgba(18, 18, 18, 0.08);
           opacity: 0;
           transform: scale(0.72);
           transform-origin: center;
@@ -317,6 +320,16 @@ export default function BadgerLogo({
         }
         .blg-happy-eye-left { left: 18.75%; }
         .blg-happy-eye-right { left: 58.643%; }
+        .blg-happy-eye-pupil {
+          position: absolute;
+          left: 11%;
+          top: 11%;
+          width: 78%;
+          height: 78%;
+          border-radius: 50%;
+          background: #101010;
+          pointer-events: none;
+        }
         .blg-happy-eye-highlight {
           position: absolute;
           border-radius: 50%;
@@ -324,16 +337,16 @@ export default function BadgerLogo({
           pointer-events: none;
         }
         .blg-happy-eye-highlight-large {
-          top: 17%;
-          right: 17%;
-          width: 28%;
-          height: 28%;
+          top: 18%;
+          right: 18%;
+          width: 21%;
+          height: 21%;
         }
         .blg-happy-eye-highlight-small {
           left: 19%;
-          bottom: 19%;
-          width: 20%;
-          height: 20%;
+          bottom: 20%;
+          width: 14%;
+          height: 14%;
         }
         .blg-happy-cheek {
           position: absolute;
