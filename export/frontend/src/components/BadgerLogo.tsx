@@ -314,16 +314,16 @@ export default function BadgerLogo({
         .blg-happy-eye-right { left: 58.643%; }
         .blg-happy-eye-pupil {
           position: absolute;
-          left: 18%;
-          top: 22%;
-          width: 64%;
-          height: 64%;
+           left: 24.6%;
+           top: 24.6%;
+           width: 58.6%;
+           height: 58.6%;
           border-radius: 50%;
           background: #101010;
           pointer-events: none;
         }
-        .blg-happy-eye-left .blg-happy-eye-pupil { left: 22%; }
-        .blg-happy-eye-right .blg-happy-eye-pupil { left: 14%; }
+         .blg-happy-eye-left .blg-happy-eye-pupil { left: 24.6%; }
+         .blg-happy-eye-right .blg-happy-eye-pupil { left: 16.8%; }
         .blg-happy-eye-highlight {
           position: absolute;
           border-radius: 50%;
@@ -433,6 +433,15 @@ export default function BadgerLogo({
         .blg-happy .blg-happy-eye {
           animation: blg-happy-eye-pop var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
+         .blg-happy .blg-happy-eye-left .blg-happy-eye-pupil {
+           animation: blg-happy-pupil-left var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+         }
+         .blg-happy .blg-happy-eye-right .blg-happy-eye-pupil {
+           animation: blg-happy-pupil-right var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+         }
+         .blg-happy .blg-happy-eye-highlight-large {
+           animation: blg-happy-first-highlight var(--blg-anim-dur, 1.8s) ease-in-out forwards;
+         }
         .blg-happy .blg-happy-eye-highlight-small {
           animation: blg-happy-second-highlight var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
@@ -444,6 +453,21 @@ export default function BadgerLogo({
           90%      { opacity: 0.72; transform: scale(0.995); }
           100%     { opacity: 0; transform: scale(1); }
         }
+         @keyframes blg-happy-pupil-left {
+           0%, 18% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; }
+           28%, 78% { left: 22%; top: 22%; width: 64%; height: 64%; }
+           100% { left: 24.6%; top: 24.6%; width: 58.6%; height: 58.6%; }
+         }
+         @keyframes blg-happy-pupil-right {
+           0%, 18% { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; }
+           28%, 78% { left: 14%; top: 22%; width: 64%; height: 64%; }
+           100% { left: 16.8%; top: 24.6%; width: 58.6%; height: 58.6%; }
+         }
+         @keyframes blg-happy-first-highlight {
+           0%, 18% { left: 50%; top: 18%; width: 35%; height: 35%; }
+           28%, 78% { left: 56%; top: 25%; width: 22%; height: 22%; }
+           100% { left: 50%; top: 18%; width: 35%; height: 35%; }
+         }
         @keyframes blg-happy-second-highlight {
           0%, 24%  { opacity: 0; }
           30%      { opacity: 1; }
