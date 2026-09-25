@@ -413,15 +413,18 @@ function AppWithSplash() {
             <AppRoutes key={appVersion} />
             {/* Full 3-animation splash: only on app open or logout */}
             {!splashGone && <SplashScreen onDone={handleSplashDone} onNavigate={handleSplashNavigate} onFading={handleSplashFading} />}
-            {/* Wink-only splash: afterDone may be async — overlay stays (invisible,
-                non-blocking) until the promise resolves so callers can pre-warm
-                caches before the route tree becomes visible. */}
-            {winkActive && <WinkSplashScreen onDone={async () => {
-              const cb = afterWinkRef.current;
-              afterWinkRef.current = undefined;
-              if (cb) await cb();
-              setWinkActive(false);
-            }} />}
+            {/* Hold the wink splash visibly over the app while callers finish
+                background work and refresh data; only then fly and fade it out. */}
+            {winkActive && (
+              <WinkSplashScreen
+                onReady={async () => {
+                  const cb = afterWinkRef.current;
+                  afterWinkRef.current = undefined;
+                  if (cb) await cb();
+                }}
+                onDone={() => setWinkActive(false)}
+              />
+            )}
           </AppReadyContext.Provider>
         </AppRefreshContext.Provider>
       </WinkSplashContext.Provider>

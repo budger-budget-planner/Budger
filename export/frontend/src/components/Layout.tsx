@@ -511,12 +511,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         // Pre-warm the query cache while the overlay is still visible so that
         // when routes remount they read fresh converted data from cache instantly.
-        queryClient.invalidateQueries({ predicate: query => {
-          const key = query.queryKey;
-          return key.some(part => typeof part === "string" && (
-            part.includes("Summary") || part.includes("summary") || part === "notification-counts"
-          ));
-        } });
+        await queryClient.invalidateQueries({
+          predicate: query => {
+            const key = query.queryKey;
+            return key.some(part => typeof part === "string" && (
+              part.includes("Summary") || part.includes("summary") || part === "notification-counts"
+            ));
+          },
+          refetchType: "none",
+        });
         await queryClient.refetchQueries({ type: "active" });
       } catch {
         // swallow — the overlay will still lift cleanly

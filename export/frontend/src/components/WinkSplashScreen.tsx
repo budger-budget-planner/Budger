@@ -11,15 +11,23 @@ const FLY_MS     = 1240;  // translate+scale transition — matches SplashScreen
 const FADE_DELAY = 1050;  // start fading this far into the fly (ms) — logo nearly arrived
 const FADE_MS    = 250;   // overlay fade-out duration
 
-type Phase = "float" | "wink" | "fly" | "fade";
+type Phase = "float" | "wink" | "hold" | "fly" | "fade";
 
-export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
+export default function WinkSplashScreen({
+  onReady,
+  onDone,
+}: {
+  onReady?: () => void | Promise<void>;
+  onDone?: () => void;
+}) {
   const [phase,     setPhase]     = useState<Phase>("float");
   const [translate, setTranslate] = useState("none");
   const [scale,     setScale]     = useState(1);
 
-  // Store onDone in a ref so the effect (which runs once) always calls the
-  // latest version — avoids the "new inline function = timer reset" trap.
+  // Store callbacks in refs so the effect (which runs once) always calls the
+  // latest versions — avoiding the "new inline function = timer reset" trap.
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
@@ -30,13 +38,18 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
   const logoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const ids: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+    let animationFrame: number | null = null;
+    const ids = new Set<ReturnType<typeof setTimeout>>();
+    const schedule = (delayMs: number, callback: () => void) => {
+      const id = setTimeout(() => {
+        ids.delete(id);
+        if (!cancelled) callback();
+      }, delayMs);
+      ids.add(id);
+    };
 
-    // Float → Wink
-    ids.push(setTimeout(() => setPhase("wink"), STILL_MS));
-
-    // Wink done → compute target → fly
-    ids.push(setTimeout(() => {
+    const startFly = () => {
       const destEl = document.querySelector("[data-splash-logo-home]") as HTMLElement | null;
 
       if (destEl) {
@@ -64,24 +77,47 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
       }
 
       setPhase("fly");
-    }, STILL_MS + WINK_MS));
+      // Start fading mid-flight so the logo is visibly moving before it disappears.
+      schedule(FADE_DELAY, () => {
+        setPhase("fade");
+        schedule(FLY_MS + FADE_MS - FADE_DELAY, () => onDoneRef.current?.());
+      });
+    };
 
-    // Start fading mid-flight so the logo is visibly moving before it disappears
-    ids.push(setTimeout(() => setPhase("fade"), STILL_MS + WINK_MS + FADE_DELAY));
+    // Float → wink → hold. Keep the complete splash visible while the caller
+    // finishes background work and reveals the refreshed app beneath it.
+    schedule(STILL_MS, () => {
+      setPhase("wink");
+      schedule(WINK_MS, () => {
+        setPhase("hold");
+        void (async () => {
+          try {
+            await onReadyRef.current?.();
+          } catch (error) {
+            console.error("[wink-splash] background preparation failed", error);
+          }
+          if (cancelled) return;
+          // Let React commit the refreshed route tree before measuring the
+          // header-logo destination for the fly animation.
+          animationFrame = requestAnimationFrame(() => {
+            animationFrame = null;
+            if (!cancelled) startFly();
+          });
+        })();
+      });
+    });
 
-    // Notify caller after everything is done
-    ids.push(setTimeout(
-      () => onDoneRef.current?.(),
-      STILL_MS + WINK_MS + FLY_MS + FADE_MS,
-    ));
-
-    return () => ids.forEach(clearTimeout);
+    return () => {
+      cancelled = true;
+      ids.forEach(clearTimeout);
+      if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+    };
   }, []); // empty — run once on mount, use ref for onDone
 
   const isMoving  = phase === "fly" || phase === "fade";
   const isFading  = phase === "fade";
-  // Keep pulse during wink so there's no scale-snap when the phase changes
-  const showPulse = phase === "float" || phase === "wink";
+  // Keep the breathing logo and wordmark visible throughout the hold state.
+  const showPulse = phase === "float" || phase === "wink" || phase === "hold";
 
   return (
     /* Full-screen gradient overlay — only this div carries the opacity fade. */
@@ -152,6 +188,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
                 size={SPLASH_SIZE}
                 forceAnim={phase === "wink" ? "wink" : null}
                 forceAnimDurationMs={phase === "wink" ? WINK_MS : undefined}
+                pauseIdleAnimations
                 growPulse={false}
               />
             </div>
