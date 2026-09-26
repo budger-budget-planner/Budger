@@ -21,6 +21,7 @@ import { loadPrefs, savePrefs, CURRENCIES, LANGUAGES, setActiveUserId, clearSess
 import { useSplashReset, useWinkSplash, useAppRefresh } from "@/lib/appReady";
 import { fetchRates, forceFetchRates, getConversionRate, getLastRatesUpdate } from "@/lib/rates";
 import { apiFetch } from "@/lib/api";
+import { prefetchHomeData } from "@/lib/prefetch";
 import { t, setLang } from "@/lib/i18n";
 import { addNCNotification, setNCUserId } from "@/lib/nc-store";
 import { setAppBadgeCount } from "@/lib/app-badge";
@@ -474,10 +475,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setCurrSwitchTarget(code);
     setConverting(true);
 
-    // Kick off every async operation immediately so they run in parallel with
-    // the animation. By the time the wink ends (~3.29 s) they are typically done.
-    const workPromise = (async () => {
+    showWinkSplash(async () => {
       try {
+        // Keep the entire currency refresh inside the wink callback, matching
+        // the language-switch path. This guarantees the work begins after the
+        // overlay is mounted and remains covered while the home cache warms.
         // Always force-fetch fresh rates for a currency switch — never use a
         // same-day cache that may be hours old for this permanent conversion.
         const rates = await forceFetchRates();
@@ -495,12 +497,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ from: fromCurrency, to: code, rate }),
         });
-        const convertData = convertRes.ok ? await convertRes.json().catch(() => null) : null;
-        const newBudget: number | null = convertData && "totalBudget" in convertData
-          ? convertData.totalBudget
-          : prefs.totalBudget != null
-            ? Math.round(prefs.totalBudget * rate * 100) / 100
-            : null;
+        if (!convertRes.ok) {
+          throw new Error(`Currency conversion failed: HTTP ${convertRes.status}`);
+        }
+        const convertData = await convertRes.json().catch(() => null);
+        if (!convertData || typeof convertData !== "object" || !("totalBudget" in convertData)) {
+          throw new Error("Currency conversion returned an invalid response");
+        }
+        const newBudget: number | null = convertData.totalBudget;
 
         const next = { ...prefs, currency: code, totalBudget: newBudget };
         savePrefs(next);
@@ -509,28 +513,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         // totalBudget as part of /api/convert-currency above.
         await updateMe.mutateAsync({ data: { currency: code } });
 
-        // Pre-warm the query cache while the overlay is still visible so that
-        // when routes remount they read fresh converted data from cache instantly.
+        // Invalidate every home query affected by the server-side conversion.
+        // The old implementation only refetched active queries, which misses
+        // home queries while navigating from another route and can leave stale
+        // transactions/summaries in the cache for the post-switch remount.
+        const isCurrencyDependentQuery = (query: { queryKey: readonly unknown[] }) => {
+          const root = query.queryKey[0];
+          return typeof root === "string" && (
+            root === "/api/me"
+            || root === "/api/transactions"
+            || root === "/api/categories"
+            || root === "/api/recurring-payments"
+            || root === "/api/larder"
+            || root === "/api/goals"
+            || root === "/api/goal-contributions"
+            || root === "/api/budget-stretches"
+            || root === "/api/households/members"
+            || root === "home-transaction-month-summary"
+            || root === "household-recurring-payments"
+          );
+        };
         await queryClient.invalidateQueries({
-          predicate: query => {
-            const key = query.queryKey;
-            return key.some(part => typeof part === "string" && (
-              part.includes("Summary") || part.includes("summary") || part === "notification-counts"
-            ));
-          },
+          predicate: isCurrencyDependentQuery,
           refetchType: "none",
         });
-        await queryClient.refetchQueries({ type: "active" });
+
+        // Fetch the same critical home wave used by the startup splash, then
+        // wait for every already-created home query (including inactive cache
+        // entries) to settle. The route remount below therefore reads converted
+        // values immediately instead of showing the old totals first.
+        await prefetchHomeData(queryClient);
+        await queryClient.refetchQueries({
+          predicate: isCurrencyDependentQuery,
+          type: "all",
+        });
       } catch {
         // swallow — the overlay will still lift cleanly
       } finally {
         setConverting(false);
+        softRefresh(); // remount routes only after the refreshed cache is ready
       }
-    })();
-
-    showWinkSplash(async () => {
-      await workPromise; // almost always a no-op (already resolved by now)
-      softRefresh();     // remount routes; cache is warm → zero loading states
     });
   }
 
