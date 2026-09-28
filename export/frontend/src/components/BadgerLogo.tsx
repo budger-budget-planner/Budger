@@ -601,15 +601,16 @@ export default function BadgerLogo({
           z-index: 2;
         }
         .blg-happy .blg-mouth-overlay {
+          top: 70.35%;
           transform-origin: center;
           animation: blg-happy-mouth-smile var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
         @keyframes blg-happy-mouth-smile {
-          0%, 8%   { transform: scaleX(0.52); }
-          18%      { transform: scaleX(0.55); }
-          28%, 78% { transform: scaleX(0.58); }
-          90%      { transform: scaleX(0.55); }
-          100%     { transform: scaleX(0.52); }
+          0%, 8%   { transform: scaleX(0.52) scaleY(1.16); }
+          18%      { transform: scaleX(0.55) scaleY(1.19); }
+          28%, 78% { transform: scaleX(0.58) scaleY(1.22); }
+          90%      { transform: scaleX(0.55) scaleY(1.19); }
+          100%     { transform: scaleX(0.52) scaleY(1.16); }
         }
         .blg-mouth-overlay-image {
           display: block;
