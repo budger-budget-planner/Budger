@@ -607,10 +607,10 @@ export default function BadgerLogo({
         }
         @keyframes blg-happy-mouth-smile {
           0%, 8%   { transform: scaleX(1) scaleY(1); }
-          20%      { transform: scaleX(0.72) scaleY(1.08); }
-          30%, 70% { transform: scaleX(0.58) scaleY(1.22); }
-          82%      { transform: scaleX(0.72) scaleY(1.08); }
-          92%, 100% { transform: scaleX(1) scaleY(1); }
+          18%      { transform: scaleX(0.72) scaleY(1.08); }
+          28%, 78% { transform: scaleX(0.58) scaleY(1.22); }
+          90%      { transform: scaleX(0.72) scaleY(1.08); }
+          100%     { transform: scaleX(1) scaleY(1); }
         }
         .blg-mouth-overlay-image {
           display: block;
