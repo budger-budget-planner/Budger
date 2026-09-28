@@ -25,6 +25,7 @@ and no dependency on the other folder or on the original monorepo.
   (`backend/src/db`, `backend/src/api-zod`, `frontend/src/lib/api-client`)
   with imports rewritten to relative paths — no workspace protocol, no pnpm
   catalog.
+
 - Replit-specific Vite plugins (cartographer, dev banner, runtime error
   overlay) and the `BASE_PATH`/artifact-routing logic were removed from
   `vite.config.ts` — this app now always deploys at the domain root.
