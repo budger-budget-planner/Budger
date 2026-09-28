@@ -593,7 +593,7 @@ export default function BadgerLogo({
         .blg-mouth-overlay {
           position: absolute;
           left: 39.8%;
-          top: 68.55%;
+          top: 70.35%;
           width: 20.7%;
           height: 7.76%;
           opacity: 1;
@@ -601,16 +601,16 @@ export default function BadgerLogo({
           z-index: 2;
         }
         .blg-happy .blg-mouth-overlay {
-          top: 70.35%;
-          transform-origin: center;
+          transform-origin: 50% 0%;
+          will-change: transform;
           animation: blg-happy-mouth-smile var(--blg-anim-dur, 1.8s) ease-in-out forwards;
         }
         @keyframes blg-happy-mouth-smile {
-          0%, 8%   { transform: scaleX(0.52) scaleY(1.16); }
-          18%      { transform: scaleX(0.55) scaleY(1.19); }
-          28%, 78% { transform: scaleX(0.58) scaleY(1.22); }
-          90%      { transform: scaleX(0.55) scaleY(1.19); }
-          100%     { transform: scaleX(0.52) scaleY(1.16); }
+          0%, 8%   { transform: scaleX(1) scaleY(1); }
+          20%      { transform: scaleX(0.72) scaleY(1.08); }
+          30%, 70% { transform: scaleX(0.58) scaleY(1.22); }
+          82%      { transform: scaleX(0.72) scaleY(1.08); }
+          92%, 100% { transform: scaleX(1) scaleY(1); }
         }
         .blg-mouth-overlay-image {
           display: block;
