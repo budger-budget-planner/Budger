@@ -463,6 +463,14 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   animation: splash-pulse 2s ease-in-out infinite;
 }
 
+@keyframes splash-intro-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(0.94); }
+}
+.splash-intro-pulse {
+  animation: splash-intro-pulse 2s ease-in-out infinite;
+}
+
 
 @keyframes pin-shake {
   0%, 100% { transform: translateX(0); }

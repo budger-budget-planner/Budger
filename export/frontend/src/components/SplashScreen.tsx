@@ -13,7 +13,7 @@ import { hasActiveSession, loadPrefs } from "@/lib/prefs";
 const INTRO_BIG_MS         = 1200;  // how long bigText holds
 const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
 const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
-const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-pulse in index.css
+const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-intro-pulse in index.css
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
 // sniff at 2× speed → lick at ~1.8× speed → glide to destination
@@ -495,7 +495,7 @@ export default function SplashScreen({
             {/* Inner: intro fade-in/scale-up layer */}
             <div style={logoIntroStyle}>
               {/* Pulse: breathe animation during float */}
-              <div className={phase === "showing" && !sniffFiredRef.current ? "splash-pulse" : ""}>
+              <div className={phase === "showing" && !sniffFiredRef.current ? "splash-intro-pulse" : ""}>
                 <BadgerLogo
                   size={SPLASH_SIZE}
                   forceAnim={forceAnim}
