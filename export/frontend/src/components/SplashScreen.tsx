@@ -13,6 +13,7 @@ import { hasActiveSession, loadPrefs } from "@/lib/prefs";
 const INTRO_BIG_MS         = 1200;  // how long bigText holds
 const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
 const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
+const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-pulse in index.css
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
 // sniff at 2× speed → lick at ~1.8× speed → glide to destination
@@ -160,6 +161,7 @@ export default function SplashScreen({
   // ── Prefetch state ────────────────────────────────────────────────────────
   const queryClient      = useQueryClient();
   const [dataReady, setDataReady] = useState(false);
+  const [pulseComplete, setPulseComplete] = useState(false);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,9 +223,17 @@ export default function SplashScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Give the still-faced logo one complete down-and-up pulse after it reaches
+  // its normal size, even when startup data was ready during the intro.
+  useEffect(() => {
+    if (phase !== "showing") return;
+    const id = setTimeout(() => setPulseComplete(true), PULSE_CYCLE_MS);
+    return () => clearTimeout(id);
+  }, [phase]);
+
   // ── Facial animation starts only after the initial home data is ready ─────
   useEffect(() => {
-    if (phase !== "showing" || !dataReady || sniffFiredRef.current) return;
+    if (phase !== "showing" || !dataReady || !pulseComplete || sniffFiredRef.current) return;
     sniffFiredRef.current = true;
 
     setAnimStep("sniff");
@@ -240,7 +250,7 @@ export default function SplashScreen({
     }, SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS));
     return () => ids.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady, phase]);
+  }, [dataReady, phase, pulseComplete]);
 
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -485,7 +495,7 @@ export default function SplashScreen({
             {/* Inner: intro fade-in/scale-up layer */}
             <div style={logoIntroStyle}>
               {/* Pulse: breathe animation during float */}
-              <div className={phase === "showing" ? "splash-pulse" : ""}>
+              <div className={phase === "showing" && !sniffFiredRef.current ? "splash-pulse" : ""}>
                 <BadgerLogo
                   size={SPLASH_SIZE}
                   forceAnim={forceAnim}
