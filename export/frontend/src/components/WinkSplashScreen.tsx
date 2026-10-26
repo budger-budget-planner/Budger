@@ -13,13 +13,21 @@ const FADE_MS    = 250;   // overlay fade-out duration
 
 type Phase = "float" | "wink" | "fly" | "fade";
 
-export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
+export default function WinkSplashScreen({
+  onReady,
+  onDone,
+}: {
+  onReady?: () => void | Promise<void>;
+  onDone?: () => void;
+}) {
   const [phase,     setPhase]     = useState<Phase>("float");
   const [translate, setTranslate] = useState("none");
   const [scale,     setScale]     = useState(1);
 
-  // Store onDone in a ref so the effect (which runs once) always calls the
-  // latest version — avoids the "new inline function = timer reset" trap.
+  // Store callbacks in refs so the effect (which runs once) always calls the
+  // latest versions — avoids the "new inline function = timer reset" trap.
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
@@ -30,13 +38,18 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
   const logoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const ids: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+    const ids = new Set<ReturnType<typeof setTimeout>>();
+    const startedAt = Date.now();
+    const schedule = (delayMs: number, callback: () => void) => {
+      const id = setTimeout(() => {
+        ids.delete(id);
+        if (!cancelled) callback();
+      }, delayMs);
+      ids.add(id);
+    };
 
-    // Float → Wink
-    ids.push(setTimeout(() => setPhase("wink"), STILL_MS));
-
-    // Wink done → compute target → fly
-    ids.push(setTimeout(() => {
+    const startFly = () => {
       const destEl = document.querySelector("[data-splash-logo-home]") as HTMLElement | null;
 
       if (destEl) {
@@ -64,18 +77,38 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
       }
 
       setPhase("fly");
-    }, STILL_MS + WINK_MS));
+      // Start fading mid-flight; finish after the same timing as the former
+      // short-splash sequence.
+      schedule(FADE_DELAY, () => {
+        setPhase("fade");
+        schedule(FLY_MS + FADE_MS - FADE_DELAY, () => onDoneRef.current?.());
+      });
+    };
 
-    // Start fading mid-flight so the logo is visibly moving before it disappears
-    ids.push(setTimeout(() => setPhase("fade"), STILL_MS + WINK_MS + FADE_DELAY));
+    const waitForReadyThenAnimate = async () => {
+      // Keep the logo still and pulsing while currency/language refresh work
+      // completes. Errors must not leave the overlay stuck forever.
+      try {
+        await onReadyRef.current?.();
+      } catch (error) {
+        console.error("[wink-splash] preparation failed", error);
+      }
+      if (cancelled) return;
 
-    // Notify caller after everything is done
-    ids.push(setTimeout(
-      () => onDoneRef.current?.(),
-      STILL_MS + WINK_MS + FLY_MS + FADE_MS,
-    ));
+      // Preserve the short splash's minimum float, but if preparation takes
+      // longer, begin the wink as soon as it is ready.
+      const remainingFloat = Math.max(0, STILL_MS - (Date.now() - startedAt));
+      schedule(remainingFloat, () => {
+        setPhase("wink");
+        schedule(WINK_MS, startFly);
+      });
+    };
+    void waitForReadyThenAnimate();
 
-    return () => ids.forEach(clearTimeout);
+    return () => {
+      cancelled = true;
+      ids.forEach(clearTimeout);
+    };
   }, []); // empty — run once on mount, use ref for onDone
 
   const isMoving  = phase === "fly" || phase === "fade";
@@ -152,6 +185,7 @@ export default function WinkSplashScreen({ onDone }: { onDone?: () => void }) {
                 size={SPLASH_SIZE}
                 forceAnim={phase === "wink" ? "wink" : null}
                 forceAnimDurationMs={phase === "wink" ? WINK_MS : undefined}
+                pauseIdleAnimations
                 growPulse={false}
               />
             </div>

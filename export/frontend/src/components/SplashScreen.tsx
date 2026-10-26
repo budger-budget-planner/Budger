@@ -21,18 +21,7 @@ const LICK_MS   = Math.round(2400 / 1.8);  // 1 333 ms (~1.8× speed)
 const SETTLE_MS = 200;
 const GAP_MS    = 100;
 
-const T_SNIFF_START = FLOAT_START_MS + 2000;         // 4 000 ms — one full 2 s pulse before sniff
-const T_SNIFF_END   = T_SNIFF_START + SNIFF_MS;      // 2 400 ms
-const T_LICK_START  = T_SNIFF_END + GAP_MS;          // 2 500 ms
-const T_LICK_END    = T_LICK_START + LICK_MS;        // 3 567 ms
-const T_SEQ_DONE    = T_LICK_END + SETTLE_MS;        // 3 767 ms
-
-// ── Prefetch timing ───────────────────────────────────────────────────────────
-// Logo pulses for at least MIN_PULSE_MS before sniff fires (even if data loads fast).
-// If data takes longer, startup requests are individually bounded and the
-// splash exits after the wave reaches a terminal state. A cold start must not
-// leave the logo pulsing indefinitely because one endpoint is unavailable.
-const MIN_PULSE_MS = 2000; // minimum pulse duration before sniff (ms from float start)
+// ── Splash exit timing ────────────────────────────────────────────────────────
 // A resize/orientation change can keep a destination marker moving while the
 // browser settles its viewport. Never let that measurement hold the full-screen
 // overlay forever; the destination can still render correctly using the
@@ -173,7 +162,6 @@ export default function SplashScreen({
   const [dataReady, setDataReady] = useState(false);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
-  const floatStartedAtRef = useRef<number | null>(null); // records when "showing" began
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect URL at mount to determine the correct exit behaviour.
@@ -233,34 +221,24 @@ export default function SplashScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Start the pulse clock only after the logo has reached its normal size.
-  // Prefetch may finish during the banner/transition, but sniff must never
-  // interrupt that intro.
-  useEffect(() => {
-    if (phase === "showing" && floatStartedAtRef.current == null) {
-      floatStartedAtRef.current = Date.now();
-    }
-  }, [phase]);
-
-  // ── Sniff trigger: fires when data is ready + min pulse time has elapsed ──
+  // ── Facial animation starts only after the initial home data is ready ─────
   useEffect(() => {
     if (phase !== "showing" || !dataReady || sniffFiredRef.current) return;
-    const elapsed = floatStartedAtRef.current != null
-      ? Date.now() - floatStartedAtRef.current
-      : MIN_PULSE_MS;
-    const wait = Math.max(0, MIN_PULSE_MS - elapsed);
-    const fire = () => {
-      if (sniffFiredRef.current) return;
-      sniffFiredRef.current = true;
-      setAnimStep("sniff");
-      setAnimDurMs(SNIFF_MS);
-      // Lick and settle are relative to the moment sniff fires.
-      setTimeout(() => setAnimStep("idle"),                               SNIFF_MS);
-      setTimeout(() => { setAnimStep("lick"); setAnimDurMs(LICK_MS); },  SNIFF_MS + GAP_MS);
-      setTimeout(() => { setAnimStep("idle"); setSeqDone(true); },        SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS);
-    };
-    const id = setTimeout(fire, wait);
-    return () => clearTimeout(id);
+    sniffFiredRef.current = true;
+
+    setAnimStep("sniff");
+    setAnimDurMs(SNIFF_MS);
+    const ids: ReturnType<typeof setTimeout>[] = [];
+    ids.push(setTimeout(() => setAnimStep("idle"), SNIFF_MS));
+    ids.push(setTimeout(() => {
+      setAnimStep("lick");
+      setAnimDurMs(LICK_MS);
+    }, SNIFF_MS + GAP_MS));
+    ids.push(setTimeout(() => {
+      setAnimStep("idle");
+      setSeqDone(true);
+    }, SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS));
+    return () => ids.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataReady, phase]);
 
@@ -512,6 +490,7 @@ export default function SplashScreen({
                   size={SPLASH_SIZE}
                   forceAnim={forceAnim}
                   forceAnimDurationMs={forceAnimDurMs}
+                  pauseIdleAnimations
                   growPulse={false}
                 />
               </div>
