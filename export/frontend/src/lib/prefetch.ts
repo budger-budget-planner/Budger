@@ -2,8 +2,9 @@
  * prefetch.ts
  *
  * Imperative prefetch helpers called from SplashScreen during the intro.
- * Using queryClient.fetchQuery() means results land in the React Query cache
- * before the splash exits — so every page renders with data already available.
+ * Using queryClient.fetchQuery() warms the React Query cache during the splash.
+ * If requests are still in flight when it exits, mounted pages keep their own
+ * loading states while those requests finish.
  *
  * prefetchHomeData: the queries needed to render the initial home tab.
  * /me is resolved first so an unauthenticated splash never fires a burst of
@@ -13,9 +14,9 @@
  * is ready. Those queries are already enabled by the mounted home/layout
  * components, so they share the in-flight request instead of blocking startup.
  *
- * The critical helper rejects when a required request fails. The splash
- * retries the complete critical wave behind the pulsing logo instead of
- * exposing a partially-loaded page.
+ * The critical helper rejects when a required request fails. The splash retries
+ * this cache-warming work in the background; mounted pages own their visible
+ * loading and error states if a request is still in flight at splash exit.
  */
 
 import { type QueryClient } from "@tanstack/react-query";

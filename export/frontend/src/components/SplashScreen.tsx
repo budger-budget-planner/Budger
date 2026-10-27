@@ -160,7 +160,6 @@ export default function SplashScreen({
 
   // ── Prefetch state ────────────────────────────────────────────────────────
   const queryClient      = useQueryClient();
-  const [dataReady, setDataReady] = useState(false);
   const [pulseComplete, setPulseComplete] = useState(false);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
@@ -202,7 +201,6 @@ export default function SplashScreen({
       while (!cancelled) {
         try {
           await prefetchHomeData(queryClient);
-          if (!cancelled) setDataReady(true);
           return;
         } catch {
           // Keep all transient loading behind the pulsing splash. There is no
@@ -231,9 +229,10 @@ export default function SplashScreen({
     return () => clearTimeout(id);
   }, [phase]);
 
-  // ── Facial animation starts only after the initial home data is ready ─────
+  // ── Facial animation starts after exactly one still-faced pulse ───────────
+  // Data prefetch runs in parallel and must not extend the splash.
   useEffect(() => {
-    if (phase !== "showing" || !dataReady || !pulseComplete || sniffFiredRef.current) return;
+    if (phase !== "showing" || !pulseComplete || sniffFiredRef.current) return;
     sniffFiredRef.current = true;
 
     setAnimStep("sniff");
@@ -250,7 +249,7 @@ export default function SplashScreen({
     }, SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS));
     return () => ids.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady, phase, pulseComplete]);
+  }, [phase, pulseComplete]);
 
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -268,16 +267,14 @@ export default function SplashScreen({
 
     // "force-login": InviteSignup always has login markers in its "name" step —
     // use them regardless of whether a different user happens to be signed in.
-    // Startup prefetch has completed /me before seqDone can occur. Use the
-    // cache as the source of truth so a local session hint cannot route to the
-    // guarded home page while its account request is still unresolved.
-    const cachedUser = queryClient.getQueryData(getGetMeQueryKey());
+    // Startup prefetch continues underneath the animation. If /me is still
+    // pending, use the local session hint and let AuthGuard resolve it after
+    // navigation; a confirmed 401 still sends the user to login.
     const prefs = loadPrefs();
     const requiresLogin = !prefs.staySignedIn && !hasActiveSession();
     const meState = queryClient.getQueryState(getGetMeQueryKey());
     const meRejected = (meState?.error as any)?.status === 401;
-    const hasKnownAccount = cachedUser != null;
-    const hasSession = !requiresLogin && !meRejected && hasKnownAccount;
+    const hasSession = !requiresLogin && !meRejected;
     const target: "home" | "login" =
       urlMode === "force-login"
         ? "login"
@@ -495,7 +492,7 @@ export default function SplashScreen({
             {/* Inner: intro fade-in/scale-up layer */}
             <div style={logoIntroStyle}>
               {/* Pulse: breathe animation during float */}
-              <div className={phase === "showing" && !sniffFiredRef.current ? "splash-intro-pulse" : ""}>
+              <div className={phase === "showing" && !pulseComplete && !sniffFiredRef.current ? "splash-intro-pulse" : ""}>
                 <BadgerLogo
                   size={SPLASH_SIZE}
                   forceAnim={forceAnim}
