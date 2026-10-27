@@ -491,8 +491,9 @@ export default function SplashScreen({
           >
             {/* Inner: intro fade-in/scale-up layer */}
             <div style={logoIntroStyle}>
-              {/* Pulse: breathe animation during float */}
-              <div className={phase === "showing" && !pulseComplete && !sniffFiredRef.current ? "splash-intro-pulse" : ""}>
+              {/* Keep the body pulse running through sniff→lick; the first full
+                  cycle completes before the facial sequence starts. */}
+              <div className={phase === "showing" ? "splash-intro-pulse" : ""}>
                 <BadgerLogo
                   size={SPLASH_SIZE}
                   forceAnim={forceAnim}
