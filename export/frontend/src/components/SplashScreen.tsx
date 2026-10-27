@@ -610,7 +610,6 @@ export default function SplashScreen({
               className="splash-readiness-fill"
               style={{ width: `${readinessProgress}%` }}
             />
-            {readinessProgress < 100 && <div className="splash-readiness-activity" />}
           </div>
         </div>
       )}
