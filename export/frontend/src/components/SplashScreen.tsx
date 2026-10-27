@@ -14,6 +14,7 @@ const INTRO_BIG_MS         = 1200;  // how long bigText holds
 const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
 const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-intro-pulse in index.css
+const READINESS_APPEAR_DELAY_MS = 5_000; // measured from the start of the logo pulse
 const READINESS_FADE_MS    = 320; // keep in sync with .splash-readiness transition in index.css
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
@@ -164,8 +165,11 @@ export default function SplashScreen({
   const [pulseComplete, setPulseComplete] = useState(false);
   const [readinessProgress, setReadinessProgress] = useState(0);
   const [readinessWidth, setReadinessWidth] = useState<number | null>(null);
+  const [readinessIndicatorVisible, setReadinessIndicatorVisible] = useState(false);
+  const [readinessIndicatorEntered, setReadinessIndicatorEntered] = useState(false);
   const [readinessComplete, setReadinessComplete] = useState(false);
   const [readinessIndicatorFaded, setReadinessIndicatorFaded] = useState(false);
+  const readinessProgressRef = useRef(0);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -207,7 +211,9 @@ export default function SplashScreen({
         try {
           await prefetchHomeData(queryClient, (percent) => {
             if (!cancelled) {
-              setReadinessProgress((current) => Math.max(current, percent));
+              const nextProgress = Math.max(readinessProgressRef.current, percent);
+              readinessProgressRef.current = nextProgress;
+              setReadinessProgress((current) => Math.max(current, nextProgress));
             }
           });
           if (!cancelled) setReadinessComplete(true);
@@ -237,6 +243,25 @@ export default function SplashScreen({
     const id = setTimeout(() => setPulseComplete(true), PULSE_CYCLE_MS);
     return () => clearTimeout(id);
   }, [phase]);
+
+  // Don't show a possibly distracting progress bar during the first five
+  // seconds of the pulsing logo. If readiness finishes first, keep it hidden.
+  useEffect(() => {
+    if (phase !== "showing") return;
+    const id = setTimeout(() => {
+      if (readinessProgressRef.current < 100) {
+        setReadinessIndicatorVisible(true);
+      }
+    }, READINESS_APPEAR_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [phase]);
+
+  // Mount at zero opacity, then let the CSS transition fade the indicator in.
+  useEffect(() => {
+    if (!readinessIndicatorVisible) return;
+    const frame = requestAnimationFrame(() => setReadinessIndicatorEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, [readinessIndicatorVisible]);
 
   // Match the readiness stripe to the visible BUDGER wordmark itself, not the
   // wider "Budget Planner" tagline. Re-measure when the font or viewport shifts.
@@ -593,9 +618,12 @@ export default function SplashScreen({
         </div>
       </div>
 
-      {phase === "showing" && !sniffFiredRef.current && (
+      {phase === "showing" &&
+        readinessIndicatorVisible &&
+        !readinessIndicatorFaded &&
+        !sniffFiredRef.current && (
         <div
-          className={`splash-readiness${readinessProgress >= 100 ? " is-complete" : ""}`}
+          className={`splash-readiness${readinessIndicatorEntered ? " is-entered" : ""}${readinessProgress >= 100 ? " is-complete" : ""}`}
           role="progressbar"
           aria-label="App readiness"
           aria-busy={readinessProgress < 100}
@@ -604,13 +632,13 @@ export default function SplashScreen({
           aria-valuenow={readinessProgress}
           style={readinessWidth ? { width: `${readinessWidth}px` } : undefined}
         >
-          <div className="splash-readiness-percent">{Math.round(readinessProgress)}%</div>
           <div className="splash-readiness-track" aria-hidden="true">
             <div
               className="splash-readiness-fill"
               style={{ width: `${readinessProgress}%` }}
             />
           </div>
+          <div className="splash-readiness-percent">{Math.round(readinessProgress)}%</div>
         </div>
       )}
     </div>

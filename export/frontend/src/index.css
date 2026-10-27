@@ -477,17 +477,21 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   top: min(calc(50% + 144px), calc(100% - env(safe-area-inset-bottom) - 44px));
   width: min(210px, calc(100vw - 48px));
   max-width: calc(100vw - 48px);
-  transform: translateX(-50%);
-  opacity: 1;
+  transform: translate(-50%, 5px);
+  opacity: 0;
   transition: opacity 320ms ease, transform 320ms ease;
   pointer-events: none;
+}
+.splash-readiness.is-entered {
+  opacity: 1;
+  transform: translateX(-50%);
 }
 .splash-readiness.is-complete {
   opacity: 0;
   transform: translate(-50%, -5px);
 }
 .splash-readiness-percent {
-  margin-bottom: 8px;
+  margin-top: 8px;
   color: #d8d3c8;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
