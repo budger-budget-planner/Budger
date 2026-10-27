@@ -14,6 +14,7 @@ const INTRO_BIG_MS         = 1200;  // how long bigText holds
 const INTRO_TRANSITION_MS  = 800;   // CSS transition duration for shrinkText
 const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-intro-pulse in index.css
+const READINESS_FADE_MS    = 320; // keep in sync with .splash-readiness transition in index.css
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
 // sniff at 2× speed → lick at ~1.8× speed → glide to destination
@@ -161,6 +162,9 @@ export default function SplashScreen({
   // ── Prefetch state ────────────────────────────────────────────────────────
   const queryClient      = useQueryClient();
   const [pulseComplete, setPulseComplete] = useState(false);
+  const [readinessProgress, setReadinessProgress] = useState(0);
+  const [readinessComplete, setReadinessComplete] = useState(false);
+  const [readinessIndicatorFaded, setReadinessIndicatorFaded] = useState(false);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -200,11 +204,16 @@ export default function SplashScreen({
       let retryDelay = 350;
       while (!cancelled) {
         try {
-          await prefetchHomeData(queryClient);
+          await prefetchHomeData(queryClient, (percent) => {
+            if (!cancelled) {
+              setReadinessProgress((current) => Math.max(current, percent));
+            }
+          });
+          if (!cancelled) setReadinessComplete(true);
           return;
         } catch {
-          // Keep all transient loading behind the pulsing splash. There is no
-          // partial-page or retry-button state after the overlay is removed.
+          // Keep the pulsing logo and last completed readiness percentage
+          // visible while retrying, rather than exposing AuthGuard's spinner.
           await new Promise<void>((resolve) => {
             startupRetryTimerRef.current = setTimeout(resolve, retryDelay);
           });
@@ -221,20 +230,31 @@ export default function SplashScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Give the still-faced logo one complete down-and-up pulse after it reaches
-  // its normal size, even when startup data was ready during the intro.
+  // Preserve one complete still-faced pulse before any facial animation.
   useEffect(() => {
     if (phase !== "showing") return;
     const id = setTimeout(() => setPulseComplete(true), PULSE_CYCLE_MS);
     return () => clearTimeout(id);
   }, [phase]);
 
-  // ── Facial animation starts after exactly one still-faced pulse ───────────
-  // Data prefetch runs in parallel and must not extend the splash.
+  // ── Fade the readiness indicator when all critical data is ready ─────────
   useEffect(() => {
-    if (phase !== "showing" || !pulseComplete || sniffFiredRef.current) return;
-    sniffFiredRef.current = true;
+    if (phase !== "showing" || readinessProgress < 100) return;
+    const id = setTimeout(() => setReadinessIndicatorFaded(true), READINESS_FADE_MS);
+    return () => clearTimeout(id);
+  }, [phase, readinessProgress]);
 
+  // ── Facial animation starts after readiness and one full still-faced pulse ─
+  useEffect(() => {
+    if (
+      phase !== "showing" ||
+      !pulseComplete ||
+      !readinessComplete ||
+      !readinessIndicatorFaded ||
+      sniffFiredRef.current
+    ) return;
+
+    sniffFiredRef.current = true;
     setAnimStep("sniff");
     setAnimDurMs(SNIFF_MS);
     const ids: ReturnType<typeof setTimeout>[] = [];
@@ -249,7 +269,7 @@ export default function SplashScreen({
     }, SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS));
     return () => ids.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, pulseComplete]);
+  }, [phase, pulseComplete, readinessComplete, readinessIndicatorFaded]);
 
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -550,6 +570,25 @@ export default function SplashScreen({
           </div>
         </div>
       </div>
+
+      {phase === "showing" && !sniffFiredRef.current && (
+        <div
+          className={`splash-readiness${readinessProgress >= 100 ? " is-complete" : ""}`}
+          role="progressbar"
+          aria-label="App readiness"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={readinessProgress}
+        >
+          <div className="splash-readiness-percent">{Math.round(readinessProgress)}%</div>
+          <div className="splash-readiness-track" aria-hidden="true">
+            <div
+              className="splash-readiness-fill"
+              style={{ width: `${readinessProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -471,6 +471,41 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   animation: splash-intro-pulse 2s ease-in-out infinite;
 }
 
+.splash-readiness {
+  position: absolute;
+  left: 50%;
+  top: min(calc(50% + 144px), calc(100% - env(safe-area-inset-bottom) - 44px));
+  width: min(210px, calc(100vw - 48px));
+  transform: translateX(-50%);
+  opacity: 1;
+  transition: opacity 320ms ease, transform 320ms ease;
+  pointer-events: none;
+}
+.splash-readiness.is-complete {
+  opacity: 0;
+  transform: translate(-50%, -5px);
+}
+.splash-readiness-percent {
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+}
+.splash-readiness-track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.splash-readiness-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a78bfa, #e9a8ff);
+  box-shadow: 0 0 10px rgba(196, 156, 255, 0.34);
+  transition: width 260ms ease;
+}
 
 @keyframes pin-shake {
   0%, 100% { transform: translateX(0); }

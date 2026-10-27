@@ -60,8 +60,13 @@ function currentMonthParams() {
 /**
  * Wave 1 — prefetch the data required for the initial home paint.
  * Safe to call as soon as the splash mounts.
+ * Progress counts the session check and two critical home-card queries;
+ * secondary data continues in the background after readiness reaches 100%.
  */
-export async function prefetchHomeData(queryClient: QueryClient): Promise<void> {
+export async function prefetchHomeData(
+  queryClient: QueryClient,
+  onReadinessProgress?: (percent: number) => void,
+): Promise<void> {
   const { month, startDate, endDate } = currentMonthParams();
 
   // Resolve /me before any other authenticated startup request. This avoids a
@@ -78,23 +83,33 @@ export async function prefetchHomeData(queryClient: QueryClient): Promise<void> 
       if ((error as any)?.status === 401) return null;
       throw error;
     });
-  if (!user) return;
+  if (!user) {
+    // A confirmed signed-out state is ready to continue to the login screen.
+    onReadinessProgress?.(100);
+    return;
+  }
+  onReadinessProgress?.(Math.round((1 / 3) * 100));
 
   // Keep the splash critical path deliberately small. HomeSpending can render
   // its secondary controls with empty fallbacks while these queries warm in
   // the background; only the first transaction rows and authoritative summary
   // are needed for the initial home cards.
+  let completedHomeQueries = 1;
+  const reportHomeQueryReady = () => {
+    completedHomeQueries += 1;
+    onReadinessProgress?.(Math.round((completedHomeQueries / 3) * 100));
+  };
   await Promise.all([
     queryClient.fetchQuery(
       getListTransactionsQueryOptions(
         { startDate, endDate, limit: HOME_TRANSACTION_INITIAL_LIMIT } as any,
         { query: STARTUP_QUERY_OPTIONS, request: STARTUP_REQUEST_OPTIONS },
       ),
-    ),
+    ).then(reportHomeQueryReady),
     queryClient.fetchQuery({
       ...getTransactionMonthSummaryQueryOptions(month, STARTUP_REQUEST_TIMEOUT_MS),
       ...STARTUP_QUERY_OPTIONS,
-    }),
+    }).then(reportHomeQueryReady),
   ]);
 
   // Secondary home data is useful immediately after the shell mounts, but it

@@ -251,9 +251,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  // A confirmed 401 is redirected to /login by the effect above. If startup
-  // data is still loading after the splash exits, keep the guarded page behind
-  // this loading state until AuthGuard resolves the session.
+  // The startup splash covers the first session and critical home-data checks.
+  // Keep this fallback for later session checks if cached user data is absent.
   if (!user) return null;
 
   // Server is the source of truth for onboarding status.
