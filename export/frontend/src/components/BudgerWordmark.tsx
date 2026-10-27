@@ -17,6 +17,7 @@ export default function BudgerWordmark({
     <div className={`flex flex-col items-center ${className}`} style={style}>
       <span style={{ display: "inline-block" }}>
         <span
+          data-budger-wordmark-text
           style={{
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 700,

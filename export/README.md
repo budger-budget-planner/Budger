@@ -18,6 +18,9 @@ and no dependency on the other folder or on the original monorepo.
 2. **Frontend second** — follow `frontend/README.md`, plugging the backend's
    URL into `frontend/vercel.json`.
 
+For a consistent startup under five seconds, configure the backend host not to
+sleep while idle; cold starts and database/network latency can exceed that.
+
 ## What changed from the monorepo version
 
 - Shared packages (`@workspace/db`, `@workspace/api-zod`,
