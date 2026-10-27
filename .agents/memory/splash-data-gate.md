@@ -1,10 +1,16 @@
 ---
-name: Splash data readiness gate
-description: The startup splash gates the initial home-data wave without allowing slow requests to hang the app.
+name: Splash readiness progress
+description: The splash covers session and critical home-data loading with a readiness percentage while the badger pulses.
 ---
 
-Start prefetching as soon as the splash mounts, but do not begin the sniff/lick exit sequence until `/me` and the critical home-card query wave have completed. Keep a minimum pulse duration after the logo reaches its normal size so fast responses do not skip the intended intro. Startup requests must use a bounded timeout with nested retries disabled; retry the critical wave as a unit behind the splash. Household membership/recurring data and layout badges should start in the background rather than extending the critical path.
+Start prefetching as soon as the splash mounts. Keep the pulsing icon and a percentage visible until the session check and critical home-card data are ready; the percentage reflects those completed readiness steps and stays monotonic across retries. While a request is pending, show a separate moving activity highlight rather than inventing readiness percentage. When readiness reaches 100%, fade the indicator, then start sniff→lick after at least one full still-faced pulse. Secondary home, household, and badge data stay in the background. Startup requests use bounded timeouts and disabled nested retries; retry the critical wave as a unit. A confirmed `/me` 401 is ready for the login destination.
 
-**Why:** Waiting for secondary household and badge requests added a serialized second wave to every startup. Nested query retries could multiply one slow endpoint into a 20+ second wait. Keeping only visible home-card data critical reduces the usual splash duration without showing a partial home page.
+**Why:** The user considers a black screen with a spinner unacceptable and prefers the badger animation plus an honest readiness percentage while startup data loads. A long-running request must visibly remain active without making the percentage claim that data is ready.
 
-**How to apply:** Treat the splash as the visual loading boundary for the first home cards. Expand its critical prefetch wave only when the initial home tab gains a data dependency that must be present before paint; start secondary queries after the critical wave, give startup fetches a short explicit timeout and `retry: false`, and use the login destination only for a confirmed unauthenticated `/me` response. Any imperative `fetchQuery` built from a custom query-options helper must spread the startup `retry: false` explicitly; a request timeout alone does not disable TanStack Query retries.
+**How to apply:** Keep the readiness percentage tied to session plus the initial home-card prerequisites, not background requests. Keep the CSS pulse and progress-fade timers synchronized; start sniff→lick only after the readiness indicator has faded and the first pulse has completed. Keep startup fetches bounded with `retry: false`; use AuthGuard to resolve a pending session after navigation only if the readiness contract changes.
+
+Per-request timeouts and retries do not guarantee an end-to-end startup deadline. A progress animation can communicate that a request is active, but it cannot make a sleeping or slow backend meet a five-second target.
+
+**Why:** The production API is hosted separately from the frontend; warm health checks were fast, while the reported long wait may be backend wake-up latency.
+
+**How to apply:** Separate progress-indicator behavior from backend response time. Do not claim data is ready or route away solely because a visual timer reached a target; a strict startup SLA requires an always-on backend and end-to-end latency checks.
