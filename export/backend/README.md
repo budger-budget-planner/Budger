@@ -40,12 +40,3 @@ sleep while idle; cold starts and database/network latency can exceed that.
 - Nothing about the database or file storage logic changed — this package
   already talks to Neon Postgres and Supabase Storage directly, not to any
   Replit-managed service.
-
-
-
-
-
-
-
-
-
