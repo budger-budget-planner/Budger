@@ -293,7 +293,7 @@ export default function SplashScreen({
     );
     if (!tagline) return;
 
-    const measure = () => setReadinessWidth(tagline.getBoundingClientRect().width);
+    const measure = () => setReadinessWidth(tagline.offsetWidth);
     measure();
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(measure);

@@ -511,7 +511,7 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   height: 100%;
   border-radius: inherit;
   background: #f0ede6;
-  transition: width 260ms ease;
+  transition: width 600ms ease;
 }
 
 @keyframes pin-shake {
