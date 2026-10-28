@@ -284,20 +284,20 @@ export default function SplashScreen({
     return () => clearTimeout(id);
   }, [readinessIndicatorVisible]);
 
-  // Match the readiness stripe to the visible BUDGER wordmark itself, not the
-  // wider "Budget Planner" tagline. Re-measure when the font or viewport shifts.
+  // Match the readiness stripe to the "Budget Planner" tagline. Re-measure
+  // when its font or the viewport shifts.
   useEffect(() => {
     if (phase !== "showing") return;
-    const wordmark = wordmarkRef.current?.querySelector<HTMLElement>(
-      "[data-budger-wordmark-text]",
+    const tagline = wordmarkRef.current?.querySelector<HTMLElement>(
+      "[data-budger-wordmark-tagline]",
     );
-    if (!wordmark) return;
+    if (!tagline) return;
 
-    const measure = () => setReadinessWidth(wordmark.getBoundingClientRect().width);
+    const measure = () => setReadinessWidth(tagline.getBoundingClientRect().width);
     measure();
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(measure);
-      observer.observe(wordmark);
+      observer.observe(tagline);
       return () => observer.disconnect();
     }
 

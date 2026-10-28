@@ -38,6 +38,7 @@ export default function BudgerWordmark({
       </span>
       {tagline && (
         <span
+          data-budger-wordmark-tagline
           style={{ fontSize: size * 0.295 }}
           className="tracking-widest uppercase text-muted-foreground/60 -mt-1"
         >
