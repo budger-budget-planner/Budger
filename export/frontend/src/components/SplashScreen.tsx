@@ -18,6 +18,8 @@ const READINESS_APPEAR_DELAY_MS = 5_000; // measured from the start of the logo 
 const READINESS_FADE_MS    = 800; // keep in sync with .splash-readiness transition in index.css
 const READINESS_FAKE_DELAY_MS = 2_000;
 const READINESS_FAKE_PERCENT = 17;
+const READINESS_FAKE_NEXT_DELAY_MS = 3_000;
+const READINESS_FAKE_NEXT_PERCENT = 33;
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
 // sniff at 2× speed → lick at ~1.8× speed → glide to destination
@@ -173,10 +175,7 @@ export default function SplashScreen({
   const [readinessComplete, setReadinessComplete] = useState(false);
   const [readinessIndicatorFaded, setReadinessIndicatorFaded] = useState(false);
   const readinessProgressRef = useRef(0);
-  const displayedReadinessProgress =
-    readinessProgress > READINESS_FAKE_PERCENT
-      ? readinessProgress
-      : readinessVisualFloor;
+  const displayedReadinessProgress = Math.max(readinessProgress, readinessVisualFloor);
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -270,18 +269,27 @@ export default function SplashScreen({
     return () => cancelAnimationFrame(frame);
   }, [readinessIndicatorVisible]);
 
-  // If real readiness is still at or below 17% two seconds after the indicator
-  // appears, use a small visual floor to show activity. Real progress always
-  // wins as soon as it passes 17%; the accessible value remains truthful.
+  // Use visual-only progress floors while startup is slow: 17% after two
+  // seconds, then 33% three seconds later if the 17% floor was needed. Real
+  // progress always wins when it passes the current floor; accessible values
+  // remain tied to actual readiness.
   useEffect(() => {
     if (!readinessIndicatorVisible) return;
     setReadinessVisualFloor(0);
-    const id = setTimeout(() => {
-      if (readinessProgressRef.current <= READINESS_FAKE_PERCENT) {
-        setReadinessVisualFloor(READINESS_FAKE_PERCENT);
-      }
+    let nextStageId: ReturnType<typeof setTimeout> | undefined;
+    const firstStageId = setTimeout(() => {
+      if (readinessProgressRef.current > READINESS_FAKE_PERCENT) return;
+      setReadinessVisualFloor(READINESS_FAKE_PERCENT);
+      nextStageId = setTimeout(() => {
+        if (readinessProgressRef.current <= READINESS_FAKE_NEXT_PERCENT) {
+          setReadinessVisualFloor(READINESS_FAKE_NEXT_PERCENT);
+        }
+      }, READINESS_FAKE_NEXT_DELAY_MS);
     }, READINESS_FAKE_DELAY_MS);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(firstStageId);
+      if (nextStageId) clearTimeout(nextStageId);
+    };
   }, [readinessIndicatorVisible]);
 
   // Match the readiness stripe to the "Budget Planner" tagline. Re-measure
