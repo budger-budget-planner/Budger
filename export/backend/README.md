@@ -20,6 +20,8 @@ and no dependency on the other folder or on the original monorepo.
 
 For a consistent startup under five seconds, configure the backend host not to
 sleep while idle; cold starts and database/network latency can exceed that.
+The splash readiness stripe appears after five seconds of pulsing only if data
+is still pending, with its percentage shown below the stripe.
 
 ## What changed from the monorepo version
 
