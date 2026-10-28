@@ -13,4 +13,4 @@ Some Replit shell environments globally rewrite `https://github.com/` to `github
 
 **Why:** The Replit proxy can reject pushes when no GitHub connection is attached, even when direct GitHub access and an authorized token are available.
 
-**How to apply:** This project uses its saved `GITHUB_PERSONAL_ACCESS_TOKEN` as the GitHub integration; do not ask for a second OAuth connection. Use the secret through a temporary askpass script, with explicit push authorization when a push may trigger deployments. Never print or commit the credential; keep the saved remote tokenless and verify the GitHub branch points to the intended commit.
+**How to apply:** This project uses its saved `GITHUB_PERSONAL_ACCESS_TOKEN` as the GitHub integration; do not ask for a second OAuth connection. The user wants explicit permission before each push that can trigger deployments; earlier approval applies only to that push. Use the secret through a temporary askpass script. Never print or commit the credential; keep the saved remote tokenless and verify the GitHub branch points to the intended commit.

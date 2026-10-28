@@ -479,7 +479,7 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   max-width: calc(100vw - 48px);
   transform: translate(-50%, 5px);
   opacity: 0;
-  transition: opacity 320ms ease, transform 320ms ease;
+  transition: opacity 800ms ease, transform 800ms ease;
   pointer-events: none;
 }
 .splash-readiness.is-entered {
