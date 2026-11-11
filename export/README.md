@@ -11,7 +11,6 @@ Each folder is self-contained: its own `package.json` with pinned real
 dependency versions (no workspace/catalog references), its own `tsconfig.json`,
 and no dependency on the other folder or on the original monorepo.
 
-
 ## Recommended deploy order
 
 1. **Backend first** — follow `backend/README.md`. You need its live URL
