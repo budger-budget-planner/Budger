@@ -16,11 +16,11 @@ const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-intro-pulse in index.css
 const READINESS_APPEAR_DELAY_MS = 5_000; // measured from the start of the logo pulse
 const READINESS_FADE_MS    = 800; // keep in sync with .splash-readiness transition in index.css
-const STARTUP_READINESS_BUDGET_MS = 12_000;
+const STARTUP_READINESS_BUDGET_MS = 17_000;
 const READINESS_FAKE_DELAY_MS = 2_000;
 const READINESS_FAKE_PERCENT = 17;
-const READINESS_FAKE_NEXT_DELAY_MS = 3_000;
-const READINESS_FAKE_NEXT_PERCENT = 33;
+const READINESS_FAKE_NEXT_DELAY_MS = 5_000;
+const READINESS_FAKE_NEXT_PERCENT = 55;
 
 // ── Float sequence timing (absolute from mount) ───────────────────────────────
 // sniff at 2× speed → lick at ~1.8× speed → glide to destination
@@ -289,7 +289,7 @@ export default function SplashScreen({
   }, [readinessIndicatorVisible]);
 
   // Use visual-only progress floors while startup is slow: 17% after two
-  // seconds, then 33% three seconds later if the 17% floor was needed. Real
+  // seconds, then 55% five seconds later if the 17% floor was needed. Real
   // progress always wins when it passes the current floor; accessible values
   // remain tied to actual readiness.
   useEffect(() => {
