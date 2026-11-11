@@ -119,7 +119,7 @@ function SmartNotificationsRunner() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useGetMe({
+  const { data: user, isLoading, isFetching, error, refetch } = useGetMe({
     query: { queryKey: getGetMeQueryKey() },
     request: { timeoutMs: 7_000 },
   });
@@ -248,6 +248,31 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+  const sessionStatus = (error as any)?.status as number | undefined;
+  if (!user && error && sessionStatus !== 401) {
+    const isPolish = loadPrefs().language === "pl";
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-8 text-center">
+        <p className="text-lg font-semibold mb-2">
+          {isPolish ? "Nie można połączyć się z serwerem." : "Couldn't connect to the server."}
+        </p>
+        <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+          {isPolish
+            ? "Sprawdź połączenie i spróbuj ponownie."
+            : "Check your connection and try again."}
+        </p>
+        <button
+          onClick={() => { void refetch(); }}
+          disabled={isFetching}
+          className="px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold transition active:scale-95 disabled:opacity-60"
+        >
+          {isFetching
+            ? (isPolish ? "Łączenie…" : "Connecting…")
+            : (isPolish ? "Spróbuj ponownie" : "Try again")}
+        </button>
       </div>
     );
   }

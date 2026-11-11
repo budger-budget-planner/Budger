@@ -486,7 +486,8 @@ html.no-animations *:not(.splash-screen):not(.splash-screen *)::after {
   opacity: 1;
   transform: translateX(-50%);
 }
-.splash-readiness.is-complete {
+.splash-readiness.is-complete,
+.splash-readiness.is-expiring {
   opacity: 0;
   transform: translate(-50%, -5px);
 }

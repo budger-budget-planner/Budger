@@ -16,6 +16,7 @@ const FLOAT_START_MS       = INTRO_BIG_MS + INTRO_TRANSITION_MS; // 2 000 ms
 const PULSE_CYCLE_MS       = 2_000; // keep in sync with .splash-intro-pulse in index.css
 const READINESS_APPEAR_DELAY_MS = 5_000; // measured from the start of the logo pulse
 const READINESS_FADE_MS    = 800; // keep in sync with .splash-readiness transition in index.css
+const STARTUP_READINESS_BUDGET_MS = 12_000;
 const READINESS_FAKE_DELAY_MS = 2_000;
 const READINESS_FAKE_PERCENT = 17;
 const READINESS_FAKE_NEXT_DELAY_MS = 3_000;
@@ -173,9 +174,11 @@ export default function SplashScreen({
   const [readinessIndicatorVisible, setReadinessIndicatorVisible] = useState(false);
   const [readinessIndicatorEntered, setReadinessIndicatorEntered] = useState(false);
   const [readinessComplete, setReadinessComplete] = useState(false);
+  const [startupWaitExpired, setStartupWaitExpired] = useState(false);
   const [readinessIndicatorFaded, setReadinessIndicatorFaded] = useState(false);
   const readinessProgressRef = useRef(0);
   const displayedReadinessProgress = Math.max(readinessProgress, readinessVisualFloor);
+  const readinessGateReleased = readinessComplete || startupWaitExpired;
   const prefetchFiredRef  = useRef(false);   // prevent double-firing wave 1
   const sniffFiredRef     = useRef(false);   // prevent double-firing sniff
   const startupRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,9 +214,16 @@ export default function SplashScreen({
     if (prefetchFiredRef.current) return;
     prefetchFiredRef.current    = true;
     let cancelled = false;
+    let startupDeadlineReached = false;
+    let startupFinished = false;
+    const startupDeadlineId = setTimeout(() => {
+      if (cancelled || startupFinished) return;
+      startupDeadlineReached = true;
+      setStartupWaitExpired(true);
+    }, STARTUP_READINESS_BUDGET_MS);
     async function loadStartupData() {
       let retryDelay = 350;
-      while (!cancelled) {
+      while (!cancelled && !startupDeadlineReached) {
         try {
           await prefetchHomeData(queryClient, (percent) => {
             if (!cancelled) {
@@ -222,13 +232,21 @@ export default function SplashScreen({
               setReadinessProgress((current) => Math.max(current, nextProgress));
             }
           });
-          if (!cancelled) setReadinessComplete(true);
+          if (!cancelled) {
+            startupFinished = true;
+            clearTimeout(startupDeadlineId);
+            setReadinessComplete(true);
+          }
           return;
         } catch {
+          if (cancelled || startupDeadlineReached) return;
           // Keep the pulsing logo and last completed readiness percentage
           // visible while retrying, rather than exposing AuthGuard's spinner.
           await new Promise<void>((resolve) => {
-            startupRetryTimerRef.current = setTimeout(resolve, retryDelay);
+            startupRetryTimerRef.current = setTimeout(() => {
+              startupRetryTimerRef.current = null;
+              resolve();
+            }, retryDelay);
           });
           retryDelay = Math.min(retryDelay * 2, 2_000);
         }
@@ -237,6 +255,7 @@ export default function SplashScreen({
     void loadStartupData();
     return () => {
       cancelled = true;
+      clearTimeout(startupDeadlineId);
       if (startupRetryTimerRef.current) clearTimeout(startupRetryTimerRef.current);
     };
   // queryClient is the stable module-level instance; excluding from deps is safe.
@@ -315,17 +334,17 @@ export default function SplashScreen({
 
   // ── Fade the readiness indicator when all critical data is ready ─────────
   useEffect(() => {
-    if (phase !== "showing" || readinessProgress < 100) return;
+    if (phase !== "showing" || !readinessGateReleased) return;
     const id = setTimeout(() => setReadinessIndicatorFaded(true), READINESS_FADE_MS);
     return () => clearTimeout(id);
-  }, [phase, readinessProgress]);
+  }, [phase, readinessGateReleased]);
 
   // ── Facial animation starts after readiness and one full still-faced pulse ─
   useEffect(() => {
     if (
       phase !== "showing" ||
       !pulseComplete ||
-      !readinessComplete ||
+      !readinessGateReleased ||
       !readinessIndicatorFaded ||
       sniffFiredRef.current
     ) return;
@@ -345,7 +364,7 @@ export default function SplashScreen({
     }, SNIFF_MS + GAP_MS + LICK_MS + SETTLE_MS));
     return () => ids.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, pulseComplete, readinessComplete, readinessIndicatorFaded]);
+  }, [phase, pulseComplete, readinessGateReleased, readinessIndicatorFaded]);
 
   // ── Exit glide ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -652,7 +671,7 @@ export default function SplashScreen({
         !readinessIndicatorFaded &&
         !sniffFiredRef.current && (
           <div
-            className={`splash-readiness${readinessIndicatorEntered ? " is-entered" : ""}${readinessProgress >= 100 ? " is-complete" : ""}`}
+            className={`splash-readiness${readinessIndicatorEntered ? " is-entered" : ""}${readinessProgress >= 100 ? " is-complete" : ""}${startupWaitExpired && readinessProgress < 100 ? " is-expiring" : ""}`}
             role="progressbar"
             aria-label="App readiness"
             aria-busy={readinessProgress < 100}
