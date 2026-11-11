@@ -26,6 +26,7 @@ is still pending, with its percentage shown below the stripe.
 
 ## What changed from the monorepo version
 
+
 - Shared packages (`@workspace/db`, `@workspace/api-zod`,
   `@workspace/api-client-react`) were copied in as local source
   (`backend/src/db`, `backend/src/api-zod`, `frontend/src/lib/api-client`)
