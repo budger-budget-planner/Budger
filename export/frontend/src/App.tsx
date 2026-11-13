@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, Component, type ErrorInfo, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, Component, type ErrorInfo, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import SplashScreen from "@/components/SplashScreen";
 import WinkSplashScreen from "@/components/WinkSplashScreen";
@@ -32,6 +32,7 @@ import {
   clearSession,
   takePendingOnboarding,
   setActiveUserId,
+  getActiveUserId,
   type AppPrefs,
 } from "@/lib/prefs";
 import { setLang } from "@/lib/i18n";
@@ -123,7 +124,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     query: { queryKey: getGetMeQueryKey() },
     request: { timeoutMs: 7_000 },
   });
-  const [, navigate] = useLocation();
+  const [pathname, navigate] = useLocation();
+  const appReady = useContext(AppReadyContext);
   const logout = useLogout();
   const resetSplash = useSplashReset();
   const [onboarded, setOnboarded] = useState(isOnboardingDone);
@@ -136,6 +138,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   // (e.g. during a staySignedIn=false sessionStorage check) can call mutate()
   // again, hammering the auth limiter and causing "Too many attempts".
   const logoutCalledRef = useRef(false);
+  const hasPreviousAccount = getActiveUserId() !== null;
+  const hasSessionHint = loadPrefs().staySignedIn || hasActiveSession();
+  const canShowHomeWhileChecking =
+    pathname === "/" && appReady && hasPreviousAccount && hasSessionHint;
 
   // Global 401 handler: any API call (not just /api/me) that returns 401 fires
   // the "budger:unauthorized" event from customFetch.  Invalidating /api/me here
@@ -245,6 +251,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [isLoading, user, error, navigate]);
 
   if (isLoading) {
+    // Once the splash starts fading, show the existing Home loading state for
+    // a remembered account instead of replacing it with a full-screen spinner.
+    // The API remains authoritative: a confirmed 401 still routes to login.
+    if (canShowHomeWhileChecking) return children;
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
