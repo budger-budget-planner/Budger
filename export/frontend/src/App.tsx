@@ -140,7 +140,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const logoutCalledRef = useRef(false);
   const hasPreviousAccount = getActiveUserId() !== null;
   const hasSessionHint = loadPrefs().staySignedIn || hasActiveSession();
-  const canShowHomeWhileChecking =
+  const canShowRememberedHome =
     pathname === "/" && appReady && hasPreviousAccount && hasSessionHint;
 
   // Global 401 handler: any API call (not just /api/me) that returns 401 fires
@@ -254,7 +254,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     // Once the splash starts fading, show the existing Home loading state for
     // a remembered account instead of replacing it with a full-screen spinner.
     // The API remains authoritative: a confirmed 401 still routes to login.
-    if (canShowHomeWhileChecking) return children;
+    if (canShowRememberedHome) return children;
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -263,6 +263,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   const sessionStatus = (error as any)?.status as number | undefined;
   if (!user && error && sessionStatus !== 401) {
+    // Keep transient session failures inside the Home screen when we have a
+    // remembered account; HomeSpending owns the inline retry message there.
+    if (canShowRememberedHome) return children;
     const isPolish = loadPrefs().language === "pl";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-8 text-center">

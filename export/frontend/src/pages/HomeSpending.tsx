@@ -1333,7 +1333,14 @@ export default function HomeSpending() {
     fetchRates().then(setRates).catch(() => {});
   }, []);
   const updateMerchantRule = useUpdateMerchantCategoryRule();
-  const { data: me } = useGetMe();
+  const {
+    data: me,
+    error: sessionError,
+    isFetching: isFetchingSession,
+    refetch: retrySession,
+  } = useGetMe();
+  const sessionErrorStatus = (sessionError as any)?.status as number | undefined;
+  const showSessionRetry = !me && !!sessionError && sessionErrorStatus !== 401;
   const myUserId = (me as any)?.id;
 
   const isInHousehold = !!(me as any)?.householdId;
@@ -1994,7 +2001,30 @@ export default function HomeSpending() {
 
       {/* ── Transaction list ── */}
       <div className="flex-1 px-5 space-y-5 pb-4">
-        {isLoading ? (
+        {showSessionRetry ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <p className="text-sm font-medium">
+              {prefs.language === "pl"
+                ? "Nie można połączyć się z serwerem."
+                : "Couldn't connect to the server."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {prefs.language === "pl"
+                ? "Sprawdź połączenie i spróbuj ponownie."
+                : "Check your connection and try again."}
+            </p>
+            <button
+              type="button"
+              onClick={() => { void retrySession(); }}
+              disabled={isFetchingSession}
+              className="px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold transition active:scale-95 disabled:opacity-60"
+            >
+              {isFetchingSession
+                ? (prefs.language === "pl" ? "Łączenie…" : "Connecting…")
+                : (prefs.language === "pl" ? "Spróbuj ponownie" : "Try again")}
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
